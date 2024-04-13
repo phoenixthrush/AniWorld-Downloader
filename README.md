@@ -10,7 +10,7 @@ This project is a command line tool for downloading content from aniworld.to and
 - [ ] Implement option to download whole seasons
 - [ ] Implement option to download multiple seasons
 - [ ] Add Anime4K option to arguments
-- [ ] Add search function to query series
+- [x] Add search function to query series
 - [ ] Implement option to choose between dub and sub and language
 - [ ] Create subfolders for each season in the download directory
 - [ ] Check locally installed dependencies
