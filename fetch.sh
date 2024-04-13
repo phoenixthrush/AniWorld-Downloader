@@ -107,7 +107,49 @@ main() {
     fi
 
     if [[ -z "$link" ]]; then
-        error_exit "No link provided. Please provide a valid link."
+    read -p "Search for a series: " keyword
+    encoded_keyword=$(printf %s "$keyword" | jq -s -R -r @uri)
+    
+    json_data=$(curl -s "https://aniworld.to/ajax/seriesSearch?keyword=$encoded_keyword")
+
+    names_with_years=$(echo "$json_data" | jq -r '.[] | "\(.name) \(.productionYear)"')
+    links=$(echo "$json_data" | jq -r '.[] | .link')
+
+    IFS=$'\n' read -rd '' -a names_array <<<"$names_with_years"
+    IFS=$'\n' read -rd '' -a links_array <<<"$links"
+
+    results=()
+
+    for index in "${!names_array[@]}"; do
+        name_with_year="${names_array[index]}"
+        link="${links_array[index]}"
+        year=$(echo "$name_with_year" | grep -o "(.*[0-9]\{4\} - [0-9]\{4\})")
+        name=$(echo "$name_with_year" | sed 's/ (.*)//')
+        results+=("$name $year")
+    done
+
+    echo "Available anime series:"
+    for index in "${!results[@]}"; do
+        echo "$((index + 1)). ${results[index]}"
+    done
+
+    read -p "Enter the number of the anime series you want to select: " selection
+
+    if [[ $selection =~ ^[0-9]+$ ]]; then
+        if ((selection >= 1 && selection <= ${#results[@]})); then
+            selected_index=$((selection - 1))
+            selected_name_year="${results[selected_index]}"
+            selected_link="${links_array[selected_index]}"
+            #echo Debug "You selected: $selected_name_year"
+            #echo Debug "Link: https://aniworld.to/anime/stream/$selected_link/"
+            read -p "Enter the season and episode number (e.g., S1E1): " episode
+            link=https://aniworld.to/anime/stream/$link/staffel-${episode:1:1}/episode-${episode:3}
+        else
+            echo "Invalid selection. Please enter a number between 1 and ${#results[@]}."
+        fi
+    else
+        echo "Invalid input. Please enter a number."
+    fi
     fi
 
     if [[ "$link" =~ ^(https?://)?s\.to/.*$ ]]; then
@@ -136,6 +178,7 @@ download() {
     local download_info=$(get_download_link "$episode")
     local download_link=$(echo "$download_info" | cut -d ' ' -f 1)
     local episode_filename=$(echo "$download_info" | cut -d ' ' -f 2)
+    #echo Debug $download_link
     ../../yt_dlp/yt-dlp -q --progress "$download_link" --no-warnings -o "$episode_filename"
 }
 
@@ -148,6 +191,7 @@ watch() {
     local download_info=$(get_download_link "$episode")
     local download_link=$(echo "$download_info" | cut -d ' ' -f 1)
     local episode_filename=$(echo "$download_info" | cut -d ' ' -f 2)
+    #echo Debug $download_link
     mpv "$download_link" --quiet --really-quiet
 }
 
