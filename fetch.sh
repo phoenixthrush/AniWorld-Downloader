@@ -70,8 +70,46 @@ get_download_link() {
     echo "$link" "$episode_filename"
 }
 
-validate_link() {
-    local link="$1"
+main() {
+    local link=""
+    local watch_selected=false
+    local download_selected=false
+
+    for arg in "$@"; do
+        case "$arg" in
+            --watch)
+                if [[ "$download_selected" == true ]]; then
+                    error_exit "Invalid combination of arguments: --watch and --download cannot be used together."
+                fi
+                watch_selected=true
+                ;;
+            --download)
+                if [[ "$watch_selected" == true ]]; then
+                    error_exit "Invalid combination of arguments: --watch and --download cannot be used together."
+                fi
+                download_selected=true
+                ;;
+            http*://*)
+                link="$arg"
+                ;;
+            *)
+                error_exit "Invalid argument: $arg. Please use --download or --watch."
+                ;;
+        esac
+    done
+
+    if [[ "$watch_selected" == true && "$download_selected" == true ]]; then
+        error_exit "Invalid combination of arguments: --watch and --download cannot be used together."
+    fi
+
+    if [[ "$watch_selected" == false && "$download_selected" == false ]]; then
+        download_selected=true
+    fi
+
+    if [[ -z "$link" ]]; then
+        error_exit "No link provided. Please provide a valid link."
+    fi
+
     if [[ "$link" =~ ^(https?://)?s\.to/.*$ ]]; then
         domain="s.to"
     elif [[ "$link" =~ ^(https?://)?aniworld\.to/.*$ ]]; then
@@ -79,10 +117,15 @@ validate_link() {
     else
         error_exit "Invalid link. Please provide a valid link from s.to or aniworld.to domain."
     fi
-    main "$link"
+
+    if [[ "$watch_selected" == true ]]; then
+        watch "$link"
+    elif [[ "$download_selected" == true ]]; then
+        download "$link"
+    fi
 }
 
-main() {
+download() {
     local link="$1"
     check_arguments "$link"
     download_youtube_dl
@@ -96,4 +139,16 @@ main() {
     ../../yt_dlp/yt-dlp -q --progress "$download_link" --no-warnings -o "$episode_filename"
 }
 
-validate_link "$1"
+watch() {
+    local link="$1"
+    check_arguments "$link"
+    check_spam "$link"
+    local title=$(get_title "$link")
+    local episode=$(curl -sL "$link" | grep -o 'episodeLink[0-9]*' | awk -F'episodeLink' '{print $2}' | head -n 1)
+    local download_info=$(get_download_link "$episode")
+    local download_link=$(echo "$download_info" | cut -d ' ' -f 1)
+    local episode_filename=$(echo "$download_info" | cut -d ' ' -f 2)
+    mpv "$download_link" --quiet --really-quiet
+}
+
+main "$@"
