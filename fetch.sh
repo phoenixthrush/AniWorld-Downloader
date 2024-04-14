@@ -63,7 +63,7 @@ get_download_link() {
         episode_filename=$(curl https://s.to/redirect/"$episode" -sL | grep '<div class="plyr-player-title">' | sed 's/<[^>]*>//g')
     elif [[ "$domain" == "aniworld.to" ]]; then
         link=$(curl -sL https://aniworld.to/redirect/"$episode" | grep m3u8 | grep -oE 'https?://\S+' | head -n 1 | rev | cut -c 3- | rev)
-        episode_filename=$(curl -sL https://aniworld.to/redirect/2446186 | grep -o '<meta name="og:title" content="[^"]*"' | sed 's/content="//;s/"$//' | awk '{print $3}')
+        episode_filename=$(curl -sL https://aniworld.to/redirect/"$episode" | grep -o '<meta name="og:title" content="[^"]*"' | sed 's/content="//;s/"$//' | awk '{print $3}')
     else
         error_exit "Invalid domain."
     fi
