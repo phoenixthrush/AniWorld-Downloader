@@ -1,0 +1,13 @@
+beautifulsoup4==4.12.3
+Brotli==1.1.0
+certifi==2024.2.2
+charset-normalizer==3.3.2
+idna==3.7
+mpv==1.0.5
+mutagen==1.47.0
+pycryptodomex==3.20.0
+requests==2.31.0
+soupsieve==2.5
+urllib3==2.2.1
+websockets==12.0
+yt-dlp==2024.4.9
