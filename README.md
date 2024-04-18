@@ -8,8 +8,21 @@ AniWorld Downloader is a command-line tool designed to download content from ani
 
 To use AniWorld Downloader, follow these steps:
 
-1. Clone the repository to your local machine.
-2. Install the required dependencies by running `pip install -r requirements.txt`.
+1. Clone the repository to your local machine:
+   `git clone https://github.com/phoenixthrush/AniWorld-Downloader.git`
+3. Navigate to the project directory.
+4. Set up a virtual environment:
+   - On Unix/Linux/macOS:
+     ```
+     python3 -m venv venv
+     source venv/bin/activate
+     ```
+   - On Windows:
+     ```
+     python -m venv venv
+     venv\Scripts\activate
+     ```
+5. Install the required dependencies by running `pip install -r requirements.txt`.
 3. Run the script using Python: `python main.py [options]`.
 
 ## Options
