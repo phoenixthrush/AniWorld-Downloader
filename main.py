@@ -263,10 +263,12 @@ def download_with_ytdlp(url, series):
     if options.link_only:
         print(url)
         shutdown()
-    try:
+    
+    os = platform()
+    if os == "Windows":
+        makedirs(f"Downloads\\{series.series}", exist_ok=True)
+    else:
         makedirs(f"Downloads/{series.series}", exist_ok=True)
-    except FileExistsError as e:
-        print("Error creating directory:", e)
 
     try:
         yt_opts = {
