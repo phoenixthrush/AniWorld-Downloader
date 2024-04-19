@@ -124,6 +124,14 @@ def get_content_providers(url_with_episode):  # pylint: disable=too-many-locals 
     host_series_title = soup.find('div', class_='hostSeriesTitle')
     series_title = host_series_title.text.strip() if host_series_title else None
 
+    try:
+        episode_title = soup.find("span", class_="episodeGermanTitle").text
+    except AttributeError:
+        episode_title = None
+
+    if episode_title is None:
+        episode_title = soup.find("small", class_="episodeEnglishTitle").text
+
     language_div = soup.find('div', class_='changeLanguageBox')
 
     if language_div:
@@ -156,7 +164,7 @@ def get_content_providers(url_with_episode):  # pylint: disable=too-many-locals 
                     filename=None,
                     hls_link=None,
                     episodes=None,
-                    episode_title=soup.find("span", class_="episodeGermanTitle").text
+                    episode_title=episode_title
                 )
             else:
                 print("No watchEpisode link found within generateInlinePlayer div.")
@@ -266,7 +274,7 @@ def download_with_ytdlp(url, series):
 
     os = platform()
     if os == "Windows":
-        makedirs(f"Downloads\{series.series}", exist_ok=True)
+        makedirs(f"Downloads\\{series.series}", exist_ok=True)
     else:
         makedirs(f"Downloads/{series.series}", exist_ok=True)
 
