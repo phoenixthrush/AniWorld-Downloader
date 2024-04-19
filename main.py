@@ -9,7 +9,7 @@ from hashlib import sha256
 from json import loads
 from os import makedirs, system, path
 from platform import system as platform
-from re import search, findall
+from re import search, findall, match
 from sys import exit as shutdown
 from tarfile import TarError, open as tarfile_open
 from urllib.error import URLError
@@ -20,11 +20,12 @@ from bs4 import BeautifulSoup
 from py7zr import SevenZipFile
 from yt_dlp import YoutubeDL, DownloadError
 
-class Options: # pylint: disable=too-few-public-methods
+class Options: # pylint: disable=too-few-public-methods, too-many-arguments
     """
     Handles system arguments for options.
     """
-    def __init__(self, verbose=False, download=False, watch=True, link_only=False):
+    def __init__(self, link=None, verbose=False, download=False, watch=True, link_only=False):
+        self.link = link
         self.verbose = verbose
         self.download = download
         self.watch = watch
@@ -42,13 +43,22 @@ class Options: # pylint: disable=too-few-public-methods
             Options: An Options object representing the specified command-line options.
         """
         parser = ArgumentParser(description='Handle system arguments for options')
+        parser.add_argument('--link', help='Aniworld.to link')
         parser.add_argument('--verbose', action='store_true', help='Enable verbose mode')
         parser.add_argument('--download', action='store_true', help='Enable download mode')
         parser.add_argument('--watch', action='store_true', help='Enable watch mode')
         parser.add_argument('--link_only', action='store_true', help='Enable link_only mode')
 
         args = parser.parse_args()
+
+        if args.link:
+            aniworld_pattern = r'https?://aniworld\.to/anime/stream/[^/]+/staffel-\d+/episode-\d+'
+            if not match(aniworld_pattern, args.link):
+                print("The provided link does not match the aniworld.to episode link pattern.")
+                args.link = None
+
         return cls(
+            link=args.link,
             verbose=args.verbose,
             download=args.download,
             watch=args.watch,
@@ -72,18 +82,19 @@ class ContentProvider: # pylint: disable=too-few-public-methods
         self.language = language
         self.link = f"https://aniworld.to{link}"
 
-class Series: # pylint: disable=too-few-public-methods
+class Series: # pylint: disable=too-few-public-methods, too-many-arguments
     """
     Represents a series of anime episodes.
 
     This class stores information about a series, including its name, episodes,
     filename, HLS link, and video height.
     """
-    def __init__(self, episodes, series_name, filename, hls_link):
+    def __init__(self, episodes, series_name, filename, hls_link, episode_title):
         self.episodes = episodes
         self.series = series_name
         self.filename = filename
         self.hls_link = hls_link
+        self.episode_title = episode_title
 
 def get_content_providers(url_with_episode): # pylint: disable=too-many-locals # :D
     """
@@ -137,15 +148,15 @@ def get_content_providers(url_with_episode): # pylint: disable=too-many-locals #
                 provider = ContentProvider(provider=hoster, language=language, link=redirect_link)
                 providers_list.append(provider)
                 series = Series(
-                    series_name=series_title,
-                    filename=None,
-                    hls_link=None,
-                    episodes=None
+                    series_name = series_title,
+                    filename = None,
+                    hls_link = None,
+                    episodes = None,
+                    episode_title = soup.find("span", class_="episodeGermanTitle").text
                 )
             else:
                 print("No watchEpisode link found within generateInlinePlayer div.")
                 shutdown()
-
     else:
         print("Language information not found in the HTML.")
         shutdown()
@@ -179,10 +190,10 @@ def get_stream_url(url, series):
         filename = None
 
     pattern = r"'hls': '(.*?)'"
-    match = search(pattern, html_content_inner)
+    match_hls = search(pattern, html_content_inner)
 
-    if match:
-        hls_link = match.group(1)
+    if match_hls:
+        hls_link = match_hls.group(1)
     else:
         print("HLS link not found.")
         shutdown()
@@ -202,6 +213,11 @@ def play_hls_link(hls_link):
     Returns:
         None
     """
+    mpv_title = (
+        f"{updated_series.series} - "
+        f"{updated_series.episode_title}"
+    )
+
     if options.link_only:
         print(hls_link)
         shutdown()
@@ -210,17 +226,17 @@ def play_hls_link(hls_link):
         if os == "Linux":
             system(
                 f"mpv \"{hls_link}\" "
-                f"--quiet --really-quiet --title=\"{updated_series.series}\""
+                f"--quiet --really-quiet --title=\"{mpv_title}\""
             )
         elif os == "Darwin":
             system(
                 f"./mpv/mpv.app/Contents/MacOS/mpv \"{hls_link}\" "
-                f"--quiet --really-quiet --title=\"{updated_series.series}\""
+                f"--quiet --really-quiet --title=\"{mpv_title}\""
             )
         elif os == "Windows":
             system(
                 f".\\mpv\\mpv.exe \"{hls_link}\" "
-                f"--quiet --really-quiet --title=\"{updated_series.series}\""
+                f"--quiet --really-quiet --title=\"{mpv_title}\""
             )
         else:
             print("Could not determine OS.")
@@ -485,9 +501,9 @@ def get_last_episode(soup):
     Returns:
         int: The last episode number.
     """
-    match = search(r'Episoden:\s*(.*)', soup.text)
-    if match:
-        content = match.group(1)
+    match_last_ep = search(r'Episoden:\s*(.*)', soup.text)
+    if match_last_ep:
+        content = match_last_ep.group(1)
         return max(map(int, findall(r'\d+', content)))
     return 0
 
@@ -521,8 +537,8 @@ def get_episode_links(selected_link):
         if options.verbose:
             print(link)
         episode_links.append(link)
-    return episode_links
 
+    return episode_links
 
 def select_language(languages):
     """
@@ -556,8 +572,11 @@ if __name__ == "__main__":
     options = Options.from_args()
 
     try:
-        episode_links_outer, html_content = search_series()
-        url_with_episode_debug = episode_links_outer[0]  # Debug
+        if options.link:
+            url_with_episode_debug = options.link
+        else:
+            episode_links_outer, html_content = search_series()
+            url_with_episode_debug = episode_links_outer[0]  # Debug: always first entered episode
 
         providers, initial_series = get_content_providers(url_with_episode_debug)
 
