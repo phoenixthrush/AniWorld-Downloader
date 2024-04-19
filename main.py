@@ -1,6 +1,6 @@
 """
-AniWorld Downloader is a command-line tool designed to download content from aniworld.to. 
-It offers various features, including fetching single episodes, downloading entire seasons, 
+AniWorld Downloader is a command-line tool designed to download content from aniworld.to.
+It offers various features, including fetching single episodes, downloading entire seasons,
 organizing downloads into structured directories, and supporting multiple operating systems.
 """
 
@@ -20,7 +20,8 @@ from bs4 import BeautifulSoup
 from py7zr import SevenZipFile
 from yt_dlp import YoutubeDL, DownloadError
 
-class Options: # pylint: disable=too-few-public-methods, too-many-arguments
+
+class Options:  # pylint: disable=too-few-public-methods, too-many-arguments
     """
     Handles system arguments for options.
     """
@@ -65,10 +66,11 @@ class Options: # pylint: disable=too-few-public-methods, too-many-arguments
             link_only=args.link_only
         )
 
-class ContentProvider: # pylint: disable=too-few-public-methods
+
+class ContentProvider:  # pylint: disable=too-few-public-methods
     """
     Represents a content provider for streaming anime episodes.
-    
+
     This class encapsulates information about a content provider, including its name,
     language, and link.
 
@@ -82,7 +84,8 @@ class ContentProvider: # pylint: disable=too-few-public-methods
         self.language = language
         self.link = f"https://aniworld.to{link}"
 
-class Series: # pylint: disable=too-few-public-methods, too-many-arguments
+
+class Series:  # pylint: disable=too-few-public-methods, too-many-arguments
     """
     Represents a series of anime episodes.
 
@@ -96,7 +99,8 @@ class Series: # pylint: disable=too-few-public-methods, too-many-arguments
         self.hls_link = hls_link
         self.episode_title = episode_title
 
-def get_content_providers(url_with_episode): # pylint: disable=too-many-locals # :D
+
+def get_content_providers(url_with_episode):  # pylint: disable=too-many-locals # :D
     """
     Fetches content providers for a given URL with episodes.
 
@@ -148,11 +152,11 @@ def get_content_providers(url_with_episode): # pylint: disable=too-many-locals #
                 provider = ContentProvider(provider=hoster, language=language, link=redirect_link)
                 providers_list.append(provider)
                 series = Series(
-                    series_name = series_title,
-                    filename = None,
-                    hls_link = None,
-                    episodes = None,
-                    episode_title = soup.find("span", class_="episodeGermanTitle").text
+                    series_name=series_title,
+                    filename=None,
+                    hls_link=None,
+                    episodes=None,
+                    episode_title=soup.find("span", class_="episodeGermanTitle").text
                 )
             else:
                 print("No watchEpisode link found within generateInlinePlayer div.")
@@ -162,6 +166,7 @@ def get_content_providers(url_with_episode): # pylint: disable=too-many-locals #
         shutdown()
 
     return providers_list, series
+
 
 def get_stream_url(url, series):
     """
@@ -203,6 +208,7 @@ def get_stream_url(url, series):
 
     return series
 
+
 def play_hls_link(hls_link):
     """
     Plays the HLS link using the MPV media player.
@@ -242,6 +248,7 @@ def play_hls_link(hls_link):
             print("Could not determine OS.")
             shutdown()
 
+
 def download_with_ytdlp(url, series):
     """
     Downloads the video using youtube-dl.
@@ -273,6 +280,7 @@ def download_with_ytdlp(url, series):
     except DownloadError as e:
         print("Could not download using yt-dlp:", e)
 
+
 def calculate_checksum(file_path, checksum):
     """
     Calculates the checksum of a file and compares it with the provided checksum.
@@ -298,6 +306,7 @@ def calculate_checksum(file_path, checksum):
 
     return True
 
+
 def extract_zip(archive_path, extract_path):
     """
     Extracts a gzip-compressed tar archive or a 7z archive to a specified directory.
@@ -322,7 +331,8 @@ def extract_zip(archive_path, extract_path):
         with SevenZipFile(archive_path, mode='r') as z:
             z.extractall(path=extract_path)
 
-def get_mpv(download = True):
+
+def get_mpv(download=True):
     """
     Downloads and extracts the MPV media player if it's not already downloaded.
 
@@ -354,8 +364,9 @@ def get_mpv(download = True):
             if not path.exists("mpv/mpv.app"):
                 try:
                     makedirs("mpv", exist_ok=True)
-                    urlretrieve("https://laboratory.stolendata.net/~djinn/mpv_osx/mpv-0.37.0.tar.gz"
-                                ,"mpv/mpv-0.37.0.tar.gz")
+                    urlretrieve("https://laboratory.stolendata.net/~djinn/"
+                                "mpv_osx/mpv-0.37.0.tar.gz",
+                                "mpv/mpv-0.37.0.tar.gz")
                 except FileNotFoundError as e:
                     print("Could not find the directory: ", e)
                 except URLError as e:
@@ -364,7 +375,8 @@ def get_mpv(download = True):
                 # mpv-0.37.0.tar.gz
                 # sha256:73a44595dc36b3aab6bd92e4426ede3478c5dd2d5cf8ca446b110ce520f12e47
                 if not calculate_checksum("mpv/mpv-0.37.0.tar.gz",
-                    "73a44595dc36b3aab6bd92e4426ede3478c5dd2d5cf8ca446b110ce520f12e47"):
+                                          "73a44595dc36b3aab6bd92e4426ede3478c5dd2d5cf8ca"
+                                          "446b110ce520f12e47"):
                     shutdown()
                 extract_zip("mpv/mpv-0.37.0.tar.gz", "mpv/")
         elif os == "Windows":
@@ -372,8 +384,8 @@ def get_mpv(download = True):
                 try:
                     makedirs("mpv", exist_ok=True)
                     urlretrieve("https://sourceforge.net/projects/mpv-player-windows/"
-                                "files/latest/download"
-                                ,"mpv/mpv-x86_64-v3-latest-git.7z")
+                                "files/latest/download",
+                                "mpv/mpv-x86_64-v3-latest-git.7z")
                 except FileNotFoundError as e:
                     print("Could not find the directory: ", e)
                 except URLError as e:
@@ -382,6 +394,7 @@ def get_mpv(download = True):
         else:
             print("Could not determine OS.")
             shutdown()
+
 
 def search_series():
     """
@@ -416,6 +429,7 @@ def search_series():
     inner_episode_links, inner_html_content = list_episodes(selected_link)
     return inner_episode_links, inner_html_content
 
+
 def parse_results(json_data):
     """
     Parses the JSON data to extract series names and links.
@@ -429,6 +443,7 @@ def parse_results(json_data):
     names_with_years = [f"{entry['name']} {entry['productionYear']}" for entry in json_data]
     links = [entry['link'] for entry in json_data]
     return list(zip(names_with_years, links))
+
 
 def select_series(results):
     """
@@ -449,6 +464,7 @@ def select_series(results):
         return select_series_from_input(selection, results)
     return results[0][1]
 
+
 def select_series_from_input(selection, results):
     """
     Handles user input to select a series.
@@ -468,6 +484,7 @@ def select_series_from_input(selection, results):
     else:
         print("Invalid input. Please enter a number.")
     return select_series(results)
+
 
 def list_episodes(selected_link):
     """
@@ -491,6 +508,7 @@ def list_episodes(selected_link):
 
     return get_episode_links(selected_link), inner_html_content
 
+
 def get_last_episode(soup):
     """
     Extracts the last episode number from the HTML content.
@@ -506,6 +524,7 @@ def get_last_episode(soup):
         content = match_last_ep.group(1)
         return max(map(int, findall(r'\d+', content)))
     return 0
+
 
 def get_episode_links(selected_link):
     """
@@ -540,6 +559,7 @@ def get_episode_links(selected_link):
 
     return episode_links
 
+
 def select_language(languages):
     """
     Allows the user to select a language from a list of available languages.
@@ -567,6 +587,7 @@ def select_language(languages):
             print(f"Invalid selection. Please enter a number between 1 and {len(languages)}.")
         else:
             print("Invalid input. Please enter a number.")
+
 
 if __name__ == "__main__":
     options = Options.from_args()
