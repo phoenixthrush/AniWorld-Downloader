@@ -19,7 +19,7 @@ To use AniWorld Downloader, follow these steps:
      ```
    - On Windows:
      ```
-     python -m venv venv
+     py -m venv venv
      venv\Scripts\activate
      ```
 5. Install the required dependencies by running `pip install -r requirements.txt`.
@@ -29,6 +29,7 @@ To use AniWorld Downloader, follow these steps:
 
 The available options include:
 
+- `--link`: Aniworld.to link
 - `--verbose`: Enable verbose mode for detailed output.
 - `--download`: Enable download mode to download content.
 - `--watch`: Enable watch mode to stream content.
