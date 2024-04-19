@@ -263,10 +263,10 @@ def download_with_ytdlp(url, series):
     if options.link_only:
         print(url)
         shutdown()
-    
+
     os = platform()
     if os == "Windows":
-        makedirs(f"Downloads\\{series.series}", exist_ok=True)
+        makedirs(f"Downloads\{series.series}", exist_ok=True)
     else:
         makedirs(f"Downloads/{series.series}", exist_ok=True)
 
