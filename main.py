@@ -338,8 +338,9 @@ def extract_zip(archive_path, extract_path):
             print("Could not extract mpv:", e)
             shutdown()
     elif file_extension[-1] == "7z":
-        with SevenZipFile(archive_path, mode='r') as z:
-            z.extractall(path=extract_path)
+        archive = SevenZipFile(archive_path, mode='r')
+        archive.extractall(path=extract_path)
+        archive.close()
 
 
 def get_mpv(download=True):
@@ -512,9 +513,16 @@ def list_episodes(selected_link):
         inner_html_content = response.read().decode("utf-8")
 
     soup = BeautifulSoup(inner_html_content, "html.parser")
+
+    last_season_str = soup.find('meta', itemprop='numberOfSeasons').get('content')
+    last_season = int(last_season_str)
     last_episode = get_last_episode(soup)
 
-    print("Available Episodes: 0-" + str(last_episode))
+    if search("Alle Filme", str(soup.prettify())):
+        last_season -= 1
+
+    print("Available Season(s): " + str(last_season))
+    print("Available Episodes:  " + str(last_episode))
 
     return get_episode_links(selected_link), inner_html_content
 
