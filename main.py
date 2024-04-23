@@ -5,6 +5,7 @@ organizing downloads into structured directories, and supporting multiple operat
 """
 
 from argparse import ArgumentParser
+from base64 import b64decode
 from hashlib import sha256
 from json import loads
 from os import makedirs, system, path
@@ -212,7 +213,7 @@ def get_stream_url(url, series):
         shutdown()
 
     series.filename = filename
-    series.hls_link = hls_link
+    series.hls_link = b64decode(hls_link).decode()
 
     return series
 
