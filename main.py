@@ -339,9 +339,8 @@ def extract_zip(archive_path, extract_path):
             print("Could not extract mpv:", e)
             shutdown()
     elif file_extension[-1] == "7z":
-        archive = SevenZipFile(archive_path, mode='r')
-        archive.extractall(path=extract_path)
-        archive.close()
+        with SevenZipFile(archive_path, 'r') as archive:
+            archive.extractall(path=extract_path)
 
 
 def get_mpv(download=True):
