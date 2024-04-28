@@ -16,11 +16,14 @@ from tarfile import TarError, open as tarfile_open
 from urllib.error import URLError
 from urllib.parse import quote
 from urllib.request import urlopen, urlretrieve
+import re
 
 from bs4 import BeautifulSoup
 from py7zr import SevenZipFile
 from yt_dlp import YoutubeDL, DownloadError
 
+
+WINDOWS_DISALLOWED_CHARS=r'[\/:*?"<>]'
 
 class Options:  # pylint: disable=too-few-public-methods, too-many-arguments
     """
@@ -274,17 +277,20 @@ def download_with_ytdlp(url, series):
         shutdown()
 
     os = platform()
+    download_to = path.join("Downloads", series.series)
     if os == "Windows":
-        makedirs(f"Downloads\\{series.series}", exist_ok=True)
-    else:
-        makedirs(f"Downloads/{series.series}", exist_ok=True)
-
+        download_to = re.sub(WINDOWS_DISALLOWED_CHARS, '', download_to)
+    makedirs(download_to, exist_ok=True)
+    download_to = path.join(download_to, series.filename)
+    if os == "Windows":
+        download_to = re.sub(WINDOWS_DISALLOWED_CHARS, '', download_to)
+    
     try:
         yt_opts = {
             'quiet': True,
             'progress': True,
             'no_warnings': True,
-            'outtmpl': f"Downloads/{series.series}/{series.filename}",
+            'outtmpl':  download_to,
         }
         ytdlp = YoutubeDL(yt_opts)
         ytdlp.download([url])
