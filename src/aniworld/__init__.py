@@ -1,5 +1,6 @@
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
+from os import system
 
 from bs4 import BeautifulSoup
 
@@ -42,18 +43,18 @@ def providers(soup) -> dict:
     return extracted_data
 
 
-url = "https://aniworld.to/anime/stream/gods-games-we-play/staffel-1/episode-1"
+#url = "https://aniworld.to/anime/stream/gods-games-we-play/staffel-1/episode-1"
+url = "https://aniworld.to/anime/stream/an-archdemons-dilemma-how-to-love-your-elf-bride/staffel-1/episode-6"
 soup = BeautifulSoup(make_request(url), 'html.parser')
 data = providers(soup)
 
-
+"""
 for language in data["VOE"]:
     soup = BeautifulSoup(make_request(data["VOE"][language]), 'html.parser')
     print(f"{str(language).replace("1", "German Dub").replace("2", "English Sub").replace("3", "German Sub")}: {voe_get_direct_link(soup)}")
 
 for language in data["Doodstream"]:
-    soup = BeautifulSoup(make_request(data["Doodstream"][language]), 'html.parser')
-    print(f"{str(language).replace("1", "German Dub").replace("2", "English Sub").replace("3", "German Sub")}: {doodstream_get_direct_link(soup)}")
+    print(f"{str(language).replace("1", "German Dub").replace("2", "English Sub").replace("3", "German Sub")}: {doodstream_get_direct_link(data["Doodstream"][language])}")
 
 for language in data["Vidoza"]:
     soup = BeautifulSoup(make_request(data["Vidoza"][language]), 'html.parser')
@@ -62,3 +63,12 @@ for language in data["Vidoza"]:
 for language in data["Streamtape"]:
     soup = BeautifulSoup(make_request(data["Streamtape"][language]), 'html.parser')
     print(f"{str(language).replace("1", "German Dub").replace("2", "English Sub").replace("3", "German Sub")}: {streamtape_get_direct_link(soup)}")
+"""
+
+mpv_title = "Debug TODO"
+for language in data["Doodstream"]:
+    if language == 2:
+        system(
+                f"mpv \"--http-header-fields=Referer: https://d0000d.com/\" \"{doodstream_get_direct_link(data["Doodstream"][language])}\" --quiet --really-quiet --title=\"{mpv_title}\""
+        )
+        break
