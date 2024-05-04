@@ -46,6 +46,11 @@ def providers(soup) -> dict:
 #url = "https://aniworld.to/anime/stream/gods-games-we-play/staffel-1/episode-1"
 url = "https://aniworld.to/anime/stream/an-archdemons-dilemma-how-to-love-your-elf-bride/staffel-1/episode-6"
 soup = BeautifulSoup(make_request(url), 'html.parser')
+
+if 'Browser Check (Anti Bot/Spam)' in soup.text:
+    print("Your IP-Address is blacklisted, please use a VPN or try later.")
+    exit()
+
 data = providers(soup)
 
 """
