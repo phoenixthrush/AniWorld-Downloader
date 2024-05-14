@@ -1,5 +1,9 @@
 # AniWorld Downloader
 
+## Project Discontinued
+
+This project has been abandoned. The source remains available, and you're welcome to reuse it. If you're seeking an alternative, please consider visiting [Commandcracker's "gucken" repository](https://github.com/Commandcracker/gucken). Thank you.
+
 ## Description
 
 AniWorld Downloader is a command-line tool designed to download content from aniworld.to. It offers various features, including fetching single episodes, downloading entire seasons, organizing downloads into structured directories, and supporting multiple operating systems.
