@@ -106,13 +106,23 @@ class EpisodeForm(npyscreen.ActionForm):
     def create(self):
         episode_list = [url for season, episodes in self.parentApp.anime_downloader.season_data.items() for url in episodes]
         self.action_selector = self.add(npyscreen.TitleSelectOne, name="Watch or Download", values=["Watch", "Download"], max_height=4, value=[1], scroll_exit=True)
-        self.directory_field = self.add(npyscreen.TitleFilenameCombo, name="Directory:")
+        self.directory_field = self.add(npyscreen.TitleFilenameCombo, name="Directory:", hidden=True)  # Initially hidden
         self.episode_selector = self.add(npyscreen.TitleMultiSelect, name="Select Episodes", values=episode_list, max_height=10)
+
+        self.action_selector.when_value_edited = self.update_directory_visibility
+
+    def update_directory_visibility(self):
+        selected_action = self.action_selector.get_selected_objects()
+        if selected_action and selected_action[0] == "Watch":
+            self.directory_field.hidden = True
+        else:
+            self.directory_field.hidden = False
+        self.display()
 
     def on_ok(self):
         npyscreen.blank_terminal()
-        output_directory = self.directory_field.value
-        if not output_directory:
+        output_directory = self.directory_field.value if not self.directory_field.hidden else None
+        if not output_directory and not self.directory_field.hidden:
             npyscreen.notify_confirm("Please provide a directory.", title="Error")
             return
 
@@ -123,8 +133,9 @@ class EpisodeForm(npyscreen.ActionForm):
             selected_str = "\n".join(selected_episodes)
             npyscreen.notify_confirm(f"Selected episodes:\n{selected_str}", title="Selection")
 
-            output_directory = os.path.join(output_directory, self.parentApp.anime_downloader.anime_title)
-            os.makedirs(output_directory, exist_ok=True)
+            if not self.directory_field.hidden:
+                output_directory = os.path.join(output_directory, self.parentApp.anime_downloader.anime_title)
+                os.makedirs(output_directory, exist_ok=True)
 
             for episode_url in selected_episodes:
                 episode_html = self.parentApp.anime_downloader.make_request(episode_url)
@@ -135,13 +146,12 @@ class EpisodeForm(npyscreen.ActionForm):
 
                 for language in data.get("Doodstream", {}):
                     if language == 2:
-                        print(f"Downloading {episode_url} to {output_directory}.")
+                        print(f"Processing {episode_url}.")
                         
                         matches = findall(r'\d+', episode_url)
                         season_number = matches[-2]
                         episode_number = matches[-1]
                         
-                        # TODO change filename to S?E? - ~episode title~
                         anime_title = self.parentApp.anime_downloader.anime_title
 
                         action = action_selected[0]
@@ -162,7 +172,9 @@ class EpisodeForm(npyscreen.ActionForm):
                         os.system(command)
                         break
             
-            self.parentApp.anime_downloader.clean_up_leftovers(output_directory)
+            if not self.directory_field.hidden:
+                self.parentApp.anime_downloader.clean_up_leftovers(output_directory)
+                
             self.parentApp.setNextForm(None)
             self.parentApp.switchFormNow()
         else:
