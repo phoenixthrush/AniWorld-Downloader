@@ -1,7 +1,8 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
-from os import system
-import urllib.request
 
 from bs4 import BeautifulSoup
 
@@ -45,15 +46,6 @@ def providers(soup) -> dict:
 
 
 def watch(url):
-    #url = "https://aniworld.to/anime/stream/gods-games-we-play/staffel-1/episode-1"
-    soup = BeautifulSoup(make_request(url), 'html.parser')
-
-    if 'Browser Check (Anti Bot/Spam)' in soup.text:
-        print("Your IP-Address is blacklisted, please use a VPN or try later.")
-        exit()
-
-    data = providers(soup)
-
     """
     for language in data["VOE"]:
         soup = BeautifulSoup(make_request(data["VOE"][language]), 'html.parser')
@@ -71,23 +63,13 @@ def watch(url):
         print(f"{str(language).replace("1", "German Dub").replace("2", "English Sub").replace("3", "German Sub")}: {streamtape_get_direct_link(soup)}")
     """
 
-    mpv_title = "Debug TODO"
-    for language in data["Doodstream"]:
-        if language == 2:
-            system(
-                    f"mpv \"--http-header-fields=Referer: https://d0000d.com/\" \"{doodstream_get_direct_link(data["Doodstream"][language])}\" --quiet --really-quiet --title=\"{mpv_title}\""
-            )
-            break
+import npyscreen
+import requests
+from bs4 import BeautifulSoup
 
-anime = "one-punch-man" # debug for testing
+anime = "one-punch-man"
 BASE_URL = f"https://aniworld.to/anime/stream/{anime}/"
-
-def fetch_page(url):
-    with urllib.request.urlopen(url) as response:
-        return response.read()
-
-# Get the page and parse it
-soup = BeautifulSoup(fetch_page(BASE_URL), 'html.parser')
+soup = BeautifulSoup(requests.get(BASE_URL).text, 'html.parser')
 
 season_meta = soup.find('meta', itemprop='numberOfSeasons')
 number_of_seasons = int(season_meta['content'] if season_meta else 0)
@@ -97,30 +79,62 @@ filme_link = soup.find('a', title='Alle Filme')
 if filme_link:
     number_of_seasons -= 1
 
-def get_season_episodes(season_url: str) -> int:
-    season_soup = BeautifulSoup(fetch_page(season_url), 'html.parser')
+def get_season_episodes(season_url: str) -> int: 
+    season_soup = BeautifulSoup(requests.get(season_url).text, 'html.parser')
     episodes = season_soup.find_all('meta', itemprop='episodeNumber')
     episode_numbers = [int(episode['content']) for episode in episodes]
     highest_episode = max(episode_numbers) if episode_numbers else None
 
     return highest_episode
 
-highest_episodes_per_season = []
+season_data = {}
 
 for i in range(1, number_of_seasons + 1):
     season_url = f"{BASE_URL}{i}"
     highest_episode = get_season_episodes(season_url)
-    highest_episodes_per_season.append(highest_episode)
-    # print(season_url, highest_episode)
+    season_data[i] = []
+    for k in range(1, highest_episode + 1):
+        episode_url = f"{BASE_URL}staffel-{i}/episode-{k}"
+        season_data[i].append(episode_url)
 
-# print(highest_episodes_per_season)
+# Define global variables to store the selected options and directory
+selected_options = []
+directory = ""
 
-anime_links = []
+class TestApp(npyscreen.NPSApp):
+    def main(self):
+        global selected_options, directory  # Use global variables
+        
+        season_options = [f"Season {season}" for season in season_data.keys()]
+        
+        F = npyscreen.Form(name="Welcome to Aniworld-Downloader")
+        
+        fn2 = F.add(npyscreen.TitleFilenameCombo, name="Directory:")
+        
+        ms2 = F.add(npyscreen.TitleMultiSelect, max_height=-2, name="Pick Season(s)",
+                    values=season_options, scroll_exit=True)
 
-for i in range(0, len(highest_episodes_per_season)):
-    for k in range(0, highest_episodes_per_season[i]):
-        # print(f"{base_url}staffel-{i + 1}/episode-{k + 1}")
-        anime_links.append(f"{BASE_URL}staffel-{i + 1}/episode-{k + 1}")
+        F.edit()
 
-for link in anime_links:
-    watch(link)
+        selected_options = ms2.get_selected_objects()
+        directory = fn2.value
+
+        selected_options_str = "\n".join(selected_options)
+        npyscreen.notify_confirm("Selected Options:\n" + selected_options_str, title="Selection")
+
+        print("Selected options:", selected_options)
+        print("Directory:", directory)
+
+if __name__ == "__main__":
+    App = TestApp()
+    App.run()
+
+    # Now you can access the variables below here
+    print("Accessing selected options outside TestApp:", selected_options)
+    print("Accessing directory outside TestApp:", directory)
+    
+    for episode in selected_options:
+        print(episode)
+        continue
+        for language in data["Doodstream"]:
+            print(f"{str(language).replace("1", "German Dub").replace("2", "English Sub").replace("3", "German Sub")}: {doodstream_get_direct_link(data["Doodstream"][language])}")
