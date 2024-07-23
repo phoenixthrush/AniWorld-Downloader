@@ -99,7 +99,7 @@ class EpisodeForm(npyscreen.ActionForm):
                 for language in data["Doodstream"]:
                     if language == 2:
                         print(f"Downloading {episode_url} to {output_directory}.")
-                        system(f"yt-dlp --add-header 'Referer: https://d0000d.com/' -o '{output_directory}/%(title)s.%(ext)s' --quiet --progress \"{doodstream_get_direct_link(data['Doodstream'][language])}\"")
+                        system(f"yt-dlp --add-header 'Referer: https://d0000d.com/' -o '{output_directory}/{anime.replace("-", " ").title()} - S{episode_url[-11]}E{episode_url[-1]}.mp4' --quiet --progress \"{doodstream_get_direct_link(data['Doodstream'][language])}\"")
                         break
             self.parentApp.setNextForm(None)
             self.parentApp.switchFormNow()
