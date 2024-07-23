@@ -6,6 +6,7 @@ from urllib.error import HTTPError, URLError
 from bs4 import BeautifulSoup
 import npyscreen
 import requests
+from os import system
 
 from helpers.voe import voe_get_direct_link
 from helpers.doodstream import doodstream_get_direct_link
@@ -25,13 +26,31 @@ def make_request(url):
     except TimeoutError:
         print("Request timed out")
 
+def providers(soup) -> dict:
+    hoster_site_video = soup.find(class_='hosterSiteVideo').find('ul', class_='row')
+    episode_links = hoster_site_video.find_all('li')
+    
+    extracted_data = {}
+
+    for link in episode_links:
+        data_lang_key = int(link.get('data-lang-key'))
+        redirect_link = link.get('data-link-target')
+        h4_text = link.find('h4').text.strip()
+        
+        if h4_text not in extracted_data:
+            extracted_data[h4_text] = {}
+        
+        extracted_data[h4_text][data_lang_key] = f"https://aniworld.to{redirect_link}"
+
+    return extracted_data
+
 def get_season_episodes(season_url: str) -> list:
     season_soup = BeautifulSoup(requests.get(season_url).text, 'html.parser')
     episodes = season_soup.find_all('meta', itemprop='episodeNumber')
     episode_numbers = [int(episode['content']) for episode in episodes]
     highest_episode = max(episode_numbers) if episode_numbers else None
 
-    return [f"{season_url}staffel-{season_url.split('/')[-1]}/episode-{num}" for num in range(1, highest_episode + 1)]
+    return [f"{season_url}/staffel-{season_url.split('/')[-1]}/episode-{num}" for num in range(1, highest_episode + 1)]
 
 anime = "one-punch-man"
 BASE_URL = f"https://aniworld.to/anime/stream/{anime}/"
@@ -51,9 +70,7 @@ for i in range(1, number_of_seasons + 1):
 
 class EpisodeForm(npyscreen.ActionForm):
     def create(self):
-        episode_list = [f"S{str(season).zfill(2)}-E{str(ep).zfill(2)}" 
-                for season, episodes in season_data.items() 
-                for ep in range(1, len(episodes) + 1)]
+        episode_list = [url for season, episodes in season_data.items() for url in episodes]
         self.episode_selector = self.add(npyscreen.TitleMultiSelect, name="Select Episodes", values=episode_list, max_height=10)
 
     def on_ok(self):
@@ -62,6 +79,21 @@ class EpisodeForm(npyscreen.ActionForm):
             selected_str = "\n".join(selected_episodes)
             npyscreen.notify_confirm(f"Selected episodes:\n{selected_str}", title="Selection")
             print("Selected episodes:", selected_episodes)
+
+            # Fetch and print direct links
+            for episode_url in selected_episodes:
+                response = requests.get(episode_url)
+                soup = BeautifulSoup(response.text, 'html.parser')
+
+                data = providers(soup)
+
+                # Get direct link using the voe_get_direct_link function
+                for language in data["Doodstream"]:
+                    if language == 2:
+                        system(
+                                f"mpv \"--http-header-fields=Referer: https://d0000d.com/\" \"{doodstream_get_direct_link(data["Doodstream"][language])}\" --quiet --really-quiet --title=\"{episode_url}\""
+                        )
+                        break
         else:
             npyscreen.notify_confirm("No episodes selected.", title="Selection")
 
