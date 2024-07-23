@@ -139,7 +139,22 @@ class EpisodeForm(npyscreen.ActionForm):
                         episode_number = matches[-1]
                         
                         # TODO change filename to S?E? - ~episode title~
-                        command = f"yt-dlp --add-header 'Referer: https://d0000d.com/' -o '{output_directory}/S{season_number}E{episode_number}.mp4' --quiet --progress \"{doodstream_get_direct_link(data['Doodstream'][language])}\""
+                        anime_title = self.parentApp.anime_downloader.anime_title
+
+                        command = (
+                            f"yt-dlp --add-header 'Referer: https://d0000d.com/' "
+                            f"-o '{output_directory}/{anime_title} - S{season_number}E{episode_number}.mp4' "
+                            f"--quiet --progress \"{doodstream_get_direct_link(data['Doodstream'][language])}\""
+                        )
+
+                        watch = True
+                        if watch:
+                            command = (
+                                f"mpv '--http-header-fields=Referer: https://d0000d.com/' "
+                                f"'{doodstream_get_direct_link(data['Doodstream'][language])}' "
+                                f"--quiet --really-quiet --title='{anime_title} - S{season_number}E{episode_number}'"
+                            )
+
                         os.system(command)
                         break
             
@@ -162,7 +177,7 @@ class AnimeApp(npyscreen.NPSAppManaged):
 
 if __name__ == "__main__":
     try:
-        anime_slug = "alya-sometimes-hides-her-feelings-in-russian"  # hardcoded testing
+        anime_slug = "kaguya-sama-love-is-war"  # hardcoded testing
         app = AnimeApp(anime_slug)
         app.run()
     except KeyboardInterrupt:
