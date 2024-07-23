@@ -5,9 +5,10 @@ from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
 from bs4 import BeautifulSoup
 import npyscreen
-from os import system
+from os import system, remove, makedirs, path
 import requests
 from re import findall
+from glob import glob
 
 from helpers.doodstream import doodstream_get_direct_link
 #from helpers.voe import voe_get_direct_link
@@ -45,6 +46,18 @@ def providers(soup) -> dict:
 
     return extracted_data
 
+def clean_up_leftovers(directory):
+    # Use glob to find all .part files in the directory
+    leftover_files = glob(path.join(directory, '*.part'))
+    
+    # Remove each .part file found
+    for file_path in leftover_files:
+        try:
+            remove(file_path)
+            print(f"Removed leftover file: {file_path}")
+        except Exception as e:
+            print(f"Error removing file {file_path}: {e}")
+
 def get_season_episodes(season_url: str) -> list:
     season_soup = BeautifulSoup(requests.get(season_url).text, 'html.parser')
     episodes = season_soup.find_all('meta', itemprop='episodeNumber')
@@ -53,7 +66,8 @@ def get_season_episodes(season_url: str) -> list:
 
     return [f"{season_url}/staffel-{season_url.split('/')[-1]}/episode-{num}" for num in range(1, highest_episode + 1)]
 
-anime = "one-punch-man"
+anime = "alya-sometimes-hides-her-feelings-in-russian"
+anime_title = anime.replace("-", " ").title()
 BASE_URL = f"https://aniworld.to/anime/stream/{anime}/"
 soup = BeautifulSoup(requests.get(BASE_URL).text, 'html.parser')
 
@@ -91,6 +105,9 @@ class EpisodeForm(npyscreen.ActionForm):
             selected_str = "\n".join(selected_episodes)
             npyscreen.notify_confirm(f"Selected episodes:\n{selected_str}", title="Selection")
 
+            output_directory = f"{output_directory}/{anime_title}"
+            makedirs(output_directory, exist_ok=True)
+
             for episode_url in selected_episodes:
                 response = requests.get(episode_url)
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -105,8 +122,10 @@ class EpisodeForm(npyscreen.ActionForm):
                         season_number = matches[-2]
                         episode_number = matches[-1]
                         
-                        system(f"yt-dlp --add-header 'Referer: https://d0000d.com/' -o '{output_directory}/{anime.replace("-", " ").title()} - S{season_number}E{episode_number}.mp4' --quiet --progress \"{doodstream_get_direct_link(data['Doodstream'][language])}\"")
+                        # TODO change filename to S?E? - ~episode title~
+                        system(f"yt-dlp --add-header 'Referer: https://d0000d.com/' -o '{output_directory}/S{season_number}E{episode_number}.mp4' --quiet --progress \"{doodstream_get_direct_link(data['Doodstream'][language])}\"")
                         break
+            clean_up_leftovers(output_directory)
             self.parentApp.setNextForm(None)
             self.parentApp.switchFormNow()
         else:
