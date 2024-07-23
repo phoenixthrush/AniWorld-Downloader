@@ -10,9 +10,9 @@ from bs4 import BeautifulSoup
 import npyscreen
 from re import findall
 
-from helpers.doodstream import doodstream_get_direct_link
+from helpers.vidoza import vidoza_get_direct_link
+# from helpers.doodstream import doodstream_get_direct_link
 # from helpers.voe import voe_get_direct_link
-# from helpers.vidoza import vidoza_get_direct_link
 # from helpers.streamtape import streamtape_get_direct_link
 
 class AnimeDownloader:
@@ -143,35 +143,34 @@ class EpisodeForm(npyscreen.ActionForm):
                     continue
                 soup = BeautifulSoup(episode_html, 'html.parser')
                 data = self.parentApp.anime_downloader.providers(soup)
+                
+                if "Vidoza" in data:
+                    for language in data["Vidoza"]:
+                        #print(f"{str(language).replace('1', 'German Dub').replace('2', 'English Sub').replace('3', 'German Sub')}: {vidoza_get_direct_link(BeautifulSoup(self.parentApp.anime_downloader.make_request(data['Vidoza'][language]), 'html.parser'))}")
 
-                for language in data.get("Doodstream", {}):
-                    if language == 2:
-                        print(f"Processing {episode_url}.")
-                        
                         matches = findall(r'\d+', episode_url)
                         season_number = matches[-2]
                         episode_number = matches[-1]
                         
                         anime_title = self.parentApp.anime_downloader.anime_title
-
                         action = action_selected[0]
 
                         if action == "Watch":
                             command = (
-                                f"mpv '--http-header-fields=Referer: https://d0000d.com/' "
-                                f"'{doodstream_get_direct_link(data['Doodstream'][language])}' "
+                                f"mpv "
+                                f"'{vidoza_get_direct_link(BeautifulSoup(self.parentApp.anime_downloader.make_request(data['Vidoza'][language]), 'html.parser'))}' "
                                 f"--quiet --really-quiet --title='{anime_title} - S{season_number}E{episode_number}'"
                             )
                         else:
                             command = (
-                                f"yt-dlp --add-header 'Referer: https://d0000d.com/' "
+                                f"yt-dlp "
                                 f"-o '{output_directory}/{anime_title} - S{season_number}E{episode_number}.mp4' "
-                                f"--quiet --progress \"{doodstream_get_direct_link(data['Doodstream'][language])}\""
+                                f"--quiet --progress \"{vidoza_get_direct_link(BeautifulSoup(self.parentApp.anime_downloader.make_request(data['Vidoza'][language]), 'html.parser'))}\""
                             )
 
                         os.system(command)
                         break
-            
+
             if not self.directory_field.hidden:
                 self.parentApp.anime_downloader.clean_up_leftovers(output_directory)
                 
