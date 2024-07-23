@@ -56,6 +56,10 @@ anime = "one-punch-man"
 BASE_URL = f"https://aniworld.to/anime/stream/{anime}/"
 soup = BeautifulSoup(requests.get(BASE_URL).text, 'html.parser')
 
+if 'Deine Anfrage wurde als Spam erkannt.' in soup:
+        print("Your IP-Address is blacklisted, please use a VPN or try later.")
+        exit()
+
 season_meta = soup.find('meta', itemprop='numberOfSeasons')
 number_of_seasons = int(season_meta['content'] if season_meta else 0)
 
