@@ -47,10 +47,8 @@ def providers(soup) -> dict:
     return extracted_data
 
 def clean_up_leftovers(directory):
-    # Use glob to find all .part files in the directory
     leftover_files = glob(path.join(directory, '*.part'))
-    
-    # Remove each .part file found
+
     for file_path in leftover_files:
         try:
             remove(file_path)
@@ -116,7 +114,8 @@ class EpisodeForm(npyscreen.ActionForm):
 
                 for language in data["Doodstream"]:
                     if language == 2:
-                        print(f"Downloading {episode_url} to {output_directory}.")
+                        print(f"Download Directory: {output_directory}.")
+                        print(f"Downloading {episode_url}.")
                         
                         matches = findall(r'\d+', episode_url)
                         season_number = matches[-2]
