@@ -5,13 +5,13 @@ from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
 from bs4 import BeautifulSoup
 import npyscreen
-import requests
 from os import system
+import requests
 
-from helpers.voe import voe_get_direct_link
 from helpers.doodstream import doodstream_get_direct_link
-from helpers.vidoza import vidoza_get_direct_link
-from helpers.streamtape import streamtape_get_direct_link
+#from helpers.voe import voe_get_direct_link
+#from helpers.vidoza import vidoza_get_direct_link
+#from helpers.streamtape import streamtape_get_direct_link
 
 def make_request(url):
     try:
@@ -71,29 +71,34 @@ for i in range(1, number_of_seasons + 1):
 class EpisodeForm(npyscreen.ActionForm):
     def create(self):
         episode_list = [url for season, episodes in season_data.items() for url in episodes]
+        self.fn2 = self.add(npyscreen.TitleFilenameCombo, name="Directory:")
         self.episode_selector = self.add(npyscreen.TitleMultiSelect, name="Select Episodes", values=episode_list, max_height=10)
 
     def on_ok(self):
+        npyscreen.blank_terminal()
+        output_directory = self.fn2.value
+        if not output_directory:
+            npyscreen.notify_confirm("Please provide a directory.", title="Error")
+            return
+
         selected_episodes = self.episode_selector.get_selected_objects()
         if selected_episodes:
             selected_str = "\n".join(selected_episodes)
             npyscreen.notify_confirm(f"Selected episodes:\n{selected_str}", title="Selection")
-            print("Selected episodes:", selected_episodes)
 
-            # Fetch and print direct links
             for episode_url in selected_episodes:
                 response = requests.get(episode_url)
                 soup = BeautifulSoup(response.text, 'html.parser')
 
                 data = providers(soup)
 
-                # Get direct link using the voe_get_direct_link function
                 for language in data["Doodstream"]:
                     if language == 2:
-                        system(
-                                f"mpv \"--http-header-fields=Referer: https://d0000d.com/\" \"{doodstream_get_direct_link(data["Doodstream"][language])}\" --quiet --really-quiet --title=\"{episode_url}\""
-                        )
+                        print(f"Downloading {episode_url} to {output_directory}.")
+                        system(f"yt-dlp --add-header 'Referer: https://d0000d.com/' -o '{output_directory}/%(title)s.%(ext)s' --quiet --progress \"{doodstream_get_direct_link(data['Doodstream'][language])}\"")
                         break
+            self.parentApp.setNextForm(None)
+            self.parentApp.switchFormNow()
         else:
             npyscreen.notify_confirm("No episodes selected.", title="Selection")
 
@@ -105,5 +110,8 @@ class AnimeApp(npyscreen.NPSAppManaged):
         self.addForm("MAIN", EpisodeForm, name="Anime Downloader")
 
 if __name__ == "__main__":
-    App = AnimeApp()
-    App.run()
+    try:
+        App = AnimeApp()
+        App.run()
+    except KeyboardInterrupt:
+        exit()
