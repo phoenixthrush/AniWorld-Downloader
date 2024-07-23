@@ -105,6 +105,7 @@ class AnimeDownloader:
 class EpisodeForm(npyscreen.ActionForm):
     def create(self):
         episode_list = [url for season, episodes in self.parentApp.anime_downloader.season_data.items() for url in episodes]
+        self.action_selector = self.add(npyscreen.TitleSelectOne, name="Watch or Download", values=["Watch", "Download"], max_height=4, value=[1], scroll_exit=True)
         self.directory_field = self.add(npyscreen.TitleFilenameCombo, name="Directory:")
         self.episode_selector = self.add(npyscreen.TitleMultiSelect, name="Select Episodes", values=episode_list, max_height=10)
 
@@ -116,7 +117,9 @@ class EpisodeForm(npyscreen.ActionForm):
             return
 
         selected_episodes = self.episode_selector.get_selected_objects()
-        if selected_episodes:
+        action_selected = self.action_selector.get_selected_objects()
+
+        if selected_episodes and action_selected:
             selected_str = "\n".join(selected_episodes)
             npyscreen.notify_confirm(f"Selected episodes:\n{selected_str}", title="Selection")
 
@@ -141,18 +144,19 @@ class EpisodeForm(npyscreen.ActionForm):
                         # TODO change filename to S?E? - ~episode title~
                         anime_title = self.parentApp.anime_downloader.anime_title
 
-                        command = (
-                            f"yt-dlp --add-header 'Referer: https://d0000d.com/' "
-                            f"-o '{output_directory}/{anime_title} - S{season_number}E{episode_number}.mp4' "
-                            f"--quiet --progress \"{doodstream_get_direct_link(data['Doodstream'][language])}\""
-                        )
+                        action = action_selected[0]
 
-                        watch = True
-                        if watch:
+                        if action == "Watch":
                             command = (
                                 f"mpv '--http-header-fields=Referer: https://d0000d.com/' "
                                 f"'{doodstream_get_direct_link(data['Doodstream'][language])}' "
                                 f"--quiet --really-quiet --title='{anime_title} - S{season_number}E{episode_number}'"
+                            )
+                        else:
+                            command = (
+                                f"yt-dlp --add-header 'Referer: https://d0000d.com/' "
+                                f"-o '{output_directory}/{anime_title} - S{season_number}E{episode_number}.mp4' "
+                                f"--quiet --progress \"{doodstream_get_direct_link(data['Doodstream'][language])}\""
                             )
 
                         os.system(command)
