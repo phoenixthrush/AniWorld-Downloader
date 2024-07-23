@@ -129,9 +129,8 @@ if __name__ == "__main__":
     App = TestApp()
     App.run()
 
-    # Now you can access the variables below here
-    print("Accessing selected options outside TestApp:", selected_options)
-    print("Accessing directory outside TestApp:", directory)
+    print("Directory:", directory)
+    print("Selected Season(s):", selected_options)
     
     for episode in selected_options:
         print(episode)
