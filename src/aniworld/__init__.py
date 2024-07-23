@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 import npyscreen
 from os import system
 import requests
+from re import findall
 
 from helpers.doodstream import doodstream_get_direct_link
 #from helpers.voe import voe_get_direct_link
@@ -99,7 +100,12 @@ class EpisodeForm(npyscreen.ActionForm):
                 for language in data["Doodstream"]:
                     if language == 2:
                         print(f"Downloading {episode_url} to {output_directory}.")
-                        system(f"yt-dlp --add-header 'Referer: https://d0000d.com/' -o '{output_directory}/{anime.replace("-", " ").title()} - S{episode_url[-11]}E{episode_url[-1]}.mp4' --quiet --progress \"{doodstream_get_direct_link(data['Doodstream'][language])}\"")
+                        
+                        matches = findall(r'\d+', episode_url)
+                        season_number = matches[-2]
+                        episode_number = matches[-1]
+                        
+                        system(f"yt-dlp --add-header 'Referer: https://d0000d.com/' -o '{output_directory}/{anime.replace("-", " ").title()} - S{season_number}E{episode_number}.mp4' --quiet --progress \"{doodstream_get_direct_link(data['Doodstream'][language])}\"")
                         break
             self.parentApp.setNextForm(None)
             self.parentApp.switchFormNow()
