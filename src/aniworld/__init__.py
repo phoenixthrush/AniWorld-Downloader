@@ -1,20 +1,25 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-import os
-import sys
+import curses
 import glob
-from urllib.request import urlopen, Request
-from urllib.error import HTTPError, URLError
-from bs4 import BeautifulSoup
 import npyscreen
+import os
+import platform
+import sys
+
+from bs4 import BeautifulSoup
+from json import loads, JSONDecodeError
 from re import findall
 from shutil import which
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote
+from urllib.request import urlopen, Request
 
-from helpers.vidoza import vidoza_get_direct_link
 from helpers.doodstream import doodstream_get_direct_link
-from helpers.voe import voe_get_direct_link
 from helpers.streamtape import streamtape_get_direct_link
+from helpers.vidoza import vidoza_get_direct_link
+from helpers.voe import voe_get_direct_link
 
 def check_dependencies():
     dependencies = ["yt-dlp", "mpv"]
@@ -22,6 +27,87 @@ def check_dependencies():
     if missing:
         print(f"Missing dependencies: {', '.join(missing)} in path. Please install and try again.")
         sys.exit(1)
+
+def clear_screen():
+    current_os = platform.system()
+
+    if current_os == "Windows":
+        os.system("cls")
+    else:
+        os.system("clear")
+
+def search_anime() -> None:
+    clear_screen()
+    keyword = input("Search for a series: ")
+    encoded_keyword = quote(keyword)
+    url = f"https://aniworld.to/ajax/seriesSearch?keyword={encoded_keyword}"
+
+    json_data = fetch_data(url)
+    if json_data is None:
+        sys.exit()
+
+    if not isinstance(json_data, list) or not json_data:
+        print("No series found or unexpected JSON format.")
+        sys.exit()
+
+    selected_link = curses.wrapper(display_menu, json_data)
+    
+    return selected_link
+
+def fetch_data(url: str) -> list:
+    try:
+        with urlopen(url) as response:
+            data = response.read()
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
+
+    decoded_data = data.decode()
+    
+    if "Deine Anfrage wurde als Spam erkannt." in decoded_data:
+        print("Your IP address is blacklisted. Please use a VPN or try again later.")
+        return None
+
+    try:
+        return loads(decoded_data)
+    except JSONDecodeError:
+        print("Failed to decode JSON response.")
+        return None
+
+def display_menu(stdscr, animes):
+    stdscr.clear()
+    height, width = stdscr.getmaxyx()
+    
+    current_row = 0
+    num_rows = len(animes)
+
+    while True:
+        stdscr.clear()
+        for idx, anime in enumerate(animes):
+            x = 0
+            y = idx
+            if idx == current_row:
+                stdscr.attron(curses.A_REVERSE)
+                stdscr.addstr(y, x, f"{anime.get('name', 'No Name')} ({anime.get('productionYear', 'No Year')})")
+                stdscr.attroff(curses.A_REVERSE)
+            else:
+                stdscr.addstr(y, x, f"{anime.get('name', 'No Name')} ({anime.get('productionYear', 'No Year')})")
+
+        stdscr.refresh()
+
+        key = stdscr.getch()
+
+        if key == curses.KEY_DOWN:
+            current_row = (current_row + 1) % num_rows
+        elif key == curses.KEY_UP:
+            current_row = (current_row - 1 + num_rows) % num_rows
+        elif key == ord('\n'):
+            selected_anime = animes[current_row]
+            return selected_anime.get('link', 'No Link')
+        elif key == ord('q'):
+            break
+
+    return None
 
 class AnimeDownloader:
     BASE_URL_TEMPLATE = "https://aniworld.to/anime/stream/{anime}/"
@@ -189,12 +275,12 @@ class EpisodeForm(npyscreen.ActionForm):
                             anime_title = self.parentApp.anime_downloader.anime_title
                             action = action_selected[0]
 
-                            # Get the direct link using the appropriate function
                             link = provider_mapping[provider_selected[0]](
                                 BeautifulSoup(self.parentApp.anime_downloader.make_request(data[provider_selected[0]][language]), 'html.parser')
                             )
 
                             if action == "Watch":
+                                print(f"Playing '{output_directory}/{anime_title} - S{season_number}E{episode_number}'")
                                 command = (
                                     f"mpv "
                                     f"'{link}' "
@@ -234,8 +320,7 @@ class AnimeApp(npyscreen.NPSAppManaged):
 if __name__ == "__main__":
     try:
         check_dependencies()
-        anime_slug = "kaguya-sama-love-is-war"  # hardcoded testing
-        app = AnimeApp(anime_slug)
+        app = AnimeApp(search_anime())
         app.run()
     except KeyboardInterrupt:
         sys.exit()
