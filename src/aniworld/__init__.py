@@ -9,11 +9,19 @@ from urllib.error import HTTPError, URLError
 from bs4 import BeautifulSoup
 import npyscreen
 from re import findall
+from shutil import which
 
 from helpers.vidoza import vidoza_get_direct_link
 from helpers.doodstream import doodstream_get_direct_link
 from helpers.voe import voe_get_direct_link
 from helpers.streamtape import streamtape_get_direct_link
+
+def check_dependencies():
+    dependencies = ["yt-dlp", "mpv"]
+    missing = [dep for dep in dependencies if which(dep) is None]
+    if missing:
+        print(f"Missing dependencies: {', '.join(missing)} in path. Please install and try again.")
+        sys.exit(1)
 
 class AnimeDownloader:
     BASE_URL_TEMPLATE = "https://aniworld.to/anime/stream/{anime}/"
@@ -225,6 +233,7 @@ class AnimeApp(npyscreen.NPSAppManaged):
 
 if __name__ == "__main__":
     try:
+        check_dependencies()
         anime_slug = "kaguya-sama-love-is-war"  # hardcoded testing
         app = AnimeApp(anime_slug)
         app.run()
