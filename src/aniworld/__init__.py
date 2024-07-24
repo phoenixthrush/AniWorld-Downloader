@@ -104,11 +104,16 @@ class AnimeDownloader:
 
 class EpisodeForm(npyscreen.ActionForm):
     def create(self):
-        episode_list = [url for season, episodes in self.parentApp.anime_downloader.season_data.items() for url in episodes]
+        self.episode_list = [url for season, episodes in self.parentApp.anime_downloader.season_data.items() for url in episodes]
+        
+        self.episode_display_list = [
+            f"Season {url.split('/')[-2].split('-')[-1]}, Episode {url.split('/')[-1].split('-')[-1]}" for url in self.episode_list
+        ]
+
         self.action_selector = self.add(npyscreen.TitleSelectOne, name="Watch or Download", values=["Watch", "Download"], max_height=4, value=[1], scroll_exit=True)
         self.directory_field = self.add(npyscreen.TitleFilenameCombo, name="Directory:", value=os.path.join(os.path.expanduser('~'), 'Downloads'))
         self.language_selector = self.add(npyscreen.TitleSelectOne, name="Language Options", values=["German Dub", "English Sub", "German Sub"], max_height=4, value=[2], scroll_exit=True)
-        self.episode_selector = self.add(npyscreen.TitleMultiSelect, name="Select Episodes", values=episode_list, max_height=10)
+        self.episode_selector = self.add(npyscreen.TitleMultiSelect, name="Select Episodes", values=self.episode_display_list, max_height=10)
 
         self.action_selector.when_value_edited = self.update_directory_visibility
 
@@ -127,13 +132,14 @@ class EpisodeForm(npyscreen.ActionForm):
             npyscreen.notify_confirm("Please provide a directory.", title="Error")
             return
 
-        selected_episodes = self.episode_selector.get_selected_objects()
+        selected_episodes_display = self.episode_selector.get_selected_objects()
         action_selected = self.action_selector.get_selected_objects()
         language_selected = self.language_selector.get_selected_objects()
 
         lang = language_selected[0].replace('German Dub', "1").replace('English Sub', "2").replace('German Sub', "3")
 
-        if selected_episodes and action_selected and language_selected:
+        if selected_episodes_display and action_selected and language_selected:
+            selected_episodes = [self.episode_list[self.episode_display_list.index(display)] for display in selected_episodes_display]
             selected_str = "\n".join(selected_episodes)
             npyscreen.notify_confirm(f"Selected episodes:\n{selected_str}", title="Selection")
 
@@ -151,8 +157,6 @@ class EpisodeForm(npyscreen.ActionForm):
                 if "Vidoza" in data:
                     for language in data["Vidoza"]:
                         if language == int(lang):
-                            #print(f"DEBUG: {str(language).replace('1', 'German Dub').replace('2', 'English Sub').replace('3', 'German Sub')}: {vidoza_get_direct_link(BeautifulSoup(self.parentApp.anime_downloader.make_request(data['Vidoza'][language]), 'html.parser'))}")
-
                             matches = findall(r'\d+', episode_url)
                             season_number = matches[-2]
                             episode_number = matches[-1]
@@ -186,6 +190,7 @@ class EpisodeForm(npyscreen.ActionForm):
 
     def on_cancel(self):
         self.parentApp.setNextForm(None)
+
 
 class AnimeApp(npyscreen.NPSAppManaged):
     def __init__(self, anime_slug):
