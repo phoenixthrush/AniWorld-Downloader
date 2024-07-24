@@ -106,7 +106,7 @@ class EpisodeForm(npyscreen.ActionForm):
     def create(self):
         episode_list = [url for season, episodes in self.parentApp.anime_downloader.season_data.items() for url in episodes]
         self.action_selector = self.add(npyscreen.TitleSelectOne, name="Watch or Download", values=["Watch", "Download"], max_height=4, value=[1], scroll_exit=True)
-        self.directory_field = self.add(npyscreen.TitleFilenameCombo, name="Directory:", hidden=True)  # Initially hidden
+        self.directory_field = self.add(npyscreen.TitleFilenameCombo, name="Directory:", value=os.path.join(os.path.expanduser('~'), 'Downloads'))
         self.language_selector = self.add(npyscreen.TitleSelectOne, name="Language Options", values=["German Dub", "English Sub", "German Sub"], max_height=4, value=[2], scroll_exit=True)
         self.episode_selector = self.add(npyscreen.TitleMultiSelect, name="Select Episodes", values=episode_list, max_height=10)
 
@@ -132,7 +132,7 @@ class EpisodeForm(npyscreen.ActionForm):
         language_selected = self.language_selector.get_selected_objects()
 
         lang = language_selected[0].replace('German Dub', "1").replace('English Sub', "2").replace('German Sub', "3")
-        
+
         if selected_episodes and action_selected and language_selected:
             selected_str = "\n".join(selected_episodes)
             npyscreen.notify_confirm(f"Selected episodes:\n{selected_str}", title="Selection")
