@@ -107,6 +107,7 @@ class EpisodeForm(npyscreen.ActionForm):
         episode_list = [url for season, episodes in self.parentApp.anime_downloader.season_data.items() for url in episodes]
         self.action_selector = self.add(npyscreen.TitleSelectOne, name="Watch or Download", values=["Watch", "Download"], max_height=4, value=[1], scroll_exit=True)
         self.directory_field = self.add(npyscreen.TitleFilenameCombo, name="Directory:", hidden=True)  # Initially hidden
+        self.language_selector = self.add(npyscreen.TitleSelectOne, name="Language Options", values=["German Dub", "English Sub", "German Sub"], max_height=4, value=[2], scroll_exit=True)
         self.episode_selector = self.add(npyscreen.TitleMultiSelect, name="Select Episodes", values=episode_list, max_height=10)
 
         self.action_selector.when_value_edited = self.update_directory_visibility
@@ -128,8 +129,11 @@ class EpisodeForm(npyscreen.ActionForm):
 
         selected_episodes = self.episode_selector.get_selected_objects()
         action_selected = self.action_selector.get_selected_objects()
+        language_selected = self.language_selector.get_selected_objects()
 
-        if selected_episodes and action_selected:
+        lang = language_selected[0].replace('German Dub', "1").replace('English Sub', "2").replace('German Sub', "3")
+        
+        if selected_episodes and action_selected and language_selected:
             selected_str = "\n".join(selected_episodes)
             npyscreen.notify_confirm(f"Selected episodes:\n{selected_str}", title="Selection")
 
@@ -146,30 +150,31 @@ class EpisodeForm(npyscreen.ActionForm):
                 
                 if "Vidoza" in data:
                     for language in data["Vidoza"]:
-                        #print(f"{str(language).replace('1', 'German Dub').replace('2', 'English Sub').replace('3', 'German Sub')}: {vidoza_get_direct_link(BeautifulSoup(self.parentApp.anime_downloader.make_request(data['Vidoza'][language]), 'html.parser'))}")
+                        if language == int(lang):
+                            #print(f"DEBUG: {str(language).replace('1', 'German Dub').replace('2', 'English Sub').replace('3', 'German Sub')}: {vidoza_get_direct_link(BeautifulSoup(self.parentApp.anime_downloader.make_request(data['Vidoza'][language]), 'html.parser'))}")
 
-                        matches = findall(r'\d+', episode_url)
-                        season_number = matches[-2]
-                        episode_number = matches[-1]
-                        
-                        anime_title = self.parentApp.anime_downloader.anime_title
-                        action = action_selected[0]
+                            matches = findall(r'\d+', episode_url)
+                            season_number = matches[-2]
+                            episode_number = matches[-1]
+                            
+                            anime_title = self.parentApp.anime_downloader.anime_title
+                            action = action_selected[0]
 
-                        if action == "Watch":
-                            command = (
-                                f"mpv "
-                                f"'{vidoza_get_direct_link(BeautifulSoup(self.parentApp.anime_downloader.make_request(data['Vidoza'][language]), 'html.parser'))}' "
-                                f"--quiet --really-quiet --title='{anime_title} - S{season_number}E{episode_number}'"
-                            )
-                        else:
-                            command = (
-                                f"yt-dlp "
-                                f"-o '{output_directory}/{anime_title} - S{season_number}E{episode_number}.mp4' "
-                                f"--quiet --progress \"{vidoza_get_direct_link(BeautifulSoup(self.parentApp.anime_downloader.make_request(data['Vidoza'][language]), 'html.parser'))}\""
-                            )
+                            if action == "Watch":
+                                command = (
+                                    f"mpv "
+                                    f"'{vidoza_get_direct_link(BeautifulSoup(self.parentApp.anime_downloader.make_request(data['Vidoza'][language]), 'html.parser'))}' "
+                                    f"--quiet --really-quiet --title='{anime_title} - S{season_number}E{episode_number}'"
+                                )
+                            else:
+                                command = (
+                                    f"yt-dlp "
+                                    f"-o '{output_directory}/{anime_title} - S{season_number}E{episode_number}.mp4' "
+                                    f"--quiet --progress \"{vidoza_get_direct_link(BeautifulSoup(self.parentApp.anime_downloader.make_request(data['Vidoza'][language]), 'html.parser'))}\""
+                                )
 
-                        os.system(command)
-                        break
+                            os.system(command)
+                            break
 
             if not self.directory_field.hidden:
                 self.parentApp.anime_downloader.clean_up_leftovers(output_directory)
