@@ -11,9 +11,9 @@ import npyscreen
 from re import findall
 
 from helpers.vidoza import vidoza_get_direct_link
-# from helpers.doodstream import doodstream_get_direct_link
-# from helpers.voe import voe_get_direct_link
-# from helpers.streamtape import streamtape_get_direct_link
+from helpers.doodstream import doodstream_get_direct_link
+from helpers.voe import voe_get_direct_link
+from helpers.streamtape import streamtape_get_direct_link
 
 class AnimeDownloader:
     BASE_URL_TEMPLATE = "https://aniworld.to/anime/stream/{anime}/"
@@ -113,7 +113,8 @@ class EpisodeForm(npyscreen.ActionForm):
         self.action_selector = self.add(npyscreen.TitleSelectOne, name="Watch or Download", values=["Watch", "Download"], max_height=4, value=[1], scroll_exit=True)
         self.directory_field = self.add(npyscreen.TitleFilenameCombo, name="Directory:", value=os.path.join(os.path.expanduser('~'), 'Downloads'))
         self.language_selector = self.add(npyscreen.TitleSelectOne, name="Language Options", values=["German Dub", "English Sub", "German Sub"], max_height=4, value=[2], scroll_exit=True)
-        self.episode_selector = self.add(npyscreen.TitleMultiSelect, name="Select Episodes", values=self.episode_display_list, max_height=10)
+        self.provider_selector = self.add(npyscreen.TitleSelectOne, name="Provider Options", values=["Vidoza", "Streamtape", "Doodstream", "VOE"], max_height=4, value=[0], scroll_exit=True)
+        self.episode_selector = self.add(npyscreen.TitleMultiSelect, name="Select Episodes", values=self.episode_display_list, max_height=7)
 
         self.action_selector.when_value_edited = self.update_directory_visibility
 
@@ -135,9 +136,18 @@ class EpisodeForm(npyscreen.ActionForm):
         selected_episodes_display = self.episode_selector.get_selected_objects()
         action_selected = self.action_selector.get_selected_objects()
         language_selected = self.language_selector.get_selected_objects()
+        provider_selected = self.provider_selector.get_selected_objects()
 
         lang = language_selected[0].replace('German Dub', "1").replace('English Sub', "2").replace('German Sub', "3")
 
+        # those helpers need to be fixed
+        valid_providers = ["Vidoza", "Streamtape"]
+
+        while provider_selected[0] not in valid_providers:
+            npyscreen.notify_confirm("Doodstream and VOE are currently broken.\nFalling back to Vidoza.", title="Provider Error")
+            self.provider_selector.value = 0
+
+            provider_selected = self.provider_selector.get_selected_objects()
         if selected_episodes_display and action_selected and language_selected:
             selected_episodes = [self.episode_list[self.episode_display_list.index(display)] for display in selected_episodes_display]
             selected_str = "\n".join(selected_episodes)
@@ -154,31 +164,44 @@ class EpisodeForm(npyscreen.ActionForm):
                 soup = BeautifulSoup(episode_html, 'html.parser')
                 data = self.parentApp.anime_downloader.providers(soup)
                 
-                if "Vidoza" in data:
-                    for language in data["Vidoza"]:
+                provider_mapping = {
+                    "Vidoza": vidoza_get_direct_link,
+                    "VOE": voe_get_direct_link,
+                    "Doodstream": doodstream_get_direct_link,
+                    "Streamtape": streamtape_get_direct_link
+                }
+
+                if provider_selected[0] in data:
+                    for language in data[provider_selected[0]]:
                         if language == int(lang):
                             matches = findall(r'\d+', episode_url)
                             season_number = matches[-2]
                             episode_number = matches[-1]
-                            
+
                             anime_title = self.parentApp.anime_downloader.anime_title
                             action = action_selected[0]
+
+                            # Get the direct link using the appropriate function
+                            link = provider_mapping[provider_selected[0]](
+                                BeautifulSoup(self.parentApp.anime_downloader.make_request(data[provider_selected[0]][language]), 'html.parser')
+                            )
 
                             if action == "Watch":
                                 command = (
                                     f"mpv "
-                                    f"'{vidoza_get_direct_link(BeautifulSoup(self.parentApp.anime_downloader.make_request(data['Vidoza'][language]), 'html.parser'))}' "
+                                    f"'{link}' "
                                     f"--quiet --really-quiet --title='{anime_title} - S{season_number}E{episode_number}'"
                                 )
                             else:
+                                print(f"Downloading '{output_directory}/{anime_title} - S{season_number}E{episode_number}'")
                                 command = (
                                     f"yt-dlp "
                                     f"-o '{output_directory}/{anime_title} - S{season_number}E{episode_number}.mp4' "
-                                    f"--quiet --progress \"{vidoza_get_direct_link(BeautifulSoup(self.parentApp.anime_downloader.make_request(data['Vidoza'][language]), 'html.parser'))}\""
+                                    f"--quiet --progress \"{link}\""
                                 )
-
                             os.system(command)
                             break
+
 
             if not self.directory_field.hidden:
                 self.parentApp.anime_downloader.clean_up_leftovers(output_directory)
