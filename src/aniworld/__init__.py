@@ -1,13 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-import curses
-import glob
-import npyscreen
-import os
-import platform
-import sys
-
 from bs4 import BeautifulSoup
 from json import loads, JSONDecodeError
 from re import findall
@@ -15,6 +8,12 @@ from shutil import which
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import urlopen, Request
+import curses
+import glob
+import npyscreen
+import os
+import platform
+import sys
 
 from helpers.doodstream import doodstream_get_direct_link
 from helpers.streamtape import streamtape_get_direct_link
@@ -51,7 +50,7 @@ def search_anime() -> None:
         sys.exit()
 
     selected_link = curses.wrapper(display_menu, json_data)
-    
+
     return selected_link
 
 def fetch_data(url: str) -> list:
@@ -63,7 +62,7 @@ def fetch_data(url: str) -> list:
         return None
 
     decoded_data = data.decode()
-    
+
     if "Deine Anfrage wurde als Spam erkannt." in decoded_data:
         print("Your IP address is blacklisted. Please use a VPN or try again later.")
         return None
@@ -77,7 +76,7 @@ def fetch_data(url: str) -> list:
 def display_menu(stdscr, animes):
     stdscr.clear()
     height, width = stdscr.getmaxyx()
-    
+
     current_row = 0
     num_rows = len(animes)
 
@@ -108,6 +107,7 @@ def display_menu(stdscr, animes):
             break
 
     return None
+
 
 class AnimeDownloader:
     BASE_URL_TEMPLATE = "https://aniworld.to/anime/stream/{anime}/"
@@ -198,17 +198,12 @@ class AnimeDownloader:
 
 class EpisodeForm(npyscreen.ActionForm):
     def create(self):
-        self.episode_list = [url for season, episodes in self.parentApp.anime_downloader.season_data.items() for url in episodes]
-        
-        self.episode_display_list = [
-            f"Season {url.split('/')[-2].split('-')[-1]}, Episode {url.split('/')[-1].split('-')[-1]}" for url in self.episode_list
-        ]
-
+        episode_list = [url for season, episodes in self.parentApp.anime_downloader.season_data.items() for url in episodes]
         self.action_selector = self.add(npyscreen.TitleSelectOne, name="Watch or Download", values=["Watch", "Download"], max_height=4, value=[1], scroll_exit=True)
         self.directory_field = self.add(npyscreen.TitleFilenameCombo, name="Directory:", value=os.path.join(os.path.expanduser('~'), 'Downloads'))
         self.language_selector = self.add(npyscreen.TitleSelectOne, name="Language Options", values=["German Dub", "English Sub", "German Sub"], max_height=4, value=[2], scroll_exit=True)
         self.provider_selector = self.add(npyscreen.TitleSelectOne, name="Provider Options", values=["Vidoza", "Streamtape", "Doodstream", "VOE"], max_height=4, value=[0], scroll_exit=True)
-        self.episode_selector = self.add(npyscreen.TitleMultiSelect, name="Select Episodes", values=self.episode_display_list, max_height=7)
+        self.episode_selector = self.add(npyscreen.TitleMultiSelect, name="Select Episodes", values=episode_list, max_height=7)
 
         self.action_selector.when_value_edited = self.update_directory_visibility
 
@@ -227,14 +222,14 @@ class EpisodeForm(npyscreen.ActionForm):
             npyscreen.notify_confirm("Please provide a directory.", title="Error")
             return
 
-        selected_episodes_display = self.episode_selector.get_selected_objects()
+        selected_episodes = self.episode_selector.get_selected_objects()
         action_selected = self.action_selector.get_selected_objects()
         language_selected = self.language_selector.get_selected_objects()
         provider_selected = self.provider_selector.get_selected_objects()
 
         lang = language_selected[0].replace('German Dub', "1").replace('English Sub', "2").replace('German Sub', "3")
 
-        # those helpers need to be fixed
+        # voe and doodstream currently broken
         valid_providers = ["Vidoza", "Streamtape"]
 
         while provider_selected[0] not in valid_providers:
@@ -242,8 +237,8 @@ class EpisodeForm(npyscreen.ActionForm):
             self.provider_selector.value = 0
 
             provider_selected = self.provider_selector.get_selected_objects()
-        if selected_episodes_display and action_selected and language_selected:
-            selected_episodes = [self.episode_list[self.episode_display_list.index(display)] for display in selected_episodes_display]
+
+        if selected_episodes and action_selected and language_selected:
             selected_str = "\n".join(selected_episodes)
             npyscreen.notify_confirm(f"Selected episodes:\n{selected_str}", title="Selection")
 
@@ -268,10 +263,12 @@ class EpisodeForm(npyscreen.ActionForm):
                 if provider_selected[0] in data:
                     for language in data[provider_selected[0]]:
                         if language == int(lang):
+                            #print(f"DEBUG: {str(language).replace('1', 'German Dub').replace('2', 'English Sub').replace('3', 'German Sub')}: {vidoza_get_direct_link(BeautifulSoup(self.parentApp.anime_downloader.make_request(data['Vidoza'][language]), 'html.parser'))}")
+
                             matches = findall(r'\d+', episode_url)
                             season_number = matches[-2]
                             episode_number = matches[-1]
-
+                            
                             anime_title = self.parentApp.anime_downloader.anime_title
                             action = action_selected[0]
 
@@ -293,9 +290,9 @@ class EpisodeForm(npyscreen.ActionForm):
                                     f"-o '{output_directory}/{anime_title} - S{season_number}E{episode_number}.mp4' "
                                     f"--quiet --progress \"{link}\""
                                 )
+
                             os.system(command)
                             break
-
 
             if not self.directory_field.hidden:
                 self.parentApp.anime_downloader.clean_up_leftovers(output_directory)
@@ -307,7 +304,6 @@ class EpisodeForm(npyscreen.ActionForm):
 
     def on_cancel(self):
         self.parentApp.setNextForm(None)
-
 
 class AnimeApp(npyscreen.NPSAppManaged):
     def __init__(self, anime_slug):
