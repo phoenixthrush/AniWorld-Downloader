@@ -37,21 +37,21 @@ def clear_screen():
 
 def search_anime() -> None:
     clear_screen()
-    keyword = input("Search for a series: ")
-    encoded_keyword = quote(keyword)
-    url = f"https://aniworld.to/ajax/seriesSearch?keyword={encoded_keyword}"
+    while True:
+        keyword = input("Search for a series: ")
+        clear_screen()
+        encoded_keyword = quote(keyword)
+        url = f"https://aniworld.to/ajax/seriesSearch?keyword={encoded_keyword}"
 
-    json_data = fetch_data(url)
-    if json_data is None:
-        sys.exit()
+        json_data = fetch_data(url)
 
-    if not isinstance(json_data, list) or not json_data:
-        print("No series found or unexpected JSON format.")
-        sys.exit()
+        if not isinstance(json_data, list) or not json_data:
+            print("No series found. Try again...")
+            continue
 
-    selected_link = curses.wrapper(display_menu, json_data)
+        selected_link = curses.wrapper(display_menu, json_data)
 
-    return selected_link
+        return selected_link
 
 def fetch_data(url: str) -> list:
     try:
@@ -60,12 +60,16 @@ def fetch_data(url: str) -> list:
     except Exception as e:
         print(f"An error occurred: {e}")
         return None
+    
+    if data is None:
+            print("Failed to fetch data.")
+            sys.exit(1)
 
     decoded_data = data.decode()
 
     if "Deine Anfrage wurde als Spam erkannt." in decoded_data:
         print("Your IP address is blacklisted. Please use a VPN or try again later.")
-        return None
+        sys.exit(1)
 
     try:
         return loads(decoded_data)
@@ -236,7 +240,7 @@ class EpisodeForm(npyscreen.ActionForm):
             npyscreen.notify_confirm("Doodstream and VOE are currently broken.\nFalling back to Vidoza.", title="Provider Error")
             self.provider_selector.value = 0
 
-            provider_selected = self.provider_selector.get_selected_objects()
+            provider_selected = ["Vidoza"]
 
         if selected_episodes and action_selected and language_selected:
             selected_str = "\n".join(selected_episodes)
