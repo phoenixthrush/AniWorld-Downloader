@@ -8,6 +8,7 @@ from shutil import which
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import urlopen, Request
+import configparser
 import curses
 import glob
 import npyscreen
@@ -34,6 +35,38 @@ def clear_screen():
         os.system("cls")
     else:
         os.system("clear")
+
+def read_config():
+    config = configparser.ConfigParser()
+    source_file_dir = os.path.dirname(os.path.abspath(__file__))
+
+    current_working_dir = os.getcwd()
+    config_file_name = '.aniworld-downloader.ini'
+
+    source_file_config_path = os.path.join(source_file_dir, config_file_name)
+    cwd_config_path = os.path.join(current_working_dir, config_file_name)
+
+    if os.path.exists(source_file_config_path):
+        config.read(source_file_config_path)
+    elif os.path.exists(cwd_config_path):
+        config.read(cwd_config_path)
+    else:
+        print("Configuration file not found.")
+        return None
+
+    for section in config.sections():
+        print(f"[{section}]")
+        for key, value in config.items(section):
+            print(f"{key} = {value}")
+
+    """
+    config = read_config()
+    if config:
+        if 'Provider' in config:
+            provider = config['Provider'].get('Provider', 'Vidoza')
+    """
+    
+    return config
 
 def search_anime() -> None:
     clear_screen()
