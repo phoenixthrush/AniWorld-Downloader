@@ -266,8 +266,8 @@ class EpisodeForm(npyscreen.ActionForm):
 
         lang = language_selected[0].replace('German Dub', "1").replace('English Sub', "2").replace('German Sub', "3")
 
-        # voe and doodstream currently broken
-        valid_providers = ["Vidoza", "Streamtape"]
+        # doodstream currently broken
+        valid_providers = ["Vidoza", "Streamtape", "VOE"]
 
         while provider_selected[0] not in valid_providers:
             npyscreen.notify_confirm("Doodstream and VOE are currently broken.\nFalling back to Vidoza.", title="Provider Error")

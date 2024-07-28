@@ -54,7 +54,7 @@ url = "https://aniworld.to/anime/stream/gods-games-we-play/staffel-1/episode-1"
 soup = BeautifulSoup(make_request(url), 'html.parser')
 data = providers(soup)
 
-print("VOE TEST -> broken")
+print("VOE TEST")
 for language in data["VOE"]:
     soup = BeautifulSoup(make_request(data["VOE"][language]), 'html.parser')
     print(f"{str(language).replace("1", "German Dub").replace("2", "English Sub").replace("3", "German Sub")}: {voe_get_direct_link(soup)}")
