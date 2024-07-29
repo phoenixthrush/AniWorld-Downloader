@@ -2,11 +2,11 @@
 name = "aniworld"
 version = "0.0.1"
 authors = [
-  { name="Phoenixthrush UwU", email="contact@phoenixthrush.com"},
+  { name="Phoenixthrush UwU", email="contact@phoenixthrush.com" },
 ]
-description = "An aniworld.to wrapper"
+description = "Command line tool designed to download and stream content from aniworld.to"
 readme = "README.md"
-requires-python = ">=3.6"
+requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -14,5 +14,5 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/phoenixthrush/aniworld"
-Issues = "https://github.com/phoenixthrush/aniworld/issues"
+Homepage = "https://github.com/phoenixthrush/Aniworld-Downloader"
+Issues = "https://github.com/phoenixthrush/Aniworld-Downloader/issues"
