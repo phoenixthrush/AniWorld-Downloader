@@ -77,7 +77,7 @@ def build_flags(mal_id, episode, chapters_file):
     debug_print(f"AniSkip response: {json.dumps(metadata, indent=2)}")
     
     if not metadata.get("found"):
-        die("Skip times not found!")
+        return ""
 
     with open(chapters_file, 'w') as f:
         f.write(";FFMETADATA1")
@@ -91,7 +91,7 @@ def anime_skip(anime_title, episode, debug=False):
 
     mal_id = fetch_mal_id(anime_title) if not anime_title.isdigit() else anime_title
     if not mal_id:
-        die("Anime title/MyAnimeList ID not found!")
+        return ""
 
     chapters_file = tempfile.mktemp()
     return build_flags(mal_id, episode, chapters_file)
