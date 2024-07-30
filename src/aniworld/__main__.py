@@ -203,6 +203,8 @@ class AnimeDownloader:
                 print(f"Error removing directory {directory}: {e}")
 
     def get_season_episodes(self, season_url):
+        season_url_old = season_url
+        season_url = season_url[:-2]
         season_html = self.make_request(season_url)
         if season_html is None:
             return []
@@ -210,7 +212,7 @@ class AnimeDownloader:
         episodes = season_soup.find_all('meta', itemprop='episodeNumber')
         episode_numbers = [int(episode['content']) for episode in episodes]
         highest_episode = max(episode_numbers, default=None)
-        return [f"{season_url}/staffel-{season_url.split('/')[-1]}/episode-{num}" for num in range(1, highest_episode + 1)]
+        return [f"{season_url}/staffel-{season_url_old.split('/')[-1]}/episode-{num}" for num in range(1, highest_episode + 1)]
 
     def get_season_data(self):
         main_html = self.make_request(self.base_url)

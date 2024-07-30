@@ -3,6 +3,7 @@ from re import search
 from time import time
 from urllib.parse import urlparse
 
+# use urllib in future
 from requests import Session
 
 

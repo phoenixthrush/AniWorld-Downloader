@@ -1,12 +1,17 @@
 [project]
 name = "aniworld"
-version = "0.0.1"
+version = "0.0.2"
 authors = [
   { name="Phoenixthrush UwU", email="contact@phoenixthrush.com" },
 ]
 description = "Command line tool designed to download and stream content from aniworld.to"
 readme = "README.md"
 requires-python = ">=3.8"
+dependencies = [
+    'requests',
+    'bs4',
+    'npyscreen'
+]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
