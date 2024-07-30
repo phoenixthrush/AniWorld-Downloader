@@ -352,10 +352,13 @@ class AnimeApp(npyscreen.NPSAppManaged):
     def onStart(self):
         self.addForm("MAIN", EpisodeForm, name="Anime Downloader")
 
-if __name__ == "__main__":
+def main():
     try:
         check_dependencies()
         app = AnimeApp(search_anime())
         app.run()
     except KeyboardInterrupt:
         sys.exit()
+
+if __name__ == "__main__":
+    main()

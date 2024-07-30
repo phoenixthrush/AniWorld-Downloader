@@ -17,7 +17,7 @@ pip install -U aniworld
 
 > Run
 ```shell
-python -m aniworld
+aniworld
 ```
 
 ## Contributing

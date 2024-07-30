@@ -21,3 +21,6 @@ classifiers = [
 [project.urls]
 Homepage = "https://github.com/phoenixthrush/Aniworld-Downloader"
 Issues = "https://github.com/phoenixthrush/Aniworld-Downloader/issues"
+
+[project.scripts]
+aniworld = "aniworld.__main__:main"
