@@ -3,8 +3,8 @@
 
 from bs4 import BeautifulSoup
 from json import loads, JSONDecodeError
-from re import findall
-from shutil import which
+from re import findall, sub
+from shutil import which, copy
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import urlopen, Request
@@ -20,6 +20,8 @@ from aniworld import doodstream_get_direct_link
 from aniworld import streamtape_get_direct_link
 from aniworld import vidoza_get_direct_link
 from aniworld import voe_get_direct_link
+
+from aniworld import anime_skip
 
 def check_dependencies():
     dependencies = ["yt-dlp", "mpv"]
@@ -239,6 +241,7 @@ class EpisodeForm(npyscreen.ActionForm):
     def create(self):
         episode_list = [url for season, episodes in self.parentApp.anime_downloader.season_data.items() for url in episodes]
         self.action_selector = self.add(npyscreen.TitleSelectOne, name="Watch or Download", values=["Watch", "Download"], max_height=4, value=[1], scroll_exit=True)
+        self.aniskip_selector = self.add(npyscreen.TitleSelectOne, name="Use Aniskip", values=["Yes", "No"], max_height=2, value=[0], scroll_exit=True)
         self.directory_field = self.add(npyscreen.TitleFilenameCombo, name="Directory:", value=os.path.join(os.path.expanduser('~'), 'Downloads'))
         self.language_selector = self.add(npyscreen.TitleSelectOne, name="Language Options", values=["German Dub", "English Sub", "German Sub"], max_height=4, value=[2], scroll_exit=True)
         self.provider_selector = self.add(npyscreen.TitleSelectOne, name="Provider Options", values=["Vidoza", "Streamtape", "Doodstream", "VOE"], max_height=4, value=[0], scroll_exit=True)
@@ -250,8 +253,10 @@ class EpisodeForm(npyscreen.ActionForm):
         selected_action = self.action_selector.get_selected_objects()
         if selected_action and selected_action[0] == "Watch":
             self.directory_field.hidden = True
+            self.aniskip_selector.hidden = False
         else:
             self.directory_field.hidden = False
+            self.aniskip_selector.hidden = True
         self.display()
 
     def on_ok(self):
@@ -265,6 +270,7 @@ class EpisodeForm(npyscreen.ActionForm):
         action_selected = self.action_selector.get_selected_objects()
         language_selected = self.language_selector.get_selected_objects()
         provider_selected = self.provider_selector.get_selected_objects()
+        aniskip_selected = self.aniskip_selector.get_selected_objects()
 
         lang = language_selected[0].replace('German Dub', "1").replace('English Sub', "2").replace('German Sub', "3")
 
@@ -310,6 +316,16 @@ class EpisodeForm(npyscreen.ActionForm):
                             
                             anime_title = self.parentApp.anime_downloader.anime_title
                             action = action_selected[0]
+                            use_aniskip = aniskip_selected[0] == "Yes"
+
+                            if use_aniskip:
+                                script_directory = os.path.dirname(os.path.abspath(__file__))
+                                source_path = os.path.join(script_directory, 'skip.lua')
+                                destination_path = os.path.expanduser('~/.config/mpv/scripts/skip.lua')
+
+                                if not os.path.exists(destination_path):
+                                    os.makedirs(os.path.dirname(destination_path), exist_ok=True)
+                                    copy(source_path, destination_path)
 
                             link = provider_mapping[provider_selected[0]](
                                 BeautifulSoup(self.parentApp.anime_downloader.make_request(data[provider_selected[0]][language]), 'html.parser')
@@ -320,6 +336,7 @@ class EpisodeForm(npyscreen.ActionForm):
                                 command = (
                                     f"mpv "
                                     f"'{link}' "
+                                    f"{anime_skip(anime_title, episode_number) if use_aniskip else ''} "
                                     f"--quiet --really-quiet --title='{anime_title} - S{season_number}E{episode_number}'"
                                 )
                             else:
@@ -359,6 +376,8 @@ def main():
         app.run()
     except KeyboardInterrupt:
         sys.exit()
+    except npyscreen.wgwidget.NotEnoughSpaceForWidget as e:
+        print(f"Please increase your current terminal size.\nException: {e}")
 
 if __name__ == "__main__":
     main()
