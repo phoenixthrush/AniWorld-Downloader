@@ -244,7 +244,7 @@ class EpisodeForm(npyscreen.ActionForm):
         self.aniskip_selector = self.add(npyscreen.TitleSelectOne, name="Use Aniskip", values=["Yes", "No"], max_height=2, value=[0], scroll_exit=True)
         self.directory_field = self.add(npyscreen.TitleFilenameCombo, name="Directory:", value=os.path.join(os.path.expanduser('~'), 'Downloads'))
         self.language_selector = self.add(npyscreen.TitleSelectOne, name="Language Options", values=["German Dub", "English Sub", "German Sub"], max_height=4, value=[2], scroll_exit=True)
-        self.provider_selector = self.add(npyscreen.TitleSelectOne, name="Provider Options", values=["Vidoza", "Streamtape", "Doodstream", "VOE"], max_height=4, value=[0], scroll_exit=True)
+        self.provider_selector = self.add(npyscreen.TitleSelectOne, name="Provider Options (VOE recommended for Downloading)", values=["Vidoza", "Streamtape", "VOE", "Doodstream"], max_height=4, value=[0], scroll_exit=True)
         self.episode_selector = self.add(npyscreen.TitleMultiSelect, name="Select Episodes", values=episode_list, max_height=7)
 
         self.action_selector.when_value_edited = self.update_directory_visibility
@@ -278,7 +278,7 @@ class EpisodeForm(npyscreen.ActionForm):
         valid_providers = ["Vidoza", "Streamtape", "VOE"]
 
         while provider_selected[0] not in valid_providers:
-            npyscreen.notify_confirm("Doodstream and VOE are currently broken.\nFalling back to Vidoza.", title="Provider Error")
+            npyscreen.notify_confirm("Doodstream is are currently broken.\nFalling back to Vidoza.", title="Provider Error")
             self.provider_selector.value = 0
 
             provider_selected = ["Vidoza"]
@@ -332,19 +332,19 @@ class EpisodeForm(npyscreen.ActionForm):
                             )
 
                             if action == "Watch":
-                                print(f"Playing '{output_directory}/{anime_title} - S{season_number}E{episode_number}'")
+                                print(f"Playing '{anime_title} - S{season_number}E{episode_number}'")
                                 command = (
                                     f"mpv "
-                                    f"'{link}' "
+                                    f"'{link}' --fs "
                                     f"{anime_skip(anime_title, episode_number) if use_aniskip else ''} "
                                     f"--quiet --really-quiet --title='{anime_title} - S{season_number}E{episode_number}'"
                                 )
                             else:
-                                print(f"Downloading '{output_directory}/{anime_title} - S{season_number}E{episode_number}'")
+                                print(f"Downloading to '{output_directory}/{anime_title} - S{season_number}E{episode_number}'")
                                 command = (
-                                    f"yt-dlp "
+                                    f"yt-dlp --fragment-retries infinite --concurrent-fragments 4 "
                                     f"-o '{output_directory}/{anime_title} - S{season_number}E{episode_number}.mp4' "
-                                    f"--quiet --progress \"{link}\""
+                                    f"--quiet --progress --no-warnings \"{link}\""
                                 )
 
                             os.system(command)
