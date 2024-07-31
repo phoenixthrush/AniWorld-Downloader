@@ -323,7 +323,7 @@ class EpisodeForm(npyscreen.ActionForm):
                             action = action_selected[0]
                             use_aniskip = aniskip_selected[0] == "Yes"
 
-                            if use_aniskip:
+                            if use_aniskip and os.name != 'nt':
                                 script_directory = os.path.dirname(os.path.abspath(__file__))
                                 source_path = os.path.join(script_directory, 'skip.lua')
                                 destination_path = os.path.expanduser('~/.config/mpv/scripts/skip.lua')
@@ -345,10 +345,10 @@ class EpisodeForm(npyscreen.ActionForm):
                                     f"--quiet --really-quiet --title='{anime_title} - S{season_number}E{episode_number}'"
                                 )
                             else:
-                                print(f"Downloading to '{output_directory}/{anime_title} - S{season_number}E{episode_number}'")
+                                print(f"Downloading to '{os.path.join(output_directory, f'{anime_title} - S{season_number}E{episode_number}.mp4')}'")
                                 command = (
                                     f"yt-dlp --fragment-retries infinite --concurrent-fragments 4 "
-                                    f"-o '{output_directory}/{anime_title} - S{season_number}E{episode_number}.mp4' "
+                                    f"-o \"{os.path.join(output_directory, f'{anime_title} - S{season_number}E{episode_number}.mp4')}\" "
                                     f"--quiet --progress --no-warnings \"{link}\""
                                 )
 
