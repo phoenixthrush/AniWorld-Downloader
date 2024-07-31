@@ -189,7 +189,12 @@ class AnimeDownloader:
         return extracted_data
 
     def clean_up_leftovers(self, directory):
-        leftover_files = glob.glob(os.path.join(directory, '*.part'))
+        patterns = ['*.part', '*.ytdl', '*.part-Frag*']
+
+        leftover_files = []
+        for pattern in patterns:
+            leftover_files.extend(glob.glob(os.path.join(directory, pattern)))
+
         for file_path in leftover_files:
             try:
                 os.remove(file_path)
