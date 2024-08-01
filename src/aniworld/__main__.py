@@ -126,10 +126,10 @@ def display_menu(stdscr, animes):
             y = idx
             if idx == current_row:
                 stdscr.attron(curses.A_REVERSE)
-                stdscr.addstr(y, x, f"{anime.get('name', 'No Name')} ({anime.get('productionYear', 'No Year')})")
+                stdscr.addstr(y, x, f"{anime.get('name', 'No Name')} {anime.get('productionYear', 'No Year')}")
                 stdscr.attroff(curses.A_REVERSE)
             else:
-                stdscr.addstr(y, x, f"{anime.get('name', 'No Name')} ({anime.get('productionYear', 'No Year')})")
+                stdscr.addstr(y, x, f"{anime.get('name', 'No Name')} {anime.get('productionYear', 'No Year')}")
 
         stdscr.refresh()
 
