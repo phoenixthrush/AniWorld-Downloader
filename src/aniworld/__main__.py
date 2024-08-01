@@ -247,7 +247,7 @@ class EpisodeForm(npyscreen.ActionForm):
     def create(self):
         episode_list = [url for season, episodes in self.parentApp.anime_downloader.season_data.items() for url in episodes]
         self.action_selector = self.add(npyscreen.TitleSelectOne, name="Watch or Download", values=["Watch", "Download"], max_height=4, value=[1], scroll_exit=True)
-        self.aniskip_selector = self.add(npyscreen.TitleSelectOne, name="Use Aniskip", values=["Yes", "No"], max_height=2, value=[0], scroll_exit=True)
+        self.aniskip_selector = self.add(npyscreen.TitleSelectOne, name="Use Aniskip (Skip Intro & Outro)", values=["Yes", "No"], max_height=2, value=[1], scroll_exit=True)
         self.directory_field = self.add(npyscreen.TitleFilenameCombo, name="Directory:", value=os.path.join(os.path.expanduser('~'), 'Downloads'))
         self.language_selector = self.add(npyscreen.TitleSelectOne, name="Language Options", values=["German Dub", "English Sub", "German Sub"], max_height=4, value=[2], scroll_exit=True)
         self.provider_selector = self.add(npyscreen.TitleSelectOne, name="Provider Options (VOE recommended for Downloading)", values=["Vidoza", "Streamtape", "VOE", "Doodstream"], max_height=4, value=[0], scroll_exit=True)
