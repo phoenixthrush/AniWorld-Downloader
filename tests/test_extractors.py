@@ -59,9 +59,9 @@ def test_provider(data, provider_name, get_direct_link_func):
         language_str = str(language).replace("1", "German Dub").replace("2", "English Sub").replace("3", "German Sub")
         #print(f"{language_str}: {direct_link}")
         if 'http' in direct_link:
-            print("OK - Direct link found.")
+            print("\033[92mOK\033[0m - Direct link found.")
         else:
-            print("FAILURE - No valid direct link found.")
+            print("\033[91mFAILURE\033[0m - No valid direct link found.")
     print()
 
 
