@@ -14,6 +14,7 @@ import glob
 import npyscreen
 import os
 import platform
+import subprocess
 import sys
 
 from aniworld import doodstream_get_direct_link
@@ -323,10 +324,14 @@ class EpisodeForm(npyscreen.ActionForm):
                             action = action_selected[0]
                             use_aniskip = aniskip_selected[0] == "Yes"
 
-                            if use_aniskip and os.name != 'nt':
+                            if use_aniskip:
                                 script_directory = os.path.dirname(os.path.abspath(__file__))
                                 source_path = os.path.join(script_directory, 'skip.lua')
-                                destination_path = os.path.expanduser('~/.config/mpv/scripts/skip.lua')
+
+                                if os.name != 'nt':
+                                    destination_path = os.path.expanduser('~/.config/mpv/scripts/skip.lua')
+                                else: 
+                                    destination_path = os.path.expanduser('~\\AppData\\Roaming\\mpv\\scripts\\skip.lua')
 
                                 if not os.path.exists(destination_path):
                                     os.makedirs(os.path.dirname(destination_path), exist_ok=True)
@@ -338,21 +343,37 @@ class EpisodeForm(npyscreen.ActionForm):
 
                             if action == "Watch":
                                 print(f"Playing '{anime_title} - S{season_number}E{episode_number}'")
-                                command = (
-                                    f"mpv "
-                                    f"'{link}' --fs "
-                                    f"{anime_skip(anime_title, episode_number) if use_aniskip else ''} "
-                                    f"--quiet --really-quiet --title='{anime_title} - S{season_number}E{episode_number}'"
-                                )
+                                command = [
+                                    "mpv",
+                                    link,
+                                    "--fs",
+                                    "--quiet",
+                                    "--really-quiet",
+                                    f"--title={anime_title} - S{season_number}E{episode_number}"
+                                ]
+                                if use_aniskip:
+                                    skip_options = anime_skip(anime_title, episode_number)
+                                    result = [f"--{opt}" if not opt.startswith('--') else opt for opt in skip_options.split(' --')]
+                                    command.extend(result)
+
+                                subprocess.run(command)
                             else:
                                 print(f"Downloading to '{os.path.join(output_directory, f'{anime_title} - S{season_number}E{episode_number}.mp4')}'")
-                                command = (
-                                    f"yt-dlp --fragment-retries infinite --concurrent-fragments 4 "
-                                    f"-o \"{os.path.join(output_directory, f'{anime_title} - S{season_number}E{episode_number}.mp4')}\" "
-                                    f"--quiet --progress --no-warnings \"{link}\""
-                                )
+                                command = [
+                                    "yt-dlp",
+                                    "--fragment-retries",
+                                    "infinite",
+                                    "--concurrent-fragments",
+                                    "4",
+                                    "-o",
+                                    os.path.join(output_directory, f"{anime_title} - S{season_number}E{episode_number}.mp4"),
+                                    "--quiet",
+                                    "--progress",
+                                    "--no-warnings",
+                                    link
+                                ]
+                                subprocess.run(command)
 
-                            os.system(command)
                             break
 
             if not self.directory_field.hidden:
