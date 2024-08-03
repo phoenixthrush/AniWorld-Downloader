@@ -2,6 +2,7 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 import re
 
+
 def voe_get_direct_link(soup):
     REDIRECT_PATTERN = re.compile(r"window\.location\.href\s*=\s*'(https://[^/]+/e/\w+)';")
     NODE_DETAILS_PATTERN = re.compile(r'let nodeDetails = prompt\("Node",\s*"(https://[^"]+)"\);')

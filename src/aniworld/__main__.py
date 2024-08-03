@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from bs4 import BeautifulSoup
 from json import loads, JSONDecodeError
-from re import findall, sub
+from re import findall
 from shutil import which, copy
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
@@ -11,18 +10,20 @@ from urllib.request import urlopen, Request
 import configparser
 import curses
 import glob
-import npyscreen
 import os
 import platform
 import subprocess
 import sys
 
+from bs4 import BeautifulSoup
+import npyscreen
+
 from aniworld import doodstream_get_direct_link
 from aniworld import streamtape_get_direct_link
 from aniworld import vidoza_get_direct_link
 from aniworld import voe_get_direct_link
-
 from aniworld import anime_skip
+
 
 def check_dependencies():
     dependencies = ["yt-dlp", "mpv"]
@@ -31,6 +32,7 @@ def check_dependencies():
         print(f"Missing dependencies: {', '.join(missing)} in path. Please install and try again.")
         sys.exit(1)
 
+
 def clear_screen():
     current_os = platform.system()
 
@@ -38,6 +40,7 @@ def clear_screen():
         os.system("cls")
     else:
         os.system("clear")
+
 
 def read_config():
     config = configparser.ConfigParser()
@@ -62,14 +65,8 @@ def read_config():
         for key, value in config.items(section):
             print(f"{key} = {value}")
 
-    """
-    config = read_config()
-    if config:
-        if 'Provider' in config:
-            provider = config['Provider'].get('Provider', 'Vidoza')
-    """
-    
     return config
+
 
 def search_anime() -> None:
     clear_screen()
@@ -89,17 +86,21 @@ def search_anime() -> None:
 
         return selected_link
 
+
 def fetch_data(url: str) -> list:
     try:
         with urlopen(url) as response:
             data = response.read()
-    except Exception as e:
-        print(f"An error occurred: {e}")
+    except HTTPError as e:
+        print(f"HTTP error occurred: {e.code} {e.reason}")
         return None
-    
+    except URLError as e:
+        print(f"URL error occurred: {e.reason}")
+        return None
+
     if data is None:
-            print("Failed to fetch data.")
-            sys.exit(1)
+        print("Failed to fetch data.")
+        sys.exit(1)
 
     decoded_data = data.decode()
 
@@ -113,9 +114,9 @@ def fetch_data(url: str) -> list:
         print("Failed to decode JSON response.")
         return None
 
+
 def display_menu(stdscr, animes):
     stdscr.clear()
-    height, width = stdscr.getmaxyx()
 
     current_row = 0
     num_rows = len(animes)
@@ -127,10 +128,14 @@ def display_menu(stdscr, animes):
             y = idx
             if idx == current_row:
                 stdscr.attron(curses.A_REVERSE)
-                stdscr.addstr(y, x, f"{anime.get('name', 'No Name')} {anime.get('productionYear', 'No Year')}")
+                name = anime.get('name', 'No Name')
+                year = anime.get('productionYear', 'No Year')
+                stdscr.addstr(y, x, f"{name} {year}")
                 stdscr.attroff(curses.A_REVERSE)
             else:
-                stdscr.addstr(y, x, f"{anime.get('name', 'No Name')} {anime.get('productionYear', 'No Year')}")
+                name = anime.get('name', 'No Name')
+                year = anime.get('productionYear', 'No Year')
+                stdscr.addstr(y, x, f"{name} {year}")
 
         stdscr.refresh()
 
@@ -163,7 +168,13 @@ class AnimeDownloader:
         return anime_slug.replace("-", " ").title()
 
     def make_request(self, url):
-        headers = {'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"}
+        headers = {
+            'User-Agent': (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/58.0.3029.110 Safari/537.3"
+            )
+        }
         req = Request(url, headers=headers)
         try:
             with urlopen(req, timeout=10) as response:
@@ -175,16 +186,16 @@ class AnimeDownloader:
     def providers(self, soup):
         hoster_site_video = soup.find(class_='hosterSiteVideo').find('ul', class_='row')
         episode_links = hoster_site_video.find_all('li')
-        
+
         extracted_data = {}
         for link in episode_links:
             data_lang_key = int(link.get('data-lang-key'))
             redirect_link = link.get('data-link-target')
             h4_text = link.find('h4').text.strip()
-            
+
             if h4_text not in extracted_data:
                 extracted_data[h4_text] = {}
-            
+
             extracted_data[h4_text][data_lang_key] = f"https://aniworld.to{redirect_link}"
 
         return extracted_data
@@ -200,15 +211,23 @@ class AnimeDownloader:
             try:
                 os.remove(file_path)
                 print(f"Removed leftover file: {file_path}")
-            except Exception as e:
-                print(f"Error removing file {file_path}: {e}")
+            except FileNotFoundError:
+                print(f"File not found: {file_path}")
+            except PermissionError:
+                print(f"Permission denied when trying to remove file: {file_path}")
+            except OSError as e:
+                print(f"OS error occurred while removing file {file_path}: {e}")
 
         if not os.listdir(directory):
             try:
                 os.rmdir(directory)
                 print(f"Removed empty directory: {directory}")
-            except Exception as e:
-                print(f"Error removing directory {directory}: {e}")
+            except FileNotFoundError:
+                print(f"Directory not found: {directory}")
+            except PermissionError:
+                print(f"Permission denied when trying to remove directory: {directory}")
+            except OSError as e:
+                print(f"OS error occurred while removing directory {directory}: {e}")
 
     def get_season_episodes(self, season_url):
         season_url_old = season_url
@@ -220,7 +239,14 @@ class AnimeDownloader:
         episodes = season_soup.find_all('meta', itemprop='episodeNumber')
         episode_numbers = [int(episode['content']) for episode in episodes]
         highest_episode = max(episode_numbers, default=None)
-        return [f"{season_url}/staffel-{season_url_old.split('/')[-1]}/episode-{num}" for num in range(1, highest_episode + 1)]
+
+        season_suffix = f"/staffel-{season_url_old.split('/')[-1]}"
+        episode_urls = [
+            f"{season_url}{season_suffix}/episode-{num}"
+            for num in range(1, highest_episode + 1)
+        ]
+
+        return episode_urls
 
     def get_season_data(self):
         main_html = self.make_request(self.base_url)
@@ -243,15 +269,63 @@ class AnimeDownloader:
 
         return season_data
 
+
 class EpisodeForm(npyscreen.ActionForm):
     def create(self):
-        episode_list = [url for season, episodes in self.parentApp.anime_downloader.season_data.items() for url in episodes]
-        self.action_selector = self.add(npyscreen.TitleSelectOne, name="Watch or Download", values=["Watch", "Download"], max_height=4, value=[1], scroll_exit=True)
-        self.aniskip_selector = self.add(npyscreen.TitleSelectOne, name="Use Aniskip (Skip Intro & Outro)", values=["Yes", "No"], max_height=3, value=[1], scroll_exit=True)
-        self.directory_field = self.add(npyscreen.TitleFilenameCombo, name="Directory:", value=os.path.join(os.path.expanduser('~'), 'Downloads'))
-        self.language_selector = self.add(npyscreen.TitleSelectOne, name="Language Options", values=["German Dub", "English Sub", "German Sub"], max_height=4, value=[2], scroll_exit=True)
-        self.provider_selector = self.add(npyscreen.TitleSelectOne, name="Provider Options (VOE recommended for Downloading)", values=["Vidoza", "Streamtape", "VOE", "Doodstream"], max_height=4, value=[0], scroll_exit=True)
-        self.episode_selector = self.add(npyscreen.TitleMultiSelect, name="Select Episodes", values=episode_list, max_height=7)
+        episode_list = [
+            url
+            for season, episodes in self.parentApp.anime_downloader.season_data.items()
+            for url in episodes
+        ]
+
+        self.action_selector = self.add(
+            npyscreen.TitleSelectOne,
+            name="Watch or Download",
+            values=["Watch", "Download"],
+            max_height=4,
+            value=[1],
+            scroll_exit=True
+        )
+
+        self.aniskip_selector = self.add(
+            npyscreen.TitleSelectOne,
+            name="Use Aniskip (Skip Intro & Outro)",
+            values=["Yes", "No"],
+            max_height=3,
+            value=[1],
+            scroll_exit=True
+        )
+
+        self.directory_field = self.add(
+            npyscreen.TitleFilenameCombo,
+            name="Directory:",
+            value=os.path.join(os.path.expanduser('~'), 'Downloads')
+        )
+
+        self.language_selector = self.add(
+            npyscreen.TitleSelectOne,
+            name="Language Options",
+            values=["German Dub", "English Sub", "German Sub"],
+            max_height=4,
+            value=[2],
+            scroll_exit=True
+        )
+
+        self.provider_selector = self.add(
+            npyscreen.TitleSelectOne,
+            name="Provider Options (VOE recommended for Downloading)",
+            values=["Vidoza", "Streamtape", "VOE", "Doodstream"],
+            max_height=4,
+            value=[0],
+            scroll_exit=True
+        )
+
+        self.episode_selector = self.add(
+            npyscreen.TitleMultiSelect,
+            name="Select Episodes",
+            values=episode_list,
+            max_height=7
+        )
 
         self.action_selector.when_value_edited = self.update_directory_visibility
 
@@ -265,7 +339,7 @@ class EpisodeForm(npyscreen.ActionForm):
             self.aniskip_selector.hidden = True
         self.display()
 
-    def on_ok(self):
+    def on_ok(self):  # TODO - refactor the code to reduce complexity
         npyscreen.blank_terminal()
         output_directory = self.directory_field.value if not self.directory_field.hidden else None
         if not output_directory and not self.directory_field.hidden:
@@ -278,13 +352,23 @@ class EpisodeForm(npyscreen.ActionForm):
         provider_selected = self.provider_selector.get_selected_objects()
         aniskip_selected = self.aniskip_selector.get_selected_objects()
 
-        lang = language_selected[0].replace('German Dub', "1").replace('English Sub', "2").replace('German Sub', "3")
+        lang = language_selected[0]
+
+        lang = lang.replace('German Dub', "1")
+        lang = lang.replace('English Sub', "2")
+        lang = lang.replace('German Sub', "3")
 
         # doodstream currently broken
         valid_providers = ["Vidoza", "Streamtape", "VOE"]
 
         while provider_selected[0] not in valid_providers:
-            npyscreen.notify_confirm("Doodstream is are currently broken.\nFalling back to Vidoza.", title="Provider Error")
+            message = (
+                "Doodstream is currently broken.\n"
+                "Falling back to Vidoza."
+            )
+            title = "Provider Error"
+
+            npyscreen.notify_confirm(message, title=title)
             self.provider_selector.value = 0
 
             provider_selected = ["Vidoza"]
@@ -294,7 +378,8 @@ class EpisodeForm(npyscreen.ActionForm):
             npyscreen.notify_confirm(f"Selected episodes:\n{selected_str}", title="Selection")
 
             if not self.directory_field.hidden:
-                output_directory = os.path.join(output_directory, self.parentApp.anime_downloader.anime_title)
+                anime_title = self.parentApp.anime_downloader.anime_title
+                output_directory = os.path.join(output_directory, anime_title)
                 os.makedirs(output_directory, exist_ok=True)
 
             for episode_url in selected_episodes:
@@ -303,7 +388,7 @@ class EpisodeForm(npyscreen.ActionForm):
                     continue
                 soup = BeautifulSoup(episode_html, 'html.parser')
                 data = self.parentApp.anime_downloader.providers(soup)
-                
+
                 provider_mapping = {
                     "Vidoza": vidoza_get_direct_link,
                     "VOE": voe_get_direct_link,
@@ -314,12 +399,10 @@ class EpisodeForm(npyscreen.ActionForm):
                 if provider_selected[0] in data:
                     for language in data[provider_selected[0]]:
                         if language == int(lang):
-                            #print(f"DEBUG: {str(language).replace('1', 'German Dub').replace('2', 'English Sub').replace('3', 'German Sub')}: {vidoza_get_direct_link(BeautifulSoup(self.parentApp.anime_downloader.make_request(data['Vidoza'][language]), 'html.parser'))}")
-
                             matches = findall(r'\d+', episode_url)
                             season_number = matches[-2]
                             episode_number = matches[-1]
-                            
+
                             anime_title = self.parentApp.anime_downloader.anime_title
                             action = action_selected[0]
                             use_aniskip = aniskip_selected[0] == "Yes"
@@ -329,20 +412,32 @@ class EpisodeForm(npyscreen.ActionForm):
                                 source_path = os.path.join(script_directory, 'skip.lua')
 
                                 if os.name != 'nt':
-                                    destination_path = os.path.expanduser('~/.config/mpv/scripts/skip.lua')
-                                else: 
-                                    destination_path = os.path.expanduser('~\\AppData\\Roaming\\mpv\\scripts\\skip.lua')
+                                    base_path = '~/.config/mpv/scripts/'
+                                else:
+                                    base_path = '~\\AppData\\Roaming\\mpv\\scripts\\'
+
+                                expanded_path = os.path.expanduser(base_path)
+                                destination_path = os.path.join(expanded_path, 'skip.lua')
+
+                                destination_path = os.path.join(base_path, 'skip.lua')
 
                                 if not os.path.exists(destination_path):
                                     os.makedirs(os.path.dirname(destination_path), exist_ok=True)
                                     copy(source_path, destination_path)
 
-                            link = provider_mapping[provider_selected[0]](
-                                BeautifulSoup(self.parentApp.anime_downloader.make_request(data[provider_selected[0]][language]), 'html.parser')
-                            )
+                            provider_function = provider_mapping[provider_selected[0]]
+                            request_url = data[provider_selected[0]][language]
+                            html_content = self.parentApp.anime_downloader.make_request(request_url)
+                            soup = BeautifulSoup(html_content, 'html.parser')
+
+                            link = provider_function(soup)
 
                             if action == "Watch":
-                                print(f"Playing '{anime_title} - S{season_number}E{episode_number}'")
+                                message = (
+                                    f"Playing '{anime_title} - "
+                                    f"S{season_number}E{episode_number}'"
+                                )
+                                print(message)
                                 command = [
                                     "mpv",
                                     link,
@@ -353,32 +448,43 @@ class EpisodeForm(npyscreen.ActionForm):
                                 ]
                                 if use_aniskip:
                                     skip_options = anime_skip(anime_title, episode_number)
-                                    result = [f"--{opt}" if not opt.startswith('--') else opt for opt in skip_options.split(' --')]
+                                    skip_options_list = skip_options.split(' --')
+                                    result = [
+                                        f"--{opt}" if not opt.startswith('--') else opt
+                                        for opt in skip_options_list
+                                    ]
                                     command.extend(result)
 
-                                subprocess.run(command)
+                                subprocess.run(command, check=True)
                             else:
-                                print(f"Downloading to '{os.path.join(output_directory, f'{anime_title} - S{season_number}E{episode_number}.mp4')}'")
+                                file_name = f"{anime_title} - S{season_number}E{episode_number}.mp4"
+                                file_path = os.path.join(output_directory, file_name)
+                                print(f"Downloading to '{file_path}'")
+
+                                output_file = os.path.join(
+                                    output_directory,
+                                    f"{anime_title} - S{season_number}E{episode_number}.mp4"
+                                )
+
                                 command = [
                                     "yt-dlp",
                                     "--fragment-retries",
                                     "infinite",
                                     "--concurrent-fragments",
                                     "4",
-                                    "-o",
-                                    os.path.join(output_directory, f"{anime_title} - S{season_number}E{episode_number}.mp4"),
+                                    "-o", output_file,
                                     "--quiet",
                                     "--progress",
                                     "--no-warnings",
                                     link
                                 ]
-                                subprocess.run(command)
+                                subprocess.run(command, check=True)
 
                             break
 
             if not self.directory_field.hidden:
                 self.parentApp.anime_downloader.clean_up_leftovers(output_directory)
-                
+
             self.parentApp.setNextForm(None)
             self.parentApp.switchFormNow()
         else:
@@ -386,6 +492,7 @@ class EpisodeForm(npyscreen.ActionForm):
 
     def on_cancel(self):
         self.parentApp.setNextForm(None)
+
 
 class AnimeApp(npyscreen.NPSAppManaged):
     def __init__(self, anime_slug):
@@ -395,6 +502,7 @@ class AnimeApp(npyscreen.NPSAppManaged):
     def onStart(self):
         self.addForm("MAIN", EpisodeForm, name="Anime Downloader")
 
+
 def main():
     try:
         check_dependencies()
@@ -403,7 +511,8 @@ def main():
     except KeyboardInterrupt:
         sys.exit()
     except npyscreen.wgwidget.NotEnoughSpaceForWidget:
-        print(f"Please increase your current terminal size.")
+        print("Please increase your current terminal size.")
+
 
 if __name__ == "__main__":
     main()

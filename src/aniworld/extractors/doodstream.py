@@ -5,8 +5,10 @@ from urllib.parse import urlparse
 
 from requests import Session
 
+
 def random_str(length: int = 10) -> str:
     return ''.join(choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=length))
+
 
 def doodstream_get_direct_link(url: str) -> str:
     try:

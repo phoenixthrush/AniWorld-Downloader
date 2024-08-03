@@ -1,3 +1,5 @@
+import socket
+from os import name, system
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
 
@@ -8,21 +10,27 @@ from aniworld import streamtape_get_direct_link
 from aniworld import vidoza_get_direct_link
 from aniworld import voe_get_direct_link
 
-from os import name, system
-
 
 def make_request(url):
     try:
-        headers = {'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"}
+        headers = {
+            'User-Agent': (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/58.0.3029.110 Safari/537.3"
+            )
+        }
         req = Request(url, headers=headers)
         with urlopen(req, timeout=10) as response:
             return response.read()
     except HTTPError as error:
-        print(error.status, error.reason)
+        print(f"HTTP Error: {error.code} - {error.reason}")
     except URLError as error:
-        print(error.reason)
-    except TimeoutError:
+        print(f"URL Error: {error.reason}")
+    except socket.timeout:
         print("Request timed out")
+
+    return None
 
 
 def providers(soup) -> dict:
@@ -50,16 +58,17 @@ def clear_screen():
     else:
         _ = system('clear')
 
+
 def test_provider(data, provider_name, get_direct_link_func, verbose=False) -> dict:
     if verbose:
         print(f"{provider_name} TEST")
-        
+
     direct_links = {}
     for language in data[provider_name]:
         soup = BeautifulSoup(make_request(data[provider_name][language]), 'html.parser')
         direct_link = get_direct_link_func(soup)
         direct_links[language] = direct_link
-        
+
     if verbose:
         for link in direct_links.values():
             if 'http' in link:
@@ -67,8 +76,9 @@ def test_provider(data, provider_name, get_direct_link_func, verbose=False) -> d
             else:
                 print("\033[91mFAILURE\033[0m - No valid direct link found.")
         print()
-        
+
     return direct_links
+
 
 def main():
     url = "https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1"
@@ -80,6 +90,7 @@ def main():
     test_provider(data, "Doodstream", doodstream_get_direct_link, True)
     test_provider(data, "Vidoza", vidoza_get_direct_link, True)
     test_provider(data, "Streamtape", streamtape_get_direct_link, True)
+
 
 if __name__ == "__main__":
     main()
