@@ -47,7 +47,7 @@ def syncplay(provider_name, get_direct_link_func):
         "--room", anime_slug,
         "--player-path", mpv,
         link,
-        "--", "--fs",
+        "--",
         f"--title={anime_slug}"
     ]
 

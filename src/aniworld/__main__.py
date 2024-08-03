@@ -9,6 +9,7 @@ from urllib.parse import quote
 from urllib.request import urlopen, Request
 import configparser
 import curses
+import getpass
 import glob
 import os
 import platform
@@ -22,7 +23,7 @@ from aniworld import doodstream_get_direct_link
 from aniworld import streamtape_get_direct_link
 from aniworld import vidoza_get_direct_link
 from aniworld import voe_get_direct_link
-from aniworld import anime_skip
+from aniworld import aniskip
 
 
 def check_dependencies():
@@ -280,8 +281,8 @@ class EpisodeForm(npyscreen.ActionForm):
 
         self.action_selector = self.add(
             npyscreen.TitleSelectOne,
-            name="Watch or Download",
-            values=["Watch", "Download"],
+            name="Watch, Download or Syncplay",
+            values=["Watch", "Download", "Syncplay"],
             max_height=4,
             value=[1],
             scroll_exit=True
@@ -331,7 +332,7 @@ class EpisodeForm(npyscreen.ActionForm):
 
     def update_directory_visibility(self):
         selected_action = self.action_selector.get_selected_objects()
-        if selected_action and selected_action[0] == "Watch":
+        if selected_action and selected_action[0] == "Watch" or selected_action[0] == "Syncplay":
             self.directory_field.hidden = True
             self.aniskip_selector.hidden = False
         else:
@@ -409,7 +410,7 @@ class EpisodeForm(npyscreen.ActionForm):
 
                             if use_aniskip:
                                 script_directory = os.path.dirname(os.path.abspath(__file__))
-                                source_path = os.path.join(script_directory, 'skip.lua')
+                                source_path = os.path.join(script_directory, 'aniskip', 'skip.lua')
 
                                 if os.name != 'nt':
                                     base_path = '~/.config/mpv/scripts/'
@@ -447,7 +448,7 @@ class EpisodeForm(npyscreen.ActionForm):
                                     f"--title={anime_title} - S{season_number}E{episode_number}"
                                 ]
                                 if use_aniskip:
-                                    skip_options = anime_skip(anime_title, episode_number)
+                                    skip_options = aniskip(anime_title, episode_number)
                                     skip_options_list = skip_options.split(' --')
                                     result = [
                                         f"--{opt}" if not opt.startswith('--') else opt
@@ -456,7 +457,7 @@ class EpisodeForm(npyscreen.ActionForm):
                                     command.extend(result)
 
                                 subprocess.run(command, check=True)
-                            else:
+                            elif action == "Download":
                                 file_name = f"{anime_title} - S{season_number}E{episode_number}.mp4"
                                 file_path = os.path.join(output_directory, file_name)
                                 print(f"Downloading to '{file_path}'")
@@ -479,7 +480,42 @@ class EpisodeForm(npyscreen.ActionForm):
                                     link
                                 ]
                                 subprocess.run(command, check=True)
+                            elif action == "Syncplay":
+                                print("DEBUG: Using Syncplay")
+                                if platform.system() == "Darwin":
+                                    syncplay = "/Applications/Syncplay.app/Contents/MacOS/Syncplay"
+                                    mpv = "/opt/homebrew/bin/mpv"
+                                elif platform.system() == "Windows":
+                                    syncplay = "C:\\Program Files\\Syncplay\\Syncplay.exe"
+                                    mpv = "C:\\Program Files\\mpv\\mpv.exe"
+                                else:
+                                    syncplay = "/usr/bin/syncplay"
+                                    mpv = "/usr/bin/mpv"
 
+                                group = (
+                                    f"'{anime_title} - "
+                                    f"S{season_number}E{episode_number}'"
+                                )
+                                command = [
+                                    syncplay,
+                                    "--no-gui",
+                                    "--host", "syncplay.pl:8997",
+                                    "--name", getpass.getuser(),
+                                    "--room", group,
+                                    "--player-path", mpv,
+                                    link,
+                                    "--", "--fs",
+                                    "--", f"--title={anime_title}"
+                                ]
+                                if use_aniskip:
+                                    skip_options = aniskip(anime_title, episode_number)
+                                    skip_options_list = skip_options.split(' --')
+                                    result = [
+                                        f"--{opt}" if not opt.startswith('--') else opt
+                                        for opt in skip_options_list
+                                    ]
+                                    command.extend(result)
+                            subprocess.run(command, check=True)
                             break
 
             if not self.directory_field.hidden:

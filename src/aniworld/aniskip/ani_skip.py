@@ -96,11 +96,11 @@ def build_flags(mal_id, episode, chapters_file, debug=False):
     with open(chapters_file, 'w', encoding='utf-8') as f:
         f.write(";FFMETADATA1")
 
-    options = build_options(metadata, chapters_file, debug)
+    options = build_options(metadata, chapters_file)
     return f"--chapters-file={chapters_file} --script-opts={options}"
 
 
-def anime_skip(anime_title, episode, debug=False):
+def aniskip(anime_title, episode, debug=False):
     mal_id = fetch_mal_id(anime_title, debug) if not anime_title.isdigit() else anime_title
     if not mal_id:
         return ""
