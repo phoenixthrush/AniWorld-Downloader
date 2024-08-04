@@ -7,7 +7,6 @@ from shutil import which, copy
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import urlopen, Request
-import configparser
 import curses
 import getpass
 import glob
@@ -26,8 +25,9 @@ from aniworld import voe_get_direct_link
 from aniworld import aniskip
 
 
-def check_dependencies(deps):
-    missing = [dep for dep in deps if which(dep) is None]
+def check_dependencies():
+    dependencies = ["yt-dlp", "mpv"]
+    missing = [dep for dep in dependencies if which(dep) is None]
     if missing:
         print(f"Missing dependencies: {', '.join(missing)} in path. Please install and try again.")
         sys.exit(1)
@@ -405,18 +405,17 @@ class EpisodeForm(npyscreen.ActionForm):
                             soup = BeautifulSoup(html_content, 'html.parser')
 
                             link = provider_function(soup)
-
-                            title = f"{anime_title} - S{season_number}E{episode_number}"
+                            mpv_title = f"{anime_title} - S{season_number}E{episode_number}"
 
                             if action == "Watch":
-                                print(f"Playing {title}")
+                                print(f"Playing '{mpv_title} - ")
                                 command = [
                                     "mpv",
                                     link,
                                     "--fs",
                                     "--quiet",
                                     "--really-quiet",
-                                    f"--force-media-title={title}"
+                                    f"--force-media-title={mpv_title}"
                                 ]
                                 if use_aniskip:
                                     skip_options = aniskip(anime_title, episode_number)
@@ -426,14 +425,16 @@ class EpisodeForm(npyscreen.ActionForm):
                                         for opt in skip_options_list
                                     ]
                                     command.extend(result)
+
+                                subprocess.run(command, check=True)
                             elif action == "Download":
-                                file_name = title
+                                file_name = f"{mpv_title}.mp4"
                                 file_path = os.path.join(output_directory, file_name)
                                 print(f"Downloading to '{file_path}'")
 
                                 output_file = os.path.join(
                                     output_directory,
-                                    title
+                                    f"{mpv_title}.mp4"
                                 )
 
                                 command = [
@@ -448,18 +449,28 @@ class EpisodeForm(npyscreen.ActionForm):
                                     "--no-warnings",
                                     link
                                 ]
-                            elif action == "Syncplay":  # TODO quit
-                                check_dependencies(["syncplay"])
+                                subprocess.run(command, check=True)
+                            elif action == "Syncplay":
+                                if platform.system() == "Darwin":
+                                    syncplay = "/Applications/Syncplay.app/Contents/MacOS/Syncplay"
+                                    mpv = "/opt/homebrew/bin/mpv"
+                                elif platform.system() == "Windows":
+                                    syncplay = "C:\\Program Files\\Syncplay\\Syncplay.exe"
+                                    mpv = "C:\\Program Files\\mpv\\mpv.exe"
+                                else:
+                                    syncplay = "/usr/bin/syncplay"
+                                    mpv = "/usr/bin/mpv"
+
                                 command = [
-                                    "syncplay",
+                                    syncplay,
                                     "--no-gui",
                                     "--host", "syncplay.pl:8997",
                                     "--name", getpass.getuser(),
-                                    "--room", title,
-                                    "--player-path", "mpv",
+                                    "--room", mpv_title,
+                                    "--player-path", mpv,
                                     link,
                                     "--", "--fs",
-                                    "--", f'--force-media-title="{title}"'
+                                    "--", f"--force-media-title={mpv_title}"
                                 ]
                                 if use_aniskip:
                                     skip_options = aniskip(anime_title, episode_number)
@@ -495,7 +506,7 @@ class AnimeApp(npyscreen.NPSAppManaged):
 
 def main():
     try:
-        check_dependencies(["yt-dlp", "mpv"])
+        check_dependencies()
         app = AnimeApp(search_anime())
         app.run()
     except KeyboardInterrupt:
