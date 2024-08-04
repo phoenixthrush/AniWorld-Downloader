@@ -26,9 +26,8 @@ from aniworld import voe_get_direct_link
 from aniworld import aniskip
 
 
-def check_dependencies():
-    dependencies = ["yt-dlp", "mpv"]
-    missing = [dep for dep in dependencies if which(dep) is None]
+def check_dependencies(deps):
+    missing = [dep for dep in deps if which(dep) is None]
     if missing:
         print(f"Missing dependencies: {', '.join(missing)} in path. Please install and try again.")
         sys.exit(1)
@@ -41,32 +40,6 @@ def clear_screen():
         os.system("cls")
     else:
         os.system("clear")
-
-
-def read_config():
-    config = configparser.ConfigParser()
-    source_file_dir = os.path.dirname(os.path.abspath(__file__))
-
-    current_working_dir = os.getcwd()
-    config_file_name = '.aniworld-downloader.ini'
-
-    source_file_config_path = os.path.join(source_file_dir, config_file_name)
-    cwd_config_path = os.path.join(current_working_dir, config_file_name)
-
-    if os.path.exists(source_file_config_path):
-        config.read(source_file_config_path)
-    elif os.path.exists(cwd_config_path):
-        config.read(cwd_config_path)
-    else:
-        print("Configuration file not found.")
-        return None
-
-    for section in config.sections():
-        print(f"[{section}]")
-        for key, value in config.items(section):
-            print(f"{key} = {value}")
-
-    return config
 
 
 def search_anime() -> None:
@@ -433,19 +406,17 @@ class EpisodeForm(npyscreen.ActionForm):
 
                             link = provider_function(soup)
 
+                            title = f"{anime_title} - S{season_number}E{episode_number}"
+
                             if action == "Watch":
-                                message = (
-                                    f"Playing '{anime_title} - "
-                                    f"S{season_number}E{episode_number}'"
-                                )
-                                print(message)
+                                print(f"Playing {title}")
                                 command = [
                                     "mpv",
                                     link,
                                     "--fs",
                                     "--quiet",
                                     "--really-quiet",
-                                    f"--title={anime_title} - S{season_number}E{episode_number}"
+                                    f"--force-media-title={title}"
                                 ]
                                 if use_aniskip:
                                     skip_options = aniskip(anime_title, episode_number)
@@ -455,16 +426,14 @@ class EpisodeForm(npyscreen.ActionForm):
                                         for opt in skip_options_list
                                     ]
                                     command.extend(result)
-
-                                subprocess.run(command, check=True)
                             elif action == "Download":
-                                file_name = f"{anime_title} - S{season_number}E{episode_number}.mp4"
+                                file_name = title
                                 file_path = os.path.join(output_directory, file_name)
                                 print(f"Downloading to '{file_path}'")
 
                                 output_file = os.path.join(
                                     output_directory,
-                                    f"{anime_title} - S{season_number}E{episode_number}.mp4"
+                                    title
                                 )
 
                                 command = [
@@ -479,33 +448,18 @@ class EpisodeForm(npyscreen.ActionForm):
                                     "--no-warnings",
                                     link
                                 ]
-                                subprocess.run(command, check=True)
-                            elif action == "Syncplay":
-                                print("DEBUG: Using Syncplay")
-                                if platform.system() == "Darwin":
-                                    syncplay = "/Applications/Syncplay.app/Contents/MacOS/Syncplay"
-                                    mpv = "/opt/homebrew/bin/mpv"
-                                elif platform.system() == "Windows":
-                                    syncplay = "C:\\Program Files\\Syncplay\\Syncplay.exe"
-                                    mpv = "C:\\Program Files\\mpv\\mpv.exe"
-                                else:
-                                    syncplay = "/usr/bin/syncplay"
-                                    mpv = "/usr/bin/mpv"
-
-                                group = (
-                                    f"'{anime_title} - "
-                                    f"S{season_number}E{episode_number}'"
-                                )
+                            elif action == "Syncplay":  # TODO quit
+                                check_dependencies(["syncplay"])
                                 command = [
-                                    syncplay,
+                                    "syncplay",
                                     "--no-gui",
                                     "--host", "syncplay.pl:8997",
                                     "--name", getpass.getuser(),
-                                    "--room", group,
-                                    "--player-path", mpv,
+                                    "--room", title,
+                                    "--player-path", "mpv",
                                     link,
                                     "--", "--fs",
-                                    "--", f"--title={anime_title}"
+                                    "--", f'--force-media-title="{title}"'
                                 ]
                                 if use_aniskip:
                                     skip_options = aniskip(anime_title, episode_number)
@@ -541,7 +495,7 @@ class AnimeApp(npyscreen.NPSAppManaged):
 
 def main():
     try:
-        check_dependencies()
+        check_dependencies(["yt-dlp", "mpv"])
         app = AnimeApp(search_anime())
         app.run()
     except KeyboardInterrupt:
