@@ -385,15 +385,10 @@ class EpisodeForm(npyscreen.ActionForm):
                                 script_directory = os.path.dirname(os.path.abspath(__file__))
                                 source_path = os.path.join(script_directory, 'aniskip', 'skip.lua')
 
-                                if os.name != 'nt':
-                                    base_path = '~/.config/mpv/scripts/'
+                                if os.name == 'nt':
+                                    destination_path = os.path.join(os.environ['APPDATA'], 'mpv', 'scripts', 'skip.lua')
                                 else:
-                                    base_path = '~\\AppData\\Roaming\\mpv\\scripts\\'
-
-                                expanded_path = os.path.expanduser(base_path)
-                                destination_path = os.path.join(expanded_path, 'skip.lua')
-
-                                destination_path = os.path.join(base_path, 'skip.lua')
+                                    destination_path = os.path.expanduser('~/.config/mpv/scripts/skip.lua')
 
                                 if not os.path.exists(destination_path):
                                     os.makedirs(os.path.dirname(destination_path), exist_ok=True)
