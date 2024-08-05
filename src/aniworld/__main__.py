@@ -25,8 +25,19 @@ from aniworld import voe_get_direct_link
 from aniworld import aniskip
 
 
-def check_dependencies():
-    dependencies = ["yt-dlp", "mpv"]
+def check_dependencies(use_yt_dlp = False, use_mpv = False, use_syncplay = False):
+    dependencies = []
+
+    if use_yt_dlp:
+        dependencies.append("yt-dlp")
+    if use_mpv:
+        dependencies.append("mpv")
+    if use_syncplay:
+        if platform.system() == "nt":
+            dependencies.append("SyncplayConsole")
+        else:
+            dependencies.append("syncplay")
+
     missing = [dep for dep in dependencies if which(dep) is None]
     if missing:
         print(f"Missing dependencies: {', '.join(missing)} in path. Please install and try again.")
@@ -403,6 +414,7 @@ class EpisodeForm(npyscreen.ActionForm):
                             mpv_title = f"{anime_title} - S{season_number}E{episode_number}"
 
                             if action == "Watch":
+                                check_dependencies(use_mpv=True)
                                 print(f"Playing '{mpv_title} - ")
                                 command = [
                                     "mpv",
@@ -423,6 +435,7 @@ class EpisodeForm(npyscreen.ActionForm):
 
                                 subprocess.run(command, check=True)
                             elif action == "Download":
+                                check_dependencies(use_yt_dlp=True)
                                 file_name = f"{mpv_title}.mp4"
                                 file_path = os.path.join(output_directory, file_name)
                                 print(f"Downloading to '{file_path}'")
@@ -446,15 +459,11 @@ class EpisodeForm(npyscreen.ActionForm):
                                 ]
                                 subprocess.run(command, check=True)
                             elif action == "Syncplay":
-                                if platform.system() == "Darwin":
-                                    syncplay = "/Applications/Syncplay.app/Contents/MacOS/Syncplay"
-                                    mpv = "/opt/homebrew/bin/mpv"
-                                elif platform.system() == "Windows":
-                                    syncplay = "C:\\Program Files\\Syncplay\\Syncplay.exe"
-                                    mpv = "C:\\Program Files\\mpv\\mpv.exe"
+                                check_dependencies(use_syncplay=True)
+                                if platform.system() == "Windows":
+                                    syncplay = "SyncplayConsole"
                                 else:
-                                    syncplay = "/usr/bin/syncplay"
-                                    mpv = "/usr/bin/mpv"
+                                    syncplay = "syncplay"
 
                                 command = [
                                     syncplay,
@@ -462,7 +471,7 @@ class EpisodeForm(npyscreen.ActionForm):
                                     "--host", "syncplay.pl:8997",
                                     "--name", getpass.getuser(),
                                     "--room", mpv_title,
-                                    "--player-path", mpv,
+                                    "--player-path", which("mpv"),
                                     link,
                                     "--", "--fs",
                                     "--", f"--force-media-title={mpv_title}"
@@ -501,7 +510,6 @@ class AnimeApp(npyscreen.NPSAppManaged):
 
 def main():
     try:
-        check_dependencies()
         app = AnimeApp(search_anime())
         app.run()
     except KeyboardInterrupt:
