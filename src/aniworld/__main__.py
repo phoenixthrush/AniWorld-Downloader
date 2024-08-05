@@ -480,8 +480,8 @@ class EpisodeForm(npyscreen.ActionForm):
                                         for opt in skip_options_list
                                     ]
                                     command.extend(result)
-                            subprocess.run(command, check=True)
-                            break
+                                subprocess.run(command, check=True)
+                                break
 
             if not self.directory_field.hidden:
                 self.parentApp.anime_downloader.clean_up_leftovers(output_directory)
