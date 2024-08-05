@@ -108,5 +108,6 @@ def aniskip(anime_title, episode, debug=False):
     chapters_file = tempfile.mktemp()
     return build_flags(mal_id, episode, chapters_file, debug)
 
+
 if __name__ == "__main__":
     print(aniskip("Kaguya-sama: Love is War", 1, False))

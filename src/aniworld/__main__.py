@@ -25,7 +25,7 @@ from aniworld import voe_get_direct_link
 from aniworld import aniskip
 
 
-def check_dependencies(use_yt_dlp = False, use_mpv = False, use_syncplay = False):
+def check_dependencies(use_yt_dlp=False, use_mpv=False, use_syncplay=False):
     dependencies = []
 
     if use_yt_dlp:
