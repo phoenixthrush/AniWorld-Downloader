@@ -18,6 +18,18 @@ pip install -U aniworld
 aniworld
 ```
 
+## TODO
+
+- [ ] Fix aniskip offset
+- [ ] Create modular Python files
+- [ ] Implement Python logging module
+- [ ] Integrate argparse for command-line arguments
+- [ ] Fetch episode titles
+- [ ] Add unit tests
+- [ ] Set up Anime4K installation
+- [ ] Add support for Doodstream
+- [ ] Implement proxy support
+ 
 ## Contributing
 
 Contributions to AniWorld Downloader are welcome!
