@@ -4,6 +4,7 @@
 from json import loads, JSONDecodeError
 from re import findall
 from shutil import which, copy
+from time import sleep
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import urlopen, Request
@@ -415,7 +416,7 @@ class EpisodeForm(npyscreen.ActionForm):
 
                             if action == "Watch":
                                 check_dependencies(use_mpv=True)
-                                print(f"Playing '{mpv_title} - ")
+                                print(f"Playing '{mpv_title}")
                                 command = [
                                     "mpv",
                                     link,
@@ -509,13 +510,25 @@ class AnimeApp(npyscreen.NPSAppManaged):
 
 
 def main():
-    try:
-        app = AnimeApp(search_anime())
+    def run_app(query):
+        app = AnimeApp(query)
         app.run()
+
+    try:
+        query = search_anime()
+        keep_running = True
+
+        while keep_running:
+            try:
+                run_app(query)
+                keep_running = False 
+            except npyscreen.wgwidget.NotEnoughSpaceForWidget:
+                clear_screen()
+                print("Please increase your current terminal size.")
+                sleep(1)
+        sys.exit()
     except KeyboardInterrupt:
         sys.exit()
-    except npyscreen.wgwidget.NotEnoughSpaceForWidget:
-        print("Please increase your current terminal size.")
 
 
 if __name__ == "__main__":
