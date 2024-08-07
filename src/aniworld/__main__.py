@@ -28,6 +28,7 @@ from aniworld import voe_get_direct_link
 from aniworld import aniskip
 from aniworld import make_requests
 
+
 def check_dependencies(use_yt_dlp=False, use_mpv=False, use_syncplay=False):
     dependencies = []
 
@@ -62,6 +63,8 @@ def search_anime(slug=None, link=None) -> None:
     """
     clear_screen()
 
+    response = None
+
     if slug:
         response = make_requests.get(f"https://aniworld.to/anime/stream/{slug}")
     elif link:
@@ -72,16 +75,17 @@ def search_anime(slug=None, link=None) -> None:
             response = None
 
     if slug or link:
-        if response and "Die gewünschte Serie wurde nicht gefunden oder ist im Moment deaktiviert." in response.decode():
+        not_found = "Die gewünschte Serie wurde nicht gefunden oder ist im Moment deaktiviert."
+        if response and not_found in response.decode():
             slug = None
             link = None
 
     if slug:
         return slug
-    elif link:
+    if link:
         return link.split('/')[-1]
-    else:
-        keyword = input("Search for a series: ")
+
+    keyword = input("Search for a series: ")
 
     while True:
         clear_screen()
@@ -166,30 +170,47 @@ def display_menu(stdscr, animes):
 
     return None
 
+
 def providers(soup):
-        hoster_site_video = soup.find(class_='hosterSiteVideo').find('ul', class_='row')
-        episode_links = hoster_site_video.find_all('li')
+    hoster_site_video = soup.find(class_='hosterSiteVideo').find('ul', class_='row')
+    episode_links = hoster_site_video.find_all('li')
 
-        extracted_data = {}
-        for link in episode_links:
-            data_lang_key = int(link.get('data-lang-key'))
-            redirect_link = link.get('data-link-target')
-            h4_text = link.find('h4').text.strip()
+    extracted_data = {}
+    for link in episode_links:
+        data_lang_key = int(link.get('data-lang-key'))
+        redirect_link = link.get('data-link-target')
+        h4_text = link.find('h4').text.strip()
 
-            if h4_text not in extracted_data:
-                extracted_data[h4_text] = {}
+        if h4_text not in extracted_data:
+            extracted_data[h4_text] = {}
 
-            extracted_data[h4_text][data_lang_key] = f"https://aniworld.to{redirect_link}"
+        extracted_data[h4_text][data_lang_key] = f"https://aniworld.to{redirect_link}"
 
-        return extracted_data
+    return extracted_data
 
-def execute(selected_episodes: list, provider_selected, action_selected, aniskip_selected, lang, output_directory, anime_title, only_direct_link=False, only_command=False, debug=False):
+
+# TODO hella goofy needs dictionary as parameter
+def execute(
+    selected_episodes: list,
+    provider_selected,
+    action_selected,
+    aniskip_selected,
+    lang,
+    output_directory,
+    anime_title,
+    only_direct_link=False,
+    only_command=False,
+    debug=False
+):
     for episode_url in selected_episodes:
         episode_html = make_requests.get(episode_url)
         if episode_html is None:
             continue
         soup = BeautifulSoup(episode_html, 'html.parser')
         data = providers(soup)
+
+        if debug:
+            print(data)
 
         provider_mapping = {
             "Vidoza": vidoza_get_direct_link,
@@ -212,9 +233,13 @@ def execute(selected_episodes: list, provider_selected, action_selected, aniskip
                         source_path = os.path.join(script_directory, 'aniskip', 'skip.lua')
 
                         if os.name == 'nt':
-                            destination_path = os.path.join(os.environ['APPDATA'], 'mpv', 'scripts', 'skip.lua')
+                            destination_path = os.path.join(
+                                os.environ['APPDATA'], 'mpv', 'scripts', 'skip.lua'
+                            )
                         else:
-                            destination_path = os.path.expanduser('~/.config/mpv/scripts/skip.lua')
+                            destination_path = os.path.expanduser(
+                                '~/.config/mpv/scripts/skip.lua'
+                            )
 
                         if not os.path.exists(destination_path):
                             os.makedirs(os.path.dirname(destination_path), exist_ok=True)
@@ -318,6 +343,7 @@ def execute(selected_episodes: list, provider_selected, action_selected, aniskip
                             subprocess.run(command, check=True)
                         break
 
+
 class AnimeDownloader:
     BASE_URL_TEMPLATE = "https://aniworld.to/anime/stream/{anime}/"
 
@@ -329,7 +355,10 @@ class AnimeDownloader:
 
     @staticmethod
     def format_anime_title(anime_slug):
-        return anime_slug.replace("-", " ").title()
+        try:
+            return anime_slug.replace("-", " ").title()
+        except AttributeError:
+            sys.exit()
 
     def make_request(self, url):
         headers = {
@@ -530,12 +559,12 @@ class EpisodeForm(npyscreen.ActionForm):
                 os.makedirs(output_directory, exist_ok=True)
 
             execute(
-                selected_episodes=selected_episodes, 
-                provider_selected=provider_selected[0], 
-                action_selected=action_selected[0], 
-                aniskip_selected=aniskip_selected[0], 
-                lang=lang, 
-                output_directory=output_directory, 
+                selected_episodes=selected_episodes,
+                provider_selected=provider_selected[0],
+                action_selected=action_selected[0],
+                aniskip_selected=aniskip_selected[0],
+                lang=lang,
+                output_directory=output_directory,
                 anime_title=self.parentApp.anime_downloader.anime_title
             )
 
@@ -563,18 +592,61 @@ class AnimeApp(npyscreen.NPSAppManaged):
 def main():
     try:
         parser = argparse.ArgumentParser(description="Parse optional command line arguments.")
-        parser.add_argument('--slug', type=str, help='Skipping search query - E.g demon-slayer-kimetsu-no-yaiba')
-        parser.add_argument('--link', type=str, help='Skipping search query - E.g https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba')
-        parser.add_argument('--episode', type=str, nargs='+', help='Skipping everything - E.g https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1, https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-2')
-        parser.add_argument('--action', type=str, choices=['Watch', 'Download', 'Syncplay'], default='Watch', help='E.g Watch, Download, Syncplay')
         parser.add_argument(
-            '--output', 
-            type=str, 
-            default=os.path.join(os.path.expanduser('~'), 'Downloads'), 
+            '--slug',
+            type=str,
+            help='Search query - E.g. demon-slayer-kimetsu-no-yaiba'
+        )
+        parser.add_argument(
+            '--link',
+            type=str,
+            help=(
+                'Search query - E.g. '
+                'https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba'
+            )
+        )
+        parser.add_argument(
+            '--episode',
+            type=str,
+            nargs='+',
+            help=(
+                'List of episode URLs - E.g. '
+                'https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/ '
+                'staffel-1/episode-1, '
+                'https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/ '
+                'staffel-1/episode-2'
+            )
+        )
+        parser.add_argument(
+            '--action',
+            type=str,
+            choices=['Watch', 'Download', 'Syncplay'],
+            default='Watch',
+            help=(
+                'Action to perform - E.g. '
+                'Watch, Download, Syncplay'
+            )
+        )
+        parser.add_argument(
+            '--output',
+            type=str,
+            default=os.path.join(os.path.expanduser('~'), 'Downloads'),
             help='Download directory (default: ~/Downloads)'
         )
-        parser.add_argument('--language', type=str, choices=['German Dub', 'English Sub', 'German Sub'], default='German Sub', help='E.g German Dub, English Sub, German Sub')
-        parser.add_argument('--provider', type=str, choices=['Vidoza', 'Streamtape', 'VOE', 'Doodstream'], default='Vidoza', help='E.g Vidoza, Streamtape, VOE, Doodstream')
+        parser.add_argument(
+            '--language',
+            type=str,
+            choices=['German Dub', 'English Sub', 'German Sub'],
+            default='German Sub',
+            help='Language choice - E.g. German Dub, English Sub, German Sub'
+        )
+        parser.add_argument(
+            '--provider',
+            type=str,
+            choices=['Vidoza', 'Streamtape', 'VOE', 'Doodstream'],
+            default='Vidoza',
+            help='Provider choice - E.g. Vidoza, Streamtape, VOE, Doodstream'
+        )
         parser.add_argument('--aniskip', action='store_true', help='Skip anime opening and ending')
         parser.add_argument('--only-direct-link', action='store_true', help='Output direct link')
         parser.add_argument('--only-command', action='store_true', help='Output command')
@@ -582,6 +654,7 @@ def main():
 
         args = parser.parse_args()
 
+        language = None
         anime_title = None
         if args.link:
             anime_title = args.link.split('/')[-1].replace('-', ' ').title()
@@ -591,18 +664,18 @@ def main():
             anime_title = args.episode[0].split('/')[5].replace('-', ' ').title()
 
         if args.language:
-            language = args.language.replace("German Dub", "1").replace("English Sub", "2").replace("German Sub", "3")
+            language = {
+                "German Dub": "1",
+                "English Sub": "2",
+                "German Sub": "3"
+            }.get(args.language, "")
 
-        required_args = [args.action, args.language, args.provider, args.episode]
-        if any(required_args) and not all(required_args):
-            parser.error('--slug or --link and --episode, --action, --language and --provider must all be provided together.')
-
-        if all(required_args):
+        if args.episode:
             execute(
                 selected_episodes=args.episode,
-                provider_selected=args.provider, 
-                action_selected=args.action, 
-                aniskip_selected=args.aniskip, 
+                provider_selected=args.provider,
+                action_selected=args.action,
+                aniskip_selected=args.aniskip,
                 lang=language,
                 output_directory=args.output,
                 anime_title=anime_title,
@@ -625,7 +698,7 @@ def main():
         while keep_running:
             try:
                 run_app(query)
-                keep_running = False 
+                keep_running = False
             except npyscreen.wgwidget.NotEnoughSpaceForWidget:
                 clear_screen()
                 print("Please increase your current terminal size.")

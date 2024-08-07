@@ -1,6 +1,7 @@
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen, Request
 
+
 def get(url):
     headers = {
         'User-Agent': (

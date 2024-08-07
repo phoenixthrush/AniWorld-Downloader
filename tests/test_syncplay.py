@@ -6,8 +6,6 @@ from bs4 import BeautifulSoup
 
 from test_extractors import make_request, providers, clear_screen, test_provider
 
-from aniworld import doodstream_get_direct_link
-from aniworld import streamtape_get_direct_link
 from aniworld import vidoza_get_direct_link
 from aniworld import voe_get_direct_link
 
