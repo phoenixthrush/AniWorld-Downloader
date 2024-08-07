@@ -6,7 +6,7 @@ AniWorld Downloader is a command-line tool for downloading and streaming content
 It can fetch single episodes, download entire seasons, and organize downloads into folders.<br><br>
 This tool works on Windows, macOS, and Linux.
 
-![AniWorld Downloader - Demo](./.github/demo.png)
+![AniWorld Downloader - Demo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/module/.github/demo.png?raw=true)
 
 ## Installation
 

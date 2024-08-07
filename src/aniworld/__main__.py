@@ -8,6 +8,7 @@ from time import sleep
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import urlopen, Request
+import argparse
 import curses
 import getpass
 import glob
@@ -24,7 +25,7 @@ from aniworld import streamtape_get_direct_link
 from aniworld import vidoza_get_direct_link
 from aniworld import voe_get_direct_link
 from aniworld import aniskip
-
+from aniworld import make_requests
 
 def check_dependencies(use_yt_dlp=False, use_mpv=False, use_syncplay=False):
     dependencies = []
@@ -54,10 +55,34 @@ def clear_screen():
         os.system("clear")
 
 
-def search_anime() -> None:
+def search_anime(slug=None, link=None) -> None:
+    """
+    This returns the anime slug for example: demon-slayer-kimetsu-no-yaiba
+    """
     clear_screen()
-    while True:
+
+    if slug:
+        response = make_requests.get(f"https://aniworld.to/anime/stream/{slug}")
+    elif link:
+        try:
+            response = make_requests.get(link)
+        except ValueError:
+            link = None
+            response = None
+
+    if slug or link:
+        if response and "Die gewünschte Serie wurde nicht gefunden oder ist im Moment deaktiviert." in response.decode():
+            slug = None
+            link = None
+
+    if slug:
+        return slug
+    elif link:
+        return link.split('/')[-1]
+    else:
         keyword = input("Search for a series: ")
+
+    while True:
         clear_screen()
         encoded_keyword = quote(keyword)
         url = f"https://aniworld.to/ajax/seriesSearch?keyword={encoded_keyword}"
@@ -66,11 +91,12 @@ def search_anime() -> None:
 
         if not isinstance(json_data, list) or not json_data:
             print("No series found. Try again...")
+            keyword = input("Search for a series: ")
             continue
 
-        selected_link = curses.wrapper(display_menu, json_data)
+        selected_slug = curses.wrapper(display_menu, json_data)
 
-        return selected_link
+        return selected_slug
 
 
 def fetch_data(url: str) -> list:
@@ -510,12 +536,29 @@ class AnimeApp(npyscreen.NPSAppManaged):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Parse optional command line arguments.")
+    parser.add_argument('--slug', type=str, help='E.g demon-slayer-kimetsu-no-yaiba')
+    parser.add_argument('--link', type=str, help='E.g https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba')
+    parser.add_argument('--action', type=str, help='E.g Watch, Download, Syncplay')
+    parser.add_argument('--language', type=str, help='E.g German Dub, English Sub, German Sub')
+    parser.add_argument('--provider', type=str, help='E.g Vidoza, Streamtape, VOE, Doodstream')
+    parser.add_argument('--aniskip', action='store_true', help='Skip anime opening and ending')
+    parser.add_argument('--only-direct-link', action='store_true', help='Output direct link')
+    parser.add_argument('--only-command', action='store_true', help='Output direct link')
+    parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+
+    args = parser.parse_args()
+
+    required_args = [args.action, args.language, args.provider, args.aniskip]
+    if any(required_args) and not all(required_args):
+        parser.error('--slug or --link and --action, --language, --provider, and --aniskip must all be provided together.')
+
     def run_app(query):
         app = AnimeApp(query)
         app.run()
 
     try:
-        query = search_anime()
+        query = search_anime(slug=args.slug, link=args.link)
         keep_running = True
 
         while keep_running:
