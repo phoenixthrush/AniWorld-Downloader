@@ -26,10 +26,9 @@ aniworld
 
 ## TODO
 
-- [ ] Correct aniskip offset
 - [ ] Refactor code into modular Python files
 - [ ] Integrate Python logging module
-- [ ] Utilize argparse for command-line argument parsing
+- [x] Utilize argparse for command-line argument parsing
 - [ ] Implement functionality to fetch episode titles
 - [ ] Develop comprehensive unit tests
 - [ ] Configure Anime4K installation setup

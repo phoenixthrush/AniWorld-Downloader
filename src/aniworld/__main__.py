@@ -165,6 +165,141 @@ def display_menu(stdscr, animes):
 
     return None
 
+def providers(soup):
+        hoster_site_video = soup.find(class_='hosterSiteVideo').find('ul', class_='row')
+        episode_links = hoster_site_video.find_all('li')
+
+        extracted_data = {}
+        for link in episode_links:
+            data_lang_key = int(link.get('data-lang-key'))
+            redirect_link = link.get('data-link-target')
+            h4_text = link.find('h4').text.strip()
+
+            if h4_text not in extracted_data:
+                extracted_data[h4_text] = {}
+
+            extracted_data[h4_text][data_lang_key] = f"https://aniworld.to{redirect_link}"
+
+        return extracted_data
+
+def execute(selected_episodes: list, provider_selected, action_selected, aniskip_selected, lang, output_directory, anime_title):
+    for episode_url in selected_episodes:
+        episode_html = make_requests.get(episode_url)
+        if episode_html is None:
+            continue
+        soup = BeautifulSoup(episode_html, 'html.parser')
+        data = providers(soup)
+
+        provider_mapping = {
+            "Vidoza": vidoza_get_direct_link,
+            "VOE": voe_get_direct_link,
+            "Doodstream": doodstream_get_direct_link,
+            "Streamtape": streamtape_get_direct_link
+        }
+
+        if provider_selected in data:
+            for language in data[provider_selected]:
+                if language == int(lang):
+                    matches = findall(r'\d+', episode_url)
+                    season_number = matches[-2]
+                    episode_number = matches[-1]
+
+                    action = action_selected
+
+                    if aniskip_selected:
+                        script_directory = os.path.dirname(os.path.abspath(__file__))
+                        source_path = os.path.join(script_directory, 'aniskip', 'skip.lua')
+
+                        if os.name == 'nt':
+                            destination_path = os.path.join(os.environ['APPDATA'], 'mpv', 'scripts', 'skip.lua')
+                        else:
+                            destination_path = os.path.expanduser('~/.config/mpv/scripts/skip.lua')
+
+                        if not os.path.exists(destination_path):
+                            os.makedirs(os.path.dirname(destination_path), exist_ok=True)
+                            copy(source_path, destination_path)
+
+                    provider_function = provider_mapping[provider_selected]
+                    request_url = data[provider_selected][language]
+                    html_content = make_requests.get(request_url)
+                    soup = BeautifulSoup(html_content, 'html.parser')
+
+                    link = provider_function(soup)
+                    mpv_title = f"{anime_title} - S{season_number}E{episode_number}"
+
+                    if action == "Watch":
+                        check_dependencies(use_mpv=True)
+                        print(f"Playing '{mpv_title}")
+                        command = [
+                            "mpv",
+                            link,
+                            "--fs",
+                            "--quiet",
+                            "--really-quiet",
+                            f"--force-media-title={mpv_title}"
+                        ]
+                        if aniskip_selected:
+                            skip_options = aniskip(anime_title, episode_number)
+                            skip_options_list = skip_options.split(' --')
+                            result = [
+                                f"--{opt}" if not opt.startswith('--') else opt
+                                for opt in skip_options_list
+                            ]
+                            command.extend(result)
+
+                        subprocess.run(command, check=True)
+                    elif action == "Download":
+                        check_dependencies(use_yt_dlp=True)
+                        file_name = f"{mpv_title}.mp4"
+                        file_path = os.path.join(output_directory, file_name)
+                        print(f"Downloading to '{file_path}'")
+
+                        output_file = os.path.join(
+                            output_directory,
+                            f"{mpv_title}.mp4"
+                        )
+
+                        command = [
+                            "yt-dlp",
+                            "--fragment-retries",
+                            "infinite",
+                            "--concurrent-fragments",
+                            "4",
+                            "-o", output_file,
+                            "--quiet",
+                            "--progress",
+                            "--no-warnings",
+                            link
+                        ]
+                        subprocess.run(command, check=True)
+                    elif action == "Syncplay":
+                        check_dependencies(use_syncplay=True)
+                        if platform.system() == "Windows":
+                            syncplay = "SyncplayConsole"
+                        else:
+                            syncplay = "syncplay"
+
+                        command = [
+                            syncplay,
+                            "--no-gui",
+                            "--host", "syncplay.pl:8997",
+                            "--name", getpass.getuser(),
+                            "--room", mpv_title,
+                            "--player-path", which("mpv"),
+                            link,
+                            "--", "--fs",
+                            "--", f"--force-media-title={mpv_title}"
+                        ]
+                        if aniskip_selected:
+                            skip_options = aniskip(anime_title, episode_number)
+                            skip_options_list = skip_options.split(' --')
+                            result = [
+                                f"--{opt}" if not opt.startswith('--') else opt
+                                for opt in skip_options_list
+                            ]
+                            command.extend(result)
+                        subprocess.run(command, check=True)
+                        break
 
 class AnimeDownloader:
     BASE_URL_TEMPLATE = "https://aniworld.to/anime/stream/{anime}/"
@@ -194,23 +329,6 @@ class AnimeDownloader:
         except (HTTPError, URLError, TimeoutError) as error:
             print(f"Request failed: {error}")
             return None
-
-    def providers(self, soup):
-        hoster_site_video = soup.find(class_='hosterSiteVideo').find('ul', class_='row')
-        episode_links = hoster_site_video.find_all('li')
-
-        extracted_data = {}
-        for link in episode_links:
-            data_lang_key = int(link.get('data-lang-key'))
-            redirect_link = link.get('data-link-target')
-            h4_text = link.find('h4').text.strip()
-
-            if h4_text not in extracted_data:
-                extracted_data[h4_text] = {}
-
-            extracted_data[h4_text][data_lang_key] = f"https://aniworld.to{redirect_link}"
-
-        return extracted_data
 
     def clean_up_leftovers(self, directory):
         patterns = ['*.part', '*.ytdl', '*.part-Frag*']
@@ -394,125 +512,15 @@ class EpisodeForm(npyscreen.ActionForm):
                 output_directory = os.path.join(output_directory, anime_title)
                 os.makedirs(output_directory, exist_ok=True)
 
-            for episode_url in selected_episodes:
-                episode_html = self.parentApp.anime_downloader.make_request(episode_url)
-                if episode_html is None:
-                    continue
-                soup = BeautifulSoup(episode_html, 'html.parser')
-                data = self.parentApp.anime_downloader.providers(soup)
-
-                provider_mapping = {
-                    "Vidoza": vidoza_get_direct_link,
-                    "VOE": voe_get_direct_link,
-                    "Doodstream": doodstream_get_direct_link,
-                    "Streamtape": streamtape_get_direct_link
-                }
-
-                if provider_selected[0] in data:
-                    for language in data[provider_selected[0]]:
-                        if language == int(lang):
-                            matches = findall(r'\d+', episode_url)
-                            season_number = matches[-2]
-                            episode_number = matches[-1]
-
-                            anime_title = self.parentApp.anime_downloader.anime_title
-                            action = action_selected[0]
-                            use_aniskip = aniskip_selected[0] == "Yes"
-
-                            if use_aniskip:
-                                script_directory = os.path.dirname(os.path.abspath(__file__))
-                                source_path = os.path.join(script_directory, 'aniskip', 'skip.lua')
-
-                                if os.name == 'nt':
-                                    destination_path = os.path.join(os.environ['APPDATA'], 'mpv', 'scripts', 'skip.lua')
-                                else:
-                                    destination_path = os.path.expanduser('~/.config/mpv/scripts/skip.lua')
-
-                                if not os.path.exists(destination_path):
-                                    os.makedirs(os.path.dirname(destination_path), exist_ok=True)
-                                    copy(source_path, destination_path)
-
-                            provider_function = provider_mapping[provider_selected[0]]
-                            request_url = data[provider_selected[0]][language]
-                            html_content = self.parentApp.anime_downloader.make_request(request_url)
-                            soup = BeautifulSoup(html_content, 'html.parser')
-
-                            link = provider_function(soup)
-                            mpv_title = f"{anime_title} - S{season_number}E{episode_number}"
-
-                            if action == "Watch":
-                                check_dependencies(use_mpv=True)
-                                print(f"Playing '{mpv_title}")
-                                command = [
-                                    "mpv",
-                                    link,
-                                    "--fs",
-                                    "--quiet",
-                                    "--really-quiet",
-                                    f"--force-media-title={mpv_title}"
-                                ]
-                                if use_aniskip:
-                                    skip_options = aniskip(anime_title, episode_number)
-                                    skip_options_list = skip_options.split(' --')
-                                    result = [
-                                        f"--{opt}" if not opt.startswith('--') else opt
-                                        for opt in skip_options_list
-                                    ]
-                                    command.extend(result)
-
-                                subprocess.run(command, check=True)
-                            elif action == "Download":
-                                check_dependencies(use_yt_dlp=True)
-                                file_name = f"{mpv_title}.mp4"
-                                file_path = os.path.join(output_directory, file_name)
-                                print(f"Downloading to '{file_path}'")
-
-                                output_file = os.path.join(
-                                    output_directory,
-                                    f"{mpv_title}.mp4"
-                                )
-
-                                command = [
-                                    "yt-dlp",
-                                    "--fragment-retries",
-                                    "infinite",
-                                    "--concurrent-fragments",
-                                    "4",
-                                    "-o", output_file,
-                                    "--quiet",
-                                    "--progress",
-                                    "--no-warnings",
-                                    link
-                                ]
-                                subprocess.run(command, check=True)
-                            elif action == "Syncplay":
-                                check_dependencies(use_syncplay=True)
-                                if platform.system() == "Windows":
-                                    syncplay = "SyncplayConsole"
-                                else:
-                                    syncplay = "syncplay"
-
-                                command = [
-                                    syncplay,
-                                    "--no-gui",
-                                    "--host", "syncplay.pl:8997",
-                                    "--name", getpass.getuser(),
-                                    "--room", mpv_title,
-                                    "--player-path", which("mpv"),
-                                    link,
-                                    "--", "--fs",
-                                    "--", f"--force-media-title={mpv_title}"
-                                ]
-                                if use_aniskip:
-                                    skip_options = aniskip(anime_title, episode_number)
-                                    skip_options_list = skip_options.split(' --')
-                                    result = [
-                                        f"--{opt}" if not opt.startswith('--') else opt
-                                        for opt in skip_options_list
-                                    ]
-                                    command.extend(result)
-                                subprocess.run(command, check=True)
-                                break
+            execute(
+                selected_episodes=selected_episodes, 
+                provider_selected=provider_selected[0], 
+                action_selected=action_selected[0], 
+                aniskip_selected=aniskip_selected[0], 
+                lang=lang, 
+                output_directory=output_directory, 
+                anime_title=self.parentApp.anime_downloader.anime_title
+            )
 
             if not self.directory_field.hidden:
                 self.parentApp.anime_downloader.clean_up_leftovers(output_directory)
@@ -536,22 +544,53 @@ class AnimeApp(npyscreen.NPSAppManaged):
 
 
 def main():
+    # TODO set default values as in selector to ommit setting
+    # TODO huge testing on parameters and everything
     parser = argparse.ArgumentParser(description="Parse optional command line arguments.")
     parser.add_argument('--slug', type=str, help='E.g demon-slayer-kimetsu-no-yaiba')
     parser.add_argument('--link', type=str, help='E.g https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba')
-    parser.add_argument('--action', type=str, help='E.g Watch, Download, Syncplay')
-    parser.add_argument('--language', type=str, help='E.g German Dub, English Sub, German Sub')
-    parser.add_argument('--provider', type=str, help='E.g Vidoza, Streamtape, VOE, Doodstream')
+    parser.add_argument('--episode', type=str, nargs='+', help='E.g https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1, https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-2')
+    parser.add_argument('--action', type=str, choices=['Watch', 'Download', 'Syncplay'], help='E.g Watch, Download, Syncplay')
+    parser.add_argument(
+        '--output', 
+        type=str, 
+        default=os.path.join(os.path.expanduser('~'), 'Downloads'), 
+        help='Download directory (default: ~/Downloads)'
+    )
+    parser.add_argument('--language', type=str, choices=['German Dub', 'English Sub', 'German Sub'], help='E.g German Dub, English Sub, German Sub')
+    parser.add_argument('--provider', type=str, choices=['Vidoza', 'Streamtape', 'VOE', 'Doodstream'], help='E.g Vidoza, Streamtape, VOE, Doodstream')
     parser.add_argument('--aniskip', action='store_true', help='Skip anime opening and ending')
     parser.add_argument('--only-direct-link', action='store_true', help='Output direct link')
-    parser.add_argument('--only-command', action='store_true', help='Output direct link')
+    parser.add_argument('--only-command', action='store_true', help='Output command')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode')
 
     args = parser.parse_args()
 
-    required_args = [args.action, args.language, args.provider, args.aniskip]
+    anime_title = None
+    if args.link:
+        anime_title = args.link.split('/')[-1].replace('-', ' ').title()
+    elif args.slug:
+        anime_title = args.slug.replace('-', ' ').title()
+
+    if args.language:
+        language = args.language.replace("German Dub", "1").replace("English Sub", "2").replace("German Sub", "3")
+
+    required_args = [args.action, args.language, args.provider, args.episode]
     if any(required_args) and not all(required_args):
-        parser.error('--slug or --link and --action, --language, --provider, and --aniskip must all be provided together.')
+        parser.error('--slug or --link and --episode, --action, --language and --provider must all be provided together.')
+
+    if all(required_args):
+        print("Skipping Selection Menu")
+        execute(
+            selected_episodes=args.episode,
+            provider_selected=args.provider, 
+            action_selected=args.action, 
+            aniskip_selected=args.aniskip, 
+            lang=language,
+            output_directory=args.output,
+            anime_title=anime_title
+        )
+        sys.exit()
 
     def run_app(query):
         app = AnimeApp(query)
