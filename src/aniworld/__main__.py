@@ -14,6 +14,7 @@ import getpass
 import glob
 import os
 import platform
+import shlex
 import subprocess
 import sys
 
@@ -182,7 +183,7 @@ def providers(soup):
 
         return extracted_data
 
-def execute(selected_episodes: list, provider_selected, action_selected, aniskip_selected, lang, output_directory, anime_title):
+def execute(selected_episodes: list, provider_selected, action_selected, aniskip_selected, lang, output_directory, anime_title, only_direct_link=False, only_command=False, debug=False):
     for episode_url in selected_episodes:
         episode_html = make_requests.get(episode_url)
         if episode_html is None:
@@ -225,11 +226,17 @@ def execute(selected_episodes: list, provider_selected, action_selected, aniskip
                     soup = BeautifulSoup(html_content, 'html.parser')
 
                     link = provider_function(soup)
+
+                    if only_direct_link:
+                        print(link)
+                        sys.exit()
+
                     mpv_title = f"{anime_title} - S{season_number}E{episode_number}"
 
                     if action == "Watch":
                         check_dependencies(use_mpv=True)
-                        print(f"Playing '{mpv_title}")
+                        if not only_command:
+                            print(f"Playing '{mpv_title}")
                         command = [
                             "mpv",
                             link,
@@ -247,12 +254,16 @@ def execute(selected_episodes: list, provider_selected, action_selected, aniskip
                             ]
                             command.extend(result)
 
-                        subprocess.run(command, check=True)
+                        if only_command:
+                            print(' '.join(shlex.quote(arg) for arg in command))
+                        else:
+                            subprocess.run(command, check=True)
                     elif action == "Download":
                         check_dependencies(use_yt_dlp=True)
                         file_name = f"{mpv_title}.mp4"
                         file_path = os.path.join(output_directory, file_name)
-                        print(f"Downloading to '{file_path}'")
+                        if not only_command:
+                            print(f"Downloading to '{file_path}'")
 
                         output_file = os.path.join(
                             output_directory,
@@ -271,7 +282,10 @@ def execute(selected_episodes: list, provider_selected, action_selected, aniskip
                             "--no-warnings",
                             link
                         ]
-                        subprocess.run(command, check=True)
+                        if only_command:
+                            print(' '.join(shlex.quote(arg) for arg in command))
+                        else:
+                            subprocess.run(command, check=True)
                     elif action == "Syncplay":
                         check_dependencies(use_syncplay=True)
                         if platform.system() == "Windows":
@@ -298,7 +312,10 @@ def execute(selected_episodes: list, provider_selected, action_selected, aniskip
                                 for opt in skip_options_list
                             ]
                             command.extend(result)
-                        subprocess.run(command, check=True)
+                        if only_command:
+                            print(' '.join(shlex.quote(arg) for arg in command))
+                        else:
+                            subprocess.run(command, check=True)
                         break
 
 class AnimeDownloader:
@@ -544,52 +561,57 @@ class AnimeApp(npyscreen.NPSAppManaged):
 
 
 def main():
-    # TODO set default values as in selector to ommit setting
-    # TODO huge testing on parameters and everything
-    parser = argparse.ArgumentParser(description="Parse optional command line arguments.")
-    parser.add_argument('--slug', type=str, help='E.g demon-slayer-kimetsu-no-yaiba')
-    parser.add_argument('--link', type=str, help='E.g https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba')
-    parser.add_argument('--episode', type=str, nargs='+', help='E.g https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1, https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-2')
-    parser.add_argument('--action', type=str, choices=['Watch', 'Download', 'Syncplay'], help='E.g Watch, Download, Syncplay')
-    parser.add_argument(
-        '--output', 
-        type=str, 
-        default=os.path.join(os.path.expanduser('~'), 'Downloads'), 
-        help='Download directory (default: ~/Downloads)'
-    )
-    parser.add_argument('--language', type=str, choices=['German Dub', 'English Sub', 'German Sub'], help='E.g German Dub, English Sub, German Sub')
-    parser.add_argument('--provider', type=str, choices=['Vidoza', 'Streamtape', 'VOE', 'Doodstream'], help='E.g Vidoza, Streamtape, VOE, Doodstream')
-    parser.add_argument('--aniskip', action='store_true', help='Skip anime opening and ending')
-    parser.add_argument('--only-direct-link', action='store_true', help='Output direct link')
-    parser.add_argument('--only-command', action='store_true', help='Output command')
-    parser.add_argument('--debug', action='store_true', help='Enable debug mode')
-
-    args = parser.parse_args()
-
-    anime_title = None
-    if args.link:
-        anime_title = args.link.split('/')[-1].replace('-', ' ').title()
-    elif args.slug:
-        anime_title = args.slug.replace('-', ' ').title()
-
-    if args.language:
-        language = args.language.replace("German Dub", "1").replace("English Sub", "2").replace("German Sub", "3")
-
-    required_args = [args.action, args.language, args.provider, args.episode]
-    if any(required_args) and not all(required_args):
-        parser.error('--slug or --link and --episode, --action, --language and --provider must all be provided together.')
-
-    if all(required_args):
-        print("Skipping Selection Menu")
-        execute(
-            selected_episodes=args.episode,
-            provider_selected=args.provider, 
-            action_selected=args.action, 
-            aniskip_selected=args.aniskip, 
-            lang=language,
-            output_directory=args.output,
-            anime_title=anime_title
+    try:
+        parser = argparse.ArgumentParser(description="Parse optional command line arguments.")
+        parser.add_argument('--slug', type=str, help='Skipping search query - E.g demon-slayer-kimetsu-no-yaiba')
+        parser.add_argument('--link', type=str, help='Skipping search query - E.g https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba')
+        parser.add_argument('--episode', type=str, nargs='+', help='Skipping everything - E.g https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1, https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-2')
+        parser.add_argument('--action', type=str, choices=['Watch', 'Download', 'Syncplay'], default='Watch', help='E.g Watch, Download, Syncplay')
+        parser.add_argument(
+            '--output', 
+            type=str, 
+            default=os.path.join(os.path.expanduser('~'), 'Downloads'), 
+            help='Download directory (default: ~/Downloads)'
         )
+        parser.add_argument('--language', type=str, choices=['German Dub', 'English Sub', 'German Sub'], default='German Sub', help='E.g German Dub, English Sub, German Sub')
+        parser.add_argument('--provider', type=str, choices=['Vidoza', 'Streamtape', 'VOE', 'Doodstream'], default='Vidoza', help='E.g Vidoza, Streamtape, VOE, Doodstream')
+        parser.add_argument('--aniskip', action='store_true', help='Skip anime opening and ending')
+        parser.add_argument('--only-direct-link', action='store_true', help='Output direct link')
+        parser.add_argument('--only-command', action='store_true', help='Output command')
+        parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+
+        args = parser.parse_args()
+
+        anime_title = None
+        if args.link:
+            anime_title = args.link.split('/')[-1].replace('-', ' ').title()
+        elif args.slug:
+            anime_title = args.slug.replace('-', ' ').title()
+        elif args.episode:
+            anime_title = args.episode[0].split('/')[5].replace('-', ' ').title()
+
+        if args.language:
+            language = args.language.replace("German Dub", "1").replace("English Sub", "2").replace("German Sub", "3")
+
+        required_args = [args.action, args.language, args.provider, args.episode]
+        if any(required_args) and not all(required_args):
+            parser.error('--slug or --link and --episode, --action, --language and --provider must all be provided together.')
+
+        if all(required_args):
+            execute(
+                selected_episodes=args.episode,
+                provider_selected=args.provider, 
+                action_selected=args.action, 
+                aniskip_selected=args.aniskip, 
+                lang=language,
+                output_directory=args.output,
+                anime_title=anime_title,
+                only_direct_link=args.only_direct_link,
+                only_command=args.only_command,
+                debug=args.debug
+            )
+            sys.exit()
+    except KeyboardInterrupt:
         sys.exit()
 
     def run_app(query):
