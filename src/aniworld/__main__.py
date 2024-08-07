@@ -26,7 +26,7 @@ from aniworld import streamtape_get_direct_link
 from aniworld import vidoza_get_direct_link
 from aniworld import voe_get_direct_link
 from aniworld import aniskip
-from aniworld import make_requests
+from aniworld import make_request
 
 
 def check_dependencies(use_yt_dlp=False, use_mpv=False, use_syncplay=False):
@@ -66,10 +66,10 @@ def search_anime(slug=None, link=None) -> None:
     response = None
 
     if slug:
-        response = make_requests.get(f"https://aniworld.to/anime/stream/{slug}")
+        response = make_request.get(f"https://aniworld.to/anime/stream/{slug}")
     elif link:
         try:
-            response = make_requests.get(link)
+            response = make_request.get(link)
         except ValueError:
             link = None
             response = None
@@ -203,7 +203,7 @@ def execute(
     debug=False
 ):
     for episode_url in selected_episodes:
-        episode_html = make_requests.get(episode_url)
+        episode_html = make_request.get(episode_url)
         if episode_html is None:
             continue
         soup = BeautifulSoup(episode_html, 'html.parser')
@@ -247,7 +247,7 @@ def execute(
 
                     provider_function = provider_mapping[provider_selected]
                     request_url = data[provider_selected][language]
-                    html_content = make_requests.get(request_url)
+                    html_content = make_request.get(request_url)
                     soup = BeautifulSoup(html_content, 'html.parser')
 
                     link = provider_function(soup)
@@ -650,6 +650,7 @@ def main():
         parser.add_argument('--aniskip', action='store_true', help='Skip anime opening and ending')
         parser.add_argument('--only-direct-link', action='store_true', help='Output direct link')
         parser.add_argument('--only-command', action='store_true', help='Output command')
+        parser.add_argument('--proxy', type=str, help='Set HTTP Proxy (not working yet)')  # TODO
         parser.add_argument('--debug', action='store_true', help='Enable debug mode')
 
         args = parser.parse_args()

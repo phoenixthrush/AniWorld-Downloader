@@ -5,4 +5,4 @@ from .extractors.voe import voe_get_direct_link
 
 from .aniskip.ani_skip import aniskip
 
-from .common import make_requests
+from .common import make_request
