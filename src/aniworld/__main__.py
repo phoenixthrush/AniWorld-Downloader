@@ -215,6 +215,8 @@ def execute(
         episodeEnglishTitle = soup.find('small', class_='episodeEnglishTitle').text
         episode_title = f"{episodeGermanTitle} / {episodeEnglishTitle}"
 
+        anime_title = soup.find('div', class_='hostSeriesTitle').text
+
         if debug:
             print(f"Episode Title: {episode_title}")
 
@@ -270,7 +272,7 @@ def execute(
                         print(link)
                         sys.exit()
 
-                    mpv_title = f"{anime_title} - S{season_number}E{episode_number} - {episode_title}"
+                    mpv_title = f"{anime_title} S{season_number}E{episode_number} - {episode_title}"
 
                     if action == "Watch":
                         check_dependencies(use_mpv=True)
