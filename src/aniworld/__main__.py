@@ -207,10 +207,21 @@ def execute(
         if episode_html is None:
             continue
         soup = BeautifulSoup(episode_html, 'html.parser')
+
+        if debug:
+            print(f"Episode Soup: {soup.prettify}")
+
+        episodeGermanTitle = soup.find('span', class_='episodeGermanTitle').text
+        episodeEnglishTitle = soup.find('small', class_='episodeEnglishTitle').text
+        episode_title = f"{episodeGermanTitle} / {episodeEnglishTitle}"
+
+        if debug:
+            print(f"Episode Title: {episode_title}")
+
         data = providers(soup)
 
         if debug:
-            print(data)
+            print(f"Provider Data: {data}")
 
         provider_mapping = {
             "Vidoza": vidoza_get_direct_link,
@@ -250,13 +261,16 @@ def execute(
                     html_content = make_request.get(request_url)
                     soup = BeautifulSoup(html_content, 'html.parser')
 
+                    if debug:
+                        print(f"Episode Data: {soup.prettify}")
+
                     link = provider_function(soup)
 
                     if only_direct_link:
                         print(link)
                         sys.exit()
 
-                    mpv_title = f"{anime_title} - S{season_number}E{episode_number}"
+                    mpv_title = f"{anime_title} - S{season_number}E{episode_number} - {episode_title}"
 
                     if action == "Watch":
                         check_dependencies(use_mpv=True)
