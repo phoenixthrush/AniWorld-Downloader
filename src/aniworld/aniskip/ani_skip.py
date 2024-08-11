@@ -3,7 +3,7 @@ import re
 import tempfile
 
 import requests
-from fuzzywuzzy import process
+from thefuzz import process
 
 AGENT = "Mozilla/5.0 (Windows NT 6.1; Win64; rv:109.0) Gecko/20100101 Firefox/109.0"
 CHAPTER_FORMAT = "\n[CHAPTER]\nTIMEBASE=1/1000\nSTART={}\nEND={}\nTITLE={}\n"

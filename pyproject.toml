@@ -11,6 +11,7 @@ dependencies = [
     'requests',
     'bs4',
     'npyscreen',
+    'thefuzz',
     'windows-curses; platform_system == "Windows"'
 ]
 classifiers = [

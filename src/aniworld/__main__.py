@@ -287,6 +287,10 @@ def execute(
                             f"--force-media-title={mpv_title}"
                         ]
                         if aniskip_selected:
+                            if season_number != 1:
+                                print("Warning: This is not season 1.\n"
+                                      "Aniskip timestamps may be incorrect.\n"
+                                      "This will be fixed in future!")
                             skip_options = aniskip(anime_title, episode_number)
                             skip_options_list = skip_options.split(' --')
                             result = [
@@ -346,6 +350,10 @@ def execute(
                             "--", f"--force-media-title={mpv_title}"
                         ]
                         if aniskip_selected:
+                            if season_number != 1:
+                                print("Warning: This is not season 1.\n"
+                                      "Aniskip timestamps may be incorrect.\n"
+                                      "This will be fixed in future!")
                             skip_options = aniskip(anime_title, episode_number)
                             skip_options_list = skip_options.split(' --')
                             result = [
