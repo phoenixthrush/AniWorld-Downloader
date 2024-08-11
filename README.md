@@ -26,10 +26,11 @@ aniworld
 
 ## TODO
 
+- [ ] Fix aniskip finding wrong MAL ID
 - [ ] Refactor code into modular Python files
 - [ ] Integrate Python logging module
 - [x] Utilize argparse for command-line argument parsing
-- [ ] Implement functionality to fetch episode titles
+- [x] Implement functionality to fetch episode titles
 - [ ] Develop comprehensive unit tests
 - [ ] Configure Anime4K installation setup
 - [ ] Support Doodstream
