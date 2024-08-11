@@ -3,6 +3,7 @@ import re
 import tempfile
 
 import requests
+from fuzzywuzzy import process
 
 AGENT = "Mozilla/5.0 (Windows NT 6.1; Win64; rv:109.0) Gecko/20100101 Firefox/109.0"
 CHAPTER_FORMAT = "\n[CHAPTER]\nTIMEBASE=1/1000\nSTART={}\nEND={}\nTITLE={}\n"
@@ -34,12 +35,24 @@ def fetch_mal_id(anime_title, debug=False):
 
     mal_metadata = response.json()
     results = [entry['name'] for entry in mal_metadata['categories'][0]['items']]
-    relevant_name = results[0] if results else None
 
-    if relevant_name:
+    if debug:
+        print(anime_title)
+        print()
+        print(results)
+        print()
+
+    # filtering out OVAs because movies arent supported anyways
+    filtered_choices = [choice for choice in results if 'OVA' not in choice]
+    best_match = process.extractOne(anime_title, filtered_choices)
+
+    if debug:
+        print(best_match)
+
+    if best_match[0]:
         for entry in mal_metadata['categories'][0]['items']:
-            if entry['name'] == relevant_name:
-                debug_print(f"Found MAL ID: {entry['id']} for {relevant_name}", debug)
+            if entry['name'] == best_match[0]:
+                debug_print(f"Found MAL ID: {entry['id']} for {best_match[0]}", debug)
                 return entry['id']
     return None
 
@@ -110,4 +123,4 @@ def aniskip(anime_title, episode, debug=False):
 
 
 if __name__ == "__main__":
-    print(aniskip("Kaguya-sama: Love is War", 1, False))
+    print(aniskip("Kaguya-sama: Love is War", 1, True))
