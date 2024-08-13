@@ -1,8 +1,11 @@
+import glob
 import platform
 import os
 import shutil
 import sys
-from typing import Optional
+import shlex
+import subprocess
+from typing import List, Optional
 
 import requests
 
@@ -98,3 +101,83 @@ def clear_screen() -> None:
         os.system("cls")
     else:
         os.system("clear")
+
+
+def clean_up_leftovers(directory: str) -> None:
+    """
+    Removes leftover files in the specified directory that match certain patterns.
+    Also removes the directory if it becomes empty after cleanup.
+
+    This method searches for files in the given directory that match the following patterns:
+    - '*.part'
+    - '*.ytdl'
+    - '*.part-Frag*'
+
+    Args:
+        directory (str): The directory where leftover files are to be removed.
+
+    Returns:
+        None: This method does not return any value.
+    """
+    patterns: List[str] = ['*.part', '*.ytdl', '*.part-Frag*']
+
+    leftover_files: List[str] = []
+    for pattern in patterns:
+        leftover_files.extend(glob.glob(os.path.join(directory, pattern)))
+
+    for file_path in leftover_files:
+        try:
+            os.remove(file_path)
+            print(f"Removed leftover file: {file_path}")
+        except FileNotFoundError:
+            print(f"File not found: {file_path}")
+        except PermissionError:
+            print(f"Permission denied when trying to remove file: {file_path}")
+        except OSError as e:
+            print(f"OS error occurred while removing file {file_path}: {e}")
+
+    if not os.listdir(directory):
+        try:
+            os.rmdir(directory)
+            print(f"Removed empty directory: {directory}")
+        except FileNotFoundError:
+            print(f"Directory not found: {directory}")
+        except PermissionError:
+            print(f"Permission denied when trying to remove directory: {directory}")
+        except OSError as e:
+            print(f"OS error occurred while removing directory {directory}: {e}")
+
+
+def setup_aniskip() -> None:
+    """
+    Copy 'skip.lua' to the correct MPV scripts directory based on the OS.
+    """
+    script_directory = os.path.dirname(os.path.abspath(__file__))
+    source_path = os.path.join(script_directory, 'aniskip', 'skip.lua')
+
+    if os.name == 'nt':
+        destination_path = os.path.join(
+            os.environ['APPDATA'], 'mpv', 'scripts', 'skip.lua'
+        )
+    else:
+        destination_path = os.path.expanduser(
+            '~/.config/mpv/scripts/skip.lua'
+        )
+
+    if not os.path.exists(destination_path):
+        os.makedirs(os.path.dirname(destination_path), exist_ok=True)
+        shutil.copy(source_path, destination_path)
+
+
+def execute_command(command: List[str], only_command: bool) -> None:
+    """
+    Execute a command or print it as a string based on the 'only_command' flag.
+
+    Args:
+        command: List of command arguments.
+        only_command: If True, print the command; otherwise, execute it.
+    """
+    if only_command:
+        print(' '.join(shlex.quote(arg) for arg in command))
+    else:
+        subprocess.run(command, check=True)
