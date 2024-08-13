@@ -14,6 +14,7 @@ import npyscreen
 
 from aniworld import clear_screen, search, execute
 
+
 class AnimeDownloader:
     BASE_URL_TEMPLATE = "https://aniworld.to/anime/stream/{anime}/"
 
