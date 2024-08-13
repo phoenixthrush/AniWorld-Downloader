@@ -6,13 +6,12 @@ import glob
 import os
 import sys
 from time import sleep
-from urllib.error import HTTPError, URLError
-from urllib.request import urlopen, Request
 
 from bs4 import BeautifulSoup
 import npyscreen
 
 from aniworld import clear_screen, search, execute
+from aniworld.common import fetch_url_content, clean_up_leftovers
 
 
 class AnimeDownloader:
@@ -31,55 +30,10 @@ class AnimeDownloader:
         except AttributeError:
             sys.exit()
 
-    def make_request(self, url):
-        headers = {
-            'User-Agent': (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/58.0.3029.110 Safari/537.3"
-            )
-        }
-        req = Request(url, headers=headers)
-        try:
-            with urlopen(req, timeout=10) as response:
-                return response.read()
-        except (HTTPError, URLError, TimeoutError) as error:
-            print(f"Request failed: {error}")
-            return None
-
-    def clean_up_leftovers(self, directory):
-        patterns = ['*.part', '*.ytdl', '*.part-Frag*']
-
-        leftover_files = []
-        for pattern in patterns:
-            leftover_files.extend(glob.glob(os.path.join(directory, pattern)))
-
-        for file_path in leftover_files:
-            try:
-                os.remove(file_path)
-                print(f"Removed leftover file: {file_path}")
-            except FileNotFoundError:
-                print(f"File not found: {file_path}")
-            except PermissionError:
-                print(f"Permission denied when trying to remove file: {file_path}")
-            except OSError as e:
-                print(f"OS error occurred while removing file {file_path}: {e}")
-
-        if not os.listdir(directory):
-            try:
-                os.rmdir(directory)
-                print(f"Removed empty directory: {directory}")
-            except FileNotFoundError:
-                print(f"Directory not found: {directory}")
-            except PermissionError:
-                print(f"Permission denied when trying to remove directory: {directory}")
-            except OSError as e:
-                print(f"OS error occurred while removing directory {directory}: {e}")
-
     def get_season_episodes(self, season_url):
         season_url_old = season_url
         season_url = season_url[:-2]
-        season_html = self.make_request(season_url)
+        season_html = fetch_url_content(season_url)
         if season_html is None:
             return []
         season_soup = BeautifulSoup(season_html, 'html.parser')
@@ -96,7 +50,7 @@ class AnimeDownloader:
         return episode_urls
 
     def get_season_data(self):
-        main_html = self.make_request(self.base_url)
+        main_html = fetch_url_content(self.base_url)
         if main_html is None:
             sys.exit("Failed to retrieve main page.")
 
@@ -229,18 +183,20 @@ class EpisodeForm(npyscreen.ActionForm):
                 output_directory = os.path.join(output_directory, anime_title)
                 os.makedirs(output_directory, exist_ok=True)
 
-            execute(
-                selected_episodes=selected_episodes,
-                provider_selected=provider_selected[0],
-                action_selected=action_selected[0],
-                aniskip_selected=aniskip_selected[0],
-                lang=lang,
-                output_directory=output_directory,
-                anime_title=self.parentApp.anime_downloader.anime_title
-            )
+            params = {
+                'selected_episodes': selected_episodes,
+                'provider_selected': provider_selected[0],
+                'action_selected': action_selected[0],
+                'aniskip_selected': aniskip_selected[0],
+                'lang': lang,
+                'output_directory': output_directory,
+                'anime_title': self.parentApp.anime_downloader.anime_title
+            }
+
+            execute(params)
 
             if not self.directory_field.hidden:
-                self.parentApp.anime_downloader.clean_up_leftovers(output_directory)
+                clean_up_leftovers(output_directory)
 
             self.parentApp.setNextForm(None)
             self.parentApp.switchFormNow()
@@ -343,18 +299,19 @@ def main():
             }.get(args.language, "")
 
         if args.episode:
-            execute(
-                selected_episodes=args.episode,
-                provider_selected=args.provider,
-                action_selected=args.action,
-                aniskip_selected=args.aniskip,
-                lang=language,
-                output_directory=args.output,
-                anime_title=anime_title,
-                only_direct_link=args.only_direct_link,
-                only_command=args.only_command,
-                debug=args.debug
-            )
+            params = {
+                'selected_episodes': args.episode,
+                'provider_selected': args.provider,
+                'action_selected': args.action,
+                'aniskip_selected': args.aniskip,
+                'lang': language,
+                'output_directory': args.output,
+                'anime_title': anime_title,
+                'only_direct_link': args.only_direct_link,
+                'only_command': args.only_command,
+                'debug': args.debug
+            }
+            execute(params=params)
             sys.exit()
     except KeyboardInterrupt:
         sys.exit()
