@@ -1,15 +1,12 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from json import loads, JSONDecodeError
 from re import findall
 from shutil import which, copy
 from time import sleep
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote
 from urllib.request import urlopen, Request
 import argparse
-import curses
 import getpass
 import glob
 import os
@@ -26,150 +23,8 @@ from aniworld import streamtape_get_direct_link
 from aniworld import vidoza_get_direct_link
 from aniworld import voe_get_direct_link
 from aniworld import aniskip
-from aniworld import make_request
-
-
-def check_dependencies(use_yt_dlp=False, use_mpv=False, use_syncplay=False):
-    dependencies = []
-
-    if use_yt_dlp:
-        dependencies.append("yt-dlp")
-    if use_mpv:
-        dependencies.append("mpv")
-    if use_syncplay:
-        if platform.system() == "nt":
-            dependencies.append("SyncplayConsole")
-        else:
-            dependencies.append("syncplay")
-
-    missing = [dep for dep in dependencies if which(dep) is None]
-    if missing:
-        print(f"Missing dependencies: {', '.join(missing)} in path. Please install and try again.")
-        sys.exit(1)
-
-
-def clear_screen():
-    current_os = platform.system()
-
-    if current_os == "Windows":
-        os.system("cls")
-    else:
-        os.system("clear")
-
-
-def search_anime(slug=None, link=None) -> None:
-    """
-    This returns the anime slug for example: demon-slayer-kimetsu-no-yaiba
-    """
-    clear_screen()
-
-    response = None
-
-    if slug:
-        response = make_request.get(f"https://aniworld.to/anime/stream/{slug}")
-    elif link:
-        try:
-            response = make_request.get(link)
-        except ValueError:
-            link = None
-            response = None
-
-    if slug or link:
-        not_found = "Die gewünschte Serie wurde nicht gefunden oder ist im Moment deaktiviert."
-        if response and not_found in response.decode():
-            slug = None
-            link = None
-
-    if slug:
-        return slug
-    if link:
-        return link.split('/')[-1]
-
-    keyword = input("Search for a series: ")
-
-    while True:
-        clear_screen()
-        encoded_keyword = quote(keyword)
-        url = f"https://aniworld.to/ajax/seriesSearch?keyword={encoded_keyword}"
-
-        json_data = fetch_data(url)
-
-        if not isinstance(json_data, list) or not json_data:
-            print("No series found. Try again...")
-            keyword = input("Search for a series: ")
-            continue
-
-        selected_slug = curses.wrapper(display_menu, json_data)
-
-        return selected_slug
-
-
-def fetch_data(url: str) -> list:
-    try:
-        with urlopen(url) as response:
-            data = response.read()
-    except HTTPError as e:
-        print(f"HTTP error occurred: {e.code} {e.reason}")
-        return None
-    except URLError as e:
-        print(f"URL error occurred: {e.reason}")
-        return None
-
-    if data is None:
-        print("Failed to fetch data.")
-        sys.exit(1)
-
-    decoded_data = data.decode()
-
-    if "Deine Anfrage wurde als Spam erkannt." in decoded_data:
-        print("Your IP address is blacklisted. Please use a VPN or try again later.")
-        sys.exit(1)
-
-    try:
-        return loads(decoded_data)
-    except JSONDecodeError:
-        print("Failed to decode JSON response.")
-        return None
-
-
-def display_menu(stdscr, animes):
-    stdscr.clear()
-
-    current_row = 0
-    num_rows = len(animes)
-
-    while True:
-        stdscr.clear()
-        for idx, anime in enumerate(animes):
-            x = 0
-            y = idx
-            if idx == current_row:
-                stdscr.attron(curses.A_REVERSE)
-                name = anime.get('name', 'No Name')
-                year = anime.get('productionYear', 'No Year')
-                stdscr.addstr(y, x, f"{name} {year}")
-                stdscr.attroff(curses.A_REVERSE)
-            else:
-                name = anime.get('name', 'No Name')
-                year = anime.get('productionYear', 'No Year')
-                stdscr.addstr(y, x, f"{name} {year}")
-
-        stdscr.refresh()
-
-        key = stdscr.getch()
-
-        if key == curses.KEY_DOWN:
-            current_row = (current_row + 1) % num_rows
-        elif key == curses.KEY_UP:
-            current_row = (current_row - 1 + num_rows) % num_rows
-        elif key == ord('\n'):
-            selected_anime = animes[current_row]
-            return selected_anime.get('link', 'No Link')
-        elif key == ord('q'):
-            break
-
-    return None
-
+from aniworld import clear_screen, fetch_url_content, check_dependencies
+from aniworld import search
 
 def providers(soup):
     hoster_site_video = soup.find(class_='hosterSiteVideo').find('ul', class_='row')
@@ -203,7 +58,7 @@ def execute(
     debug=False
 ):
     for episode_url in selected_episodes:
-        episode_html = make_request.get(episode_url)
+        episode_html = fetch_url_content(episode_url)
         if episode_html is None:
             continue
         soup = BeautifulSoup(episode_html, 'html.parser')
@@ -260,7 +115,7 @@ def execute(
 
                     provider_function = provider_mapping[provider_selected]
                     request_url = data[provider_selected][language]
-                    html_content = make_request.get(request_url)
+                    html_content = fetch_url_content(request_url)
                     soup = BeautifulSoup(html_content, 'html.parser')
 
                     if debug:
@@ -275,7 +130,7 @@ def execute(
                     mpv_title = f"{anime_title} S{season_number}E{episode_number} - {episode_title}"
 
                     if action == "Watch":
-                        check_dependencies(use_mpv=True)
+                        check_dependencies(["mpv"])
                         if not only_command:
                             print(f"Playing '{mpv_title}")
                         command = [
@@ -304,7 +159,7 @@ def execute(
                         else:
                             subprocess.run(command, check=True)
                     elif action == "Download":
-                        check_dependencies(use_yt_dlp=True)
+                        check_dependencies(["yt-dlp"])
                         file_name = f"{mpv_title}.mp4"
                         file_path = os.path.join(output_directory, file_name)
                         if not only_command:
@@ -332,7 +187,7 @@ def execute(
                         else:
                             subprocess.run(command, check=True)
                     elif action == "Syncplay":
-                        check_dependencies(use_syncplay=True)
+                        check_dependencies(["syncplay"])
                         if platform.system() == "Windows":
                             syncplay = "SyncplayConsole"
                         else:
@@ -717,7 +572,7 @@ def main():
         app.run()
 
     try:
-        query = search_anime(slug=args.slug, link=args.link)
+        query = search.search_anime(slug=args.slug, link=args.link)
         keep_running = True
 
         while keep_running:
