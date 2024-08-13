@@ -5,6 +5,6 @@ from .extractors.voe import voe_get_direct_link
 
 from .aniskip.aniskip import aniskip
 
-from .common import clear_screen, fetch_url_content, check_dependencies, setup_aniskip
+from .common import clear_screen, fetch_url_content, check_dependencies, setup_aniskip, execute_command
 
 from .execute import execute
