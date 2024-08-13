@@ -1,4 +1,5 @@
 # AniWorld Downloader
+![PyPI - Downloads](https://img.shields.io/pypi/dm/aniworld?color=blue)
 
 ## Description
 
@@ -11,6 +12,12 @@ This tool works on Windows, macOS, and Linux.
 ## Installation
 
 To install AniWorld Downloader, use this command:
+
+```shell
+pip install aniworld
+```
+
+To update AniWorld Downloader, use this command:
 
 ```shell
 pip install -U aniworld
@@ -26,16 +33,13 @@ aniworld
 
 ## TODO
 
-- [ ] Fix aniskip finding wrong MAL ID
-- [ ] Refactor code into modular Python files
-- [ ] Integrate Python logging module
 - [x] Utilize argparse for command-line argument parsing
-- [x] Implement functionality to fetch episode titles
-- [ ] Develop comprehensive unit tests
-- [ ] Configure Anime4K installation setup
-- [ ] Support Doodstream
+- [ ] Refactor code into modular Python files
 - [ ] Add proxy support
-- [ ] Replace requests module with urllib
+- [ ] Configure Anime4K installation setup
+- [ ] Fix aniskip finding wrong MAL ID
+- [ ] Integrate Python logging module
+- [ ] Support Doodstream
 
 ## Contributing
 
