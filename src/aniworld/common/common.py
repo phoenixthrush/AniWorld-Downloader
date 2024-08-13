@@ -181,3 +181,24 @@ def execute_command(command: List[str], only_command: bool) -> None:
         print(' '.join(shlex.quote(arg) for arg in command))
     else:
         subprocess.run(command, check=True)
+
+def debug_print(message: str, debug: bool = False) -> None:
+    """
+    Prints a debug message if debugging is enabled.
+
+    Args:
+        message (str): The message to print.
+        debug (bool): A flag to enable or disable debugging.
+    """
+    if debug:
+        print(message)
+
+
+def raise_runtime_error(message: str) -> None:
+    """
+    Raises a RuntimeError with the provided message.
+
+    Args:
+        message (str): The error message to include in the exception.
+    """
+    raise RuntimeError(message)

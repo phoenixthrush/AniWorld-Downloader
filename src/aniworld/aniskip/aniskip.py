@@ -6,31 +6,11 @@ from typing import Dict, Optional
 import requests
 from thefuzz import process
 
+from aniworld.common import debug_print, raise_runtime_error
+
 AGENT = "Mozilla/5.0 (Windows NT 6.1; Win64; rv:109.0) Gecko/20100101 Firefox/109.0"
 CHAPTER_FORMAT = "\n[CHAPTER]\nTIMEBASE=1/1000\nSTART={}\nEND={}\nTITLE={}\n"
 OPTION_FORMAT = "skip-{}_start={},skip-{}_end={}"
-
-
-def debug_print(message: str, debug: bool = False) -> None:
-    """
-    Prints a debug message if debugging is enabled.
-
-    Args:
-        message (str): The message to print.
-        debug (bool): A flag to enable or disable debugging.
-    """
-    if debug:
-        print(message)
-
-
-def raise_runtime_error(message: str) -> None:
-    """
-    Raises a RuntimeError with the provided message.
-
-    Args:
-        message (str): The error message to include in the exception.
-    """
-    raise RuntimeError(message)
 
 
 def fetch_mal_id(anime_title: str, debug: bool = False) -> Optional[str]:
