@@ -36,6 +36,12 @@ If you want to directly pass the options without using the menu, you can use the
 aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
 ```
 
+To enable the --keep-watching option and automatically play the next episode after the one you specified, use:
+```
+aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --keep-watching
+```
+This will start playing the specified episode and continue to the next episode automatically.
+
 To see all the available options, run this command:
 ```
 aniworld --help
@@ -46,6 +52,8 @@ aniworld --help
 - [x] Utilize argparse for command-line argument parsing
 - [ ] Refactor code into modular Python files
 - [ ] Add proxy support
+- [ ] Fix Aniskip finding wrong timestamps
+- [ ] Fix wrong episode count on keep-watching per season
 - [ ] Configure Anime4K installation setup
 - [ ] Fix aniskip finding wrong MAL ID
 - [ ] Integrate Python logging module
