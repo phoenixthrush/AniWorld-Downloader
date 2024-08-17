@@ -31,6 +31,16 @@ To run AniWorld Downloader, use this command:
 aniworld
 ```
 
+If you want to directly pass the options without using the menu, you can use the arguments. For example:
+```
+aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
+```
+
+To see all the available options, run this command:
+```
+aniworld --help
+```
+
 ## TODO
 
 - [x] Utilize argparse for command-line argument parsing
