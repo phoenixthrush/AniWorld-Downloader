@@ -158,11 +158,20 @@ def get_episode_title(soup: BeautifulSoup, debug: bool = False) -> str:
     Returns:
         str: The formatted episode title.
     """
-    episode_german_title = soup.find('span', class_='episodeGermanTitle').text
-    episode_english_title = soup.find('small', class_='episodeEnglishTitle').text
-    episode_title = f"{episode_german_title} / {episode_english_title}"
+    german_title_tag = soup.find('span', class_='episodeGermanTitle')
+    english_title_tag = soup.find('small', class_='episodeEnglishTitle')
+    
+    episode_german_title = german_title_tag.text if german_title_tag else None
+    episode_english_title = english_title_tag.text if english_title_tag else None
+
+    if episode_german_title:
+        episode_title = f"{episode_german_title} / {episode_english_title}" if episode_english_title else episode_german_title
+    else:
+        episode_title = episode_english_title
+
     if debug:
         print(f"Episode Title: {episode_title}")
+
     return episode_title
 
 

@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 import npyscreen
 
 from aniworld import clear_screen, search, execute
-from aniworld.common import fetch_url_content, clean_up_leftovers
+from aniworld.common import fetch_url_content, clean_up_leftovers, get_season_data
 
 
 class AnimeDownloader:
@@ -274,6 +274,7 @@ def main():
             help='Provider choice - E.g. Vidoza, Streamtape, VOE, Doodstream'
         )
         parser.add_argument('--aniskip', action='store_true', help='Skip anime opening and ending')
+        parser.add_argument('--keep-watching', action='store_true', help='Continue watching')
         parser.add_argument('--only-direct-link', action='store_true', help='Output direct link')
         parser.add_argument('--only-command', action='store_true', help='Output command')
         parser.add_argument('--proxy', type=str, help='Set HTTP Proxy (not working yet)')  # TODO
@@ -284,11 +285,13 @@ def main():
         language = None
         anime_title = None
         if args.link:
-            anime_title = args.link.split('/')[-1].replace('-', ' ').title()
+            anime_title = args.link.split('/')[-1]
         elif args.slug:
-            anime_title = args.slug.replace('-', ' ').title()
+            anime_title = args.slug
         elif args.episode:
-            anime_title = args.episode[0].split('/')[5].replace('-', ' ').title()
+            anime_title = args.episode[0].split('/')[5]
+
+        print(anime_title)
 
         if args.language:
             language = {
@@ -297,15 +300,41 @@ def main():
                 "German Sub": "3"
             }.get(args.language, "")
 
+        updated_list = None
+        if args.keep_watching:
+            if args.episode:
+                season_data = get_season_data(anime_slug=anime_title)
+                episode_list = [
+                    url
+                    for season, episodes in season_data.items()
+                    for url in episodes
+                ]
+
+                if args.debug:
+                    print(f"Episode List: {episode_list}\n")
+                    print(args.episode[0])
+
+                # remove all episodes before user selection
+                index = episode_list.index(args.episode[0])
+                updated_list = episode_list[index:]
+
+                if args.debug:
+                    print(f"Updated List: {updated_list}\n")
+
+        if updated_list:
+            selected_episodes = updated_list
+        else:
+            selected_episodes = args.episode
+
         if args.episode:
             params = {
-                'selected_episodes': args.episode,
+                'selected_episodes': selected_episodes,
                 'provider_selected': args.provider,
                 'action_selected': args.action,
                 'aniskip_selected': args.aniskip,
                 'lang': language,
                 'output_directory': args.output,
-                'anime_title': anime_title,
+                'anime_title': anime_title.replace('-', ' ').title(),
                 'only_direct_link': args.only_direct_link,
                 'only_command': args.only_command,
                 'debug': args.debug

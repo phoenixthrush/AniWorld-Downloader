@@ -7,8 +7,8 @@ import shlex
 import subprocess
 from typing import List, Optional
 
+from bs4 import BeautifulSoup
 import requests
-
 
 def check_dependencies(dependencies: list) -> None:
     """
@@ -204,3 +204,47 @@ def raise_runtime_error(message: str) -> None:
         message (str): The error message to include in the exception.
     """
     raise RuntimeError(message)
+
+
+""" TODO THIS IS DOUBLE CODE """
+def get_season_episodes(season_url):
+    season_url_old = season_url
+    season_url = season_url[:-2]
+    season_html = fetch_url_content(season_url)
+    if season_html is None:
+        return []
+    season_soup = BeautifulSoup(season_html, 'html.parser')
+    episodes = season_soup.find_all('meta', itemprop='episodeNumber')
+    episode_numbers = [int(episode['content']) for episode in episodes]
+    highest_episode = max(episode_numbers, default=None)
+
+    season_suffix = f"/staffel-{season_url_old.split('/')[-1]}"
+    episode_urls = [
+        f"{season_url}{season_suffix}/episode-{num}"
+        for num in range(1, highest_episode + 1)
+    ]
+
+    return episode_urls
+
+def get_season_data(anime_slug: str):
+    BASE_URL_TEMPLATE = "https://aniworld.to/anime/stream/{anime}/"
+    base_url = BASE_URL_TEMPLATE.format(anime=anime_slug)
+
+    main_html = fetch_url_content(base_url)
+    if main_html is None:
+        sys.exit("Failed to retrieve main page.")
+
+    soup = BeautifulSoup(main_html, 'html.parser')
+    season_meta = soup.find('meta', itemprop='numberOfSeasons')
+    number_of_seasons = int(season_meta['content']) if season_meta else 0
+
+    if soup.find('a', title='Alle Filme'):
+        number_of_seasons -= 1
+
+    season_data = {}
+    for i in range(1, number_of_seasons + 1):
+        season_url = f"{base_url}{i}"
+        season_data[i] = get_season_episodes(season_url)
+
+    return season_data
+""" """ 
