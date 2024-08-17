@@ -2,7 +2,6 @@
 # encoding: utf-8
 
 import argparse
-import glob
 import os
 import sys
 from time import sleep

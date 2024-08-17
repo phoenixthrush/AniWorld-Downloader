@@ -82,7 +82,9 @@ def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True)
         response.raise_for_status()
 
         if "Deine Anfrage wurde als Spam erkannt." in response.text:
-            print("Your IP address is blacklisted. Please use a VPN or try again later.")
+            print("Your IP address is blacklisted.\n"
+                  "Please use a VPN, complete the captcha by opening the browser link, "
+                  f"or try again later.\nLink: {url}")
             sys.exit(1)
 
         return response.content
