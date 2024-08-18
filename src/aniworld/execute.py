@@ -8,18 +8,22 @@ from typing import Dict, List, Optional, Any
 
 from bs4 import BeautifulSoup
 
-from aniworld import (
+from aniworld.extractors import (
     doodstream_get_direct_link,
     streamtape_get_direct_link,
     vidoza_get_direct_link,
     voe_get_direct_link,
-    fetch_url_content,
-    check_dependencies,
-    aniskip,
-    setup_aniskip,
-    execute_command
 )
 
+from aniworld.common import (
+    clean_up_leftovers,
+    execute_command,
+    setup_aniskip,
+    fetch_url_content,
+    check_dependencies
+)
+
+from aniworld.aniskip import aniskip
 
 def providers(soup: BeautifulSoup) -> Dict[str, Dict[int, str]]:
     """
@@ -269,6 +273,7 @@ def perform_action(params: Dict[str, Any]) -> None:
     )
 
     if action == "Watch":
+        mpv_title = mpv_title.replace(" --- ", " - ", 1)
         check_dependencies(["mpv"])
         if not only_command:
             print(f"Playing '{mpv_title}'")
@@ -276,13 +281,17 @@ def perform_action(params: Dict[str, Any]) -> None:
         execute_command(command, only_command)
     elif action == "Download":
         check_dependencies(["yt-dlp"])
-        file_name = f"{mpv_title}.mp4"
-        file_path = os.path.join(output_directory, file_name)
+        file_name = f"{mpv_title}.mp4".replace("/", "-")
+        file_path = os.path.join(output_directory, file_name).replace(" --- ", "/", 1)
         if not only_command:
             print(f"Downloading to '{file_path}'")
         command = build_yt_dlp_command(link, file_path)
-        execute_command(command, only_command)
+        try:
+            execute_command(command, only_command)
+        except KeyboardInterrupt:
+            clean_up_leftovers(os.path.dirname(file_path))
     elif action == "Syncplay":
+        mpv_title = mpv_title.replace(" --- ", " - ", 1)
         check_dependencies(["mpv", "syncplay"])
         if not only_command:
             print(f"Playing '{mpv_title}'")
@@ -355,7 +364,7 @@ def execute(params: Dict[str, Any]) -> None:
                         print(link)
                         sys.exit()
 
-                    mpv_title = f"{anime_title} S{season_number}E{episode_number} - {episode_title}"
+                    mpv_title = f"{anime_title} --- S{season_number}E{episode_number} - {episode_title}"
 
                     params = {
                         "action": action,

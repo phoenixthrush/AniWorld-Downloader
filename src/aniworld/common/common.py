@@ -121,6 +121,7 @@ def clean_up_leftovers(directory: str) -> None:
     Returns:
         None: This method does not return any value.
     """
+    # print("DEBUG: CLEANING LEFTOVERS IN " + str(directory))
     patterns: List[str] = ['*.part', '*.ytdl', '*.part-Frag*']
 
     leftover_files: List[str] = []
