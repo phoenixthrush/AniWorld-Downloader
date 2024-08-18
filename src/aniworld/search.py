@@ -40,8 +40,12 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
 
     while True:
         clear_screen()
-        if not query:
+        first_run = True
+        if not query and first_run:
             query = input("Search for a series: ")
+        else:
+            query = input("Search for a series: ")
+
         url = f"https://aniworld.to/ajax/seriesSearch?keyword={quote(query)}"
 
         json_data = fetch_url_content(url)

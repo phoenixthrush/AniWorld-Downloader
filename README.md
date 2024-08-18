@@ -43,7 +43,12 @@ aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaib
 
 Alternatively, you can specify only the query:
 ```
-aniworld --query demon --keep-watching
+aniworld --query food --keep-watching
+```
+
+Or with spaces:
+```
+aniworld --query "food wars" --keep-watching
 ```
 
 This will start playing the specified episode and continue to the next episode automatically.
