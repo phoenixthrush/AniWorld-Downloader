@@ -27,7 +27,7 @@ def check_dependencies(dependencies: list) -> None:
 
     for dep in dependencies:
         if dep == "syncplay":
-            if platform.system() == "nt":
+            if platform.system() == "Windows":
                 resolved_dependencies.append("SyncplayConsole")
             else:
                 resolved_dependencies.append("syncplay")
@@ -99,7 +99,7 @@ def clear_screen() -> None:
     """
     Clear the terminal screen based on the operating system.
     """
-    if platform.system() == "nt":
+    if platform.system() == "Windows":
         os.system("cls")
     else:
         os.system("clear")
