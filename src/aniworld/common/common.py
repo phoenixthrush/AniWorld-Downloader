@@ -153,12 +153,14 @@ def clean_up_leftovers(directory: str) -> None:
 
 def setup_aniskip() -> None:
     """
-    Copy 'skip.lua' and 'autostart.lua' to the correct MPV scripts directory based on the OS.
+    Copy 'skip.lua', 'autostart.lua', and 'autoexit.lua'
+    to the correct MPV scripts directory based on the OS.
     """
     script_directory = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     skip_source_path = os.path.join(script_directory, 'aniskip', 'skip.lua')
     autostart_source_path = os.path.join(script_directory, 'aniskip', 'autostart.lua')
+    autoexit_source_path = os.path.join(script_directory, 'aniskip', 'autoexit.lua')
 
     if os.name == 'nt':
         mpv_scripts_directory = os.path.join(
@@ -176,6 +178,10 @@ def setup_aniskip() -> None:
     autostart_destination_path = os.path.join(mpv_scripts_directory, 'autostart.lua')
     if not os.path.exists(autostart_destination_path):
         shutil.copy(autostart_source_path, autostart_destination_path)
+
+    autoexit_destination_path = os.path.join(mpv_scripts_directory, 'autoexit.lua')
+    if not os.path.exists(autoexit_destination_path):
+        shutil.copy(autoexit_source_path, autoexit_destination_path)
 
 
 def execute_command(command: List[str], only_command: bool) -> None:
