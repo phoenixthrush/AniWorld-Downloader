@@ -153,23 +153,29 @@ def clean_up_leftovers(directory: str) -> None:
 
 def setup_aniskip() -> None:
     """
-    Copy 'skip.lua' to the correct MPV scripts directory based on the OS.
+    Copy 'skip.lua' and 'autostart.lua' to the correct MPV scripts directory based on the OS.
     """
-    script_directory = os.path.dirname(os.path.abspath(__file__))
-    source_path = os.path.join(script_directory, 'aniskip', 'skip.lua')
+    script_directory = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    skip_source_path = os.path.join(script_directory, 'aniskip', 'skip.lua')
+    autostart_source_path = os.path.join(script_directory, 'aniskip', 'autostart.lua')
 
     if os.name == 'nt':
-        destination_path = os.path.join(
-            os.environ['APPDATA'], 'mpv', 'scripts', 'skip.lua'
+        mpv_scripts_directory = os.path.join(
+            os.environ.get('APPDATA', ''), 'mpv', 'scripts'
         )
     else:
-        destination_path = os.path.expanduser(
-            '~/.config/mpv/scripts/skip.lua'
-        )
+        mpv_scripts_directory = os.path.expanduser('~/.config/mpv/scripts')
 
-    if not os.path.exists(destination_path):
-        os.makedirs(os.path.dirname(destination_path), exist_ok=True)
-        shutil.copy(source_path, destination_path)
+    os.makedirs(mpv_scripts_directory, exist_ok=True)
+
+    skip_destination_path = os.path.join(mpv_scripts_directory, 'skip.lua')
+    if not os.path.exists(skip_destination_path):
+        shutil.copy(skip_source_path, skip_destination_path)
+
+    autostart_destination_path = os.path.join(mpv_scripts_directory, 'autostart.lua')
+    if not os.path.exists(autostart_destination_path):
+        shutil.copy(autostart_source_path, autostart_destination_path)
 
 
 def execute_command(command: List[str], only_command: bool) -> None:

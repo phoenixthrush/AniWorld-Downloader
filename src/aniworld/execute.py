@@ -275,6 +275,7 @@ def perform_action(params: Dict[str, Any]) -> None:
     if action == "Watch":
         mpv_title = mpv_title.replace(" --- ", " - ", 1)
         check_dependencies(["mpv"])
+        setup_aniskip()
         if not only_command:
             print(f"Playing '{mpv_title}'")
         command = build_mpv_command(link, mpv_title, aniskip_options)
@@ -293,6 +294,7 @@ def perform_action(params: Dict[str, Any]) -> None:
     elif action == "Syncplay":
         mpv_title = mpv_title.replace(" --- ", " - ", 1)
         check_dependencies(["mpv", "syncplay"])
+        setup_aniskip()
         if not only_command:
             print(f"Playing '{mpv_title}'")
         command = build_syncplay_command(link, mpv_title, aniskip_options)
@@ -352,9 +354,6 @@ def execute(params: Dict[str, Any]) -> None:
                 if language == int(lang):
                     season_number, episode_number = get_season_and_episode_numbers(episode_url)
                     action = action_selected
-
-                    if aniskip_selected:
-                        setup_aniskip()
 
                     provider_function = provider_mapping[provider_selected]
                     request_url = data[provider_selected][language]
