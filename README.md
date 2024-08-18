@@ -40,6 +40,12 @@ To enable the --keep-watching option and automatically play the next episode aft
 ```
 aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --keep-watching
 ```
+
+Alternatively, you can specify only the query:
+```
+aniworld --query demon --keep-watching
+```
+
 This will start playing the specified episode and continue to the next episode automatically.
 
 To see all the available options, run this command:

@@ -7,7 +7,7 @@ from typing import List, Dict, Optional
 from aniworld.common import clear_screen, fetch_url_content
 
 
-def search_anime(slug: str = None, link: str = None) -> str:
+def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
     """
     Retrieve the anime slug based on either a provided slug or link.
     - Tries using the slug first; if not found, tries using the link.
@@ -16,6 +16,7 @@ def search_anime(slug: str = None, link: str = None) -> str:
     Args:
         slug (str, optional): The anime slug.
         link (str, optional): The URL containing the anime slug.
+        query (str, optional): The anime query.
 
     Returns:
         str: The anime slug.
@@ -39,8 +40,9 @@ def search_anime(slug: str = None, link: str = None) -> str:
 
     while True:
         clear_screen()
-        keyword = input("Search for a series: ")
-        url = f"https://aniworld.to/ajax/seriesSearch?keyword={quote(keyword)}"
+        if not query:
+            query = input("Search for a series: ")
+        url = f"https://aniworld.to/ajax/seriesSearch?keyword={quote(query)}"
 
         json_data = fetch_url_content(url)
         decoded_data = loads(json_data.decode())

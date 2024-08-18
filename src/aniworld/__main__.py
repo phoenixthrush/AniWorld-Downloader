@@ -4,7 +4,8 @@
 import argparse
 import os
 import sys
-from time import sleep
+import time
+import re
 
 from bs4 import BeautifulSoup
 import npyscreen
@@ -232,6 +233,14 @@ def main():
             )
         )
         parser.add_argument(
+            '--query',
+            type=str,
+            help=(
+                'Search query input - E.g. '
+                'demon'
+            )
+        )
+        parser.add_argument(
             '--episode',
             type=str,
             nargs='+',
@@ -282,6 +291,23 @@ def main():
 
         args = parser.parse_args()
 
+        if args.query and not args.episode:
+            slug = search.search_anime(query=args.query)
+            season_data = get_season_data(anime_slug=slug)
+            episode_list = [
+                url
+                for season, episodes in season_data.items()
+                for url in episodes
+            ]
+
+            user_input = input("Please enter the episode (e.g., S1E2): ")
+            match = re.match(r"S(\d+)E(\d+)", user_input)
+            if match:
+                s = int(match.group(1))
+                e = int(match.group(2))
+
+            args.episode = [f"https://aniworld.to/anime/stream/{slug}/staffel-{s}/episode-{e}"]
+
         language = None
         anime_title = None
         if args.link:
@@ -290,8 +316,6 @@ def main():
             anime_title = args.slug
         elif args.episode:
             anime_title = args.episode[0].split('/')[5]
-
-        print(anime_title)
 
         if args.language:
             language = {
@@ -359,7 +383,7 @@ def main():
             except npyscreen.wgwidget.NotEnoughSpaceForWidget:
                 clear_screen()
                 print("Please increase your current terminal size.")
-                sleep(1)
+                time.sleep(1)
         sys.exit()
     except KeyboardInterrupt:
         sys.exit()
