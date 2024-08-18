@@ -38,12 +38,14 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
         except ValueError:
             pass
 
+    first_run = True
+
     while True:
         clear_screen()
-        first_run = True
-        if not query and first_run:
+        if not query:
             query = input("Search for a series: ")
-        else:
+        
+        if query and not first_run:
             query = input("Search for a series: ")
 
         url = f"https://aniworld.to/ajax/seriesSearch?keyword={quote(query)}"
@@ -53,6 +55,7 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
 
         if not isinstance(decoded_data, list) or not decoded_data:
             print("No series found. Try again...")
+            first_run = False
             continue
 
         selected_slug = curses.wrapper(display_menu, decoded_data)
