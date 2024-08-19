@@ -31,6 +31,8 @@ To run AniWorld Downloader, use this command:
 aniworld
 ```
 
+### Command Line Examples
+
 If you want to directly pass the options without using the menu, you can use the arguments. For example:
 ```
 aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
@@ -39,6 +41,16 @@ aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaib
 To enable the --keep-watching option and automatically play the next episode after the one you specified, use:
 ```
 aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --keep-watching
+```
+
+To download every episode of the anime, use:
+```
+aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --keep-watching --action Download --provider VOE
+```
+
+To download specific episodes of the anime, use:
+```
+aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-2 https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-3 --action Download --provider VOE
 ```
 
 Alternatively, you can specify only the query:
