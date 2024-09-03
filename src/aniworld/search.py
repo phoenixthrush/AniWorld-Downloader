@@ -34,7 +34,7 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
         response = fetch_url_content(url)
         logging.debug(f"Response: {response}")
         if response and not_found not in response.decode():
-            logging.debug(f"Returning slug: {slug}")
+            logging.debug(f"Found matching slug: {slug}")
             return slug
 
     if link:
@@ -42,7 +42,7 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
             logging.debug(f"Fetching using link: {link}")
             response = fetch_url_content(link, check=False)
             if response and not_found not in response.decode():
-                logging.debug(f"Returning slug: {slug}")
+                logging.debug(f"Found matching slug: {link.split('/')[-1]}")
                 return link.split('/')[-1]
         except ValueError:
             pass
@@ -58,11 +58,11 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
             query = input("Search for a series: ")
 
         url = f"https://aniworld.to/ajax/seriesSearch?keyword={quote(query)}"
-        logging.debug(f"Fetching url: {url}")
 
+        logging.debug(f"Fetching Anime List.")
         json_data = fetch_url_content(url)
         decoded_data = loads(json_data.decode())
-        logging.debug(f"Decoded JSON Data: {decoded_data}")
+        logging.debug(f"Anime JSON List: {decoded_data}")
 
         if not isinstance(decoded_data, list) or not decoded_data:
             print("No series found. Try again...")
@@ -70,7 +70,7 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
             continue
 
         selected_slug = curses.wrapper(display_menu, decoded_data)
-        logging.debug(f"Returning slug: {selected_slug}")
+        logging.debug(f"Found matching slug: {selected_slug}")
         not_found = not not_found
         return selected_slug
 

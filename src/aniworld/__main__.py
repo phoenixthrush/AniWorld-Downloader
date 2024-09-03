@@ -6,11 +6,12 @@ import os
 import sys
 import time
 import re
+import logging
 
 from bs4 import BeautifulSoup
 import npyscreen
 
-from aniworld import clear_screen, search, execute
+from aniworld import clear_screen, search, execute, globals
 from aniworld.common import fetch_url_content, clean_up_leftovers, get_season_data
 
 
@@ -33,7 +34,11 @@ class AnimeDownloader:
     def get_season_episodes(self, season_url):
         season_url_old = season_url
         season_url = season_url[:-2]
+        season_suffix = f"/staffel-{season_url_old.split('/')[-1]}"
+
+        logging.debug(f"Fetching Episode URLs from Season {season_suffix}")
         season_html = fetch_url_content(season_url)
+
         if season_html is None:
             return []
         season_soup = BeautifulSoup(season_html, 'html.parser')
@@ -41,7 +46,6 @@ class AnimeDownloader:
         episode_numbers = [int(episode['content']) for episode in episodes]
         highest_episode = max(episode_numbers, default=None)
 
-        season_suffix = f"/staffel-{season_url_old.split('/')[-1]}"
         episode_urls = [
             f"{season_url}{season_suffix}/episode-{num}"
             for num in range(1, highest_episode + 1)
@@ -50,6 +54,7 @@ class AnimeDownloader:
         return episode_urls
 
     def get_season_data(self):
+        logging.debug(f"Fetching Base URL {self.base_url}")
         main_html = fetch_url_content(self.base_url)
         if main_html is None:
             sys.exit("Failed to retrieve main page.")
@@ -84,7 +89,7 @@ class EpisodeForm(npyscreen.ActionForm):
             name="Watch, Download or Syncplay",
             values=["Watch", "Download", "Syncplay"],
             max_height=4,
-            value=[1],
+            value=[["Watch", "Download", "Syncplay"].index(globals.DEFAULT_ACTION)],
             scroll_exit=True
         )
 
@@ -93,14 +98,14 @@ class EpisodeForm(npyscreen.ActionForm):
             name="Use Aniskip (Skip Intro & Outro)",
             values=["Yes", "No"],
             max_height=3,
-            value=[1],
+            value=[1 if globals.DEFAULT_ANISKIP else 0],
             scroll_exit=True
         )
 
         self.directory_field = self.add(
             npyscreen.TitleFilenameCombo,
             name="Directory:",
-            value=os.path.join(os.path.expanduser('~'), 'Downloads')
+            value=globals.DEFAULT_DOWNLOAD_PATH
         )
 
         self.language_selector = self.add(
@@ -108,7 +113,7 @@ class EpisodeForm(npyscreen.ActionForm):
             name="Language Options",
             values=["German Dub", "English Sub", "German Sub"],
             max_height=4,
-            value=[2],
+            value=[["German Dub", "English Sub", "German Sub"].index(globals.DEFAULT_LANGUAGE)],
             scroll_exit=True
         )
 
@@ -117,7 +122,7 @@ class EpisodeForm(npyscreen.ActionForm):
             name="Provider Options (VOE recommended for Downloading)",
             values=["Vidoza", "Streamtape", "VOE", "Doodstream"],
             max_height=4,
-            value=[0],
+            value=[["Vidoza", "Streamtape", "VOE", "Doodstream"].index(globals.DEFAULT_PROVIDER)],
             scroll_exit=True
         )
 
@@ -193,6 +198,7 @@ class EpisodeForm(npyscreen.ActionForm):
                 'anime_title': self.parentApp.anime_downloader.anime_title
             }
 
+            logging.debug(f"Execute using: {params}")
             execute(params)
 
             if not self.directory_field.hidden:
@@ -219,77 +225,28 @@ class AnimeApp(npyscreen.NPSAppManaged):
 def main():
     try:
         parser = argparse.ArgumentParser(description="Parse optional command line arguments.")
-        parser.add_argument(
-            '--slug',
-            type=str,
-            help='Search query - E.g. demon-slayer-kimetsu-no-yaiba'
-        )
-        parser.add_argument(
-            '--link',
-            type=str,
-            help=(
-                'Search query - E.g. '
-                'https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba'
-            )
-        )
-        parser.add_argument(
-            '--query',
-            type=str,
-            help=(
-                'Search query input - E.g. '
-                'demon'
-            )
-        )
-        parser.add_argument(
-            '--episode',
-            type=str,
-            nargs='+',
-            help=(
-                'List of episode URLs - E.g. '
-                'https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/ '
-                'staffel-1/episode-1, '
-                'https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/ '
-                'staffel-1/episode-2'
-            )
-        )
-        parser.add_argument(
-            '--action',
-            type=str,
-            choices=['Watch', 'Download', 'Syncplay'],
-            default='Watch',
-            help=(
-                'Action to perform - E.g. '
-                'Watch, Download, Syncplay'
-            )
-        )
-        parser.add_argument(
-            '--output',
-            type=str,
-            default=os.path.join(os.path.expanduser('~'), 'Downloads'),
-            help='Download directory (default: ~/Downloads)'
-        )
-        parser.add_argument(
-            '--language',
-            type=str,
-            choices=['German Dub', 'English Sub', 'German Sub'],
-            default='German Sub',
-            help='Language choice - E.g. German Dub, English Sub, German Sub'
-        )
-        parser.add_argument(
-            '--provider',
-            type=str,
-            choices=['Vidoza', 'Streamtape', 'VOE', 'Doodstream'],
-            default='Vidoza',
-            help='Provider choice - E.g. Vidoza, Streamtape, VOE, Doodstream'
-        )
-        parser.add_argument('--aniskip', action='store_true', help='Skip anime opening and ending')
-        parser.add_argument('--keep-watching', action='store_true', help='Continue watching')
-        parser.add_argument('--only-direct-link', action='store_true', help='Output direct link')
-        parser.add_argument('--only-command', action='store_true', help='Output command')
-        parser.add_argument('--proxy', type=str, help='Set HTTP Proxy (not working yet)')  # TODO
+        parser.add_argument('--slug', type=str, help='Search query - E.g. demon-slayer-kimetsu-no-yaiba')
+        parser.add_argument('--link', type=str, help='Search query - E.g. https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba')
+        parser.add_argument('--query', type=str, help='Search query input - E.g. demon')
+        parser.add_argument('--episode', type=str, nargs='+', help='List of episode URLs')
+        parser.add_argument('--action', type=str, choices=['Watch', 'Download', 'Syncplay'], default=globals.DEFAULT_ACTION, help='Action to perform')
+        parser.add_argument('--output', type=str, default=globals.DEFAULT_DOWNLOAD_PATH, help='Download directory')
+        parser.add_argument('--language', type=str, choices=['German Dub', 'English Sub', 'German Sub'], default=globals.DEFAULT_LANGUAGE, help='Language choice')
+        parser.add_argument('--provider', type=str, choices=['Vidoza', 'Streamtape', 'VOE', 'Doodstream'], default=globals.DEFAULT_PROVIDER, help='Provider choice')
+        parser.add_argument('--aniskip', action='store_true', default=globals.DEFAULT_ANISKIP, help='Skip intro and outro')
+        parser.add_argument('--keep-watching', action='store_true', default=globals.DEFAULT_KEEP_WATCHING, help='Continue watching')
+        parser.add_argument('--only-direct-link', action='store_true', default=globals.DEFAULT_ONLY_DIRECT_LINK, help='Output direct link')
+        parser.add_argument('--only-command', action='store_true', default=globals.DEFAULT_ONLY_COMMAND, help='Output command')
+        parser.add_argument('--proxy', type=str, default=globals.DEFAULT_PROXY, help='Set HTTP Proxy (not working yet)')
         parser.add_argument('--debug', action='store_true', help='Enable debug mode')
 
+        logging.debug("Parsing Command Line Arguments.")
         args = parser.parse_args()
+
+        if args.link:
+            if args.link.count('/') != 5:
+                logging.debug("Provided link invalid.")
+                args.link = None
 
         if args.query and not args.episode:
             slug = search.search_anime(query=args.query)
@@ -363,28 +320,24 @@ def main():
                 'only_command': args.only_command,
                 'debug': args.debug
             }
+            logging.debug(f"Execute using: {params}")
             execute(params=params)
             sys.exit()
     except KeyboardInterrupt:
         sys.exit()
 
     def run_app(query):
+        clear_screen()
         app = AnimeApp(query)
         app.run()
 
     try:
-        query = search.search_anime(slug=args.slug, link=args.link)
-        keep_running = True
-
-        while keep_running:
-            try:
-                run_app(query)
-                keep_running = False
-            except npyscreen.wgwidget.NotEnoughSpaceForWidget:
-                clear_screen()
-                print("Please increase your current terminal size.")
-                time.sleep(1)
-        sys.exit()
+        try:
+            run_app(search.search_anime(slug=args.slug, link=args.link))
+        except npyscreen.wgwidget.NotEnoughSpaceForWidget:
+            clear_screen()
+            print("Please increase your current terminal size.")
+            sys.exit()
     except KeyboardInterrupt:
         sys.exit()
 

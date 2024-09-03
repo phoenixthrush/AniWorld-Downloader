@@ -23,3 +23,6 @@ logging.basicConfig(
     level=logging.DEBUG if IS_DEBUG_MODE else logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
+
+# logging.getLogger('requests').setLevel(logging.WARNING)
+logging.getLogger('urllib3').setLevel(logging.WARNING)

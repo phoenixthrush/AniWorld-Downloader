@@ -10,6 +10,8 @@ from typing import List, Optional
 from bs4 import BeautifulSoup
 import requests
 
+from aniworld import globals
+
 def check_dependencies(dependencies: list) -> None:
     """
     Check if dependencies are available in PATH and handle platform-specific cases.
@@ -34,6 +36,7 @@ def check_dependencies(dependencies: list) -> None:
         else:
             resolved_dependencies.append(dep)
 
+    logging.debug(f"Checking for {resolved_dependencies} in path.")
     missing = [dep for dep in resolved_dependencies if shutil.which(dep) is None]
 
     if missing:
@@ -99,10 +102,11 @@ def clear_screen() -> None:
     """
     Clear the terminal screen based on the operating system.
     """
-    if platform.system() == "Windows":
-        os.system("cls")
-    else:
-        os.system("clear")
+    if not globals.IS_DEBUG_MODE:
+        if platform.system() == "Windows":
+            os.system("cls")
+        else:
+            os.system("clear")
 
 
 def clean_up_leftovers(directory: str) -> None:
@@ -131,24 +135,20 @@ def clean_up_leftovers(directory: str) -> None:
     for file_path in leftover_files:
         try:
             os.remove(file_path)
-            print(f"Removed leftover file: {file_path}")
-        except FileNotFoundError:
-            print(f"File not found: {file_path}")
+            logging.debug(f"Removed leftover file: {file_path}")
         except PermissionError:
-            print(f"Permission denied when trying to remove file: {file_path}")
+            logging.warning(f"Permission denied when trying to remove file: {file_path}")
         except OSError as e:
-            print(f"OS error occurred while removing file {file_path}: {e}")
+            logging.warning(f"OS error occurred while removing file {file_path}: {e}")
 
     if not os.listdir(directory):
         try:
             os.rmdir(directory)
-            print(f"Removed empty directory: {directory}")
-        except FileNotFoundError:
-            print(f"Directory not found: {directory}")
+            logging.debug(f"Removed empty directory: {directory}")
         except PermissionError:
-            print(f"Permission denied when trying to remove directory: {directory}")
+            logging.warning(f"Permission denied when trying to remove directory: {directory}")
         except OSError as e:
-            print(f"OS error occurred while removing directory {directory}: {e}")
+            logging.warning(f"OS error occurred while removing directory {directory}: {e}")
 
 
 def setup_aniskip() -> None:
@@ -169,18 +169,22 @@ def setup_aniskip() -> None:
     else:
         mpv_scripts_directory = os.path.expanduser('~/.config/mpv/scripts')
 
+    logger.debug(f"Creating directory {mpv_scripts_directory}")
     os.makedirs(mpv_scripts_directory, exist_ok=True)
 
     skip_destination_path = os.path.join(mpv_scripts_directory, 'skip.lua')
     if not os.path.exists(skip_destination_path):
+        logger.debug(f"Copying skip.lua to {mpv_scripts_directory}")
         shutil.copy(skip_source_path, skip_destination_path)
 
     autostart_destination_path = os.path.join(mpv_scripts_directory, 'autostart.lua')
     if not os.path.exists(autostart_destination_path):
+        logger.debug(f"Copying autostart.lua to {mpv_scripts_directory}")
         shutil.copy(autostart_source_path, autostart_destination_path)
 
     autoexit_destination_path = os.path.join(mpv_scripts_directory, 'autoexit.lua')
     if not os.path.exists(autoexit_destination_path):
+        logger.debug(f"Copying autoexit.lua to {mpv_scripts_directory}")
         shutil.copy(autoexit_source_path, autoexit_destination_path)
 
 
@@ -223,6 +227,10 @@ def raise_runtime_error(message: str) -> None:
 def get_season_episodes(season_url):
     season_url_old = season_url
     season_url = season_url[:-2]
+    season_suffix = f"/staffel-{season_url_old.split('/')[-1]}"
+
+    logging.debug(f"Fetching Episode URLs from Season {season_suffix}")
+    
     season_html = fetch_url_content(season_url)
     if season_html is None:
         return []
@@ -231,7 +239,6 @@ def get_season_episodes(season_url):
     episode_numbers = [int(episode['content']) for episode in episodes]
     highest_episode = max(episode_numbers, default=None)
 
-    season_suffix = f"/staffel-{season_url_old.split('/')[-1]}"
     episode_urls = [
         f"{season_url}{season_suffix}/episode-{num}"
         for num in range(1, highest_episode + 1)
@@ -243,6 +250,7 @@ def get_season_data(anime_slug: str):
     BASE_URL_TEMPLATE = "https://aniworld.to/anime/stream/{anime}/"
     base_url = BASE_URL_TEMPLATE.format(anime=anime_slug)
 
+    logging.debug(f"Fetching Base URL {base_url}")
     main_html = fetch_url_content(base_url)
     if main_html is None:
         sys.exit("Failed to retrieve main page.")
