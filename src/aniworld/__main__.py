@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup
 import npyscreen
 
 from aniworld import clear_screen, search, execute, globals
-from aniworld.common import fetch_url_content, clean_up_leftovers, get_season_data
+from aniworld.common import fetch_url_content, clean_up_leftovers, get_season_data, set_terminal_size
 
 
 class AnimeDownloader:
@@ -98,7 +98,7 @@ class EpisodeForm(npyscreen.ActionForm):
             name="Use Aniskip (Skip Intro & Outro)",
             values=["Yes", "No"],
             max_height=3,
-            value=[1 if globals.DEFAULT_ANISKIP else 0],
+            value=[0 if globals.DEFAULT_ANISKIP else 1],
             scroll_exit=True
         )
 
@@ -333,6 +333,8 @@ def main():
 
     try:
         try:
+            logging.debug("Trying to resize Terminal.")
+            set_terminal_size()
             run_app(search.search_anime(slug=args.slug, link=args.link))
         except npyscreen.wgwidget.NotEnoughSpaceForWidget:
             clear_screen()

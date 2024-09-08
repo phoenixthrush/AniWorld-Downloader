@@ -5,6 +5,7 @@ import shutil
 import sys
 import shlex
 import subprocess
+import logging
 from typing import List, Optional
 
 from bs4 import BeautifulSoup
@@ -169,22 +170,22 @@ def setup_aniskip() -> None:
     else:
         mpv_scripts_directory = os.path.expanduser('~/.config/mpv/scripts')
 
-    logger.debug(f"Creating directory {mpv_scripts_directory}")
+    logging.debug(f"Creating directory {mpv_scripts_directory}")
     os.makedirs(mpv_scripts_directory, exist_ok=True)
 
     skip_destination_path = os.path.join(mpv_scripts_directory, 'skip.lua')
     if not os.path.exists(skip_destination_path):
-        logger.debug(f"Copying skip.lua to {mpv_scripts_directory}")
+        logging.debug(f"Copying skip.lua to {mpv_scripts_directory}")
         shutil.copy(skip_source_path, skip_destination_path)
 
     autostart_destination_path = os.path.join(mpv_scripts_directory, 'autostart.lua')
     if not os.path.exists(autostart_destination_path):
-        logger.debug(f"Copying autostart.lua to {mpv_scripts_directory}")
+        logging.debug(f"Copying autostart.lua to {mpv_scripts_directory}")
         shutil.copy(autostart_source_path, autostart_destination_path)
 
     autoexit_destination_path = os.path.join(mpv_scripts_directory, 'autoexit.lua')
     if not os.path.exists(autoexit_destination_path):
-        logger.debug(f"Copying autoexit.lua to {mpv_scripts_directory}")
+        logging.debug(f"Copying autoexit.lua to {mpv_scripts_directory}")
         shutil.copy(autoexit_source_path, autoexit_destination_path)
 
 
@@ -268,4 +269,22 @@ def get_season_data(anime_slug: str):
         season_data[i] = get_season_episodes(season_url)
 
     return season_data
-""" """ 
+""" """
+
+
+def set_terminal_size(columns: int=90, lines:int=27):
+    """
+        columns size is not important when using npyscreen
+        if lines are less than the default it will crash
+        columns should be long enough to read the whole link
+    """
+    system_name = platform.system()
+
+    if system_name == 'Windows':
+        os.system(f"mode con: cols={columns} lines={lines}")
+
+    elif system_name in ['Linux', 'Darwin']:
+        os.system(f"printf '\033[8;{lines};{columns}t'")
+
+    else:
+        raise NotImplementedError(f"Unsupported platform: {system_name}")

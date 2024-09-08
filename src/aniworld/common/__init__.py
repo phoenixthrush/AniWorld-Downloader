@@ -7,5 +7,6 @@ from .common import (
     debug_print,
     raise_runtime_error,
     clean_up_leftovers,
-    get_season_data
+    get_season_data,
+    set_terminal_size
     )
