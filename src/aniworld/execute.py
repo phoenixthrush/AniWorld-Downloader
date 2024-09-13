@@ -5,6 +5,7 @@ import sys
 import getpass
 import platform
 from typing import Dict, List, Optional, Any
+import logging
 
 from bs4 import BeautifulSoup
 
@@ -26,18 +27,7 @@ from aniworld.common import (
 from aniworld.aniskip import aniskip
 
 def providers(soup: BeautifulSoup) -> Dict[str, Dict[int, str]]:
-    """
-    Extracts streaming providers and their language-specific redirect links
-    from the BeautifulSoup object.
-
-    Args:
-        soup (BeautifulSoup): The BeautifulSoup object containing the HTML content of the page.
-
-    Returns:
-        Dict[str, Dict[int, str]]: A dictionary where the keys are provider names
-        and the values are dictionaries
-        mapping language keys to redirect links.
-    """
+    logging.debug("Extracting provider data from soup")
     provider_options = soup.find(class_='hosterSiteVideo').find('ul', class_='row').find_all('li')
     extracted_data = {}
     for provider in provider_options:
@@ -47,48 +37,40 @@ def providers(soup: BeautifulSoup) -> Dict[str, Dict[int, str]]:
         if provider_name not in extracted_data:
             extracted_data[provider_name] = {}
         extracted_data[provider_name][lang_key] = f"https://aniworld.to{redirect_link}"
+    logging.debug(f"Extracted provider data: {extracted_data}")
     return extracted_data
 
-
-def build_mpv_command(
-    link: str, mpv_title: str, aniskip_options: Optional[List[str]] = None
+def build_command(
+    link: str, mpv_title: str, player: str, aniskip_selected: bool, aniskip_options: Optional[List[str]] = None
 ) -> List[str]:
-    """
-    Constructs the command for playing the video with MPV.
+    logging.debug("Building command for mpv")
+    script_directory = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    skip_script_path = os.path.join(script_directory, 'aniskip', 'skip.lua')
+    autostart_script_path = os.path.join(script_directory, 'aniskip', 'autostart.lua')
+    autoexit_script_path = os.path.join(script_directory, 'aniskip', 'autoexit.lua')
 
-    Args:
-        link (str): The URL of the video.
-        mpv_title (str): The title to be displayed in MPV.
-        aniskip_options (Optional[List[str]]): Additional options for aniskip, if any.
-
-    Returns:
-        List[str]: The command to be executed.
-    """
     command = [
-        "mpv",
+        player,
         link,
         "--fs",
         "--quiet",
         "--really-quiet",
-        f"--force-media-title={mpv_title}"
+        f"--force-media-title={mpv_title}",
+        f"--script={autostart_script_path}",
+        f"--script={autoexit_script_path}"
     ]
-    if aniskip_options:
-        command.extend(aniskip_options)
+
+    if aniskip_selected:
+        command.append(f"--script={skip_script_path}")
+        if aniskip_options:
+            command.extend(aniskip_options)
+
+    logging.debug(f"Built command: {command}")
     return command
 
-
 def build_yt_dlp_command(link: str, output_file: str) -> List[str]:
-    """
-    Constructs the command for downloading the video with yt-dlp.
-
-    Args:
-        link (str): The URL of the video.
-        output_file (str): The path to the output file.
-
-    Returns:
-        List[str]: The command to be executed.
-    """
-    return [
+    logging.debug("Building yt-dlp command")
+    command = [
         "yt-dlp",
         "--fragment-retries", "infinite",
         "--concurrent-fragments", "4",
@@ -98,29 +80,77 @@ def build_yt_dlp_command(link: str, output_file: str) -> List[str]:
         "--no-warnings",
         link
     ]
+    logging.debug(f"Built yt-dlp command: {command}")
+    return command
 
+def process_aniskip(anime_title: str, season_number: int, episode_number: int) -> List[str]:
+    logging.debug(f"Processing aniskip for {anime_title}, season {season_number}, episode {episode_number}")
+    if season_number != 1:
+        print("Warning: This is not season 1. Aniskip timestamps might be incorrect."
+              "This issue will be fixed in the future.")
+    skip_options = aniskip(anime_title, episode_number)
+    skip_options_list = skip_options.split(' --')
+    processed_options = [f"--{opt}" if not opt.startswith('--') else opt for opt in skip_options_list]
+    logging.debug(f"Processed aniskip options: {processed_options}")
+    return processed_options
+
+def get_episode_title(soup: BeautifulSoup, debug: bool = False) -> str:
+    logging.debug("Getting episode title from soup")
+    german_title_tag = soup.find('span', class_='episodeGermanTitle')
+    english_title_tag = soup.find('small', class_='episodeEnglishTitle')
+    
+    episode_german_title = german_title_tag.text if german_title_tag else None
+    episode_english_title = english_title_tag.text if english_title_tag else None
+
+    episode_title = f"{episode_german_title} / {episode_english_title}" if episode_german_title and episode_english_title else episode_german_title or episode_english_title
+
+    if debug:
+        print(f"Episode Title: {episode_title}")
+
+    logging.debug(f"Episode title: {episode_title}")
+    return episode_title
+
+def get_anime_title(soup: BeautifulSoup) -> str:
+    logging.debug("Getting anime title from soup")
+    anime_title = soup.find('div', class_='hostSeriesTitle').text
+    logging.debug(f"Anime title: {anime_title}")
+    return anime_title
+
+def get_provider_data(soup: BeautifulSoup, debug: bool = False) -> Dict[str, Dict[int, str]]:
+    logging.debug("Getting provider data from soup")
+    data = providers(soup)
+    if debug:
+        print(f"Provider Data: {data}")
+    logging.debug(f"Provider data: {data}")
+    return data
+
+def get_season_and_episode_numbers(episode_url: str) -> tuple:
+    logging.debug(f"Extracting season and episode numbers from URL: {episode_url}")
+    matches = re.findall(r'\d+', episode_url)
+    season_episode = int(matches[-2]), int(matches[-1])
+    logging.debug(f"Extracted season and episode numbers: {season_episode}")
+    return season_episode
+
+def fetch_direct_link(provider_function, request_url: str, debug: bool = False) -> str:
+    logging.debug(f"Fetching direct link from URL: {request_url}")
+    html_content = fetch_url_content(request_url)
+    soup = BeautifulSoup(html_content, 'html.parser')
+    if debug:
+        print(f"Episode Data: {soup.prettify()}")
+    direct_link = provider_function(soup)
+    logging.debug(f"Fetched direct link: {direct_link}")
+    return direct_link
 
 def build_syncplay_command(
     link: str, mpv_title: str, aniskip_options: Optional[List[str]] = None
 ) -> List[str]:
-    """
-    Constructs the command for syncing playback with Syncplay.
-
-    Args:
-        link (str): The URL of the video.
-        mpv_title (str): The title to be displayed in Syncplay.
-        aniskip_options (Optional[List[str]]): Additional options for aniskip, if any.
-
-    Returns:
-        List[str]: The command to be executed.
-    """
     syncplay = "SyncplayConsole" if platform.system() == "Windows" else "syncplay"
     command = [
         syncplay,
         "--no-gui",
         "--host", "syncplay.pl:8997",
         "--name", getpass.getuser(),
-        "--room", mpv_title,
+        "--room", mpv_title.replace(" ", "_"),
         "--player-path", shutil.which("mpv"),
         link,
         "--", "--fs",
@@ -130,132 +160,8 @@ def build_syncplay_command(
         command.extend(aniskip_options)
     return command
 
-
-def process_aniskip(anime_title: str, season_number: int, episode_number: int) -> List[str]:
-    """
-    Processes aniskip options for a given anime episode.
-
-    Args:
-        anime_title (str): The title of the anime.
-        season_number (int): The season number of the episode.
-        episode_number (int): The episode number.
-
-    Returns:
-        List[str]: A list of aniskip options formatted as command-line arguments.
-    """
-    if season_number != 1:
-        print("Warning: This is not season 1. Aniskip timestamps might be incorrect."
-              "This issue will be fixed in the future.")
-    skip_options = aniskip(anime_title, episode_number)
-    skip_options_list = skip_options.split(' --')
-    return [f"--{opt}" if not opt.startswith('--') else opt for opt in skip_options_list]
-
-
-def get_episode_title(soup: BeautifulSoup, debug: bool = False) -> str:
-    """
-    Retrieves the episode title from the BeautifulSoup object.
-
-    Args:
-        soup (BeautifulSoup): The BeautifulSoup object containing the HTML content of the page.
-        debug (bool): Whether to print debug information.
-
-    Returns:
-        str: The formatted episode title.
-    """
-    german_title_tag = soup.find('span', class_='episodeGermanTitle')
-    english_title_tag = soup.find('small', class_='episodeEnglishTitle')
-    
-    episode_german_title = german_title_tag.text if german_title_tag else None
-    episode_english_title = english_title_tag.text if english_title_tag else None
-
-    if episode_german_title:
-        episode_title = f"{episode_german_title} / {episode_english_title}" if episode_english_title else episode_german_title
-    else:
-        episode_title = episode_english_title
-
-    if debug:
-        print(f"Episode Title: {episode_title}")
-
-    return episode_title
-
-
-def get_anime_title(soup: BeautifulSoup) -> str:
-    """
-    Retrieves the anime title from the BeautifulSoup object.
-
-    Args:
-        soup (BeautifulSoup): The BeautifulSoup object containing the HTML content of the page.
-
-    Returns:
-        str: The anime title.
-    """
-    return soup.find('div', class_='hostSeriesTitle').text
-
-
-def get_provider_data(soup: BeautifulSoup, debug: bool = False) -> Dict[str, Dict[int, str]]:
-    """
-    Retrieves provider data from the BeautifulSoup object.
-
-    Args:
-        soup (BeautifulSoup): The BeautifulSoup object containing the HTML content of the page.
-        debug (bool): Whether to print debug information.
-
-    Returns:
-        Dict[str, Dict[int, str]]: A dictionary with provider names as keys
-        and dictionaries of language-specific
-        links as values.
-    """
-    data = providers(soup)
-    if debug:
-        print(f"Provider Data: {data}")
-    return data
-
-
-def get_season_and_episode_numbers(episode_url: str) -> tuple:
-    """
-    Extracts the season and episode numbers from the episode URL.
-
-    Args:
-        episode_url (str): The URL of the episode.
-
-    Returns:
-        tuple: A tuple containing the season number and episode number.
-    """
-    matches = re.findall(r'\d+', episode_url)
-    season_number = int(matches[-2])
-    episode_number = int(matches[-1])
-    return season_number, episode_number
-
-
-def fetch_direct_link(provider_function, request_url: str, debug: bool = False) -> str:
-    """
-    Fetches the direct link using the provided provider function.
-
-    Args:
-        provider_function: The function to be used to fetch the direct link.
-        request_url (str): The URL to request.
-        debug (bool): Whether to print debug information.
-
-    Returns:
-        str: The fetched direct link.
-    """
-    html_content = fetch_url_content(request_url)
-    soup = BeautifulSoup(html_content, 'html.parser')
-    if debug:
-        print(f"Episode Data: {soup.prettify()}")
-    return provider_function(soup)
-
-
 def perform_action(params: Dict[str, Any]) -> None:
-    """
-    Performs the specified action (Watch, Download, Syncplay) based on the provided parameters.
-
-    Args:
-        params (Dict[str, Any]): A dictionary containing action parameters.
-
-    Returns:
-        None
-    """
+    logging.debug(f"Performing action with params: {params}")
     action = params.get("action")
     link = params.get("link")
     mpv_title = params.get("mpv_title")
@@ -266,27 +172,24 @@ def perform_action(params: Dict[str, Any]) -> None:
     only_command = params.get("only_command", False)
     aniskip_selected = params.get("aniskip_selected", False)
 
-    aniskip_options = (
-        process_aniskip(anime_title, season_number, episode_number)
-        if aniskip_selected
-        else None
-    )
+    aniskip_options = process_aniskip(anime_title, season_number, episode_number) if aniskip_selected else []
 
     if action == "Watch":
         mpv_title = mpv_title.replace(" --- ", " - ", 1)
         check_dependencies(["mpv"])
-        setup_aniskip()
         if not only_command:
             print(f"Playing '{mpv_title}'")
-        command = build_mpv_command(link, mpv_title, aniskip_options)
+        command = build_command(link, mpv_title, "mpv", aniskip_selected, aniskip_options)
+        logging.debug(f"Executing command: {command}")
         execute_command(command, only_command)
     elif action == "Download":
         check_dependencies(["yt-dlp"])
-        file_name = f"{mpv_title}.mp4".replace("/", "-")
+        file_name = f"{anime_title} - S{season_number}E{episode_number}.mp4"
         file_path = os.path.join(output_directory, file_name).replace(" --- ", "/", 1)
         if not only_command:
             print(f"Downloading to '{file_path}'")
         command = build_yt_dlp_command(link, file_path)
+        logging.debug(f"Executing command: {command}")
         try:
             execute_command(command, only_command)
         except KeyboardInterrupt:
@@ -294,33 +197,14 @@ def perform_action(params: Dict[str, Any]) -> None:
     elif action == "Syncplay":
         mpv_title = mpv_title.replace(" --- ", " - ", 1)
         check_dependencies(["mpv", "syncplay"])
-        setup_aniskip()
         if not only_command:
             print(f"Playing '{mpv_title}'")
         command = build_syncplay_command(link, mpv_title, aniskip_options)
+        logging.debug(f"Executing command: {command}")
         execute_command(command, only_command)
 
-
 def execute(params: Dict[str, Any]) -> None:
-    """
-    Processes selected episodes based on the provided parameters.
-    This function handles fetching episode content,
-    extracting relevant information, and performing the specified actions
-    (Watch, Download, Syncplay).
-
-    Args:
-        params (Dict[str, Any]): A dictionary containing the following keys:
-            - 'selected_episodes': List of URLs for the episodes to process.
-            - 'provider_selected': The name of the provider to use (e.g., "Vidoza").
-            - 'action_selected': The action to perform (e.g., "Watch", "Download", "Syncplay").
-            - 'aniskip_selected': A boolean indicating whether aniskip should be used.
-            - 'lang': The language code to use for the provider.
-            - 'output_directory': Directory where files should be saved (for download action).
-            - 'anime_title': The title of the anime.
-            - 'only_direct_link': A boolean indicating if only the direct link should be printed.
-            - 'only_command': A boolean indicating if only the command should be executed.
-            - 'debug': A boolean indicating if debug information should be printed.
-    """
+    logging.debug(f"Executing with params: {params}")
     provider_mapping = {
         "Vidoza": vidoza_get_direct_link,
         "VOE": voe_get_direct_link,
@@ -329,7 +213,6 @@ def execute(params: Dict[str, Any]) -> None:
     }
 
     selected_episodes = params['selected_episodes']
-    provider_selected = params['provider_selected']
     action_selected = params['action_selected']
     aniskip_selected = params['aniskip_selected']
     lang = params['lang']
@@ -340,6 +223,7 @@ def execute(params: Dict[str, Any]) -> None:
     debug = params.get('debug', False)
 
     for episode_url in selected_episodes:
+        logging.debug(f"Fetching episode HTML for URL: {episode_url}")
         episode_html = fetch_url_content(episode_url)
         if episode_html is None:
             continue
@@ -349,7 +233,21 @@ def execute(params: Dict[str, Any]) -> None:
         anime_title = get_anime_title(soup)
         data = get_provider_data(soup, debug)
 
-        if provider_selected in data:
+        if debug:
+            print(f"Language Code: {lang}")
+            print(f"Available Providers: {data.keys()}")
+
+        logging.debug(f"Language Code: {lang}")
+        logging.debug(f"Available Providers: {data.keys()}")
+
+        for provider_selected in data.keys():
+            if debug:
+                print(f"Trying provider: {provider_selected}")
+                print(f"Available Languages for {provider_selected}: {data.get(provider_selected, {}).keys()}")
+
+            logging.debug(f"Trying provider: {provider_selected}")
+            logging.debug(f"Available Languages for {provider_selected}: {data.get(provider_selected, {}).keys()}")
+
             for language in data[provider_selected]:
                 if language == int(lang):
                     season_number, episode_number = get_season_and_episode_numbers(episode_url)
@@ -377,4 +275,9 @@ def execute(params: Dict[str, Any]) -> None:
                         "aniskip_selected": aniskip_selected
                     }
 
+                    logging.debug(f"Performing action with params: {params}")
                     perform_action(params)
+                    return  # Exit after performing the action to avoid looping through other episodes
+
+    logging.debug("No matching provider or language found.")
+    print("No matching provider or language found.")  # Debug print if no action is performed

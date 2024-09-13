@@ -224,8 +224,16 @@ def raise_runtime_error(message: str) -> None:
     raise RuntimeError(message)
 
 
-""" TODO THIS IS DOUBLE CODE """
 def get_season_episodes(season_url):
+    """
+    Fetches episode URLs for a given season URL.
+
+    Args:
+        season_url (str): The URL of the season.
+
+    Returns:
+        List[str]: List of episode URLs.
+    """
     season_url_old = season_url
     season_url = season_url[:-2]
     season_suffix = f"/staffel-{season_url_old.split('/')[-1]}"
@@ -248,6 +256,15 @@ def get_season_episodes(season_url):
     return episode_urls
 
 def get_season_data(anime_slug: str):
+    """
+    Fetches season data for a given anime slug.
+
+    Args:
+        anime_slug (str): The slug of the anime.
+
+    Returns:
+        Dict[int, List[str]]: Dictionary with season numbers as keys and lists of episode URLs as values.
+    """
     BASE_URL_TEMPLATE = "https://aniworld.to/anime/stream/{anime}/"
     base_url = BASE_URL_TEMPLATE.format(anime=anime_slug)
 
@@ -269,14 +286,15 @@ def get_season_data(anime_slug: str):
         season_data[i] = get_season_episodes(season_url)
 
     return season_data
-""" """
 
 
 def set_terminal_size(columns: int=90, lines:int=27):
     """
-        columns size is not important when using npyscreen
-        if lines are less than the default it will crash
-        columns should be long enough to read the whole link
+    Set the terminal size based on the operating system.
+
+    Args:
+        columns (int): Number of columns.
+        lines (int): Number of lines.
     """
     system_name = platform.system()
 
