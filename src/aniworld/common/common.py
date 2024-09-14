@@ -5,10 +5,13 @@ import shutil
 import sys
 import shlex
 import subprocess
+import logging
 from typing import List, Optional
 
 from bs4 import BeautifulSoup
 import requests
+
+from aniworld import globals
 
 def check_dependencies(dependencies: list) -> None:
     """
@@ -34,10 +37,11 @@ def check_dependencies(dependencies: list) -> None:
         else:
             resolved_dependencies.append(dep)
 
+    logging.debug(f"Checking for {resolved_dependencies} in path.")
     missing = [dep for dep in resolved_dependencies if shutil.which(dep) is None]
 
     if missing:
-        print(f"Missing dependencies: {', '.join(missing)} in path. Please install and try again.")
+        logging.critical(f"Missing dependencies: {', '.join(missing)} in path. Please install and try again.")
         sys.exit(1)
 
 
@@ -76,21 +80,24 @@ def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True)
                 'http': f'http://{proxy}',
                 'https': f'https://{proxy}'
             }
+    else:
+        proxies = {
+            "http": os.getenv("HTTP_PROXY"),
+            "https": os.getenv("HTTPS_PROXY"),
+        }
 
     try:
         response = requests.get(url, headers=headers, proxies=proxies, timeout=10)
         response.raise_for_status()
 
         if "Deine Anfrage wurde als Spam erkannt." in response.text:
-            print("Your IP address is blacklisted.\n"
-                  "Please use a VPN, complete the captcha by opening the browser link, "
-                  f"or try again later.\nLink: {url}")
+            logging.critical("Your IP address is blacklisted. Please use a VPN, complete the captcha by opening the browser link, or try again later.")
             sys.exit(1)
 
         return response.content
     except requests.exceptions.RequestException as error:
         if check:
-            print(f"Request to {url} failed: {error}")
+            logging.critical(f"Request to {url} failed: {error}")
             sys.exit(1)
         return None
 
@@ -99,10 +106,11 @@ def clear_screen() -> None:
     """
     Clear the terminal screen based on the operating system.
     """
-    if platform.system() == "Windows":
-        os.system("cls")
-    else:
-        os.system("clear")
+    if not globals.IS_DEBUG_MODE:
+        if platform.system() == "Windows":
+            os.system("cls")
+        else:
+            os.system("clear")
 
 
 def clean_up_leftovers(directory: str) -> None:
@@ -121,7 +129,6 @@ def clean_up_leftovers(directory: str) -> None:
     Returns:
         None: This method does not return any value.
     """
-    # print("DEBUG: CLEANING LEFTOVERS IN " + str(directory))
     patterns: List[str] = ['*.part', '*.ytdl', '*.part-Frag*']
 
     leftover_files: List[str] = []
@@ -129,26 +136,27 @@ def clean_up_leftovers(directory: str) -> None:
         leftover_files.extend(glob.glob(os.path.join(directory, pattern)))
 
     for file_path in leftover_files:
-        try:
-            os.remove(file_path)
-            print(f"Removed leftover file: {file_path}")
-        except FileNotFoundError:
-            print(f"File not found: {file_path}")
-        except PermissionError:
-            print(f"Permission denied when trying to remove file: {file_path}")
-        except OSError as e:
-            print(f"OS error occurred while removing file {file_path}: {e}")
+        if not os.path.exists(directory):
+            logging.warning(f"Directory {directory} no longer exists.")
+            return
 
-    if not os.listdir(directory):
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                logging.debug(f"Removed leftover file: {file_path}")
+            except PermissionError:
+                logging.warning(f"Permission denied when trying to remove file: {file_path}")
+            except OSError as e:
+                logging.warning(f"OS error occurred while removing file {file_path}: {e}")
+
+    if os.path.exists(directory) and not os.listdir(directory):
         try:
             os.rmdir(directory)
-            print(f"Removed empty directory: {directory}")
-        except FileNotFoundError:
-            print(f"Directory not found: {directory}")
+            logging.debug(f"Removed empty directory: {directory}")
         except PermissionError:
-            print(f"Permission denied when trying to remove directory: {directory}")
+            logging.warning(f"Permission denied when trying to remove directory: {directory}")
         except OSError as e:
-            print(f"OS error occurred while removing directory {directory}: {e}")
+            logging.warning(f"OS error occurred while removing directory {directory}: {e}")
 
 
 def setup_aniskip() -> None:
@@ -169,18 +177,22 @@ def setup_aniskip() -> None:
     else:
         mpv_scripts_directory = os.path.expanduser('~/.config/mpv/scripts')
 
+    logging.debug(f"Creating directory {mpv_scripts_directory}")
     os.makedirs(mpv_scripts_directory, exist_ok=True)
 
     skip_destination_path = os.path.join(mpv_scripts_directory, 'skip.lua')
     if not os.path.exists(skip_destination_path):
+        logging.debug(f"Copying skip.lua to {mpv_scripts_directory}")
         shutil.copy(skip_source_path, skip_destination_path)
 
     autostart_destination_path = os.path.join(mpv_scripts_directory, 'autostart.lua')
     if not os.path.exists(autostart_destination_path):
+        logging.debug(f"Copying autostart.lua to {mpv_scripts_directory}")
         shutil.copy(autostart_source_path, autostart_destination_path)
 
     autoexit_destination_path = os.path.join(mpv_scripts_directory, 'autoexit.lua')
     if not os.path.exists(autoexit_destination_path):
+        logging.debug(f"Copying autoexit.lua to {mpv_scripts_directory}")
         shutil.copy(autoexit_source_path, autoexit_destination_path)
 
 
@@ -197,17 +209,6 @@ def execute_command(command: List[str], only_command: bool) -> None:
     else:
         subprocess.run(command, check=True)
 
-def debug_print(message: str, debug: bool = False) -> None:
-    """
-    Prints a debug message if debugging is enabled.
-
-    Args:
-        message (str): The message to print.
-        debug (bool): A flag to enable or disable debugging.
-    """
-    if debug:
-        print(message)
-
 
 def raise_runtime_error(message: str) -> None:
     """
@@ -219,10 +220,22 @@ def raise_runtime_error(message: str) -> None:
     raise RuntimeError(message)
 
 
-""" TODO THIS IS DOUBLE CODE """
 def get_season_episodes(season_url):
+    """
+    Fetches episode URLs for a given season URL.
+
+    Args:
+        season_url (str): The URL of the season.
+
+    Returns:
+        List[str]: List of episode URLs.
+    """
     season_url_old = season_url
     season_url = season_url[:-2]
+    season_suffix = f"/staffel-{season_url_old.split('/')[-1]}"
+
+    logging.debug(f"Fetching Episode URLs from Season {season_suffix}")
+    
     season_html = fetch_url_content(season_url)
     if season_html is None:
         return []
@@ -231,7 +244,6 @@ def get_season_episodes(season_url):
     episode_numbers = [int(episode['content']) for episode in episodes]
     highest_episode = max(episode_numbers, default=None)
 
-    season_suffix = f"/staffel-{season_url_old.split('/')[-1]}"
     episode_urls = [
         f"{season_url}{season_suffix}/episode-{num}"
         for num in range(1, highest_episode + 1)
@@ -240,12 +252,23 @@ def get_season_episodes(season_url):
     return episode_urls
 
 def get_season_data(anime_slug: str):
+    """
+    Fetches season data for a given anime slug.
+
+    Args:
+        anime_slug (str): The slug of the anime.
+
+    Returns:
+        Dict[int, List[str]]: Dictionary with season numbers as keys and lists of episode URLs as values.
+    """
     BASE_URL_TEMPLATE = "https://aniworld.to/anime/stream/{anime}/"
     base_url = BASE_URL_TEMPLATE.format(anime=anime_slug)
 
+    logging.debug(f"Fetching Base URL {base_url}")
     main_html = fetch_url_content(base_url)
     if main_html is None:
-        sys.exit("Failed to retrieve main page.")
+        logging.critical("Failed to retrieve main page.")
+        sys.exit(1)
 
     soup = BeautifulSoup(main_html, 'html.parser')
     season_meta = soup.find('meta', itemprop='numberOfSeasons')
@@ -260,4 +283,23 @@ def get_season_data(anime_slug: str):
         season_data[i] = get_season_episodes(season_url)
 
     return season_data
-""" """ 
+
+
+def set_terminal_size(columns: int=90, lines:int=27):
+    """
+    Set the terminal size based on the operating system.
+
+    Args:
+        columns (int): Number of columns.
+        lines (int): Number of lines.
+    """
+    system_name = platform.system()
+
+    if system_name == 'Windows':
+        os.system(f"mode con: cols={columns} lines={lines}")
+
+    elif system_name in ['Linux', 'Darwin']:
+        os.system(f"printf '\033[8;{lines};{columns}t'")
+
+    else:
+        raise NotImplementedError(f"Unsupported platform: {system_name}")
