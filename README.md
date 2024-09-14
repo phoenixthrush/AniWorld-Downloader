@@ -5,7 +5,7 @@ AniWorld Downloader is a command-line tool designed to download and stream anime
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/aniworld?color=blue)
 ![License](https://img.shields.io/pypi/l/aniworld)
 
-![AniWorld Downloader - Demo](https://raw.githubusercontent.com/phoenixthrush/AniWorld-Downloader/development/.github/demo.jpg)
+![AniWorld Downloader - Demo](https://raw.githubusercontent.com/phoenixthrush/AniWorld-Downloader/development/.github/demo.png)
 
 ## Table of Contents
 
