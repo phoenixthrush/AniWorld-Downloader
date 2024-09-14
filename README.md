@@ -1,154 +1,204 @@
 # AniWorld Downloader
+
+AniWorld Downloader is a command-line tool designed to download and stream anime content from [aniworld.to](https://aniworld.to). It allows users to fetch single episodes, download entire seasons, and organize downloads into structured folders. Compatible with Windows, macOS, and Linux, AniWorld Downloader offers a seamless experience across different operating systems.
+
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/aniworld?color=blue)
+![License](https://img.shields.io/pypi/l/aniworld)
 
-## Description
+![AniWorld Downloader - Demo](https://raw.githubusercontent.com/phoenixthrush/AniWorld-Downloader/development/.github/demo.jpg)
 
-AniWorld Downloader is a command-line tool for downloading and streaming content from aniworld.to.<br>
-It can fetch single episodes, download entire seasons, and organize downloads into folders.<br><br>
-This tool works on Windows, macOS, and Linux.
+## Table of Contents
 
-![AniWorld Downloader - Demo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/module/.github/demo.png?raw=true)
+- [Description](#description)
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Running with Menu](#running-with-menu)
+  - [Command-Line Arguments](#command-line-arguments)
+    - [Download a Single Episode](#download-a-single-episode)
+    - [Download All Seasons](#download-all-seasons)
+    - [Watch with Automatic Continuation](#watch-with-automatic-continuation)
+    - [Using Specific Providers and Languages](#using-specific-providers-and-languages)
+- [Examples](#examples)
+- [Requirements](#requirements)
+- [TODO](#todo)
+- [Contributing](#contributing)
+- [Credits](#credits)
+- [License](#license)
+- [Support](#support)
+
+## Features
+
+- **Download Episodes:** Fetch individual episodes or entire seasons.
+- **Streaming:** Watch episodes directly with integrated players.
+- **Netflix Experience:** Automatically play or download the next episode in a series.
+- **Multiple Providers:** Support for Vidoza, VOE, Streamtape and ~~Doodstream~~ (coming soon).
+- **Language Options:** Choose between German Dub, English Sub, and German Subtitles.
+- **Aniskip Integration:** Automatically skip intros and outros.
+- **Syncplay Support:** Sync playback with friends for a shared viewing experience.
+- **Proxy Support:** (Coming Soon) Configure HTTP proxies for your downloads.
 
 ## Installation
 
-To install AniWorld Downloader, use this command:
+Ensure you have **Python 3.8** or higher installed. Then, install AniWorld Downloader using pip:
 
 ```shell
 pip install aniworld
 ```
 
-To update AniWorld Downloader, use this command:
+To update AniWorld Downloader to the latest version:
 
 ```shell
 pip install -U aniworld
 ```
 
-To uninstall, use this command:
+To uninstall AniWorld Downloader:
+
 ```shell
 pip uninstall aniworld -y
 ```
 
 ## Usage
 
-To run AniWorld Downloader, use this command:
+### Running with Menu
+
+Launch AniWorld Downloader with an interactive menu:
 
 ```shell
 aniworld
 ```
 
-## Command Line Examples
-### Watch
+### Command-Line Arguments
 
-If you want to directly pass the options without using the menu, you can use the arguments. For example:
+AniWorld Downloader provides various command-line options to customize your experience without using the interactive menu.
+
+#### Download a Single Episode
+
+Download a specific episode by providing its URL:
+
 ```shell
 aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
 ```
 
-To enable the --keep-watching option and automatically play the next episode after the one you specified, use:
+#### Download All Seasons
+
+Automatically download or watch all episodes across all seasons:
+
+```shell
+aniworld --query "demon-slayer-kimetsu-no-yaiba" --all-seasons
+```
+
+#### Watch with Automatic Continuation
+
+Play an episode and automatically continue to the next one:
+
 ```shell
 aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --keep-watching
 ```
 
-To quit keep-watching, pause the video, then go to the terminal and press CTRL + C twice.
+#### Using Specific Providers and Languages
 
-Alternatively, you can specify only the query:
+Specify the streaming provider and language option:
+
 ```shell
-aniworld --query food --keep-watching
+aniworld --query "food wars" --provider "VOE" --language "English Sub"
 ```
 
-Or with spaces:
+## Examples
+
+### Example 1: Download a Single Episode
+
+Download episode 1 of "Demon Slayer: Kimetsu no Yaiba":
+
 ```shell
-aniworld --query "food wars" --keep-watching
+aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
 ```
 
-This will start playing the specified episode and continue to the next episode automatically.
+### Example 2: Download an Entire Season
 
-### Download
+Download all episodes from season 1 of "Demon Slayer":
 
-For the best experience when downloading, I recommend using VOE since it downloads really fast (concurrently) by using all your bandwidth.
-
-To download every episode of the anime, use:
 ```shell
-aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --keep-watching --action Download --provider VOE
+aniworld --query "demon-slayer-kimetsu-no-yaiba" --keep-watching
 ```
 
-To download specific episodes of the anime, use:
+### Example 3: Watch Episodes with Aniskip
+
+Watch an episode while skipping intros and outros:
+
 ```shell
-aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-2 https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-3 --action Download --provider VOE
+aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --aniskip --action Watch
 ```
 
-### Syncplay
+### Example 4: Syncplay with Friends
 
-To use SyncPlay, ensure both ends specify the same episode. It's best to use the same command as the other person or people, but it's not crucial. One person can use the query argument while the other uses the episode argument for example. It also works if different providers or languages are used. As long as the episode is the same, SyncPlay will function correctly. For example:
+Syncplay a specific episode with friends:
+
 ```shell
-aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --action Syncplay --keep-watching
+aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --action Syncplay
 ```
 
-### Help
+### Example 5: Download with Specific Provider and Language
 
-To see all the available options, run this command:
+Download an episode using the VOE provider with English subtitles:
+
 ```shell
-aniworld --help
+aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --provider "VOE" --language "English Sub"
 ```
 
-```
-options:
-  -h, --help            show this help message and exit
-  --slug SLUG           Search query - E.g. demon-slayer-kimetsu-no-yaiba
-  --link LINK           Search query - E.g.
-                        https://aniworld.to/anime/stream/demon-slayer-kimetsu-
-                        no-yaiba
-  --query QUERY         Search query input - E.g. demon
-  --episode EPISODE [EPISODE ...]
-                        List of episode URLs - E.g.
-                        https://aniworld.to/anime/stream/demon-slayer-kimetsu-
-                        no-yaiba/ staffel-1/episode-1,
-                        https://aniworld.to/anime/stream/demon-slayer-kimetsu-
-                        no-yaiba/ staffel-1/episode-2
-  --action {Watch,Download,Syncplay}
-                        Action to perform - E.g. Watch, Download, Syncplay
-  --output OUTPUT       Download directory (default: ~/Downloads)
-  --language {German Dub,English Sub,German Sub}
-                        Language choice - E.g. German Dub, English Sub, German
-                        Sub
-  --provider {Vidoza,Streamtape,VOE,Doodstream}
-                        Provider choice - E.g. Vidoza, Streamtape, VOE,
-                        Doodstream
-  --aniskip             Skip anime opening and ending
-  --keep-watching       Continue watching
-  --only-direct-link    Output direct link
-  --only-command        Output command
-  --proxy PROXY         Set HTTP Proxy (not working yet)
-  --debug               Enable debug mode
-```
+## Requirements
+
+- **[Python 3.8](https://www.python.org/downloads/)** or higher
+
+### Dependencies
+
+AniWorld Downloader relies on the following Python packages:
+
+- `requests`
+- `beautifulsoup4`
+- `npyscreen`
+- `thefuzz`
+- `windows-curses` (only on Windows)
+
+These are automatically installed when you install AniWorld Downloader via pip.
 
 ## TODO
 
 - [x] Utilize argparse for command-line argument parsing
 - [x] Refactor code into modular Python files
-- [x] Do not show whole link in selection rather season and episode with name
+- [x] Do not show whole link in selection; display season and episode with name
 - [ ] Add proxy support
 - [ ] Fix Aniskip finding wrong timestamps
 - [ ] Fix wrong episode count on keep-watching per season
 - [ ] Configure Anime4K installation setup
-- [ ] Fix aniskip finding wrong MAL ID
+- [ ] Fix Aniskip finding wrong MAL ID
 - [ ] Integrate Python logging module
 - [ ] Support Doodstream
 
 ## Contributing
 
-Contributions to AniWorld Downloader are welcome!<br>
-Feel free to submit bug reports, feature requests, or pull requests to help improve the project.
+Contributions to AniWorld Downloader are welcome! Whether you're reporting bugs, suggesting features, or submitting pull requests, your input helps improve the project.
 
 ## Credits
 
-- mpv - https://github.com/mpv-player/mpv.git
-- yt-dlp - https://github.com/yt-dlp/yt-dlp.git
-- syncplay - https://github.com/Syncplay/syncplay.git
+- **[mpv](https://github.com/mpv-player/mpv.git)** - Media player used for streaming.
+- **[yt-dlp](https://github.com/yt-dlp/yt-dlp.git)** - Tool for downloading videos.
+- **[Syncplay](https://github.com/Syncplay/syncplay.git)** - Service for synchronized playback with friends.
 
 ## License
 
-This project is licensed under the MIT License.<br>
-See the LICENSE file for more details.<br>
+This project is licensed under the [MIT License](LICENSE).  
+See the LICENSE file for more details.
 
-Thank you for using AniWorld Downloader!
+---
+
+Thank you for using AniWorld Downloader! If you encounter any issues or have suggestions, feel free to reach out through the [issue tracker](https://github.com/phoenixthrush/AniWorld-Downloader/issues).
+
+## Support
+
+If you need help or have questions about AniWorld Downloader, you can:
+
+- **Report a bug or request a feature** on the [GitHub Issues](https://github.com/phoenixthrush/AniWorld-Downloader/issues) page.
+- **Contact me** directly via email at [contact@phoenixthrush.com](mailto:contact@phoenixthrush.com) or on Matrix at @phoenixthrush:matrix.org.
+
+I appreciate your support and feedback!
