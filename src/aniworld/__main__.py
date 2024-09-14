@@ -36,11 +36,12 @@ class AnimeDownloader:
 class EpisodeForm(npyscreen.ActionForm):
     def create(self):
         logging.debug("Creating EpisodeForm")
-        episode_list = [
-            url
+        self.episode_map = {
+            f"{self.parentApp.anime_downloader.anime_title} - Season {season} - Episode {idx + 1}": url
             for season, episodes in self.parentApp.anime_downloader.season_data.items()
-            for url in episodes
-        ]
+            for idx, url in enumerate(episodes)
+        }
+        episode_list = list(self.episode_map.keys())
         logging.debug(f"Episode list: {episode_list}")
 
         self.action_selector = self.add(
@@ -126,6 +127,7 @@ class EpisodeForm(npyscreen.ActionForm):
         lang = self.get_language_code(language_selected[0])
         provider_selected = self.validate_provider(provider_selected)
 
+        selected_urls = [self.episode_map[episode] for episode in selected_episodes]
         selected_str = "\n".join(selected_episodes)
         npyscreen.notify_confirm(f"Selected episodes:\n{selected_str}", title="Selection")
 
@@ -135,7 +137,7 @@ class EpisodeForm(npyscreen.ActionForm):
             os.makedirs(output_directory, exist_ok=True)
 
         params = {
-            'selected_episodes': selected_episodes,
+            'selected_episodes': selected_urls,
             'provider_selected': provider_selected,
             'action_selected': action_selected[0],
             'aniskip_selected': aniskip_selected[0],
