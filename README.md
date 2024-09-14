@@ -146,6 +146,43 @@ Download an episode using the VOE provider with English subtitles:
 aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --provider "VOE" --language "English Sub"
 ```
 
+### To see all the available options:
+```
+```shell
+aniworld --help
+```
+
+```
+options:
+  -h, --help            show this help message and exit
+  --slug SLUG           Search query - E.g. demon-slayer-kimetsu-no-yaiba
+  --link LINK           Search query - E.g.
+                        https://aniworld.to/anime/stream/demon-slayer-kimetsu-
+                        no-yaiba
+  --query QUERY         Search query input - E.g. demon
+  --episode EPISODE [EPISODE ...]
+                        List of episode URLs - E.g.
+                        https://aniworld.to/anime/stream/demon-slayer-kimetsu-
+                        no-yaiba/ staffel-1/episode-1,
+                        https://aniworld.to/anime/stream/demon-slayer-kimetsu-
+                        no-yaiba/ staffel-1/episode-2
+  --action {Watch,Download,Syncplay}
+                        Action to perform - E.g. Watch, Download, Syncplay
+  --output OUTPUT       Download directory (default: ~/Downloads)
+  --language {German Dub,English Sub,German Sub}
+                        Language choice - E.g. German Dub, English Sub, German
+                        Sub
+  --provider {Vidoza,Streamtape,VOE,Doodstream}
+                        Provider choice - E.g. Vidoza, Streamtape, VOE,
+                        Doodstream
+  --aniskip             Skip anime opening and ending
+  --keep-watching       Continue watching
+  --only-direct-link    Output direct link
+  --only-command        Output command
+  --proxy PROXY         Set HTTP Proxy (not working yet)
+  --debug               Enable debug mode
+```
+
 ## Requirements
 
 - **[Python 3.8](https://www.python.org/downloads/)** or higher
