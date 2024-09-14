@@ -125,9 +125,8 @@ options:
 ## TODO
 
 - [x] Utilize argparse for command-line argument parsing
-- [ ] Instead of copying lua files append as parameter
+- [x] Refactor code into modular Python files
 - [ ] Do not show whole link in selection rather season and episode with name
-- [ ] Refactor code into modular Python files
 - [ ] Add proxy support
 - [ ] Fix Aniskip finding wrong timestamps
 - [ ] Fix wrong episode count on keep-watching per season

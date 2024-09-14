@@ -80,6 +80,11 @@ def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True)
                 'http': f'http://{proxy}',
                 'https': f'https://{proxy}'
             }
+    else:
+        proxies = {
+            "http": os.getenv("HTTP_PROXY"),
+            "https": os.getenv("HTTPS_PROXY"),
+        }
 
     try:
         response = requests.get(url, headers=headers, proxies=proxies, timeout=10)
@@ -131,15 +136,20 @@ def clean_up_leftovers(directory: str) -> None:
         leftover_files.extend(glob.glob(os.path.join(directory, pattern)))
 
     for file_path in leftover_files:
-        try:
-            os.remove(file_path)
-            logging.debug(f"Removed leftover file: {file_path}")
-        except PermissionError:
-            logging.warning(f"Permission denied when trying to remove file: {file_path}")
-        except OSError as e:
-            logging.warning(f"OS error occurred while removing file {file_path}: {e}")
+        if not os.path.exists(directory):
+            logging.warning(f"Directory {directory} no longer exists.")
+            return
 
-    if not os.listdir(directory):
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                logging.debug(f"Removed leftover file: {file_path}")
+            except PermissionError:
+                logging.warning(f"Permission denied when trying to remove file: {file_path}")
+            except OSError as e:
+                logging.warning(f"OS error occurred while removing file {file_path}: {e}")
+
+    if os.path.exists(directory) and not os.listdir(directory):
         try:
             os.rmdir(directory)
             logging.debug(f"Removed empty directory: {directory}")
