@@ -136,18 +136,19 @@ class EpisodeForm(npyscreen.ActionForm):
             output_directory = os.path.join(output_directory, anime_title)
             os.makedirs(output_directory, exist_ok=True)
 
-        params = {
-            'selected_episodes': selected_urls,
-            'provider_selected': provider_selected,
-            'action_selected': action_selected[0],
-            'aniskip_selected': aniskip_selected[0],
-            'lang': lang,
-            'output_directory': output_directory,
-            'anime_title': self.parentApp.anime_downloader.anime_title
-        }
+        for episode_url in selected_urls:
+            params = {
+                'selected_episodes': [episode_url],
+                'provider_selected': provider_selected,
+                'action_selected': action_selected[0],
+                'aniskip_selected': aniskip_selected[0],
+                'lang': lang,
+                'output_directory': output_directory,
+                'anime_title': self.parentApp.anime_downloader.anime_title
+            }
 
-        logging.debug(f"Execute using: {params}")
-        execute(params)
+            logging.debug(f"Execute using: {params}")
+            execute(params)
 
         if not self.directory_field.hidden:
             clean_up_leftovers(output_directory)

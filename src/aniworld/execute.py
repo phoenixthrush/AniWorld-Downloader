@@ -211,6 +211,7 @@ def execute(params: Dict[str, Any]) -> None:
     anime_title = params['anime_title']
     only_direct_link = params.get('only_direct_link', False)
     only_command = params.get('only_command', False)
+    provider_selected = params['provider_selected']
 
     for episode_url in selected_episodes:
         logging.debug(f"Fetching episode HTML for URL: {episode_url}")
@@ -226,7 +227,7 @@ def execute(params: Dict[str, Any]) -> None:
         logging.debug(f"Language Code: {lang}")
         logging.debug(f"Available Providers: {data.keys()}")
 
-        for provider_selected in data.keys():
+        if provider_selected in data:
             logging.debug(f"Trying provider: {provider_selected}")
             logging.debug(f"Available Languages for {provider_selected}: {data.get(provider_selected, {}).keys()}")
 
@@ -241,11 +242,11 @@ def execute(params: Dict[str, Any]) -> None:
 
                     if only_direct_link:
                         print(link)
-                        sys.exit()
+                        continue
 
                     mpv_title = f"{anime_title} --- S{season_number}E{episode_number} - {episode_title}"
 
-                    params = {
+                    episode_params = {
                         "action": action,
                         "link": link,
                         "mpv_title": mpv_title,
@@ -257,9 +258,8 @@ def execute(params: Dict[str, Any]) -> None:
                         "aniskip_selected": aniskip_selected
                     }
 
-                    logging.debug(f"Performing action with params: {params}")
-                    perform_action(params)
-                    return
-
-    logging.debug("No matching provider or language found.")
-    print("No matching provider or language found.")
+                    logging.debug(f"Performing action with params: {episode_params}")
+                    perform_action(episode_params)
+                    break
+        else:
+            logging.error(f"Provider {provider_selected} not found in available providers.")
