@@ -79,8 +79,8 @@ def build_yt_dlp_command(link: str, output_file: str) -> List[str]:
 def process_aniskip(anime_title: str, season_number: int, episode_number: int) -> List[str]:
     logging.debug(f"Processing aniskip for {anime_title}, season {season_number}, episode {episode_number}")
     if season_number != 1:
-        print("Warning: This is not season 1. Aniskip timestamps might be incorrect."
-              "This issue will be fixed in the future.")
+        logging.debug("Aniskip is disabled for seasons other than 1.")
+        return []
     skip_options = aniskip(anime_title, episode_number)
     skip_options_list = skip_options.split(' --')
     processed_options = [f"--{opt}" if not opt.startswith('--') else opt for opt in skip_options_list]
