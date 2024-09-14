@@ -41,7 +41,7 @@ def check_dependencies(dependencies: list) -> None:
     missing = [dep for dep in resolved_dependencies if shutil.which(dep) is None]
 
     if missing:
-        print(f"Missing dependencies: {', '.join(missing)} in path. Please install and try again.")
+        logging.critical(f"Missing dependencies: {', '.join(missing)} in path. Please install and try again.")
         sys.exit(1)
 
 
@@ -86,15 +86,13 @@ def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True)
         response.raise_for_status()
 
         if "Deine Anfrage wurde als Spam erkannt." in response.text:
-            print("Your IP address is blacklisted.\n"
-                  "Please use a VPN, complete the captcha by opening the browser link, "
-                  f"or try again later.\nLink: {url}")
+            logging.critical("Your IP address is blacklisted. Please use a VPN, complete the captcha by opening the browser link, or try again later.")
             sys.exit(1)
 
         return response.content
     except requests.exceptions.RequestException as error:
         if check:
-            print(f"Request to {url} failed: {error}")
+            logging.critical(f"Request to {url} failed: {error}")
             sys.exit(1)
         return None
 
@@ -126,7 +124,6 @@ def clean_up_leftovers(directory: str) -> None:
     Returns:
         None: This method does not return any value.
     """
-    # print("DEBUG: CLEANING LEFTOVERS IN " + str(directory))
     patterns: List[str] = ['*.part', '*.ytdl', '*.part-Frag*']
 
     leftover_files: List[str] = []
@@ -202,17 +199,6 @@ def execute_command(command: List[str], only_command: bool) -> None:
     else:
         subprocess.run(command, check=True)
 
-def debug_print(message: str, debug: bool = False) -> None:
-    """
-    Prints a debug message if debugging is enabled.
-
-    Args:
-        message (str): The message to print.
-        debug (bool): A flag to enable or disable debugging.
-    """
-    if debug:
-        print(message)
-
 
 def raise_runtime_error(message: str) -> None:
     """
@@ -271,7 +257,8 @@ def get_season_data(anime_slug: str):
     logging.debug(f"Fetching Base URL {base_url}")
     main_html = fetch_url_content(base_url)
     if main_html is None:
-        sys.exit("Failed to retrieve main page.")
+        logging.critical("Failed to retrieve main page.")
+        sys.exit(1)
 
     soup = BeautifulSoup(main_html, 'html.parser')
     season_meta = soup.find('meta', itemprop='numberOfSeasons')

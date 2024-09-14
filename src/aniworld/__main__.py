@@ -268,15 +268,13 @@ def main():
                 for url in episodes
             ]
 
-            if args.debug:
-                print(f"Episode List: {episode_list}\n")
-                print(args.episode[0])
+            logging.debug(f"Episode List: {episode_list}\n")
+            logging.debug(args.episode[0])
 
             index = episode_list.index(args.episode[0])
             updated_list = episode_list[index:]
 
-            if args.debug:
-                print(f"Updated List: {updated_list}\n")
+            logging.debug(f"Updated List: {updated_list}\n")
 
         selected_episodes = updated_list if updated_list else args.episode
 
@@ -290,8 +288,7 @@ def main():
                 'output_directory': args.output,
                 'anime_title': anime_title.replace('-', ' ').title(),
                 'only_direct_link': args.only_direct_link,
-                'only_command': args.only_command,
-                'debug': args.debug
+                'only_command': args.only_command
             }
             logging.debug(f"Execute using: {params}")
             execute(params=params)

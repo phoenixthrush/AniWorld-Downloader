@@ -44,24 +44,17 @@ def build_command(
     link: str, mpv_title: str, player: str, aniskip_selected: bool, aniskip_options: Optional[List[str]] = None
 ) -> List[str]:
     logging.debug("Building command for mpv")
-    script_directory = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    skip_script_path = os.path.join(script_directory, 'aniskip', 'skip.lua')
-    autostart_script_path = os.path.join(script_directory, 'aniskip', 'autostart.lua')
-    autoexit_script_path = os.path.join(script_directory, 'aniskip', 'autoexit.lua')
-
     command = [
         player,
         link,
         "--fs",
         "--quiet",
         "--really-quiet",
-        f"--force-media-title={mpv_title}",
-        f"--script={autostart_script_path}",
-        f"--script={autoexit_script_path}"
+        f"--force-media-title={mpv_title}"
     ]
 
     if aniskip_selected:
-        command.append(f"--script={skip_script_path}")
+        setup_aniskip()
         if aniskip_options:
             command.extend(aniskip_options)
 
@@ -94,7 +87,7 @@ def process_aniskip(anime_title: str, season_number: int, episode_number: int) -
     logging.debug(f"Processed aniskip options: {processed_options}")
     return processed_options
 
-def get_episode_title(soup: BeautifulSoup, debug: bool = False) -> str:
+def get_episode_title(soup: BeautifulSoup) -> str:
     logging.debug("Getting episode title from soup")
     german_title_tag = soup.find('span', class_='episodeGermanTitle')
     english_title_tag = soup.find('small', class_='episodeEnglishTitle')
@@ -103,9 +96,6 @@ def get_episode_title(soup: BeautifulSoup, debug: bool = False) -> str:
     episode_english_title = english_title_tag.text if english_title_tag else None
 
     episode_title = f"{episode_german_title} / {episode_english_title}" if episode_german_title and episode_english_title else episode_german_title or episode_english_title
-
-    if debug:
-        print(f"Episode Title: {episode_title}")
 
     logging.debug(f"Episode title: {episode_title}")
     return episode_title
@@ -116,11 +106,9 @@ def get_anime_title(soup: BeautifulSoup) -> str:
     logging.debug(f"Anime title: {anime_title}")
     return anime_title
 
-def get_provider_data(soup: BeautifulSoup, debug: bool = False) -> Dict[str, Dict[int, str]]:
+def get_provider_data(soup: BeautifulSoup) -> Dict[str, Dict[int, str]]:
     logging.debug("Getting provider data from soup")
     data = providers(soup)
-    if debug:
-        print(f"Provider Data: {data}")
     logging.debug(f"Provider data: {data}")
     return data
 
@@ -131,12 +119,10 @@ def get_season_and_episode_numbers(episode_url: str) -> tuple:
     logging.debug(f"Extracted season and episode numbers: {season_episode}")
     return season_episode
 
-def fetch_direct_link(provider_function, request_url: str, debug: bool = False) -> str:
+def fetch_direct_link(provider_function, request_url: str) -> str:
     logging.debug(f"Fetching direct link from URL: {request_url}")
     html_content = fetch_url_content(request_url)
     soup = BeautifulSoup(html_content, 'html.parser')
-    if debug:
-        print(f"Episode Data: {soup.prettify()}")
     direct_link = provider_function(soup)
     logging.debug(f"Fetched direct link: {direct_link}")
     return direct_link
@@ -148,16 +134,21 @@ def build_syncplay_command(
     command = [
         syncplay,
         "--no-gui",
+        "--no-store",
         "--host", "syncplay.pl:8997",
         "--name", getpass.getuser(),
         "--room", mpv_title.replace(" ", "_"),
         "--player-path", shutil.which("mpv"),
         link,
-        "--", "--fs",
-        "--", f"--force-media-title={mpv_title}"
+        "--",
+        "--fs",
+        f"--force-media-title={mpv_title}"
     ]
     if aniskip_options:
+        setup_aniskip()
         command.extend(aniskip_options)
+
+    command.extend("")
     return command
 
 def perform_action(params: Dict[str, Any]) -> None:
@@ -220,7 +211,6 @@ def execute(params: Dict[str, Any]) -> None:
     anime_title = params['anime_title']
     only_direct_link = params.get('only_direct_link', False)
     only_command = params.get('only_command', False)
-    debug = params.get('debug', False)
 
     for episode_url in selected_episodes:
         logging.debug(f"Fetching episode HTML for URL: {episode_url}")
@@ -229,22 +219,14 @@ def execute(params: Dict[str, Any]) -> None:
             continue
         soup = BeautifulSoup(episode_html, 'html.parser')
 
-        episode_title = get_episode_title(soup, debug)
+        episode_title = get_episode_title(soup)
         anime_title = get_anime_title(soup)
-        data = get_provider_data(soup, debug)
-
-        if debug:
-            print(f"Language Code: {lang}")
-            print(f"Available Providers: {data.keys()}")
+        data = get_provider_data(soup)
 
         logging.debug(f"Language Code: {lang}")
         logging.debug(f"Available Providers: {data.keys()}")
 
         for provider_selected in data.keys():
-            if debug:
-                print(f"Trying provider: {provider_selected}")
-                print(f"Available Languages for {provider_selected}: {data.get(provider_selected, {}).keys()}")
-
             logging.debug(f"Trying provider: {provider_selected}")
             logging.debug(f"Available Languages for {provider_selected}: {data.get(provider_selected, {}).keys()}")
 
@@ -255,7 +237,7 @@ def execute(params: Dict[str, Any]) -> None:
 
                     provider_function = provider_mapping[provider_selected]
                     request_url = data[provider_selected][language]
-                    link = fetch_direct_link(provider_function, request_url, debug)
+                    link = fetch_direct_link(provider_function, request_url)
 
                     if only_direct_link:
                         print(link)
@@ -277,7 +259,7 @@ def execute(params: Dict[str, Any]) -> None:
 
                     logging.debug(f"Performing action with params: {params}")
                     perform_action(params)
-                    return  # Exit after performing the action to avoid looping through other episodes
+                    return
 
     logging.debug("No matching provider or language found.")
-    print("No matching provider or language found.")  # Debug print if no action is performed
+    print("No matching provider or language found.")

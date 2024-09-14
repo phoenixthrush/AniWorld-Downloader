@@ -2,11 +2,12 @@ import json
 import re
 import tempfile
 from typing import Dict, Optional
+import logging
 
 import requests
 from thefuzz import process
 
-from aniworld.common import debug_print, raise_runtime_error
+from aniworld.common import raise_runtime_error
 
 AGENT = "Mozilla/5.0 (Windows NT 6.1; Win64; rv:109.0) Gecko/20100101 Firefox/109.0"
 CHAPTER_FORMAT = "\n[CHAPTER]\nTIMEBASE=1/1000\nSTART={}\nEND={}\nTITLE={}\n"
@@ -24,7 +25,8 @@ def fetch_mal_id(anime_title: str, debug: bool = False) -> Optional[str]:
     Returns:
         Optional[str]: The MAL ID of the anime if found, otherwise None.
     """
-    debug_print(f"Fetching MAL ID for: {anime_title}", debug)
+    if debug:
+        logging.debug(f"Fetching MAL ID for: {anime_title}")
     name = re.sub(r' \(\d+ episodes\)', '', anime_title)
     keyword = re.sub(r'\s+', '%20', name)
 
@@ -41,21 +43,20 @@ def fetch_mal_id(anime_title: str, debug: bool = False) -> Optional[str]:
     results = [entry['name'] for entry in mal_metadata['categories'][0]['items']]
 
     if debug:
-        print(anime_title)
-        print()
-        print(results)
-        print()
+        logging.debug(anime_title)
+        logging.debug(results)
 
     filtered_choices = [choice for choice in results if 'OVA' not in choice]
     best_match = process.extractOne(anime_title, filtered_choices)
 
     if debug:
-        print(best_match)
+        logging.debug(best_match)
 
     if best_match[0]:
         for entry in mal_metadata['categories'][0]['items']:
             if entry['name'] == best_match[0]:
-                debug_print(f"Found MAL ID: {entry['id']} for {best_match[0]}", debug)
+                if debug:
+                    logging.debug(f"Found MAL ID: {entry['id']} for {best_match[0]}")
                 return entry['id']
     return None
 
@@ -128,14 +129,16 @@ def build_flags(mal_id: str, episode: int, chapters_file: str, debug: bool = Fal
         str: The flags for skip times.
     """
     aniskip_api = f"https://api.aniskip.com/v1/skip-times/{mal_id}/{episode}?types=op&types=ed"
-    debug_print(f"Fetching skip times from: {aniskip_api}", debug)
+    if debug:
+        logging.debug(f"Fetching skip times from: {aniskip_api}")
     response = requests.get(aniskip_api, headers={"User-Agent": AGENT}, timeout=10)
 
     if response.status_code != 200:
         raise_runtime_error("Failed to fetch AniSkip data.")
 
     metadata = response.json()
-    debug_print(f"AniSkip response: {json.dumps(metadata, indent=2)}", debug)
+    if debug:
+        logging.debug(f"AniSkip response: {json.dumps(metadata, indent=2)}")
 
     if not metadata.get("found"):
         return ""

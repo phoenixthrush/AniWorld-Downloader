@@ -1,5 +1,6 @@
 import os
 import logging
+import colorlog
 
 IS_DEBUG_MODE = True
 DEFAULT_USER_AGENT = (
@@ -19,9 +20,25 @@ DEFAULT_ONLY_DIRECT_LINK = False
 DEFAULT_ONLY_COMMAND = False
 DEFAULT_PROXY = None
 
+log_colors = {
+    'DEBUG': 'bold_blue',
+    'INFO': 'bold_green',
+    'WARNING': 'bold_yellow',
+    'ERROR': 'bold_red',
+    'CRITICAL': 'bold_purple'
+}
+
+formatter = colorlog.ColoredFormatter(
+    '%(log_color)s%(asctime)s - %(levelname)s - %(message)s',
+    log_colors=log_colors
+)
+
+handler = logging.StreamHandler()
+handler.setFormatter(formatter)
+
 logging.basicConfig(
     level=logging.DEBUG if IS_DEBUG_MODE else logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    handlers=[handler]
 )
 
 # logging.getLogger('requests').setLevel(logging.WARNING)
