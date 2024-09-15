@@ -29,12 +29,12 @@ AniWorld Downloader is a command-line tool designed to download and stream anime
 
 ## Features
 
-- **Download Episodes:** Fetch individual episodes or entire seasons.
+- **Download Episodes:** Fetch individual episodes or seasons.
 - **Streaming:** Watch episodes directly with integrated players.
 - **Netflix Experience:** Automatically play or download the next episode in a series.
 - **Multiple Providers:** Support for Vidoza, VOE, Streamtape and ~~Doodstream~~ (coming soon).
 - **Language Options:** Choose between German Dub, English Sub, and German Subtitles.
-- **Aniskip Integration:** Automatically skip intros and outros.
+- **Aniskip Integration:** Automatically skip intros and outros (Unstable yet).
 - **Syncplay Support:** Sync playback with friends for a shared viewing experience.
 - **Proxy Support:** (Coming Soon) Configure HTTP proxies for your downloads.
 
@@ -82,10 +82,10 @@ aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaib
 
 #### Download All Seasons
 
-Automatically download or watch all episodes across all seasons:
+Automatically download all episodes across all seasons:
 
 ```shell
-aniworld --query "demon-slayer-kimetsu-no-yaiba" --all-seasons
+aniworld --query "demon-slayer-kimetsu-no-yaiba" --keep-watching
 ```
 
 #### Watch with Automatic Continuation
@@ -93,7 +93,7 @@ aniworld --query "demon-slayer-kimetsu-no-yaiba" --all-seasons
 Play an episode and automatically continue to the next one:
 
 ```shell
-aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --keep-watching
+aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --keep-watching --action Watch
 ```
 
 #### Using Specific Providers and Languages
@@ -114,12 +114,12 @@ Download episode 1 of "Demon Slayer: Kimetsu no Yaiba":
 aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
 ```
 
-### Example 2: Download an Entire Season
+### Example 2: Download multiple episodes
 
-Download all episodes from season 1 of "Demon Slayer":
+Download multiple episodes of "Demon Slayer":
 
 ```shell
-aniworld --query "demon-slayer-kimetsu-no-yaiba" --keep-watching
+aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-2
 ```
 
 ### Example 3: Watch Episodes with Aniskip
@@ -135,7 +135,7 @@ aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaib
 Syncplay a specific episode with friends:
 
 ```shell
-aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --action Syncplay
+aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --action Syncplay --keep-watching
 ```
 
 ### Example 5: Download with Specific Provider and Language
@@ -143,11 +143,10 @@ aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaib
 Download an episode using the VOE provider with English subtitles:
 
 ```shell
-aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --provider "VOE" --language "English Sub"
+aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --provider VOE --language "English Sub"
 ```
 
 ### To see all the available options:
-```
 ```shell
 aniworld --help
 ```
