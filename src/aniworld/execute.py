@@ -1,7 +1,6 @@
 import os
 import re
 import shutil
-import sys
 import getpass
 import platform
 from typing import Dict, List, Optional, Any
@@ -161,9 +160,16 @@ def perform_action(params: Dict[str, Any]) -> None:
     season_number = params.get("season_number")
     output_directory = params.get("output_directory")
     only_command = params.get("only_command", False)
-    aniskip_selected = params.get("aniskip_selected", False)
+    aniskip_selected = params.get("aniskip_selected", "No") == "Yes"
 
-    aniskip_options = process_aniskip(anime_title, season_number, episode_number) if aniskip_selected else []
+    logging.debug(f"aniskip_selected: {aniskip_selected}")
+
+    if aniskip_selected:
+        logging.debug("Aniskip is selected, processing aniskip options")
+        aniskip_options = process_aniskip(anime_title, season_number, episode_number)
+        logging.debug(f"Aniskip options: {aniskip_options}")
+    else:
+        aniskip_options = []
 
     if action == "Watch":
         mpv_title = mpv_title.replace(" --- ", " - ", 1)
@@ -205,7 +211,7 @@ def execute(params: Dict[str, Any]) -> None:
 
     selected_episodes = params['selected_episodes']
     action_selected = params['action_selected']
-    aniskip_selected = params['aniskip_selected']
+    aniskip_selected = params.get("aniskip_selected", "No") == "Yes"
     lang = params['lang']
     output_directory = params['output_directory']
     anime_title = params['anime_title']
