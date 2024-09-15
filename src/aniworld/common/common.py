@@ -303,3 +303,7 @@ def set_terminal_size(columns: int=90, lines:int=27):
 
     else:
         raise NotImplementedError(f"Unsupported platform: {system_name}")
+
+
+def ftoi(value: float) -> str:
+    return str(int(value * 1000))

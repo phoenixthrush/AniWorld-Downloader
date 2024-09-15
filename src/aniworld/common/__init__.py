@@ -7,5 +7,6 @@ from .common import (
     raise_runtime_error,
     clean_up_leftovers,
     get_season_data,
-    set_terminal_size
+    set_terminal_size,
+    ftoi
 )

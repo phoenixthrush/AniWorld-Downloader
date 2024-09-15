@@ -9,7 +9,6 @@ from aniworld import globals
 from aniworld.common import clear_screen, fetch_url_content
 
 
-
 def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
     """
     Retrieve the anime slug based on either a provided slug or link.

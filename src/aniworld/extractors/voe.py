@@ -2,6 +2,8 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 import re
 
+from aniworld import globals
+
 
 def voe_get_direct_link(soup):
     REDIRECT_PATTERN = re.compile(r"window\.location\.href\s*=\s*'(https://[^/]+/e/\w+)';")
@@ -12,7 +14,7 @@ def voe_get_direct_link(soup):
         redirect_url = redirect_match.group(1)
 
         try:
-            redirect_content = urlopen(Request(redirect_url, headers={'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"}), timeout=10).read()
+            redirect_content = urlopen(Request(redirect_url, headers={'User-Agent': globals.DEFAULT_USER_AGENT}), timeout=10).read()
             redirect_content_str = redirect_content.decode('utf-8')
         except (HTTPError, URLError, TimeoutError) as e:
             print(f"Failed to fetch URL {redirect_url}: {e}")

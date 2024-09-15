@@ -7,12 +7,11 @@ import sys
 import re
 import logging
 
-from bs4 import BeautifulSoup
 import npyscreen
 
-from aniworld import clear_screen, search, execute, globals
-from aniworld.common import fetch_url_content, clean_up_leftovers, get_season_data, set_terminal_size
-
+from aniworld.search import search_anime
+from aniworld import execute, globals
+from aniworld.common import clear_screen, clean_up_leftovers, get_season_data, set_terminal_size
 
 class AnimeDownloader:
     BASE_URL_TEMPLATE = "https://aniworld.to/anime/stream/{anime}/"
@@ -214,7 +213,7 @@ def parse_arguments():
 def handle_query(args):
     if args.query and not args.episode:
         logging.debug(f"Handling query: {args.query}")
-        slug = search.search_anime(query=args.query)
+        slug = search_anime.search_anime(query=args.query)
         season_data = get_season_data(anime_slug=slug)
         episode_list = [
             url
@@ -311,7 +310,7 @@ def main():
         try:
             logging.debug("Trying to resize Terminal.")
             set_terminal_size()
-            run_app(search.search_anime(slug=args.slug, link=args.link))
+            run_app(search_anime(slug=args.slug, link=args.link))
         except npyscreen.wgwidget.NotEnoughSpaceForWidget:
             clear_screen()
             print("Please increase your current terminal size.")

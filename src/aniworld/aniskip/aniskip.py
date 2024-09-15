@@ -7,32 +7,22 @@ import logging
 import requests
 from thefuzz import process
 
-from aniworld.common import raise_runtime_error
+from aniworld.common import raise_runtime_error, ftoi
+from aniworld import globals
 
-AGENT = "Mozilla/5.0 (Windows NT 6.1; Win64; rv:109.0) Gecko/20100101 Firefox/109.0"
 CHAPTER_FORMAT = "\n[CHAPTER]\nTIMEBASE=1/1000\nSTART={}\nEND={}\nTITLE={}\n"
 OPTION_FORMAT = "skip-{}_start={},skip-{}_end={}"
 
 
-def fetch_mal_id(anime_title: str, debug: bool = False) -> Optional[str]:
-    """
-    Fetches the MyAnimeList (MAL) ID for a given anime title.
-
-    Args:
-        anime_title (str): The title of the anime to search for.
-        debug (bool): A flag to enable or disable debugging.
-
-    Returns:
-        Optional[str]: The MAL ID of the anime if found, otherwise None.
-    """
-    if debug:
-        logging.debug(f"Fetching MAL ID for: {anime_title}")
+def fetch_mal_id(anime_title: str) -> Optional[str]:
+    logging.debug(f"Fetching MAL ID for: {anime_title}")
+    
     name = re.sub(r' \(\d+ episodes\)', '', anime_title)
     keyword = re.sub(r'\s+', '%20', name)
 
     response = requests.get(
         f"https://myanimelist.net/search/prefix.json?type=anime&keyword={keyword}",
-        headers={"User-Agent": AGENT},
+        headers={"User-Agent": globals.DEFAULT_USER_AGENT},
         timeout=10
     )
 
@@ -42,49 +32,22 @@ def fetch_mal_id(anime_title: str, debug: bool = False) -> Optional[str]:
     mal_metadata = response.json()
     results = [entry['name'] for entry in mal_metadata['categories'][0]['items']]
 
-    if debug:
-        logging.debug(anime_title)
-        logging.debug(results)
+    logging.debug(anime_title)
+    logging.debug(results)
 
     filtered_choices = [choice for choice in results if 'OVA' not in choice]
     best_match = process.extractOne(anime_title, filtered_choices)
 
-    if debug:
-        logging.debug(best_match)
+    logging.debug(best_match)
 
     if best_match[0]:
         for entry in mal_metadata['categories'][0]['items']:
             if entry['name'] == best_match[0]:
-                if debug:
-                    logging.debug(f"Found MAL ID: {entry['id']} for {best_match[0]}")
+                logging.debug(f"Found MAL ID: {entry['id']} for {best_match[0]}")
                 return entry['id']
     return None
 
-
-def ftoi(value: float) -> str:
-    """
-    Converts a time value in seconds to milliseconds and returns it as a string.
-
-    Args:
-        value (float): The time value in seconds.
-
-    Returns:
-        str: The time value in milliseconds as a string.
-    """
-    return str(int(value * 1000))
-
-
 def build_options(metadata: Dict, chapters_file: str) -> str:
-    """
-    Builds the options string for skip times and writes chapter data to a file.
-
-    Args:
-        metadata (Dict): The metadata containing skip times.
-        chapters_file (str): The path to the chapters file.
-
-    Returns:
-        str: The options string for skip times.
-    """
     op_end, ed_start = None, None
     options = []
 
@@ -115,7 +78,7 @@ def build_options(metadata: Dict, chapters_file: str) -> str:
     return ",".join(options)
 
 
-def build_flags(mal_id: str, episode: int, chapters_file: str, debug: bool = False) -> str:
+def build_flags(mal_id: str, episode: int, chapters_file: str) -> str:
     """
     Fetches skip times and builds the flags for a given anime episode.
 
@@ -123,22 +86,19 @@ def build_flags(mal_id: str, episode: int, chapters_file: str, debug: bool = Fal
         mal_id (str): The MAL ID of the anime.
         episode (int): The episode number.
         chapters_file (str): The path to the chapters file.
-        debug (bool): A flag to enable or disable debugging.
 
     Returns:
         str: The flags for skip times.
     """
     aniskip_api = f"https://api.aniskip.com/v1/skip-times/{mal_id}/{episode}?types=op&types=ed"
-    if debug:
-        logging.debug(f"Fetching skip times from: {aniskip_api}")
-    response = requests.get(aniskip_api, headers={"User-Agent": AGENT}, timeout=10)
+    logging.debug(f"Fetching skip times from: {aniskip_api}")
+    response = requests.get(aniskip_api, headers={"User-Agent": globals.DEFAULT_USER_AGENT}, timeout=10)
 
     if response.status_code != 200:
         raise_runtime_error("Failed to fetch AniSkip data.")
 
     metadata = response.json()
-    if debug:
-        logging.debug(f"AniSkip response: {json.dumps(metadata, indent=2)}")
+    logging.debug(f"AniSkip response: {json.dumps(metadata, indent=2)}")
 
     if not metadata.get("found"):
         return ""
@@ -150,24 +110,23 @@ def build_flags(mal_id: str, episode: int, chapters_file: str, debug: bool = Fal
     return f"--chapters-file={chapters_file} --script-opts={options}"
 
 
-def aniskip(anime_title: str, episode: int, debug: bool = False) -> str:
+def aniskip(anime_title: str, episode: int) -> str:
     """
     Retrieves AniSkip data and builds the command options for a given anime episode.
 
     Args:
         anime_title (str): The title of the anime.
         episode (int): The episode number.
-        debug (bool): A flag to enable or disable debugging.
 
     Returns:
         str: The command options for AniSkip.
     """
-    mal_id = fetch_mal_id(anime_title, debug) if not anime_title.isdigit() else anime_title
+    mal_id = fetch_mal_id(anime_title) if not anime_title.isdigit() else anime_title
     if not mal_id:
         return ""
 
     chapters_file = tempfile.mktemp()
-    return build_flags(mal_id, episode, chapters_file, debug)
+    return build_flags(mal_id, episode, chapters_file)
 
 
 if __name__ == "__main__":
