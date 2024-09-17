@@ -42,7 +42,7 @@ def providers(soup: BeautifulSoup) -> Dict[str, Dict[int, str]]:
 def build_command(
     link: str, mpv_title: str, player: str, aniskip_selected: bool, aniskip_options: Optional[List[str]] = None
 ) -> List[str]:
-    logging.debug("Building command for mpv")
+    logging.debug(f"Building command for mpv with link: {link}, title: {mpv_title}, player: {player}, aniskip_selected: {aniskip_selected}, aniskip_options: {aniskip_options}")
     command = [
         player,
         link,
@@ -53,15 +53,17 @@ def build_command(
     ]
 
     if aniskip_selected:
+        logging.debug("Aniskip selected, setting up aniskip")
         setup_aniskip()
         if aniskip_options:
+            logging.debug(f"Adding aniskip options: {aniskip_options}")
             command.extend(aniskip_options)
 
     logging.debug(f"Built command: {command}")
     return command
 
 def build_yt_dlp_command(link: str, output_file: str) -> List[str]:
-    logging.debug("Building yt-dlp command")
+    logging.debug(f"Building yt-dlp command with link: {link}, output_file: {output_file}")
     command = [
         "yt-dlp",
         "--fragment-retries", "infinite",
@@ -129,6 +131,7 @@ def fetch_direct_link(provider_function, request_url: str) -> str:
 def build_syncplay_command(
     link: str, mpv_title: str, aniskip_options: Optional[List[str]] = None
 ) -> List[str]:
+    logging.debug(f"Building syncplay command with link: {link}, title: {mpv_title}, aniskip_options: {aniskip_options}")
     syncplay = "SyncplayConsole" if platform.system() == "Windows" else "syncplay"
     command = [
         syncplay,
@@ -144,10 +147,12 @@ def build_syncplay_command(
         f"--force-media-title={mpv_title}"
     ]
     if aniskip_options:
+        logging.debug("Aniskip options provided, setting up aniskip")
         setup_aniskip()
         command.extend(aniskip_options)
 
     command.extend("")
+    logging.debug(f"Built syncplay command: {command}")
     return command
 
 def perform_action(params: Dict[str, Any]) -> None:
@@ -173,6 +178,7 @@ def perform_action(params: Dict[str, Any]) -> None:
         aniskip_options = []
 
     if action == "Watch":
+        logging.debug("Action is Watch")
         mpv_title = mpv_title.replace(" --- ", " - ", 1)
         check_dependencies(["mpv"])
         if not only_command:
@@ -182,6 +188,7 @@ def perform_action(params: Dict[str, Any]) -> None:
         execute_command(command, only_command)
         logging.debug("MPV has finished.\nBye bye!")
     elif action == "Download":
+        logging.debug("Action is Download")
         check_dependencies(["yt-dlp"])
         file_name = f"{anime_title} - S{season_number}E{episode_number}.mp4"
         file_path = os.path.join(output_directory, file_name).replace(" --- ", "/", 1)
@@ -192,9 +199,11 @@ def perform_action(params: Dict[str, Any]) -> None:
         try:
             execute_command(command, only_command)
         except KeyboardInterrupt:
+            logging.debug("KeyboardInterrupt encountered, cleaning up leftovers")
             clean_up_leftovers(os.path.dirname(file_path))
         logging.debug("yt-dlp has finished.\nBye bye!")
     elif action == "Syncplay":
+        logging.debug("Action is Syncplay")
         mpv_title = mpv_title.replace(" --- ", " - ", 1)
         check_dependencies(["mpv", "syncplay"])
         if not only_command:
@@ -223,12 +232,13 @@ def execute(params: Dict[str, Any]) -> None:
     only_command = params.get('only_command', False)
     provider_selected = params['provider_selected']
 
-    # logging.critical(f"This is in execute.py, aniskip_selected: {aniskip_selected}")
+    logging.debug(f"aniskip_selected: {aniskip_selected}")
 
     for episode_url in selected_episodes:
         logging.debug(f"Fetching episode HTML for URL: {episode_url}")
         episode_html = fetch_url_content(episode_url)
         if episode_html is None:
+            logging.debug(f"No HTML content fetched for URL: {episode_url}")
             continue
         soup = BeautifulSoup(episode_html, 'html.parser')
 
@@ -253,12 +263,12 @@ def execute(params: Dict[str, Any]) -> None:
                     link = fetch_direct_link(provider_function, request_url)
 
                     if only_direct_link:
+                        logging.debug(f"Only direct link requested: {link}")
                         print(link)
                         continue
 
                     mpv_title = f"{anime_title} --- S{season_number}E{episode_number} - {episode_title}"
 
-                    # logging.critical(f"This is in execute.py, aniskip_selected: {aniskip_selected}")
                     episode_params = {
                         "action": action,
                         "link": link,

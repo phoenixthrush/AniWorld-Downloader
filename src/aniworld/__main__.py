@@ -14,17 +14,24 @@ from aniworld import execute, globals
 from aniworld.common import clear_screen, clean_up_leftovers, get_season_data, set_terminal_size
 
 def format_anime_title(anime_slug):
+    logging.debug(f"Formatting anime title for slug: {anime_slug}")
     try:
-        return anime_slug.replace("-", " ").title()
+        formatted_title = anime_slug.replace("-", " ").title()
+        logging.debug(f"Formatted title: {formatted_title}")
+        return formatted_title
     except AttributeError:
+        logging.debug("AttributeError encountered in format_anime_title")
         sys.exit()
 
 class EpisodeForm(npyscreen.ActionForm):
     def create(self):
         logging.debug("Creating EpisodeForm")
         anime_slug = self.parentApp.anime_slug
+        logging.debug(f"Anime slug: {anime_slug}")
         anime_title = format_anime_title(anime_slug)
+        logging.debug(f"Anime title: {anime_title}")
         season_data = get_season_data(anime_slug)
+        logging.debug(f"Season data: {season_data}")
 
         self.episode_map = {
             f"{anime_title} - Season {season} - Episode {idx + 1}": url
@@ -42,6 +49,7 @@ class EpisodeForm(npyscreen.ActionForm):
             value=[["Watch", "Download", "Syncplay"].index(globals.DEFAULT_ACTION)],
             scroll_exit=True
         )
+        logging.debug("Action selector created")
 
         self.aniskip_selector = self.add(
             npyscreen.TitleSelectOne,
@@ -51,12 +59,14 @@ class EpisodeForm(npyscreen.ActionForm):
             value=[0 if globals.DEFAULT_ANISKIP else 1],
             scroll_exit=True
         )
+        logging.debug("Aniskip selector created")
 
         self.directory_field = self.add(
             npyscreen.TitleFilenameCombo,
             name="Directory:",
             value=globals.DEFAULT_DOWNLOAD_PATH
         )
+        logging.debug("Directory field created")
 
         self.language_selector = self.add(
             npyscreen.TitleSelectOne,
@@ -66,6 +76,7 @@ class EpisodeForm(npyscreen.ActionForm):
             value=[["German Dub", "English Sub", "German Sub"].index(globals.DEFAULT_LANGUAGE)],
             scroll_exit=True
         )
+        logging.debug("Language selector created")
 
         self.provider_selector = self.add(
             npyscreen.TitleSelectOne,
@@ -75,6 +86,7 @@ class EpisodeForm(npyscreen.ActionForm):
             value=[["Vidoza", "Streamtape", "VOE", "Doodstream"].index(globals.DEFAULT_PROVIDER)],
             scroll_exit=True
         )
+        logging.debug("Provider selector created")
 
         self.episode_selector = self.add(
             npyscreen.TitleMultiSelect,
@@ -82,25 +94,32 @@ class EpisodeForm(npyscreen.ActionForm):
             values=episode_list,
             max_height=7
         )
+        logging.debug("Episode selector created")
 
         self.action_selector.when_value_edited = self.update_directory_visibility
+        logging.debug("Set update_directory_visibility as callback for action_selector")
 
     def update_directory_visibility(self):
         logging.debug("Updating directory visibility")
         selected_action = self.action_selector.get_selected_objects()
+        logging.debug(f"Selected action: {selected_action}")
         if selected_action and selected_action[0] == "Watch" or selected_action[0] == "Syncplay":
             self.directory_field.hidden = True
             self.aniskip_selector.hidden = False
+            logging.debug("Directory field hidden, Aniskip selector shown")
         else:
             self.directory_field.hidden = False
             self.aniskip_selector.hidden = True
+            logging.debug("Directory field shown, Aniskip selector hidden")
         self.display()
 
     def on_ok(self):
         logging.debug("OK button pressed")
         npyscreen.blank_terminal()
         output_directory = self.directory_field.value if not self.directory_field.hidden else None
+        logging.debug(f"Output directory: {output_directory}")
         if not output_directory and not self.directory_field.hidden:
+            logging.debug("No output directory provided")
             npyscreen.notify_confirm("Please provide a directory.", title="Error")
             return
 
@@ -110,21 +129,32 @@ class EpisodeForm(npyscreen.ActionForm):
         provider_selected = self.provider_selector.get_selected_objects()
         aniskip_selected = self.aniskip_selector.get_selected_objects()
 
+        logging.debug(f"Selected episodes: {selected_episodes}")
+        logging.debug(f"Action selected: {action_selected}")
+        logging.debug(f"Language selected: {language_selected}")
+        logging.debug(f"Provider selected: {provider_selected}")
+        logging.debug(f"Aniskip selected: {aniskip_selected}")
+
         if not (selected_episodes and action_selected and language_selected):
+            logging.debug("No episodes or action or language selected")
             npyscreen.notify_confirm("No episodes selected.", title="Selection")
             return
 
         lang = self.get_language_code(language_selected[0])
+        logging.debug(f"Language code: {lang}")
         provider_selected = self.validate_provider(provider_selected)
+        logging.debug(f"Validated provider: {provider_selected}")
 
         selected_urls = [self.episode_map[episode] for episode in selected_episodes]
         selected_str = "\n".join(selected_episodes)
+        logging.debug(f"Selected URLs: {selected_urls}")
         npyscreen.notify_confirm(f"Selected episodes:\n{selected_str}", title="Selection")
 
         if not self.directory_field.hidden:
             anime_title = format_anime_title(self.parentApp.anime_slug)
             output_directory = os.path.join(output_directory, anime_title)
             os.makedirs(output_directory, exist_ok=True)
+            logging.debug(f"Output directory created: {output_directory}")
 
         for episode_url in selected_urls:
             params = {
@@ -137,16 +167,18 @@ class EpisodeForm(npyscreen.ActionForm):
                 'anime_title': format_anime_title(self.parentApp.anime_slug)
             }
 
-            logging.debug(f"Execute using: {params}")
+            logging.debug(f"Executing with params: {params}")
             execute(params)
 
         if not self.directory_field.hidden:
+            logging.debug(f"Cleaning up leftovers in: {output_directory}")
             clean_up_leftovers(output_directory)
 
         self.parentApp.setNextForm(None)
         self.parentApp.switchFormNow()
 
     def get_language_code(self, language):
+        logging.debug(f"Getting language code for: {language}")
         return {
             'German Dub': "1",
             'English Sub': "2",
@@ -154,8 +186,10 @@ class EpisodeForm(npyscreen.ActionForm):
         }.get(language, "")
 
     def validate_provider(self, provider_selected):
+        logging.debug(f"Validating provider: {provider_selected}")
         valid_providers = ["Vidoza", "Streamtape", "VOE"]
         while provider_selected[0] not in valid_providers:
+            logging.debug("Invalid provider selected, falling back to Vidoza")
             npyscreen.notify_confirm(
                 "Doodstream is currently broken.\nFalling back to Vidoza.",
                 title="Provider Error"
@@ -171,8 +205,8 @@ class EpisodeForm(npyscreen.ActionForm):
 
 class AnimeApp(npyscreen.NPSAppManaged):
     def __init__(self, anime_slug):
-        super().__init__()
         logging.debug(f"Initializing AnimeApp with slug: {anime_slug}")
+        super().__init__()
         self.anime_slug = anime_slug
 
     def onStart(self):
@@ -181,6 +215,7 @@ class AnimeApp(npyscreen.NPSAppManaged):
 
 
 def parse_arguments():
+    logging.debug("Parsing command line arguments")
     parser = argparse.ArgumentParser(description="Parse optional command line arguments.")
     parser.add_argument('--slug', type=str, help='Search query - E.g. demon-slayer-kimetsu-no-yaiba')
     parser.add_argument('--link', type=str, help='Search query - E.g. https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba')
@@ -197,47 +232,58 @@ def parse_arguments():
     parser.add_argument('--proxy', type=str, default=globals.DEFAULT_PROXY, help='Set HTTP Proxy (not working yet)')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode')
 
-    logging.debug("Parsing Command Line Arguments.")
     return parser.parse_args()
 
 
 def handle_query(args):
+    logging.debug(f"Handling query with args: {args}")
     if args.query and not args.episode:
-        logging.debug(f"Handling query: {args.query}")
         slug = search_anime.search_anime(query=args.query)
+        logging.debug(f"Found slug: {slug}")
         season_data = get_season_data(anime_slug=slug)
+        logging.debug(f"Season data: {season_data}")
         episode_list = [
             url
             for season, episodes in season_data.items()
             for url in episodes
         ]
+        logging.debug(f"Episode list: {episode_list}")
 
         user_input = input("Please enter the episode (e.g., S1E2): ")
+        logging.debug(f"User input: {user_input}")
         match = re.match(r"S(\d+)E(\d+)", user_input)
         if match:
             s = int(match.group(1))
             e = int(match.group(2))
+            logging.debug(f"Parsed season: {s}, episode: {e}")
 
         args.episode = [f"https://aniworld.to/anime/stream/{slug}/staffel-{s}/episode-{e}"]
+        logging.debug(f"Set episode URL: {args.episode}")
 
 
 def get_anime_title(args):
+    logging.debug(f"Getting anime title from args: {args}")
     if args.link:
-        return args.link.split('/')[-1]
+        title = args.link.split('/')[-1]
+        logging.debug(f"Anime title from link: {title}")
+        return title
     elif args.slug:
+        logging.debug(f"Anime title from slug: {args.slug}")
         return args.slug
     elif args.episode:
-        return args.episode[0].split('/')[5]
+        title = args.episode[0].split('/')[5]
+        logging.debug(f"Anime title from episode URL: {title}")
+        return title
     return None
 
 
 def get_language_code(language):
+    logging.debug(f"Getting language code for: {language}")
     return {
         "German Dub": "1",
         "English Sub": "2",
         "German Sub": "3"
     }.get(language, "")
-
 
 def main():
     logging.debug("============================================")
@@ -245,6 +291,7 @@ def main():
     logging.debug("============================================\n")
     try:
         args = parse_arguments()
+        logging.debug(f"Parsed arguments: {args}")
 
         if args.link and args.link.count('/') != 5:
             logging.debug("Provided link invalid.")
@@ -253,28 +300,27 @@ def main():
         handle_query(args)
 
         anime_title = get_anime_title(args)
+        logging.debug(f"Anime title: {anime_title}")
         language = get_language_code(args.language)
+        logging.debug(f"Language code: {language}")
 
         updated_list = None
         if args.keep_watching and args.episode:
             season_data = get_season_data(anime_slug=anime_title)
+            logging.debug(f"Season data: {season_data}")
             episode_list = [
                 url
                 for season, episodes in season_data.items()
                 for url in episodes
             ]
-
-            if logging.debug:
-                logging.debug(f"Episode List: {episode_list}\n")
-                logging.debug(args.episode[0])
+            logging.debug(f"Episode list: {episode_list}")
 
             index = episode_list.index(args.episode[0])
             updated_list = episode_list[index:]
-
-            if logging.debug:
-                logging.debug(f"Updated List: {updated_list}\n")
+            logging.debug(f"Updated episode list: {updated_list}")
 
         selected_episodes = updated_list if updated_list else args.episode
+        logging.debug(f"Selected episodes: {selected_episodes}")
 
         if args.episode:
             params = {
@@ -289,15 +335,16 @@ def main():
                 'only_command': args.only_command,
                 'debug': args.debug
             }
-            logging.debug(f"Execute using: {params}")
+            logging.debug(f"Executing with params: {params}")
             execute(params=params)
-            logging.debug("Bye bye!")
+            logging.debug("Execution complete. Exiting.")
             sys.exit()
     except KeyboardInterrupt:
-        logging.debug("Bye bye!")
+        logging.debug("KeyboardInterrupt encountered. Exiting.")
         sys.exit()
 
     def run_app(query):
+        logging.debug(f"Running app with query: {query}")
         clear_screen()
         app = AnimeApp(query)
         app.run()
@@ -308,12 +355,13 @@ def main():
             set_terminal_size()
             run_app(search_anime(slug=args.slug, link=args.link))
         except npyscreen.wgwidget.NotEnoughSpaceForWidget:
+            logging.debug("Not enough space for widget. Asking user to resize terminal.")
             clear_screen()
             print("Please increase your current terminal size.")
-            logging.debug("Bye bye!")
+            logging.debug("Exiting due to terminal size.")
             sys.exit()
     except KeyboardInterrupt:
-        logging.debug("Bye bye!")
+        logging.debug("KeyboardInterrupt encountered. Exiting.")
         sys.exit()
 
 

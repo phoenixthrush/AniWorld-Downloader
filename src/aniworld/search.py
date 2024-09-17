@@ -10,20 +10,8 @@ from aniworld.common import clear_screen, fetch_url_content
 
 
 def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
-    """
-    Retrieve the anime slug based on either a provided slug or link.
-    - Tries using the slug first; if not found, tries using the link.
-    - If neither slug nor link is provided, prompts the user to search.
-
-    Args:
-        slug (str, optional): The anime slug.
-        link (str, optional): The URL containing the anime slug.
-        query (str, optional): The anime query.
-
-    Returns:
-        str: The anime slug.
-    """
     clear_screen()
+    logging.debug("Starting search_anime function")
 
     not_found = "Die gewünschte Serie wurde nicht gefunden oder ist im Moment deaktiviert."
 
@@ -44,7 +32,7 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
                 logging.debug(f"Found matching slug: {link.split('/')[-1]}")
                 return link.split('/')[-1]
         except ValueError:
-            pass
+            logging.debug("ValueError encountered while fetching link")
 
     while True:
         clear_screen()
@@ -54,13 +42,14 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
             query = input("Search for a series: ")
 
         url = f"https://aniworld.to/ajax/seriesSearch?keyword={quote(query)}"
+        logging.debug(f"Fetching Anime List with query: {query}")
 
-        logging.debug(f"Fetching Anime List.")
         json_data = fetch_url_content(url)
         decoded_data = loads(json_data.decode())
         logging.debug(f"Anime JSON List: {decoded_data}")
 
         if not isinstance(decoded_data, list) or not decoded_data:
+            logging.debug("No series found. Prompting user to try again.")
             print("No series found. Try again...")
             continue
 
@@ -70,18 +59,7 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
 
 
 def display_menu(stdscr: curses.window, items: List[Dict[str, Optional[str]]]) -> Optional[str]:
-    """
-    Displays a menu of anime series in a curses window and allows user interaction.
-
-    Args:
-        stdscr (curses.window): The curses window object used for drawing.
-        items (List[Dict[str, Optional[str]]]): List of dictionaries where each dictionary
-            represents an anime series.
-            Each dictionary contains optional 'name', 'link', and 'productionYear' fields.
-
-    Returns:
-        Optional[str]: The link of the selected anime or None if the menu is exited.
-    """
+    logging.debug("Starting display_menu function")
     current_row = 0
 
     while True:
@@ -96,14 +74,19 @@ def display_menu(stdscr: curses.window, items: List[Dict[str, Optional[str]]]) -
 
         stdscr.refresh()
         key = stdscr.getch()
+        logging.debug(f"Key pressed: {key}")
 
         if key == curses.KEY_DOWN:
             current_row = (current_row + 1) % len(items)
+            logging.debug(f"Moved down to row: {current_row}")
         elif key == curses.KEY_UP:
             current_row = (current_row - 1 + len(items)) % len(items)
+            logging.debug(f"Moved up to row: {current_row}")
         elif key == ord('\n'):
+            logging.debug(f"Selected anime: {items[current_row]}")
             return items[current_row].get('link', 'No Link')
         elif key == ord('q'):
+            logging.debug("Exiting menu")
             break
 
     return None

@@ -14,18 +14,7 @@ import requests
 from aniworld import globals
 
 def check_dependencies(dependencies: list) -> None:
-    """
-    Check if dependencies are available in PATH and handle platform-specific cases.
-
-    Args:
-        dependencies (list): List of dependency names.
-
-    Returns:
-        None
-
-    Exits:
-        Exits with error if any dependency is missing.
-    """
+    logging.debug("Entering check_dependencies function.")
     resolved_dependencies = []
 
     for dep in dependencies:
@@ -44,22 +33,8 @@ def check_dependencies(dependencies: list) -> None:
         logging.critical(f"Missing dependencies: {', '.join(missing)} in path. Please install and try again.")
         sys.exit(1)
 
-
 def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True) -> Optional[bytes]:
-    """
-    Fetch content from a URL with optional proxy.
-
-    Args:
-        url (str): The URL to fetch.
-        proxy (str, optional): Proxy URL (supports SOCKS and HTTP).
-        check (bool, optional): If True, exits on failure. If False, returns None on failure.
-
-    Returns:
-        Optional[bytes]: Content of the URL or None if an error occurs and check is False.
-
-    Exits:
-        Exits with error if check is True and the request fails.
-    """
+    logging.debug("Entering fetch_url_content function.")
     headers = {
         'User-Agent': (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -101,34 +76,16 @@ def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True)
             sys.exit(1)
         return None
 
-
 def clear_screen() -> None:
-    """
-    Clear the terminal screen based on the operating system.
-    """
+    logging.debug("Entering clear_screen function.")
     if not globals.IS_DEBUG_MODE:
         if platform.system() == "Windows":
             os.system("cls")
         else:
             os.system("clear")
 
-
 def clean_up_leftovers(directory: str) -> None:
-    """
-    Removes leftover files in the specified directory that match certain patterns.
-    Also removes the directory if it becomes empty after cleanup.
-
-    This method searches for files in the given directory that match the following patterns:
-    - '*.part'
-    - '*.ytdl'
-    - '*.part-Frag*'
-
-    Args:
-        directory (str): The directory where leftover files are to be removed.
-
-    Returns:
-        None: This method does not return any value.
-    """
+    logging.debug("Entering clean_up_leftovers function.")
     patterns: List[str] = ['*.part', '*.ytdl', '*.part-Frag*']
 
     leftover_files: List[str] = []
@@ -158,12 +115,8 @@ def clean_up_leftovers(directory: str) -> None:
         except OSError as e:
             logging.warning(f"OS error occurred while removing directory {directory}: {e}")
 
-
 def setup_aniskip() -> None:
-    """
-    Copy 'skip.lua', 'autostart.lua', and 'autoexit.lua'
-    to the correct MPV scripts directory based on the OS.
-    """
+    logging.debug("Entering setup_aniskip function.")
     script_directory = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     skip_source_path = os.path.join(script_directory, 'aniskip', 'skip.lua')
@@ -195,41 +148,19 @@ def setup_aniskip() -> None:
         logging.debug(f"Copying autoexit.lua to {mpv_scripts_directory}")
         shutil.copy(autoexit_source_path, autoexit_destination_path)
 
-
 def execute_command(command: List[str], only_command: bool) -> None:
-    """
-    Execute a command or print it as a string based on the 'only_command' flag.
-
-    Args:
-        command: List of command arguments.
-        only_command: If True, print the command; otherwise, execute it.
-    """
+    logging.debug("Entering execute_command function.")
     if only_command:
         print(' '.join(shlex.quote(arg) for arg in command))
     else:
         subprocess.run(command, check=True)
 
-
 def raise_runtime_error(message: str) -> None:
-    """
-    Raises a RuntimeError with the provided message.
-
-    Args:
-        message (str): The error message to include in the exception.
-    """
+    logging.debug("Entering raise_runtime_error function.")
     raise RuntimeError(message)
 
-
 def get_season_episodes(season_url):
-    """
-    Fetches episode URLs for a given season URL.
-
-    Args:
-        season_url (str): The URL of the season.
-
-    Returns:
-        List[str]: List of episode URLs.
-    """
+    logging.debug("Entering get_season_episodes function.")
     season_url_old = season_url
     season_url = season_url[:-2]
     season_suffix = f"/staffel-{season_url_old.split('/')[-1]}"
@@ -252,15 +183,7 @@ def get_season_episodes(season_url):
     return episode_urls
 
 def get_season_data(anime_slug: str):
-    """
-    Fetches season data for a given anime slug.
-
-    Args:
-        anime_slug (str): The slug of the anime.
-
-    Returns:
-        Dict[int, List[str]]: Dictionary with season numbers as keys and lists of episode URLs as values.
-    """
+    logging.debug("Entering get_season_data function.")
     BASE_URL_TEMPLATE = "https://aniworld.to/anime/stream/{anime}/"
     base_url = BASE_URL_TEMPLATE.format(anime=anime_slug)
 
@@ -284,15 +207,8 @@ def get_season_data(anime_slug: str):
 
     return season_data
 
-
 def set_terminal_size(columns: int=90, lines:int=27):
-    """
-    Set the terminal size based on the operating system.
-
-    Args:
-        columns (int): Number of columns.
-        lines (int): Number of lines.
-    """
+    logging.debug("Entering set_terminal_size function.")
     logging.debug(f"Setting terminal size to {columns} columns and {lines} lines.")
     system_name = platform.system()
 
@@ -304,6 +220,6 @@ def set_terminal_size(columns: int=90, lines:int=27):
         logging.error(f"Unsupported platform: {system_name}")
         raise NotImplementedError(f"Unsupported platform: {system_name}")
 
-
 def ftoi(value: float) -> str:
+    logging.debug("Entering ftoi function.")
     return str(int(value * 1000))
