@@ -127,7 +127,7 @@ class EpisodeForm(npyscreen.ActionForm):
         action_selected = self.action_selector.get_selected_objects()
         language_selected = self.language_selector.get_selected_objects()
         provider_selected = self.provider_selector.get_selected_objects()
-        aniskip_selected = self.aniskip_selector.get_selected_objects()
+        aniskip_selected = self.aniskip_selector.get_selected_objects()[0] == "Yes"
 
         logging.debug(f"Selected episodes: {selected_episodes}")
         logging.debug(f"Action selected: {action_selected}")

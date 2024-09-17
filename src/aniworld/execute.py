@@ -165,7 +165,7 @@ def perform_action(params: Dict[str, Any]) -> None:
     season_number = params.get("season_number")
     output_directory = params.get("output_directory")
     only_command = params.get("only_command", False)
-    aniskip_selected = params.get("aniskip_selected", "No") == "Yes"
+    aniskip_selected = bool(params.get("aniskip_selected", False))
 
     logging.debug(f"aniskip_selected: {aniskip_selected}")
 
@@ -224,7 +224,7 @@ def execute(params: Dict[str, Any]) -> None:
 
     selected_episodes = params['selected_episodes']
     action_selected = params['action_selected']
-    aniskip_selected = params.get("aniskip_selected", "No") == "Yes"
+    aniskip_selected = bool(params.get("aniskip_selected", False))
     lang = params['lang']
     output_directory = params['output_directory']
     anime_title = params['anime_title']
