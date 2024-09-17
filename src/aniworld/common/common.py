@@ -40,7 +40,7 @@ def check_dependencies(dependencies: list) -> None:
             f"{dep} (Download: {download_links.get(dep, 'No link available')})"
             for dep in missing
         ]
-        logging.critical(f"Missing dependencies: {', '.join(missing_with_links)} in path. Please add them to PATH and try again.")
+        logging.critical(f"Missing dependencies: {', '.join(missing_with_links)} in path. Please add them to PATH and reopen the terminal to apply the changes.")
         sys.exit(1)
 
 def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True) -> Optional[bytes]:
