@@ -293,15 +293,15 @@ def set_terminal_size(columns: int=90, lines:int=27):
         columns (int): Number of columns.
         lines (int): Number of lines.
     """
+    logging.debug(f"Setting terminal size to {columns} columns and {lines} lines.")
     system_name = platform.system()
 
     if system_name == 'Windows':
         os.system(f"mode con: cols={columns} lines={lines}")
-
     elif system_name in ['Linux', 'Darwin']:
         os.system(f"printf '\033[8;{lines};{columns}t'")
-
     else:
+        logging.error(f"Unsupported platform: {system_name}")
         raise NotImplementedError(f"Unsupported platform: {system_name}")
 
 

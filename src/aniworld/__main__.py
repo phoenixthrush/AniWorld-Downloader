@@ -13,31 +13,22 @@ from aniworld.search import search_anime
 from aniworld import execute, globals
 from aniworld.common import clear_screen, clean_up_leftovers, get_season_data, set_terminal_size
 
-class AnimeDownloader:
-    BASE_URL_TEMPLATE = "https://aniworld.to/anime/stream/{anime}/"
-
-    def __init__(self, anime_slug):
-        logging.debug(f"Initializing AnimeDownloader with slug: {anime_slug}")
-        self.anime_slug = anime_slug
-        self.anime_title = self.format_anime_title(anime_slug)
-        self.base_url = self.BASE_URL_TEMPLATE.format(anime=anime_slug)
-        self.season_data = get_season_data(anime_slug)
-        logging.debug(f"Initialized AnimeDownloader: {self.__dict__}")
-
-    @staticmethod
-    def format_anime_title(anime_slug):
-        try:
-            return anime_slug.replace("-", " ").title()
-        except AttributeError:
-            sys.exit()
-
+def format_anime_title(anime_slug):
+    try:
+        return anime_slug.replace("-", " ").title()
+    except AttributeError:
+        sys.exit()
 
 class EpisodeForm(npyscreen.ActionForm):
     def create(self):
         logging.debug("Creating EpisodeForm")
+        anime_slug = self.parentApp.anime_slug
+        anime_title = format_anime_title(anime_slug)
+        season_data = get_season_data(anime_slug)
+
         self.episode_map = {
-            f"{self.parentApp.anime_downloader.anime_title} - Season {season} - Episode {idx + 1}": url
-            for season, episodes in self.parentApp.anime_downloader.season_data.items()
+            f"{anime_title} - Season {season} - Episode {idx + 1}": url
+            for season, episodes in season_data.items()
             for idx, url in enumerate(episodes)
         }
         episode_list = list(self.episode_map.keys())
@@ -131,7 +122,7 @@ class EpisodeForm(npyscreen.ActionForm):
         npyscreen.notify_confirm(f"Selected episodes:\n{selected_str}", title="Selection")
 
         if not self.directory_field.hidden:
-            anime_title = self.parentApp.anime_downloader.anime_title
+            anime_title = format_anime_title(self.parentApp.anime_slug)
             output_directory = os.path.join(output_directory, anime_title)
             os.makedirs(output_directory, exist_ok=True)
 
@@ -143,7 +134,7 @@ class EpisodeForm(npyscreen.ActionForm):
                 'aniskip_selected': aniskip_selected[0],
                 'lang': lang,
                 'output_directory': output_directory,
-                'anime_title': self.parentApp.anime_downloader.anime_title
+                'anime_title': format_anime_title(self.parentApp.anime_slug)
             }
 
             logging.debug(f"Execute using: {params}")
@@ -182,7 +173,7 @@ class AnimeApp(npyscreen.NPSAppManaged):
     def __init__(self, anime_slug):
         super().__init__()
         logging.debug(f"Initializing AnimeApp with slug: {anime_slug}")
-        self.anime_downloader = AnimeDownloader(anime_slug)
+        self.anime_slug = anime_slug
 
     def onStart(self):
         logging.debug("Starting AnimeApp")
