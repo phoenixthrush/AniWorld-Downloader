@@ -3,7 +3,7 @@ import logging
 import colorlog
 import tempfile
 
-IS_DEBUG_MODE = True
+IS_DEBUG_MODE = False
 LOG_FILE_PATH = os.path.join(tempfile.gettempdir(), 'aniworld.log')
 
 DEFAULT_USER_AGENT = (
@@ -16,7 +16,7 @@ DEFAULT_ACTION = "Download"  # E.g. Watch, Download, Syncplay
 DEFAULT_DOWNLOAD_PATH = os.path.join(os.path.expanduser('~'), 'Downloads')
 DEFAULT_LANGUAGE = "German Sub"  # German Dub, English Sub, German Sub
 DEFAULT_PROVIDER = "Vidoza"  # Vidoza, Streamtape, VOE, Doodstream
-DEFAULT_PROVIDER_DOWNLOAD = DEFAULT_PROVIDER  # Vidoza, Streamtape, VOE, Doodstream
+DEFAULT_PROVIDER_DOWNLOAD = "VOE"  # Vidoza, Streamtape, VOE, Doodstream
 DEFAULT_ANISKIP = False
 DEFAULT_KEEP_WATCHING = False
 DEFAULT_ONLY_DIRECT_LINK = False
