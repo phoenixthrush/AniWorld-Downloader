@@ -1,8 +1,11 @@
 import os
 import logging
 import colorlog
+import tempfile
 
 IS_DEBUG_MODE = True
+LOG_FILE_PATH = os.path.join(tempfile.gettempdir(), 'aniworld.log')
+
 DEFAULT_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -33,12 +36,15 @@ formatter = colorlog.ColoredFormatter(
     log_colors=log_colors
 )
 
-handler = logging.StreamHandler()
-handler.setFormatter(formatter)
+stream_handler = logging.StreamHandler()
+stream_handler.setFormatter(formatter)
+
+file_handler = logging.FileHandler(LOG_FILE_PATH)
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 
 logging.basicConfig(
     level=logging.DEBUG if IS_DEBUG_MODE else logging.INFO,
-    handlers=[handler]
+    handlers=[stream_handler, file_handler]
 )
 
 # logging.getLogger('requests').setLevel(logging.WARNING)

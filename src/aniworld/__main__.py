@@ -131,7 +131,7 @@ class EpisodeForm(npyscreen.ActionForm):
                 'selected_episodes': [episode_url],
                 'provider_selected': provider_selected,
                 'action_selected': action_selected[0],
-                'aniskip_selected': aniskip_selected[0],
+                'aniskip_selected': aniskip_selected,
                 'lang': lang,
                 'output_directory': output_directory,
                 'anime_title': format_anime_title(self.parentApp.anime_slug)
@@ -240,6 +240,9 @@ def get_language_code(language):
 
 
 def main():
+    logging.debug("============================================")
+    logging.debug("Welcome to Aniworld!")
+    logging.debug("============================================\n")
     try:
         args = parse_arguments()
 
@@ -288,8 +291,10 @@ def main():
             }
             logging.debug(f"Execute using: {params}")
             execute(params=params)
+            logging.debug("Bye bye!")
             sys.exit()
     except KeyboardInterrupt:
+        logging.debug("Bye bye!")
         sys.exit()
 
     def run_app(query):
@@ -305,8 +310,10 @@ def main():
         except npyscreen.wgwidget.NotEnoughSpaceForWidget:
             clear_screen()
             print("Please increase your current terminal size.")
+            logging.debug("Bye bye!")
             sys.exit()
     except KeyboardInterrupt:
+        logging.debug("Bye bye!")
         sys.exit()
 
 

@@ -169,6 +169,7 @@ def perform_action(params: Dict[str, Any]) -> None:
         aniskip_options = process_aniskip(anime_title, season_number, episode_number)
         logging.debug(f"Aniskip options: {aniskip_options}")
     else:
+        logging.debug("Aniskip is not selected, skipping aniskip options")
         aniskip_options = []
 
     if action == "Watch":
@@ -179,6 +180,7 @@ def perform_action(params: Dict[str, Any]) -> None:
         command = build_command(link, mpv_title, "mpv", aniskip_selected, aniskip_options)
         logging.debug(f"Executing command: {command}")
         execute_command(command, only_command)
+        logging.debug("MPV has finished.\nBye bye!")
     elif action == "Download":
         check_dependencies(["yt-dlp"])
         file_name = f"{anime_title} - S{season_number}E{episode_number}.mp4"
@@ -191,6 +193,7 @@ def perform_action(params: Dict[str, Any]) -> None:
             execute_command(command, only_command)
         except KeyboardInterrupt:
             clean_up_leftovers(os.path.dirname(file_path))
+        logging.debug("yt-dlp has finished.\nBye bye!")
     elif action == "Syncplay":
         mpv_title = mpv_title.replace(" --- ", " - ", 1)
         check_dependencies(["mpv", "syncplay"])
@@ -199,6 +202,7 @@ def perform_action(params: Dict[str, Any]) -> None:
         command = build_syncplay_command(link, mpv_title, aniskip_options)
         logging.debug(f"Executing command: {command}")
         execute_command(command, only_command)
+        logging.debug("Syncplay has finished.\nBye bye!")
 
 def execute(params: Dict[str, Any]) -> None:
     logging.debug(f"Executing with params: {params}")
@@ -218,6 +222,8 @@ def execute(params: Dict[str, Any]) -> None:
     only_direct_link = params.get('only_direct_link', False)
     only_command = params.get('only_command', False)
     provider_selected = params['provider_selected']
+
+    # logging.critical(f"This is in execute.py, aniskip_selected: {aniskip_selected}")
 
     for episode_url in selected_episodes:
         logging.debug(f"Fetching episode HTML for URL: {episode_url}")
@@ -252,6 +258,7 @@ def execute(params: Dict[str, Any]) -> None:
 
                     mpv_title = f"{anime_title} --- S{season_number}E{episode_number} - {episode_title}"
 
+                    # logging.critical(f"This is in execute.py, aniskip_selected: {aniskip_selected}")
                     episode_params = {
                         "action": action,
                         "link": link,
