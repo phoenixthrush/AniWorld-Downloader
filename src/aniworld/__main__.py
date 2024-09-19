@@ -83,7 +83,7 @@ class EpisodeForm(npyscreen.ActionForm):
         self.aniskip_selector = self.add(
             npyscreen.TitleSelectOne,
             name="Aniskip",
-            values=["Yes", "No"],
+            values=["Enable", "Disable"],
             max_height=3,
             value=[0 if globals.DEFAULT_ANISKIP else 1],
             scroll_exit=True
@@ -158,7 +158,7 @@ class EpisodeForm(npyscreen.ActionForm):
         action_selected = self.action_selector.get_selected_objects()
         language_selected = self.language_selector.get_selected_objects()
         provider_selected = self.provider_selector.get_selected_objects()
-        aniskip_selected = self.aniskip_selector.get_selected_objects()[0] == "Yes"
+        aniskip_selected = self.aniskip_selector.get_selected_objects()[0] == "Enable"
 
         logging.debug(f"Selected episodes: {selected_episodes}")
         logging.debug(f"Action selected: {action_selected}")
