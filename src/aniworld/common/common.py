@@ -235,8 +235,10 @@ def set_terminal_size(columns: int=None, lines: int=None):
 
     if system_name == 'Windows':
         os.system(f"mode con: cols={columns} lines={lines}")
-    elif system_name in ['Linux', 'Darwin']:
+    elif system_name in 'Darwin':
         os.system(f"printf '\033[8;{lines};{columns}t'")
+    elif system_name in 'Linux':
+        logging.debug("Not resizing terminal on Linux")
     else:
         logging.error(f"Unsupported platform: {system_name}")
         raise NotImplementedError(f"Unsupported platform: {system_name}")
