@@ -333,9 +333,15 @@ def main():
         args = parse_arguments()
         logging.debug(f"Parsed arguments: {args}")
 
-        if args.link and args.link.count('/') != 5:
-            logging.debug("Provided link invalid.")
-            args.link = None
+        if args.link:
+            if args.link.count('/') == 5:
+                logging.debug("Provided link format valid.")
+            elif args.link.count('/') == 6 and args.link.endswith('/'):
+                logging.debug("Provided link format valid.")
+                args.link = args.link.rstrip('/')
+            else:
+                logging.debug("Provided link invalid.")
+                args.link = None
 
         handle_query(args)
 
