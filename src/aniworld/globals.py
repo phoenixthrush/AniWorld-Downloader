@@ -23,6 +23,8 @@ DEFAULT_ONLY_DIRECT_LINK = False
 DEFAULT_ONLY_COMMAND = False
 DEFAULT_PROXY = None
 
+DEFAULT_TERMINAL_SIZE = (90, 28)
+
 log_colors = {
     'DEBUG': 'bold_blue',
     'INFO': 'bold_green',
