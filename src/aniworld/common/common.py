@@ -243,3 +243,20 @@ def get_version_from_pyproject():
     except Exception as e:
         logging.error(f"Error reading version from pyproject.toml: {e}")
         return ""
+    
+def get_language_code(language: str) -> str:
+    logging.debug(f"Getting language code for: {language}")
+    return {
+        "German Dub": "1",
+        "English Sub": "2",
+        "German Sub": "3"
+    }.get(language, "")
+
+def get_language_string(lang_key: int) -> str:
+    logging.debug("Entering get_language_string function.")
+    lang_map = {
+        1: "German Dub",
+        2: "English Sub",
+        3: "German Sub"
+    }
+    return lang_map.get(lang_key, "Unknown Language")

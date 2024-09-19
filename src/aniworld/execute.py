@@ -20,7 +20,8 @@ from aniworld.common import (
     execute_command,
     setup_aniskip,
     fetch_url_content,
-    check_dependencies
+    check_dependencies,
+    get_language_string
 )
 
 from aniworld.aniskip import aniskip
@@ -286,6 +287,9 @@ def execute(params: Dict[str, Any]) -> None:
                         logging.debug(f"Performing action with params: {episode_params}")
                         perform_action(episode_params)
                         break
+                else:
+                    available_languages = [get_language_string(lang_code) for lang_code in data[provider].keys()]
+                    logging.critical(f"No available languages for provider {provider} matching the selected language {get_language_string(int(lang))}. Available languages: {available_languages}")
                 break
             else:
                 logging.warning(f"Provider {provider} not available, trying next provider.")

@@ -16,7 +16,8 @@ from aniworld.common import (
     clean_up_leftovers,
     get_season_data,
     set_terminal_size,
-    get_version_from_pyproject
+    get_version_from_pyproject,
+    get_language_code
 )
 
 def format_anime_title(anime_slug):
@@ -315,15 +316,6 @@ def get_anime_title(args):
         logging.debug(f"Anime title from episode URL: {title}")
         return title
     return None
-
-
-def get_language_code(language):
-    logging.debug(f"Getting language code for: {language}")
-    return {
-        "German Dub": "1",
-        "English Sub": "2",
-        "German Sub": "3"
-    }.get(language, "")
 
 def main():
     logging.debug("============================================")
