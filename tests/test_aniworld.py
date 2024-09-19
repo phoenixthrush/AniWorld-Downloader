@@ -32,23 +32,21 @@ def test_main(args):
         'output': '--output',
         'language': '--language',
         'provider': '--provider',
-        'proxy': '--proxy'
-    }
-    for arg, flag in arg_map.items():
-        value = getattr(args, arg)
-        if value is not None:
-            command.extend([flag, value])
-    
-    flag_map = {
+        'proxy': '--proxy',
         'aniskip': '--aniskip',
         'keep_watching': '--keep-watching',
         'only_direct_link': '--only-direct-link',
         'only_command': '--only-command',
         'debug': '--debug'
     }
-    for arg, flag in flag_map.items():
-        if getattr(args, arg):
-            command.append(flag)
+
+    for arg, flag in arg_map.items():
+        value = getattr(args, arg)
+        if value is not None:
+            if isinstance(value, bool) and value:
+                command.append(flag)
+            elif not isinstance(value, bool):
+                command.extend([flag, value])
 
     try:
         result = subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -58,32 +56,42 @@ def test_main(args):
         print(f"Error output: {e.stderr}")
         raise
 
+def run_test(test_name, args, url_pattern, expected_pattern, first_test=False):
+    try:
+        if not first_test:
+            print(f"\nTesting {test_name}...")
+        else:
+            print(f"Testing {test_name}...")
+        output = test_main(args)
+        assert re.search(expected_pattern, output), f"Output did not contain expected pattern: {output}"
+        print("\033[92mOK\033[0m")
+    except AssertionError:
+        print("\033[91mFAILURE\033[0m")
+
 def test_functions():
     clear_screen()
     episode = 'https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1'
 
-    print("Testing Download...")
-    test_args_1 = Args(only_command=True, episode=episode, output='/Users/bleh/Downloads/Demon Slayer: Kimetsu no Yaiba - S1E1.mp4', language='English Sub')
-    output_1 = test_main(test_args_1)
-    url_pattern = r"https://[^\s]*v\.mp4[^\s]*"
-    expected_pattern = rf"yt-dlp --fragment-retries infinite --concurrent-fragments 4 -o '/Users/bleh/Downloads/Demon Slayer: Kimetsu no Yaiba - S1E1.mp4/Demon Slayer: Kimetsu no Yaiba - S1E1.mp4' --quiet --progress --no-warnings {url_pattern}"
-    assert re.search(expected_pattern, output_1), f"Output did not contain expected pattern: {output_1}"
-    print("\033[92mOK\033[0m")
+    run_test(
+        "Download",
+        Args(only_command=True, episode=episode, output='/Users/bleh/Downloads/Demon Slayer: Kimetsu no Yaiba - S1E1.mp4', language='English Sub'),
+        r"https://[^\s]*v\.mp4[^\s]*",
+        r"yt-dlp --fragment-retries infinite --concurrent-fragments 4 -o '/Users/bleh/Downloads/Demon Slayer: Kimetsu no Yaiba - S1E1.mp4/Demon Slayer: Kimetsu no Yaiba - S1E1.mp4' --quiet --progress --no-warnings https://[^\s]*v\.mp4[^\s]*",
+        first_test=True
+    )
 
-    print("\nTesting Watch...")
-    test_args_1 = Args(only_command=True, episode=episode, action='Watch', provider='VOE', language='German Dub')
-    output_1 = test_main(test_args_1)
-    url_pattern = r"https://[^\s]*master\.m3u8[^\s]*"
-    expected_pattern = rf"mpv '{url_pattern}' --fs --quiet --really-quiet '--force-media-title=Demon Slayer: Kimetsu no Yaiba - S1E1 - Grausamkeit / Cruelty'"
-    assert re.search(expected_pattern, output_1), f"Output did not contain expected pattern: {output_1}"
-    print("\033[92mOK\033[0m")
+    run_test(
+        "Watch",
+        Args(only_command=True, episode=episode, action='Watch', provider='VOE', language='German Dub'),
+        r"https://[^\s]*master\.m3u8[^\s]*",
+        r"mpv 'https://[^\s]*master\.m3u8[^\s]*' --fs --quiet --really-quiet '--force-media-title=Demon Slayer: Kimetsu no Yaiba - S1E1 - Grausamkeit / Cruelty'"
+    )
 
-    print("\nTesting Syncplay...")
-    test_args_1 = Args(only_command=True, episode=episode, action='Syncplay', provider='Streamtape', aniskip=True)
-    output_1 = test_main(test_args_1)
-    url_pattern = r"https://[^\s]*streamtape\.com/get_video[^\s]*"
-    expected_pattern = rf"syncplay --no-gui --no-store --host syncplay.pl:8997 --name phoenixthrush --room Demon_Slayer:_Kimetsu_no_Yaiba_-_S1E1_-_Grausamkeit_/_Cruelty --player-path /opt/homebrew/bin/mpv '{url_pattern}' -- --fs '--force-media-title=Demon Slayer: Kimetsu no Yaiba - S1E1 - Grausamkeit / Cruelty'"
-    assert re.search(expected_pattern, output_1), f"Output did not contain expected pattern: {output_1}"
-    print("\033[92mOK\033[0m")
+    run_test(
+        "Syncplay",
+        Args(only_command=True, episode=episode, action='Syncplay', provider='Streamtape', aniskip=True),
+        r"https://[^\s]*streamtape\.com/get_video[^\s]*",
+        r"syncplay --no-gui --no-store --host syncplay.pl:8997 --name phoenixthrush --room Demon_Slayer:_Kimetsu_no_Yaiba_-_S1E1_-_Grausamkeit_/_Cruelty --player-path /opt/homebrew/bin/mpv 'https://[^\s]*streamtape\.com/get_video[^\s]*' -- --fs '--force-media-title=Demon Slayer: Kimetsu no Yaiba - S1E1 - Grausamkeit / Cruelty'"
+    )
 
 test_functions()
