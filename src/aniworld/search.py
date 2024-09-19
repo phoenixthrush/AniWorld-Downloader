@@ -39,7 +39,7 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
         if not query:
             query = input("Search for a series: ")
         else:
-            query = input("Search for a series: ")
+            logging.debug(f"Using provided query: {query}")
 
         url = f"https://aniworld.to/ajax/seriesSearch?keyword={quote(query)}"
         logging.debug(f"Fetching Anime List with query: {query}")
@@ -51,7 +51,12 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
         if not isinstance(decoded_data, list) or not decoded_data:
             logging.debug("No series found. Prompting user to try again.")
             print("No series found. Try again...")
+            query = None  # Reset query to prompt user again
             continue
+
+        if len(decoded_data) == 1:
+            logging.debug(f"Only one anime found: {decoded_data[0]}")
+            return decoded_data[0].get('link', 'No Link Found')
 
         selected_slug = curses.wrapper(display_menu, decoded_data)
         logging.debug(f"Found matching slug: {selected_slug}")

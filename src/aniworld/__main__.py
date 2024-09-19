@@ -238,7 +238,7 @@ def parse_arguments():
 def handle_query(args):
     logging.debug(f"Handling query with args: {args}")
     if args.query and not args.episode:
-        slug = search_anime.search_anime(query=args.query)
+        slug = search_anime(query=args.query)
         logging.debug(f"Found slug: {slug}")
         season_data = get_season_data(anime_slug=slug)
         logging.debug(f"Season data: {season_data}")
