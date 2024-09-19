@@ -38,15 +38,12 @@ formatter = colorlog.ColoredFormatter(
     log_colors=log_colors
 )
 
-stream_handler = logging.StreamHandler()
-stream_handler.setFormatter(formatter)
-
 file_handler = logging.FileHandler(LOG_FILE_PATH)
 file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 
 logging.basicConfig(
     level=logging.DEBUG if IS_DEBUG_MODE else logging.INFO,
-    handlers=[stream_handler, file_handler]
+    handlers=[file_handler]
 )
 
 # logging.getLogger('requests').setLevel(logging.WARNING)
