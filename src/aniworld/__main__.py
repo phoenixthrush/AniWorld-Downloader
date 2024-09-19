@@ -232,7 +232,15 @@ def parse_arguments():
     parser.add_argument('--proxy', type=str, default=globals.DEFAULT_PROXY, help='Set HTTP Proxy (not working yet)')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode')
 
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    if args.debug:
+        os.environ['IS_DEBUG_MODE'] = '1'
+        globals.IS_DEBUG_MODE = True
+        logging.getLogger().setLevel(logging.DEBUG)
+        logging.debug("Debug mode enabled")
+
+    return args
 
 
 def handle_query(args):
