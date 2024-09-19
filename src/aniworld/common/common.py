@@ -62,6 +62,17 @@ def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True)
                 'http': f'http://{proxy}',
                 'https': f'https://{proxy}'
             }
+    elif globals.DEFAULT_PROXY:
+        if globals.DEFAULT_PROXY.startswith('socks'):
+            proxies = {
+                'http': globals.DEFAULT_PROXY,
+                'https': globals.DEFAULT_PROXY
+            }
+        else:
+            proxies = {
+                'http': f'http://{globals.DEFAULT_PROXY}',
+                'https': f'https://{globals.DEFAULT_PROXY}'
+            }
     else:
         proxies = {
             "http": os.getenv("HTTP_PROXY"),

@@ -262,7 +262,7 @@ def parse_arguments():
     parser.add_argument('--keep-watching', action='store_true', default=globals.DEFAULT_KEEP_WATCHING, help='Continue watching')
     parser.add_argument('--only-direct-link', action='store_true', default=globals.DEFAULT_ONLY_DIRECT_LINK, help='Output direct link')
     parser.add_argument('--only-command', action='store_true', default=globals.DEFAULT_ONLY_COMMAND, help='Output command')
-    parser.add_argument('--proxy', type=str, default=globals.DEFAULT_PROXY, help='Set HTTP Proxy (not working yet)')
+    parser.add_argument('--proxy', type=str, default=globals.DEFAULT_PROXY, help='Set HTTP Proxy - E.g. http://0.0.0.0:8080')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode')
 
     args = parser.parse_args()
@@ -272,6 +272,12 @@ def parse_arguments():
         globals.IS_DEBUG_MODE = True
         logging.getLogger().setLevel(logging.DEBUG)
         logging.debug("Debug mode enabled")
+
+    if args.proxy:
+        os.environ['HTTP_PROXY'] = args.proxy
+        os.environ['HTTPS_PROXY'] = args.proxy
+        globals.DEFAULT_PROXY = args.proxy
+        logging.debug(f"Proxy set to: {args.proxy}")
 
     return args
 

@@ -194,10 +194,8 @@ These are automatically installed when you install AniWorld Downloader via pip.
 - [x] Refactor code into modular Python files
 - [x] Do not show whole link in selection; display season and episode with name
 - [x] Integrate Python logging module
+- [x] Add proxy support
 - [ ] Fix Aniskip Seasons if other than first season
-- [ ] Fix Aniskip finding wrong MAL ID
-- [ ] Add proxy support (partially done)
-- [ ] Fix Aniskip finding wrong timestamps
 - [ ] Configure Anime4K installation setup
 - [ ] Support Doodstream
 
