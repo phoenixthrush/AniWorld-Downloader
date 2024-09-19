@@ -218,7 +218,7 @@ def get_season_data(anime_slug: str):
 
     return season_data
 
-def set_terminal_size(columns: int=90, lines:int=27):
+def set_terminal_size(columns: int=90, lines:int=28):
     logging.debug("Entering set_terminal_size function.")
     logging.debug(f"Setting terminal size to {columns} columns and {lines} lines.")
     system_name = platform.system()

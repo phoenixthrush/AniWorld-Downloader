@@ -29,6 +29,29 @@ def format_anime_title(anime_slug):
         logging.debug("AttributeError encountered in format_anime_title")
         sys.exit()
 
+class CustomTheme(npyscreen.ThemeManager):
+    default_colors = {
+        'DEFAULT'     : 'WHITE_BLACK',
+        'FORMDEFAULT' : 'MAGENTA_BLACK',  # Form border
+        'NO_EDIT'     : 'BLUE_BLACK',
+        'STANDOUT'    : 'CYAN_BLACK',
+        'CURSOR'      : 'WHITE_BLACK',  # Text (focused)
+        'CURSOR_INVERSE': 'BLACK_WHITE',
+        'LABEL'       : 'CYAN_BLACK',  # Form labels
+        'LABELBOLD'   : 'CYAN_BLACK',  # Form labels (focused)
+        'CONTROL'     : 'GREEN_BLACK',  # Items in form
+        'IMPORTANT'   : 'GREEN_BLACK',
+        'SAFE'        : 'GREEN_BLACK',
+        'WARNING'     : 'YELLOW_BLACK',
+        'DANGER'      : 'RED_BLACK',
+        'CRITICAL'    : 'BLACK_RED',
+        'GOOD'        : 'GREEN_BLACK',
+        'GOODHL'      : 'GREEN_BLACK',
+        'VERYGOOD'    : 'BLACK_GREEN',
+        'CAUTION'     : 'YELLOW_BLACK',
+        'CAUTIONHL'   : 'BLACK_YELLOW',
+    }
+
 class EpisodeForm(npyscreen.ActionForm):
     def create(self):
         logging.debug("Creating EpisodeForm")
@@ -49,7 +72,7 @@ class EpisodeForm(npyscreen.ActionForm):
 
         self.action_selector = self.add(
             npyscreen.TitleSelectOne,
-            name="Watch, Download or Syncplay",
+            name="Action",
             values=["Watch", "Download", "Syncplay"],
             max_height=4,
             value=[["Watch", "Download", "Syncplay"].index(globals.DEFAULT_ACTION)],
@@ -59,7 +82,7 @@ class EpisodeForm(npyscreen.ActionForm):
 
         self.aniskip_selector = self.add(
             npyscreen.TitleSelectOne,
-            name="Use Aniskip (Skip Intro & Outro)",
+            name="Aniskip",
             values=["Yes", "No"],
             max_height=3,
             value=[0 if globals.DEFAULT_ANISKIP else 1],
@@ -76,7 +99,7 @@ class EpisodeForm(npyscreen.ActionForm):
 
         self.language_selector = self.add(
             npyscreen.TitleSelectOne,
-            name="Language Options",
+            name="Language",
             values=["German Dub", "English Sub", "German Sub"],
             max_height=4,
             value=[["German Dub", "English Sub", "German Sub"].index(globals.DEFAULT_LANGUAGE)],
@@ -86,7 +109,7 @@ class EpisodeForm(npyscreen.ActionForm):
 
         self.provider_selector = self.add(
             npyscreen.TitleSelectOne,
-            name="Provider Options (VOE recommended for Downloading)",
+            name="Provider",
             values=["Vidoza", "Streamtape", "VOE", "Doodstream"],
             max_height=4,
             value=[["Vidoza", "Streamtape", "VOE", "Doodstream"].index(globals.DEFAULT_PROVIDER)],
@@ -94,9 +117,10 @@ class EpisodeForm(npyscreen.ActionForm):
         )
         logging.debug("Provider selector created")
 
+        self.add(npyscreen.FixedText, value="")  # new line
         self.episode_selector = self.add(
             npyscreen.TitleMultiSelect,
-            name="Select Episodes",
+            name="Episode Selection",
             values=episode_list,
             max_height=7,
             scroll_exit=True
@@ -218,6 +242,7 @@ class AnimeApp(npyscreen.NPSAppManaged):
 
     def onStart(self):
         logging.debug("Starting AnimeApp")
+        npyscreen.setTheme(CustomTheme)
         self.addForm("MAIN", EpisodeForm, name=f"AniWorld-Downloader{get_version_from_pyproject()}")
 
 
