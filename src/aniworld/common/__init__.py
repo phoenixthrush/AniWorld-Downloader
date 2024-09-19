@@ -8,5 +8,6 @@ from .common import (
     clean_up_leftovers,
     get_season_data,
     set_terminal_size,
-    ftoi
+    ftoi,
+    get_version_from_pyproject
 )

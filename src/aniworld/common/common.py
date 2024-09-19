@@ -5,6 +5,7 @@ import shutil
 import sys
 import shlex
 import subprocess
+import toml
 import logging
 from typing import List, Optional
 
@@ -233,3 +234,12 @@ def set_terminal_size(columns: int=90, lines:int=27):
 def ftoi(value: float) -> str:
     logging.debug("Entering ftoi function.")
     return str(int(value * 1000))
+
+def get_version_from_pyproject():
+    try:
+        with open(os.path.join(os.path.dirname(__file__), '../../../pyproject.toml'), 'r') as f:
+            pyproject_data = toml.load(f)
+            return f" v{pyproject_data['project']['version']}"
+    except Exception as e:
+        logging.error(f"Error reading version from pyproject.toml: {e}")
+        return ""

@@ -11,7 +11,13 @@ import npyscreen
 
 from aniworld.search import search_anime
 from aniworld import execute, globals
-from aniworld.common import clear_screen, clean_up_leftovers, get_season_data, set_terminal_size
+from aniworld.common import (
+    clear_screen,
+    clean_up_leftovers,
+    get_season_data,
+    set_terminal_size,
+    get_version_from_pyproject
+)
 
 def format_anime_title(anime_slug):
     logging.debug(f"Formatting anime title for slug: {anime_slug}")
@@ -212,7 +218,7 @@ class AnimeApp(npyscreen.NPSAppManaged):
 
     def onStart(self):
         logging.debug("Starting AnimeApp")
-        self.addForm("MAIN", EpisodeForm, name="Anime Downloader")
+        self.addForm("MAIN", EpisodeForm, name=f"AniWorld-Downloader{get_version_from_pyproject()}")
 
 
 def parse_arguments():
