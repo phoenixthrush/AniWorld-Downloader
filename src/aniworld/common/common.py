@@ -5,7 +5,7 @@ import shutil
 import sys
 import shlex
 import subprocess
-import toml
+import re
 import logging
 from typing import List, Optional
 
@@ -248,8 +248,12 @@ def ftoi(value: float) -> str:
 def get_version_from_pyproject():
     try:
         with open(os.path.join(os.path.dirname(__file__), '../../../pyproject.toml'), 'r') as f:
-            pyproject_data = toml.load(f)
-            return f" v{pyproject_data['project']['version']}"
+            pyproject_data = f.read()
+            match = re.search(r'version\s*=\s*["\'](.*?)["\']', pyproject_data)
+            if match:
+                return f" v{match.group(1)}"
+            else:
+                return ""
     except Exception as e:
         logging.error(f"Error reading version from pyproject.toml: {e}")
         return ""
