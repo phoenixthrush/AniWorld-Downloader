@@ -87,6 +87,7 @@ def test_functions():
         r"mpv 'https://[^\s]*master\.m3u8[^\s]*' --fs --quiet --really-quiet '--force-media-title=Demon Slayer: Kimetsu no Yaiba - S1E1 - Grausamkeit / Cruelty'"
     )
 
+    # TODO aniskip is not applied
     run_test(
         "Syncplay",
         Args(only_command=True, episode=episode, action='Syncplay', provider='Streamtape', aniskip=True),
