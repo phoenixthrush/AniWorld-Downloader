@@ -249,40 +249,45 @@ def execute(params: Dict[str, Any]) -> None:
         logging.debug(f"Language Code: {lang}")
         logging.debug(f"Available Providers: {data.keys()}")
 
-        if provider_selected in data:
-            logging.debug(f"Trying provider: {provider_selected}")
-            logging.debug(f"Available Languages for {provider_selected}: {data.get(provider_selected, {}).keys()}")
+        providers_to_try = [provider_selected] + [p for p in provider_mapping.keys() if p != provider_selected]
+        for provider in providers_to_try:
+            if provider in data:
+                logging.debug(f"Trying provider: {provider}")
+                logging.debug(f"Available Languages for {provider}: {data.get(provider, {}).keys()}")
 
-            for language in data[provider_selected]:
-                if language == int(lang):
-                    season_number, episode_number = get_season_and_episode_numbers(episode_url)
-                    action = action_selected
+                for language in data[provider]:
+                    if language == int(lang):
+                        season_number, episode_number = get_season_and_episode_numbers(episode_url)
+                        action = action_selected
 
-                    provider_function = provider_mapping[provider_selected]
-                    request_url = data[provider_selected][language]
-                    link = fetch_direct_link(provider_function, request_url)
+                        provider_function = provider_mapping[provider]
+                        request_url = data[provider][language]
+                        link = fetch_direct_link(provider_function, request_url)
 
-                    if only_direct_link:
-                        logging.debug(f"Only direct link requested: {link}")
-                        print(link)
-                        continue
+                        if only_direct_link:
+                            logging.debug(f"Only direct link requested: {link}")
+                            print(link)
+                            continue
 
-                    mpv_title = f"{anime_title} --- S{season_number}E{episode_number} - {episode_title}"
+                        mpv_title = f"{anime_title} --- S{season_number}E{episode_number} - {episode_title}"
 
-                    episode_params = {
-                        "action": action,
-                        "link": link,
-                        "mpv_title": mpv_title,
-                        "anime_title": anime_title,
-                        "episode_number": episode_number,
-                        "season_number": season_number,
-                        "output_directory": output_directory,
-                        "only_command": only_command,
-                        "aniskip_selected": aniskip_selected
-                    }
+                        episode_params = {
+                            "action": action,
+                            "link": link,
+                            "mpv_title": mpv_title,
+                            "anime_title": anime_title,
+                            "episode_number": episode_number,
+                            "season_number": season_number,
+                            "output_directory": output_directory,
+                            "only_command": only_command,
+                            "aniskip_selected": aniskip_selected
+                        }
 
-                    logging.debug(f"Performing action with params: {episode_params}")
-                    perform_action(episode_params)
-                    break
+                        logging.debug(f"Performing action with params: {episode_params}")
+                        perform_action(episode_params)
+                        break
+                break
+            else:
+                logging.warning(f"Provider {provider} not available, trying next provider.")
         else:
             logging.error(f"Provider {provider_selected} not found in available providers.")
