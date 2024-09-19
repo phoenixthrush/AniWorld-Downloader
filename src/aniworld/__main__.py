@@ -92,7 +92,8 @@ class EpisodeForm(npyscreen.ActionForm):
             npyscreen.TitleMultiSelect,
             name="Select Episodes",
             values=episode_list,
-            max_height=7
+            max_height=7,
+            scroll_exit=True
         )
         logging.debug("Episode selector created")
 
