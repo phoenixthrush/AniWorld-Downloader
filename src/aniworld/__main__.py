@@ -111,14 +111,14 @@ class EpisodeForm(npyscreen.ActionForm):
         self.provider_selector = self.add(
             npyscreen.TitleSelectOne,
             name="Provider",
-            values=["Vidoza", "Streamtape", "VOE", "Doodstream"],
-            max_height=4,
-            value=[["Vidoza", "Streamtape", "VOE", "Doodstream"].index(globals.DEFAULT_PROVIDER)],
+            values=["Vidoza", "Streamtape", "VOE"],  # Doodstream broken
+            max_height=3,  # 4 with Doodstream
+            value=[["Vidoza", "Streamtape", "VOE"].index(globals.DEFAULT_PROVIDER)],
             scroll_exit=True
         )
         logging.debug("Provider selector created")
 
-        self.add(npyscreen.FixedText, value="")  # new line
+        self.add(npyscreen.FixedText, value="", editable=False)  # new line
         self.episode_selector = self.add(
             npyscreen.TitleMultiSelect,
             name="Episode Selection",
