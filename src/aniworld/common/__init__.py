@@ -11,5 +11,6 @@ from .common import (
     ftoi,
     get_version_from_pyproject,
     get_language_code,
-    get_language_string
+    get_language_string,
+    download_dependencies
 )

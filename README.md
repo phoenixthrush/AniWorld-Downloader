@@ -182,6 +182,7 @@ AniWorld Downloader relies on the following Python packages:
 - `npyscreen`
 - `thefuzz`
 - `colorlog`
+- `py7zr`
 - `windows-curses` (only on Windows)
 
 These are automatically installed when you install AniWorld Downloader via pip.

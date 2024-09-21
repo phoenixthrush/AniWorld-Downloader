@@ -79,14 +79,11 @@ def display_menu(stdscr: curses.window, items: List[Dict[str, Optional[str]]]) -
 
         stdscr.refresh()
         key = stdscr.getch()
-        logging.debug(f"Key pressed: {key}")
 
         if key == curses.KEY_DOWN:
             current_row = (current_row + 1) % len(items)
-            logging.debug(f"Moved down to row: {current_row}")
         elif key == curses.KEY_UP:
             current_row = (current_row - 1 + len(items)) % len(items)
-            logging.debug(f"Moved up to row: {current_row}")
         elif key == ord('\n'):
             logging.debug(f"Selected anime: {items[current_row]}")
             return items[current_row].get('link', 'No Link')

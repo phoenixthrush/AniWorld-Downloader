@@ -1,16 +1,18 @@
 import glob
-import platform
-import os
-import shutil
-import sys
-import shlex
-import subprocess
-import re
+import json
 import logging
+import os
+import platform
+import re
+import shlex
+import shutil
+import subprocess
+import sys
 from typing import List, Optional
 
-from bs4 import BeautifulSoup
 import requests
+import py7zr
+from bs4 import BeautifulSoup
 
 from aniworld import globals
 
@@ -31,18 +33,23 @@ def check_dependencies(dependencies: list) -> None:
     missing = [dep for dep in resolved_dependencies if shutil.which(dep) is None]
 
     if missing:
-        download_links = {
-            "mpv": "https://mpv.io/installation/",
-            "syncplay": "https://syncplay.pl/download/",
-            "SyncplayConsole": "https://syncplay.pl/download/",
-            "yt-dlp": "https://github.com/yt-dlp/yt-dlp#installation"
-        }
-        missing_with_links = [
-            f"{dep} (Download: {download_links.get(dep, 'No link available')})"
-            for dep in missing
-        ]
-        logging.critical(f"Missing dependencies: {', '.join(missing_with_links)} in path. Please add them to PATH and reopen the terminal to apply the changes.")
-        sys.exit(1)
+        logging.info(f"Missing dependencies: {missing}. Attempting to download.")
+        download_dependencies(missing)
+
+        still_missing = [dep for dep in resolved_dependencies if shutil.which(dep) is None]
+        if still_missing:
+            download_links = {
+                "mpv": "https://mpv.io/installation/",
+                "syncplay": "https://syncplay.pl/download/",
+                "SyncplayConsole": "https://syncplay.pl/download/",
+                "yt-dlp": "https://github.com/yt-dlp/yt-dlp#installation"
+            }
+            missing_with_links = [
+                f"{dep} (Download: {download_links.get(dep, 'No link available')})"
+                for dep in still_missing
+            ]
+            logging.critical(f"Missing dependencies: {', '.join(missing_with_links)} in path. Please add them to PATH and reopen the terminal to apply the changes.")
+            sys.exit(1)
 
 def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True) -> Optional[bytes]:
     logging.debug("Entering fetch_url_content function.")
@@ -271,3 +278,103 @@ def get_language_string(lang_key: int) -> str:
         3: "German Sub"
     }
     return lang_map.get(lang_key, "Unknown Language")
+
+def get_github_release(repo: str) -> dict:
+    api_url = f"https://api.github.com/repos/{repo}/releases/latest"
+
+    try:
+        response_content = fetch_url_content(api_url, check=False)
+        if not response_content:
+            logging.error(f"Failed to fetch latest release from {repo}")
+            return {}
+
+        release_data = json.loads(response_content)
+        return {asset['name']: asset['browser_download_url'] for asset in release_data.get('assets', [])}
+    except json.JSONDecodeError as e:
+        logging.error(f"Error decoding JSON response from {repo}: {e}")
+    except Exception as e:
+        logging.error(f"Unexpected error fetching latest release from {repo}: {e}")
+    return {}
+
+def download_dependencies(dependencies: list):
+    logging.debug("Entering download_dependencies function.")
+    logging.debug(f"Dependencies to download: {dependencies}")
+
+    if platform.system() != "Windows":
+        logging.debug("Not on Windows, skipping dependency download.")
+        return
+
+    for dep in dependencies:
+        if shutil.which(dep):
+            logging.info(f"{dep} is already in PATH. Skipping download.")
+            dependencies.remove(dep)
+    
+    if not dependencies:
+        logging.info("All required dependencies are already in PATH. No downloads needed.")
+        return
+
+    appdata_path = os.path.join(os.getenv('APPDATA'), 'aniworld')
+    logging.debug(f"Creating appdata path: {appdata_path}")
+    os.makedirs(appdata_path, exist_ok=True)
+
+    for dep in dependencies:
+        dep_path = os.path.join(appdata_path, dep)
+        if os.path.exists(dep_path):
+            logging.info(f"{dep_path} already exists. Adding to PATH.")
+            current_path = os.environ.get('PATH', '')
+            new_path = os.pathsep.join([current_path, dep_path])
+            os.environ['PATH'] = new_path
+            continue
+
+        logging.debug(f"Creating directory for {dep} at {dep_path}")
+        os.makedirs(dep_path, exist_ok=True)
+
+        if dep == 'mpv':
+            direct_links = get_github_release("shinchiro/mpv-winbuild-cmake")
+            direct_link = next((link for name, link in direct_links.items() if re.match(r'mpv-x86_64-v3-\d{8}-git-[a-f0-9]{7}\.7z', name)), None)
+            if not direct_link:
+                logging.error("No download link found for MPV.")
+                return
+            logging.debug(direct_link)
+
+            zip_path = os.path.join(appdata_path, 'mpv.7z')
+            logging.debug(f"Downloading {dep} from {direct_link} to {zip_path}")
+            url_content = fetch_url_content(direct_link)
+            with open(zip_path, 'wb') as f:
+                f.write(url_content)
+            logging.debug(f"Unpacking {zip_path} to {dep_path}")
+            with py7zr.SevenZipFile(zip_path, mode='r') as archive:
+                archive.extractall(path=dep_path)
+            os.remove(zip_path)
+            logging.debug(f"Removed {zip_path} after unpacking")
+        elif dep == 'syncplay':
+            direct_links = get_github_release("Syncplay/syncplay")
+            direct_link = next((link for name, link in direct_links.items() if re.match(r'Syncplay_\d+\.\d+\.\d+_Portable\.zip', name)), None)
+            if not direct_link:
+                logging.error("No download link found for Syncplay.")
+                return
+            logging.debug(direct_link)
+
+            exe_path = os.path.join(dep_path, 'syncplay.zip')
+            logging.debug(f"Downloading {dep} from {direct_link} to {exe_path}")
+            url_content = fetch_url_content(direct_link)
+            with open(exe_path, 'wb') as f:
+                f.write(url_content)
+            
+            logging.debug(f"Unpacking {exe_path} to {dep_path}")
+            shutil.unpack_archive(exe_path, dep_path)
+            os.remove(exe_path)
+            logging.debug(f"Removed {exe_path} after unpacking")
+        elif dep == 'yt-dlp':
+            url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
+            exe_path = os.path.join(dep_path, 'yt-dlp.exe')
+            logging.debug(f"Downloading {dep} from {url} to {exe_path}")
+            url_content = fetch_url_content(url)
+            with open(exe_path, 'wb') as f:
+                f.write(url_content)
+
+    current_path = os.environ.get('PATH', '')
+    new_path = os.pathsep.join([current_path, appdata_path] + [os.path.join(appdata_path, dep) for dep in dependencies])
+    os.environ['PATH'] = new_path
+
+    logging.debug("Windows dependencies downloaded and added to PATH.")

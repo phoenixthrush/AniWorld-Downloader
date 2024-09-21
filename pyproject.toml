@@ -13,6 +13,7 @@ dependencies = [
     'npyscreen',
     'thefuzz',
     'colorlog',
+    'py7zr',
     'windows-curses; platform_system == "Windows"'
 ]
 classifiers = [
