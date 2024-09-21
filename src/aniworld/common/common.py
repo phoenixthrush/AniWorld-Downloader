@@ -175,9 +175,45 @@ def setup_aniskip() -> None:
 
 def execute_command(command: List[str], only_command: bool) -> None:
     logging.debug("Entering execute_command function.")
+    logging.debug(f"Initial command: {command}")
+    
+    if platform.system() == "Windows":
+        appdata_path = os.path.join(os.getenv('APPDATA'), 'aniworld')
+        logging.debug(f"AppData path: {appdata_path}")
+        
+        if os.path.exists(appdata_path):
+            command_name = command[0]
+            potential_path = os.path.join(appdata_path, command_name)
+            logging.debug(f"Potential path for {command_name}: {potential_path}")
+
+            if command_name == "mpv":
+                if os.path.exists(potential_path):
+                    command[0] = os.path.join(potential_path, "mpv.exe")
+                    logging.debug(f"Updated command for mpv: {command}")
+
+            # TODO needs to be fixed
+            # rename SyncplayConsole folder to syncplay
+            elif command_name == "SyncplayConsole":
+                if os.path.exists(potential_path):
+                    command[0] = os.path.join(potential_path, "SyncplayConsole.exe")
+                    logging.debug(f"Updated command for SyncplayConsole: {command}")
+                for i, arg in enumerate(command):
+                    if arg == "--player-path" and i + 1 < len(command):
+                        mpv_path = os.path.join(appdata_path, "mpv", "mpv.exe")
+                        command[i + 1] = mpv_path
+                        logging.debug(f"Updated --player-path argument: {command}")
+
+            elif command_name == "yt-dlp":
+                if os.path.exists(potential_path):
+                    command[0] = os.path.join(potential_path, "yt-dlp.exe")
+                    logging.debug(f"Updated command for yt-dlp: {command}")
+
     if only_command:
-        print(' '.join(shlex.quote(arg) for arg in command))
+        command_str = ' '.join(shlex.quote(arg) for arg in command)
+        logging.debug(f"Only command mode: {command_str}")
+        print(command_str)
     else:
+        logging.debug(f"Executing command: {command}")
         subprocess.run(command, check=True)
 
 def raise_runtime_error(message: str) -> None:
@@ -320,10 +356,7 @@ def download_dependencies(dependencies: list):
     for dep in dependencies:
         dep_path = os.path.join(appdata_path, dep)
         if os.path.exists(dep_path):
-            logging.info(f"{dep_path} already exists. Adding to PATH.")
-            current_path = os.environ.get('PATH', '')
-            new_path = os.pathsep.join([current_path, dep_path])
-            os.environ['PATH'] = new_path
+            logging.info(f"{dep_path} already exists. Skipping download.")
             continue
 
         logging.debug(f"Creating directory for {dep} at {dep_path}")
@@ -373,8 +406,4 @@ def download_dependencies(dependencies: list):
             with open(exe_path, 'wb') as f:
                 f.write(url_content)
 
-    current_path = os.environ.get('PATH', '')
-    new_path = os.pathsep.join([current_path, appdata_path] + [os.path.join(appdata_path, dep) for dep in dependencies])
-    os.environ['PATH'] = new_path
-
-    logging.debug("Windows dependencies downloaded and added to PATH.")
+    logging.debug("Windows dependencies downloaded.")
