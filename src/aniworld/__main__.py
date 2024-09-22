@@ -6,6 +6,8 @@ import os
 import sys
 import re
 import logging
+import subprocess
+import platform
 
 import npyscreen
 
@@ -17,7 +19,8 @@ from aniworld.common import (
     get_season_data,
     set_terminal_size,
     get_version_from_pyproject,
-    get_language_code
+    get_language_code,
+    is_tail_running
 )
 
 def format_anime_title(anime_slug):
@@ -273,6 +276,17 @@ def parse_arguments():
         logging.getLogger().setLevel(logging.DEBUG)
         logging.debug("Debug mode enabled")
 
+        if platform.system() == "Darwin":
+            if not is_tail_running():
+                try:
+                    subprocess.run(
+                        ["osascript", "-e", 'tell application "Terminal" to do script "trap exit SIGINT; tail -f $TMPDIR/aniworld.log" activate'],
+                        check=True
+                    )
+                    logging.debug("Started tailing the log file in a new Terminal window.")
+                except subprocess.CalledProcessError as e:
+                    logging.error(f"Failed to start tailing the log file: {e}")
+
     if args.proxy:
         os.environ['HTTP_PROXY'] = args.proxy
         os.environ['HTTPS_PROXY'] = args.proxy
@@ -407,7 +421,6 @@ def main():
     except KeyboardInterrupt:
         logging.debug("KeyboardInterrupt encountered. Exiting.")
         sys.exit()
-
 
 if __name__ == "__main__":
     main()

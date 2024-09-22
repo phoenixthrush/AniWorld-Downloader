@@ -12,5 +12,6 @@ from .common import (
     get_version_from_pyproject,
     get_language_code,
     get_language_string,
-    download_dependencies
+    download_dependencies,
+    is_tail_running
 )

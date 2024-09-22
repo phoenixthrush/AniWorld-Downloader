@@ -412,3 +412,15 @@ def download_dependencies(dependencies: list):
                 f.write(url_content)
 
     logging.debug("Windows dependencies downloaded.")
+
+def is_tail_running():
+    try:
+        result = subprocess.run(
+            ["sh", "-c", "ps aux | grep 'tail -f.*/aniworld.log' | grep -v grep"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        return result.returncode == 0
+    except Exception as e:
+        logging.error(f"Error checking if tail is running: {e}")
+        return False
