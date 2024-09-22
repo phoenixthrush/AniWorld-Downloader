@@ -34,6 +34,7 @@ def check_dependencies(dependencies: list) -> None:
 
     if missing:
         logging.info(f"Missing dependencies: {missing}. Attempting to download.")
+        missing = [dep.replace("SyncplayConsole", "syncplay") for dep in missing]
         download_dependencies(missing)
 
         still_missing = [dep for dep in resolved_dependencies if shutil.which(dep) is None]
