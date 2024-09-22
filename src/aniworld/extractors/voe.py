@@ -7,6 +7,7 @@ from aniworld import globals as aniworld_globals
 REDIRECT_PATTERN = re.compile(r"window\.location\.href\s*=\s*'(https://[^/]+/e/\w+)';")
 NODE_DETAILS_PATTERN = re.compile(r'let nodeDetails = prompt\("Node",\s*"(https://[^"]+)"\);')
 
+
 def voe_get_direct_link(soup):
     redirect_match = REDIRECT_PATTERN.search(str(soup.prettify))
     if redirect_match:

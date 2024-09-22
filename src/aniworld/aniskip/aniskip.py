@@ -49,6 +49,7 @@ def fetch_mal_id(anime_title: str) -> Optional[str]:
                 return entry['id']
     return None
 
+
 def build_options(metadata: Dict, chapters_file: str) -> str:
     logging.debug("Building options with metadata: %s and chapters_file: %s",
                   json.dumps(metadata, indent=2), chapters_file)
@@ -87,9 +88,10 @@ def build_options(metadata: Dict, chapters_file: str) -> str:
 
     return ",".join(options)
 
+
 def build_flags(mal_id: str, episode: int, chapters_file: str) -> str:
     logging.debug(
-        "Building flags for MAL ID: %s, episode: %d, chapters_file: %s", 
+        "Building flags for MAL ID: %s, episode: %d, chapters_file: %s",
         mal_id, episode, chapters_file
     )
     aniskip_api = f"https://api.aniskip.com/v1/skip-times/{mal_id}/{episode}?types=op&types=ed"
@@ -119,6 +121,7 @@ def build_flags(mal_id: str, episode: int, chapters_file: str) -> str:
     logging.debug("Built options: %s", options)
     return f"--chapters-file={chapters_file} --script-opts={options}"
 
+
 def aniskip(anime_title: str, episode: int) -> str:
     logging.debug("Running aniskip for anime_title: %s, episode: %d", anime_title, episode)
     mal_id = fetch_mal_id(anime_title) if not anime_title.isdigit() else anime_title
@@ -130,6 +133,7 @@ def aniskip(anime_title: str, episode: int) -> str:
     chapters_file = tempfile.mktemp()
     logging.debug("Created temporary chapters file: %s", chapters_file)
     return build_flags(mal_id, episode, chapters_file)
+
 
 if __name__ == "__main__":
     logging.debug("Starting main execution")

@@ -23,6 +23,7 @@ from aniworld.common import (
     is_tail_running
 )
 
+
 def format_anime_title(anime_slug):
     logging.debug("Formatting anime title for slug: %s", anime_slug)
     try:
@@ -32,6 +33,7 @@ def format_anime_title(anime_slug):
     except AttributeError:
         logging.debug("AttributeError encountered in format_anime_title")
         sys.exit()
+
 
 class CustomTheme(npyscreen.ThemeManager):
     default_colors = {
@@ -55,6 +57,7 @@ class CustomTheme(npyscreen.ThemeManager):
         'CAUTION'     : 'YELLOW_BLACK',
         'CAUTIONHL'   : 'BLACK_YELLOW',
     }
+
 
 class EpisodeForm(npyscreen.ActionForm):
     # pylint: disable=too-many-ancestors
@@ -253,7 +256,7 @@ class AnimeApp(npyscreen.NPSAppManaged):
         logging.debug("Starting AnimeApp")
         npyscreen.setTheme(CustomTheme)
         self.addForm(
-            "MAIN", EpisodeForm, 
+            "MAIN", EpisodeForm,
             name=f"AniWorld-Downloader{get_version_from_pyproject()}"
         )
 
@@ -264,19 +267,19 @@ def parse_arguments():
         description="Parse optional command line arguments."
     )
     parser.add_argument(
-        '--slug', type=str, 
+        '--slug', type=str,
         help='Search query - E.g. demon-slayer-kimetsu-no-yaiba'
     )
     parser.add_argument(
-        '--link', type=str, 
+        '--link', type=str,
         help='Search query - E.g. https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba'
     )
     parser.add_argument(
-        '--query', type=str, 
+        '--query', type=str,
         help='Search query input - E.g. demon'
     )
     parser.add_argument(
-        '--episode', type=str, nargs='+', 
+        '--episode', type=str, nargs='+',
         help='List of episode URLs'
     )
     parser.add_argument(
@@ -285,49 +288,49 @@ def parse_arguments():
         help='Action to perform'
     )
     parser.add_argument(
-        '--output', type=str, 
+        '--output', type=str,
         default=aniworld_globals.DEFAULT_DOWNLOAD_PATH,
         help='Download directory'
     )
     parser.add_argument(
-        '--language', type=str, 
+        '--language', type=str,
         choices=['German Dub', 'English Sub', 'German Sub'],
         default=aniworld_globals.DEFAULT_LANGUAGE,
         help='Language choice'
     )
     parser.add_argument(
-        '--provider', type=str, 
+        '--provider', type=str,
         choices=['Vidoza', 'Streamtape', 'VOE', 'Doodstream'],
         default=aniworld_globals.DEFAULT_PROVIDER,
         help='Provider choice'
     )
     parser.add_argument(
-        '--aniskip', action='store_true', 
+        '--aniskip', action='store_true',
         default=aniworld_globals.DEFAULT_ANISKIP,
         help='Skip intro and outro'
     )
     parser.add_argument(
-        '--keep-watching', action='store_true', 
+        '--keep-watching', action='store_true',
         default=aniworld_globals.DEFAULT_KEEP_WATCHING,
         help='Continue watching'
     )
     parser.add_argument(
-        '--only-direct-link', action='store_true', 
+        '--only-direct-link', action='store_true',
         default=aniworld_globals.DEFAULT_ONLY_DIRECT_LINK,
         help='Output direct link'
     )
     parser.add_argument(
-        '--only-command', action='store_true', 
+        '--only-command', action='store_true',
         default=aniworld_globals.DEFAULT_ONLY_COMMAND,
         help='Output command'
     )
     parser.add_argument(
-        '--proxy', type=str, 
+        '--proxy', type=str,
         default=aniworld_globals.DEFAULT_PROXY,
         help='Set HTTP Proxy - E.g. http://0.0.0.0:8080'
     )
     parser.add_argument(
-        '--debug', action='store_true', 
+        '--debug', action='store_true',
         help='Enable debug mode'
     )
 
@@ -344,7 +347,7 @@ def parse_arguments():
                 try:
                     subprocess.run(
                         [
-                            "osascript", 
+                            "osascript",
                             "-e",
                             'tell application "Terminal" to do script "'
                             'trap exit SIGINT; '
@@ -407,6 +410,7 @@ def get_anime_title(args):
         return title
     return None
 
+
 def main():
     logging.debug("============================================")
     logging.debug("Welcome to Aniworld!")
@@ -436,6 +440,7 @@ def main():
 
     run_app_with_query(args)
 
+
 def validate_link(args):
     if args.link:
         if args.link.count('/') == 5:
@@ -446,6 +451,7 @@ def validate_link(args):
         else:
             logging.debug("Provided link invalid.")
             args.link = None
+
 
 def get_selected_episodes(args, anime_title):
     updated_list = None
@@ -465,6 +471,7 @@ def get_selected_episodes(args, anime_title):
 
     return updated_list if updated_list else args.episode
 
+
 def execute_with_params(args, selected_episodes, anime_title, language):
     params = {
         'selected_episodes': selected_episodes,
@@ -480,6 +487,7 @@ def execute_with_params(args, selected_episodes, anime_title, language):
     }
     logging.debug("Executing with params: %s", params)
     execute(params=params)
+
 
 def run_app_with_query(args):
     def run_app(query):
@@ -502,6 +510,7 @@ def run_app_with_query(args):
     except KeyboardInterrupt:
         logging.debug("KeyboardInterrupt encountered. Exiting.")
         sys.exit()
+
 
 if __name__ == "__main__":
     main()

@@ -16,6 +16,7 @@ from aniworld.execute import (
     fetch_direct_link
 )
 
+
 def test_provider(data, provider_name, get_direct_link_func) -> dict:
     if provider_name != "VOE":
         print()

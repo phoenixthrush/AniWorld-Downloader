@@ -16,6 +16,7 @@ from bs4 import BeautifulSoup
 
 import aniworld.globals as aniworld_globals
 
+
 def check_dependencies(dependencies: list) -> None:
     logging.debug("Entering check_dependencies function.")
     resolved_dependencies = []
@@ -58,6 +59,7 @@ def check_dependencies(dependencies: list) -> None:
                 ', '.join(missing_with_links)
             )
             sys.exit(1)
+
 
 def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True) -> Optional[bytes]:
     logging.debug("Entering fetch_url_content function.")
@@ -112,6 +114,7 @@ def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True)
             sys.exit(1)
         return None
 
+
 def clear_screen() -> None:
     logging.debug("Entering clear_screen function.")
     if not aniworld_globals.IS_DEBUG_MODE:
@@ -119,6 +122,7 @@ def clear_screen() -> None:
             os.system("cls")
         else:
             os.system("clear")
+
 
 def clean_up_leftovers(directory: str) -> None:
     logging.debug("Entering clean_up_leftovers function.")
@@ -150,6 +154,7 @@ def clean_up_leftovers(directory: str) -> None:
             logging.warning("Permission denied when trying to remove directory: %s", directory)
         except OSError as e:
             logging.warning("OS error occurred while removing directory %s: %s", directory, e)
+
 
 def setup_aniskip() -> None:
     logging.debug("Entering setup_aniskip function.")
@@ -183,6 +188,7 @@ def setup_aniskip() -> None:
     if not os.path.exists(autoexit_destination_path):
         logging.debug("Copying autoexit.lua to %s", mpv_scripts_directory)
         shutil.copy(autoexit_source_path, autoexit_destination_path)
+
 
 def execute_command(command: List[str], only_command: bool) -> None:
     logging.debug("Entering execute_command function.")
@@ -227,9 +233,11 @@ def execute_command(command: List[str], only_command: bool) -> None:
         logging.debug("Executing command: %s", command)
         subprocess.run(command, check=True)
 
+
 def raise_runtime_error(message: str) -> None:
     logging.debug("Entering raise_runtime_error function.")
     raise RuntimeError(message)
+
 
 def get_season_episodes(season_url):
     logging.debug("Entering get_season_episodes function.")
@@ -253,6 +261,7 @@ def get_season_episodes(season_url):
     ]
 
     return episode_urls
+
 
 def get_season_data(anime_slug: str):
     logging.debug("Entering get_season_data function.")
@@ -279,6 +288,7 @@ def get_season_data(anime_slug: str):
 
     return season_data
 
+
 def set_terminal_size(columns: int = None, lines: int = None):
     logging.debug("Entering set_terminal_size function.")
     logging.debug("Setting terminal size to %s columns and %s lines.", columns, lines)
@@ -292,9 +302,11 @@ def set_terminal_size(columns: int = None, lines: int = None):
 
     # TODO: Windows and Linux support
 
+
 def ftoi(value: float) -> str:
     logging.debug("Entering ftoi function.")
     return str(int(value * 1000))
+
 
 def get_version_from_pyproject():
     try:
@@ -309,6 +321,7 @@ def get_version_from_pyproject():
         logging.error("Error reading version from pyproject.toml: %s", e)
         return ""
 
+
 def get_language_code(language: str) -> str:
     logging.debug("Getting language code for: %s", language)
     return {
@@ -316,6 +329,7 @@ def get_language_code(language: str) -> str:
         "English Sub": "2",
         "German Sub": "3"
     }.get(language, "")
+
 
 def get_language_string(lang_key: int) -> str:
     logging.debug("Entering get_language_string function.")
@@ -325,6 +339,7 @@ def get_language_string(lang_key: int) -> str:
         3: "German Sub"
     }
     return lang_map.get(lang_key, "Unknown Language")
+
 
 def get_github_release(repo: str) -> dict:
     api_url = f"https://api.github.com/repos/{repo}/releases/latest"
@@ -345,6 +360,7 @@ def get_github_release(repo: str) -> dict:
     except requests.exceptions.RequestException as e:
         logging.error("Unexpected error fetching latest release from %s: %s", repo, e)
     return {}
+
 
 def download_dependencies(dependencies: list):
     logging.debug("Entering download_dependencies function.")
@@ -375,6 +391,7 @@ def download_dependencies(dependencies: list):
 
     logging.debug("Windows dependencies downloaded.")
 
+
 def download_and_extract_dependency(dep: str, dep_path: str, appdata_path: str):
     if dep == 'mpv':
         download_mpv(dep_path, appdata_path)
@@ -382,6 +399,7 @@ def download_and_extract_dependency(dep: str, dep_path: str, appdata_path: str):
         download_syncplay(dep_path)
     elif dep == 'yt-dlp':
         download_yt_dlp(dep_path)
+
 
 def download_mpv(dep_path: str, appdata_path: str):
     direct_links = get_github_release("shinchiro/mpv-winbuild-cmake")
@@ -406,6 +424,7 @@ def download_mpv(dep_path: str, appdata_path: str):
     os.remove(zip_path)
     logging.debug("Removed %s after unpacking", zip_path)
 
+
 def download_syncplay(dep_path: str):
     direct_links = get_github_release("Syncplay/syncplay")
     direct_link = next(
@@ -429,6 +448,7 @@ def download_syncplay(dep_path: str):
     os.remove(exe_path)
     logging.debug("Removed %s after unpacking", exe_path)
 
+
 def download_yt_dlp(dep_path: str):
     url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
     exe_path = os.path.join(dep_path, 'yt-dlp.exe')
@@ -436,6 +456,7 @@ def download_yt_dlp(dep_path: str):
     url_content = fetch_url_content(url)
     with open(exe_path, 'wb') as f:
         f.write(url_content)
+
 
 def is_tail_running():
     try:

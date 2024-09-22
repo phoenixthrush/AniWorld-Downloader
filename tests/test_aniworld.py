@@ -68,6 +68,7 @@ def test_main(args):
         print(f"Error output: {e.stderr}")
         raise
 
+
 def run_test(test_name, args, expected_pattern, first_test=False):
     try:
         if not first_test:
@@ -81,6 +82,7 @@ def run_test(test_name, args, expected_pattern, first_test=False):
         print("\033[92mOK\033[0m")
     except AssertionError:
         print("\033[91mFAILURE\033[0m")
+
 
 def test_functions():
     clear_screen()
@@ -129,5 +131,6 @@ def test_functions():
         r"-- --fs '--force-media-title=Demon Slayer: Kimetsu no Yaiba - "
         r"S1E1 - Grausamkeit / Cruelty'"
     )
+
 
 test_functions()

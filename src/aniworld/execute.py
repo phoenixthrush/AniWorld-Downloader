@@ -8,12 +8,14 @@ import logging
 
 from bs4 import BeautifulSoup
 
+
 from aniworld.extractors import (
     doodstream_get_direct_link,
     streamtape_get_direct_link,
     vidoza_get_direct_link,
     voe_get_direct_link,
 )
+
 
 from aniworld.common import (
     clean_up_leftovers,
@@ -24,7 +26,9 @@ from aniworld.common import (
     get_language_string
 )
 
+
 from aniworld.aniskip import aniskip
+
 
 def providers(soup: BeautifulSoup) -> Dict[str, Dict[int, str]]:
     logging.debug("Extracting provider data from soup")
@@ -39,6 +43,7 @@ def providers(soup: BeautifulSoup) -> Dict[str, Dict[int, str]]:
         extracted_data[provider_name][lang_key] = f"https://aniworld.to{redirect_link}"
     logging.debug("Extracted provider data: %s", extracted_data)
     return extracted_data
+
 
 def build_command(
     link: str, mpv_title: str, player: str, aniskip_selected: bool,
@@ -68,6 +73,7 @@ def build_command(
     logging.debug("Built command: %s", command)
     return command
 
+
 def build_yt_dlp_command(link: str, output_file: str) -> List[str]:
     logging.debug("Building yt-dlp command with link: %s, output_file: %s", link, output_file)
     command = [
@@ -82,6 +88,7 @@ def build_yt_dlp_command(link: str, output_file: str) -> List[str]:
     ]
     logging.debug("Built yt-dlp command: %s", command)
     return command
+
 
 def process_aniskip(anime_title: str, season_number: int, episode_number: int) -> List[str]:
     logging.debug(
@@ -100,6 +107,7 @@ def process_aniskip(anime_title: str, season_number: int, episode_number: int) -
     logging.debug("Processed aniskip options: %s", processed_options)
     return processed_options
 
+
 def get_episode_title(soup: BeautifulSoup) -> str:
     logging.debug("Getting episode title from soup")
     german_title_tag = soup.find('span', class_='episodeGermanTitle')
@@ -117,17 +125,20 @@ def get_episode_title(soup: BeautifulSoup) -> str:
     logging.debug("Episode title: %s", episode_title)
     return episode_title
 
+
 def get_anime_title(soup: BeautifulSoup) -> str:
     logging.debug("Getting anime title from soup")
     anime_title = soup.find('div', class_='hostSeriesTitle').text
     logging.debug("Anime title: %s", anime_title)
     return anime_title
 
+
 def get_provider_data(soup: BeautifulSoup) -> Dict[str, Dict[int, str]]:
     logging.debug("Getting provider data from soup")
     data = providers(soup)
     logging.debug("Provider data: %s", data)
     return data
+
 
 def get_season_and_episode_numbers(episode_url: str) -> tuple:
     logging.debug("Extracting season and episode numbers from URL: %s", episode_url)
@@ -136,6 +147,7 @@ def get_season_and_episode_numbers(episode_url: str) -> tuple:
     logging.debug("Extracted season and episode numbers: %s", season_episode)
     return season_episode
 
+
 def fetch_direct_link(provider_function, request_url: str) -> str:
     logging.debug("Fetching direct link from URL: %s", request_url)
     html_content = fetch_url_content(request_url)
@@ -143,6 +155,7 @@ def fetch_direct_link(provider_function, request_url: str) -> str:
     direct_link = provider_function(soup)
     logging.debug("Fetched direct link: %s", direct_link)
     return direct_link
+
 
 def build_syncplay_command(
     link: str, mpv_title: str, aniskip_options: Optional[List[str]] = None
@@ -173,6 +186,7 @@ def build_syncplay_command(
     command.extend("")
     logging.debug("Built syncplay command: %s", command)
     return command
+
 
 def perform_action(params: Dict[str, Any]) -> None:
     logging.debug("Performing action with params: %s", params)
@@ -217,6 +231,7 @@ def process_aniskip_options(
         logging.debug("Aniskip is not selected, skipping aniskip options")
         aniskip_options = []
     return aniskip_options
+
 
 def handle_watch_action(
     link: str,
@@ -270,6 +285,7 @@ def handle_syncplay_action(
     logging.debug("Executing command: %s", command)
     execute_command(command, only_command)
     logging.debug("Syncplay has finished.\nBye bye!")
+
 
 def execute(params: Dict[str, Any]) -> None:
     logging.debug("Executing with params: %s", params)
