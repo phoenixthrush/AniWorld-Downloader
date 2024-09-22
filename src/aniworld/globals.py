@@ -1,7 +1,8 @@
 import os
 import logging
-import colorlog
 import tempfile
+
+import colorlog
 
 IS_DEBUG_MODE = os.getenv('IS_DEBUG_MODE', 'False').lower() in ('true', '1', 't', 'y', 'yes')
 LOG_FILE_PATH = os.path.join(tempfile.gettempdir(), 'aniworld.log')

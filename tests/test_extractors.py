@@ -1,5 +1,6 @@
+from bs4 import BeautifulSoup
+
 from aniworld.extractors import (
-    doodstream_get_direct_link,
     streamtape_get_direct_link,
     vidoza_get_direct_link,
     voe_get_direct_link
@@ -15,8 +16,6 @@ from aniworld.execute import (
     fetch_direct_link
 )
 
-from bs4 import BeautifulSoup
-
 def test_provider(data, provider_name, get_direct_link_func) -> dict:
     if provider_name != "VOE":
         print()
@@ -27,7 +26,7 @@ def test_provider(data, provider_name, get_direct_link_func) -> dict:
         try:
             direct_link = fetch_direct_link(get_direct_link_func, request_url)
             direct_links[language] = direct_link
-        except Exception as e:
+        except (ConnectionError, TimeoutError, ValueError) as e:
             direct_links[language] = f"Error: {e}"
             print(f"Error fetching direct link for {language}: {e}")
 
@@ -46,7 +45,7 @@ def main():
     url = "https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1"
     try:
         html_content = fetch_url_content(url)
-    except Exception as e:
+    except (ConnectionError, TimeoutError, ValueError) as e:
         print(f"Error fetching URL content: {e}")
         return
 

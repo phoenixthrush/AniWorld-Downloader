@@ -1,17 +1,17 @@
 from .common import (
-    clear_screen,
-    fetch_url_content,
     check_dependencies,
-    setup_aniskip,
-    execute_command,
-    raise_runtime_error,
     clean_up_leftovers,
-    get_season_data,
-    set_terminal_size,
+    clear_screen,
+    download_dependencies,
+    execute_command,
+    fetch_url_content,
     ftoi,
-    get_version_from_pyproject,
     get_language_code,
     get_language_string,
-    download_dependencies,
-    is_tail_running
+    get_season_data,
+    get_version_from_pyproject,
+    is_tail_running,
+    raise_runtime_error,
+    set_terminal_size,
+    setup_aniskip
 )
