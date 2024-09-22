@@ -196,6 +196,10 @@ These are automatically installed when you install AniWorld Downloader via pip.
 - [x] Do not show whole link in selection; display season and episode with name
 - [x] Integrate Python logging module
 - [x] Add proxy support
+- [ ] Automatically download and install the following on Windows:
+  - [x] mpv
+  - [x] yt-dlp
+  - [ ] Syncplay
 - [ ] Fix Aniskip Seasons if other than first season
 - [ ] Configure Anime4K installation setup
 - [ ] Support Doodstream

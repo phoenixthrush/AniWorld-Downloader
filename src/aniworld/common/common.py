@@ -32,24 +32,28 @@ def check_dependencies(dependencies: list) -> None:
     logging.debug(f"Checking for {resolved_dependencies} in path.")
     missing = [dep for dep in resolved_dependencies if shutil.which(dep) is None]
 
-    if missing:
-        logging.info(f"Missing dependencies: {missing}. Attempting to download.")
-        missing = [dep.replace("SyncplayConsole", "syncplay") for dep in missing]
-        download_dependencies(missing)
+    # TODO check if in appdata and return 
 
-        still_missing = [dep for dep in resolved_dependencies if shutil.which(dep) is None]
-        if still_missing:
-            download_links = {
-                "mpv": "https://mpv.io/installation/",
-                "syncplay": "https://syncplay.pl/download/",
-                "SyncplayConsole": "https://syncplay.pl/download/",
-                "yt-dlp": "https://github.com/yt-dlp/yt-dlp#installation"
-            }
+    if missing:
+        download_links = {
+            "mpv": "https://mpv.io/installation/",
+            "syncplay": "https://syncplay.pl/download/",
+            "SyncplayConsole": "https://syncplay.pl/download/",
+            "yt-dlp": "https://github.com/yt-dlp/yt-dlp#installation"
+        }
+
+        if platform.system() == "Windows":
+            logging.info(f"Missing dependencies: {missing}. Attempting to download.")
+            missing = [dep.replace("SyncplayConsole", "syncplay") for dep in missing]
+            download_dependencies(missing)
+            # Info no need to check if in path
+            # Will fallback to appdata binaries if found in execute.py
+        else:
             missing_with_links = [
                 f"{dep} (Download: {download_links.get(dep, 'No link available')})"
-                for dep in still_missing
+                for dep in missing
             ]
-            logging.critical(f"Missing dependencies: {', '.join(missing_with_links)} in path. Please add them to PATH and reopen the terminal to apply the changes.")
+            logging.critical(f"Missing dependencies: {', '.join(missing_with_links)} in path. Please install them manually.")
             sys.exit(1)
 
 def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True) -> Optional[bytes]:
