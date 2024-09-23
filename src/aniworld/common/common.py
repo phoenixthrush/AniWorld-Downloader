@@ -394,20 +394,30 @@ def download_dependencies(dependencies: list):
 
 def download_and_extract_dependency(dep: str, dep_path: str, appdata_path: str):
     if dep == 'mpv':
+        logging.info("Downloading mpv...")
         download_mpv(dep_path, appdata_path)
     elif dep == 'syncplay':
+        logging.info("Downloading Syncplay...")
         download_syncplay(dep_path)
     elif dep == 'yt-dlp':
+        logging.info("Downloading yt-dlp...")
         download_yt_dlp(dep_path)
 
 
 def download_mpv(dep_path: str, appdata_path: str):
     direct_links = get_github_release("shinchiro/mpv-winbuild-cmake")
+
+    avx2_supported = check_avx2_support()
+    pattern = r'mpv-x86_64-\d{8}-git-[a-f0-9]{7}\.7z'
+    if avx2_supported:
+        pattern = r'mpv-x86_64-v3-\d{8}-git-[a-f0-9]{7}\.7z'
+
     direct_link = next(
         (link for name, link in direct_links.items()
-         if re.match(r'mpv-x86_64-v3-\d{8}-git-[a-f0-9]{7}\.7z', name)),
+         if re.match(pattern, name)),
         None
     )
+
     if not direct_link:
         logging.error("No download link found for MPV.")
         return
@@ -472,4 +482,30 @@ def is_tail_running():
         return False
     except subprocess.SubprocessError as e:
         logging.error("Subprocess error checking if tail is running: %s", e)
+        return False
+
+
+def check_avx2_support() -> bool:
+    logging.debug("Entering check_avx2_support function.")
+    if platform.system() != "Windows":
+        logging.info("AVX2 check is only supported on Windows.")
+        return False
+
+    try:
+        cpu_info = subprocess.run(
+            ['wmic', 'cpu', 'get', 'Caption, Architecture, DataWidth, Manufacturer, ProcessorType, Status'],
+            capture_output=True, text=True, check=True
+        )
+        logging.debug("CPU Info: %s", cpu_info.stdout)
+        if 'avx2' in cpu_info.stdout.lower():
+            logging.info("AVX2 is supported.")
+            return True
+        else:
+            logging.info("AVX2 is not supported.")
+            return False
+    except subprocess.CalledProcessError as e:
+        logging.error("Error checking AVX2 support: %s", e)
+        return False
+    except subprocess.SubprocessError as e:
+        logging.error("Subprocess error checking AVX2 support: %s", e)
         return False
