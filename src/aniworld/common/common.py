@@ -296,7 +296,7 @@ def get_season_data(anime_slug: str):
     movies = False
 
     if soup.find('a', title='Alle Filme'):
-        number_of_seasons -= 1 
+        number_of_seasons -= 1
         movies = True
 
     season_data = []
@@ -313,6 +313,7 @@ def get_season_data(anime_slug: str):
         season_data.extend(movie_data)
 
     return season_data
+
 
 def set_terminal_size(columns: int = None, lines: int = None):
     logging.debug("Entering set_terminal_size function.")

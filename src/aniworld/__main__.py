@@ -72,7 +72,9 @@ class EpisodeForm(npyscreen.ActionForm):
         logging.debug("Season data: %s", season_data)
 
         season_episode_map = {
-            f"{anime_title} - Season {season} - Episode {episode}" if season > 0 else f"{anime_title} - Movie {episode}": url
+            f"{anime_title} - Season {season} - Episode {episode}"
+            if season > 0
+            else f"{anime_title} - Movie {episode}": url
             for url in season_data
             for season, episode in [get_season_and_episode_numbers(url)]
         }
@@ -380,11 +382,7 @@ def handle_query(args):
         logging.debug("Found slug: %s", slug)
         season_data = get_season_data(anime_slug=slug)
         logging.debug("Season data: %s", season_data)
-        episode_list = [
-            url
-            for season, episodes in season_data.items()
-            for url in episodes
-        ]
+        episode_list = list(season_data)
         logging.debug("Episode list: %s", episode_list)
 
         user_input = input("Please enter the episode (e.g., S1E2): ")
@@ -462,10 +460,7 @@ def get_selected_episodes(args, anime_title):
     if args.keep_watching and args.episode:
         season_data = get_season_data(anime_slug=anime_title)
         logging.debug("Season data: %s", season_data)
-        episode_list = [
-            url
-            for url in season_data
-        ]
+        episode_list = list(season_data)
         logging.debug("Episode list: %s", episode_list)
 
         index = episode_list.index(args.episode[0])

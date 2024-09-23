@@ -94,7 +94,8 @@ def test_functions():
             only_command=True,
             episode=episode,
             output='/Users/bleh/Downloads/Demon Slayer: Kimetsu no Yaiba - S1E1.mp4',
-            language='English Sub'
+            language='English Sub',
+            provider='Vidoza'
         ),
         r"https://[^\s]*v\.mp4[^\s]*",
         True
