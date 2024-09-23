@@ -248,6 +248,8 @@ def handle_download_action(params: Dict[str, Any]) -> None:
     check_dependencies(["yt-dlp"])
     file_name = (
         f"{params['anime_title']} - S{params['season_number']}E{params['episode_number']}.mp4"
+        if params['season_number']
+        else f"{params['anime_title']} - Movie {params['episode_number']}.mp4"
     )
     file_path = os.path.join(params['output_directory'], file_name).replace(" --- ", "/", 1)
     if not params['only_command']:
