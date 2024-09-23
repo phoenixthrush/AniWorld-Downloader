@@ -232,7 +232,9 @@ def execute_command(command: List[str], only_command: bool) -> None:
         print(command_str)
     else:
         logging.debug("Executing command: %s", command)
-        subprocess.run(command, check=True)
+        result = subprocess.run(command, check=True, capture_output=True, text=True)
+        logging.debug("Command output: %s", result.stdout)
+        logging.debug("Command error (if any): %s", result.stderr)
 
 
 def raise_runtime_error(message: str) -> None:
