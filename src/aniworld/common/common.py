@@ -208,11 +208,12 @@ def execute_command(command: List[str], only_command: bool) -> None:
                     command[0] = os.path.join(potential_path, "mpv.exe")
                     logging.debug("Updated command for mpv: %s", command)
 
-            # TODO: Needs to be fixed
-            # Rename SyncplayConsole folder to syncplay
             elif command_name == "SyncplayConsole":
                 if os.path.exists(potential_path):
                     command[0] = os.path.join(potential_path, "SyncplayConsole.exe")
+                    logging.debug("Updated command for SyncplayConsole: %s", command)
+                else:
+                    command[0] = os.path.join(appdata_path, "syncplay", "SyncplayConsole.exe")
                     logging.debug("Updated command for SyncplayConsole: %s", command)
                 for i, arg in enumerate(command):
                     if arg == "--player-path" and i + 1 < len(command):
