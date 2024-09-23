@@ -13,10 +13,12 @@ AniWorld Downloader is a command-line tool designed to download and stream anime
 
 - [Features](#features)
 - [Installation](#installation)
+  - [Latest Release](#latest-release)
+  - [Dev Version](#dev-version-unstable)
 - [Usage](#usage)
   - [Running with Menu](#running-with-menu)
   - [Command-Line Arguments](#command-line-arguments)
-- [Examples](#examples)
+- [Examples](#command-line-examples)
   - [Example 1: Download a Single Episode](#example-1-download-a-single-episode)
   - [Example 2: Download multiple episodes](#example-2-download-multiple-episodes)
   - [Example 3: Watch Episodes with Aniskip](#example-3-watch-episodes-with-aniskip)
@@ -45,6 +47,8 @@ AniWorld Downloader is a command-line tool designed to download and stream anime
 
 ## Installation
 
+### Latest Release
+
 Ensure you have **[Python 3.8](https://www.python.org/downloads/)** or higher installed. Then, install AniWorld Downloader using pip:
 
 ```shell
@@ -60,7 +64,22 @@ pip install -U aniworld
 To uninstall AniWorld Downloader:
 
 ```shell
-pip uninstall aniworld -y
+pip uninstall -y aniworld
+```
+
+### Dev Version (unstable)
+
+To install the latest development changes on github (assuming you have Git installed):
+
+```shell
+git clone https://github.com/phoenixthrush/AniWorld-Downloader aniworld
+pip install -U -e ./aniworld
+```
+
+Please keep it to the latest version by doing this regularly:
+
+```shell
+git -C aniworld pull
 ```
 
 ---
