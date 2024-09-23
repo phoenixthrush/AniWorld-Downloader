@@ -15,6 +15,7 @@ AniWorld Downloader is a command-line tool designed to download and stream anime
 - [Installation](#installation)
   - [Latest Release](#latest-release)
   - [Dev Version](#dev-version-unstable)
+- [Uninstallation](#uninstallation)
 - [Usage](#usage)
   - [Running with Menu](#running-with-menu)
   - [Command-Line Arguments](#command-line-arguments)
@@ -41,7 +42,7 @@ AniWorld Downloader is a command-line tool designed to download and stream anime
 - **Language Options:** Choose between German Dub, English Sub, and German Subtitles.
 - **Aniskip Integration:** Automatically skip intros and outros (Unstable yet).
 - **Syncplay Support:** Sync playback with friends for a shared viewing experience.
-- **Proxy Support:** (Coming Soon) Configure HTTP proxies for your downloads.
+- **Proxy Support:** Configure HTTP proxies for your downloads.
 
 ---
 
@@ -61,15 +62,9 @@ To update AniWorld Downloader to the latest version:
 pip install -U aniworld
 ```
 
-To uninstall AniWorld Downloader:
-
-```shell
-pip uninstall -y aniworld
-```
-
 ### Dev Version (unstable)
 
-To install the latest development changes on github (assuming you have Git installed):
+To install the latest development changes on GitHub (assuming you have Git installed):
 
 ```shell
 git clone https://github.com/phoenixthrush/AniWorld-Downloader aniworld
@@ -80,6 +75,34 @@ Please keep it to the latest version by doing this regularly:
 
 ```shell
 git -C aniworld pull
+```
+
+---
+
+## Uninstallation
+
+To uninstall AniWorld Downloader:
+
+```shell
+pip uninstall -y aniworld
+```
+
+To also delete all leftover files, run the following command:
+
+On Windows:
+```shell
+del "%APPDATA%\mpv\scripts\autoexit.lua"
+del "%APPDATA%\mpv\scripts\autostart.lua"
+del "%APPDATA%\mpv\scripts\skip.lua"
+
+rmdir /s /q "%APPDATA%\aniworld"
+```
+
+On MacOS & Linux:
+```shell
+rm $HOME/.config/mpv/scripts/autoexit.lua
+rm $HOME/.config/mpv/scripts/autostart.lua
+rm $HOME/.config/mpv/scripts/skip.lua
 ```
 
 ---
