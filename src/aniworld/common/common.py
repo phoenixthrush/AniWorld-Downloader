@@ -232,9 +232,7 @@ def execute_command(command: List[str], only_command: bool) -> None:
         print(command_str)
     else:
         logging.debug("Executing command: %s", command)
-        result = subprocess.run(command, check=True, capture_output=True, text=True)
-        logging.debug("Command output: %s", result.stdout)
-        logging.debug("Command error (if any): %s", result.stderr)
+        subprocess.run(command, check=True)  # TODO Somehow I can't supress the warnings or it crashes on MacOS
 
 
 def raise_runtime_error(message: str) -> None:
