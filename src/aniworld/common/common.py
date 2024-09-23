@@ -494,16 +494,16 @@ def check_avx2_support() -> bool:
 
     try:
         cpu_info = subprocess.run(
-            ['wmic', 'cpu', 'get', 'Caption, Architecture, DataWidth, Manufacturer, ProcessorType, Status'],
+            ['wmic', 'cpu', 'get',
+             'Caption, Architecture, DataWidth, Manufacturer, ProcessorType, Status'],
             capture_output=True, text=True, check=True
         )
         logging.debug("CPU Info: %s", cpu_info.stdout)
         if 'avx2' in cpu_info.stdout.lower():
             logging.info("AVX2 is supported.")
             return True
-        else:
-            logging.info("AVX2 is not supported.")
-            return False
+        logging.info("AVX2 is not supported.")
+        return False
     except subprocess.CalledProcessError as e:
         logging.error("Error checking AVX2 support: %s", e)
         return False
