@@ -61,6 +61,7 @@ def build_command(
         "--fs",
         "--quiet",
         "--really-quiet",
+        "--msg-level=all=warn",
         f"--force-media-title={mpv_title}"
     ]
 

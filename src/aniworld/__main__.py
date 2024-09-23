@@ -464,8 +464,7 @@ def get_selected_episodes(args, anime_title):
         logging.debug("Season data: %s", season_data)
         episode_list = [
             url
-            for season, episodes in season_data.items()
-            for url in episodes
+            for url in season_data
         ]
         logging.debug("Episode list: %s", episode_list)
 

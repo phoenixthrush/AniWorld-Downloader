@@ -309,8 +309,7 @@ def get_season_data(anime_slug: str):
             movie_data.append(f"https://aniworld.to/anime/stream/{anime_slug}/filme/film-{i}")
 
         season_data.extend(movie_data)
-    
-    print(season_data)
+
     return season_data
 
 def set_terminal_size(columns: int = None, lines: int = None):
