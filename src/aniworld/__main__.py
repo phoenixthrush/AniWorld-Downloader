@@ -20,7 +20,8 @@ from aniworld.common import (
     set_terminal_size,
     get_version_from_pyproject,
     get_language_code,
-    is_tail_running
+    is_tail_running,
+    get_season_and_episode_numbers
 )
 
 
@@ -70,11 +71,14 @@ class EpisodeForm(npyscreen.ActionForm):
         season_data = get_season_data(anime_slug)
         logging.debug("Season data: %s", season_data)
 
-        self.episode_map = {
-            f"{anime_title} - Season {season} - Episode {idx + 1}": url
-            for season, episodes in season_data.items()
-            for idx, url in enumerate(episodes)
+        season_episode_map = {
+            f"{anime_title} - Season {season} - Episode {episode}" if season > 0 else f"{anime_title} - Movie {episode}": url
+            for url in season_data
+            for season, episode in [get_season_and_episode_numbers(url)]
         }
+
+        self.episode_map = season_episode_map
+
         episode_list = list(self.episode_map.keys())
         logging.debug("Episode list: %s", episode_list)
 

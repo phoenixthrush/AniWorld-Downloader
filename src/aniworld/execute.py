@@ -23,7 +23,8 @@ from aniworld.common import (
     setup_aniskip,
     fetch_url_content,
     check_dependencies,
-    get_language_string
+    get_language_string,
+    get_season_and_episode_numbers
 )
 
 
@@ -138,14 +139,6 @@ def get_provider_data(soup: BeautifulSoup) -> Dict[str, Dict[int, str]]:
     data = providers(soup)
     logging.debug("Provider data: %s", data)
     return data
-
-
-def get_season_and_episode_numbers(episode_url: str) -> tuple:
-    logging.debug("Extracting season and episode numbers from URL: %s", episode_url)
-    matches = re.findall(r'\d+', episode_url)
-    season_episode = int(matches[-2]), int(matches[-1])
-    logging.debug("Extracted season and episode numbers: %s", season_episode)
-    return season_episode
 
 
 def fetch_direct_link(provider_function, request_url: str) -> str:

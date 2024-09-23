@@ -13,5 +13,6 @@ from .common import (
     is_tail_running,
     raise_runtime_error,
     set_terminal_size,
-    setup_aniskip
+    setup_aniskip,
+    get_season_and_episode_numbers
 )

@@ -264,6 +264,18 @@ def get_season_episodes(season_url):
     return episode_urls
 
 
+def get_movies_episode_count(slug: str) -> int:
+    movie_url = f"https://aniworld.to/anime/stream/{slug}/filme/film-1"
+    season_html = fetch_url_content(movie_url)
+    if season_html is None:
+        return 0
+    season_soup = BeautifulSoup(season_html, 'html.parser')
+
+    episode_links = season_soup.find_all('a', href=re.compile(r'/filme/film-\d+'))
+    episode_numbers = [int(re.search(r'\d+', link['href']).group()) for link in episode_links]
+    return max(episode_numbers, default=0)
+
+
 def get_season_data(anime_slug: str):
     logging.debug("Entering get_season_data function.")
     base_url_template = "https://aniworld.to/anime/stream/{anime}/"
@@ -279,16 +291,27 @@ def get_season_data(anime_slug: str):
     season_meta = soup.find('meta', itemprop='numberOfSeasons')
     number_of_seasons = int(season_meta['content']) if season_meta else 0
 
-    if soup.find('a', title='Alle Filme'):
-        number_of_seasons -= 1
+    movies = False
 
-    season_data = {}
+    if soup.find('a', title='Alle Filme'):
+        number_of_seasons -= 1 
+        movies = True
+
+    season_data = []
     for i in range(1, number_of_seasons + 1):
         season_url = f"{base_url}{i}"
-        season_data[i] = get_season_episodes(season_url)
+        season_data.extend(get_season_episodes(season_url))
 
+    if movies:
+        movie_data = []
+        number_of_movies = get_movies_episode_count(anime_slug)
+        for i in range(1, number_of_movies + 1):
+            movie_data.append(f"https://aniworld.to/anime/stream/{anime_slug}/filme/film-{i}")
+
+        season_data.extend(movie_data)
+    
+    print(season_data)
     return season_data
-
 
 def set_terminal_size(columns: int = None, lines: int = None):
     logging.debug("Entering set_terminal_size function.")
@@ -302,6 +325,21 @@ def set_terminal_size(columns: int = None, lines: int = None):
         os.system(f"printf '\033[8;{lines};{columns}t'")
 
     # TODO: Windows and Linux support
+
+
+def get_season_and_episode_numbers(episode_url: str) -> tuple:
+    logging.debug("Extracting season and episode numbers from URL: %s", episode_url)
+    if "staffel" in episode_url and "episode" in episode_url:
+        matches = re.findall(r'\d+', episode_url)
+        season_episode = int(matches[-2]), int(matches[-1])
+    elif "filme" in episode_url:
+        movie_number = re.findall(r'\d+', episode_url)
+        season_episode = 0, int(movie_number[0]) if movie_number else 1
+    else:
+        logging.error("URL format not recognized: %s", episode_url)
+        raise ValueError("URL format not recognized")
+    logging.debug("Extracted season and episode numbers: %s", season_episode)
+    return season_episode
 
 
 def ftoi(value: float) -> str:
