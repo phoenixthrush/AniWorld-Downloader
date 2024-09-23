@@ -377,7 +377,11 @@ def process_provider(params: Dict[str, Any]) -> None:
             mpv_title = (
                 f"{params['anime_title']} --- S{season_number}E{episode_number} - "
                 f"{params['episode_title']}"
+                if season_number and episode_number
+                else f"{params['anime_title']} --- Movie {episode_number} - "
+                f"{params['episode_title']}"
             )
+
             episode_params = {
                 "action": action,
                 "link": link,
