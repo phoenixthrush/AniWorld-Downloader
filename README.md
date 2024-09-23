@@ -200,9 +200,9 @@ These are automatically installed when you install AniWorld Downloader via pip.
   - [x] mpv
   - [x] yt-dlp
   - [x] Syncplay
-- [ ] Implement Movies
-- [ ] Fix Aniskip Seasons if other than first season
+- [x] Implement Movies
 - [ ] Configure Anime4K installation setup
+- [ ] Fix Aniskip Seasons if other than first season
 - [ ] Support Doodstream
 
 ---
