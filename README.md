@@ -91,18 +91,22 @@ To also delete all leftover files, run the following command:
 
 On Windows:
 ```shell
-del "%APPDATA%\mpv\scripts\autoexit.lua"
-del "%APPDATA%\mpv\scripts\autostart.lua"
-del "%APPDATA%\mpv\scripts\skip.lua"
+del "%APPDATA%\mpv\scripts\autoexit.lua" >nul 2>&1
+del "%APPDATA%\mpv\scripts\autostart.lua" >nul 2>&1
+del "%APPDATA%\mpv\scripts\skip.lua" >nul 2>&1
 
-rmdir /s /q "%APPDATA%\aniworld"
+del "%APPDATA%\mpv\input.conf" >nul 2>&1
+del "%APPDATA%\mpv\mpv.conf" >nul 2>&1
+rmdir /s /q "%APPDATA%\mpv\shaders >nul 2>&1
+
+rmdir /s /q "%APPDATA%\aniworld" >nul 2>&1
 ```
 
 On MacOS & Linux:
 ```shell
-rm $HOME/.config/mpv/scripts/autoexit.lua
-rm $HOME/.config/mpv/scripts/autostart.lua
-rm $HOME/.config/mpv/scripts/skip.lua
+rm -f $HOME/.config/mpv/scripts/autoexit.lua
+rm -f $HOME/.config/mpv/scripts/autostart.lua
+rm -f $HOME/.config/mpv/scripts/skip.lua
 ```
 
 ---
