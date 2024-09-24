@@ -14,5 +14,6 @@ from .common import (
     raise_runtime_error,
     set_terminal_size,
     setup_aniskip,
-    get_season_and_episode_numbers
+    get_season_and_episode_numbers,
+    display_ascii_art
 )

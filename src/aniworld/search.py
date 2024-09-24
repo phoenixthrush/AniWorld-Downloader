@@ -1,11 +1,16 @@
 import curses
 from json import loads
+from json.decoder import JSONDecodeError
 from urllib.parse import quote
 import logging
 
 from typing import List, Dict, Optional
 
-from aniworld.common import clear_screen, fetch_url_content
+from aniworld.common import (
+    clear_screen,
+    fetch_url_content,
+    display_ascii_art
+)
 
 
 def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
@@ -36,6 +41,7 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
     while True:
         clear_screen()
         if not query:
+            print(display_ascii_art())
             query = input("Search for a series: ")
         else:
             logging.debug("Using provided query: %s", query)
@@ -44,7 +50,10 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
         logging.debug("Fetching Anime List with query: %s", query)
 
         json_data = fetch_url_content(url)
-        decoded_data = loads(json_data.decode())
+        try:
+            decoded_data = loads(json_data.decode())
+        except JSONDecodeError:
+            continue
         logging.debug("Anime JSON List: %s", decoded_data)
 
         if not isinstance(decoded_data, list) or not decoded_data:
