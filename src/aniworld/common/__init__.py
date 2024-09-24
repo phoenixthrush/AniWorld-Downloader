@@ -15,5 +15,6 @@ from .common import (
     set_terminal_size,
     setup_aniskip,
     get_season_and_episode_numbers,
-    display_ascii_art
+    display_ascii_art,
+    setup_anime4k
 )

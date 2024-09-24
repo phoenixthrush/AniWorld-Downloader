@@ -21,7 +21,8 @@ from aniworld.common import (
     get_version_from_pyproject,
     get_language_code,
     is_tail_running,
-    get_season_and_episode_numbers
+    get_season_and_episode_numbers,
+    setup_anime4k
 )
 
 
@@ -321,6 +322,15 @@ def parse_arguments():
         help='Continue watching'
     )
     parser.add_argument(
+        '--anime4k-low', action='store_true',
+        help='Enable Anime4K (Eg. GTX 980, GTX 1060, RX 570) [Windows only]'
+    )
+    parser.add_argument(
+        '--anime4k-high', action='store_true',
+        help='Enable Anime4K (Eg. GTX 1080, RTX 2070, '
+             'RTX 3060, RX 590, Vega 56, 5700XT, 6600XT) [Windows only]'
+    )
+    parser.add_argument(
         '--only-direct-link', action='store_true',
         default=aniworld_globals.DEFAULT_ONLY_DIRECT_LINK,
         help='Output direct link'
@@ -371,6 +381,18 @@ def parse_arguments():
         os.environ['HTTPS_PROXY'] = args.proxy
         aniworld_globals.DEFAULT_PROXY = args.proxy
         logging.debug("Proxy set to: %s", args.proxy)
+
+    if args.anime4k_low and args.anime4k_high:
+        logging.warning(
+            "Both --anime4k-low and --anime4k-high are set. Defaulting to LOW."
+        )
+        args.anime4k_high = False
+
+    if args.anime4k_high:
+        setup_anime4k("High")
+
+    if args.anime4k_low:
+        setup_anime4k("Low")
 
     return args
 

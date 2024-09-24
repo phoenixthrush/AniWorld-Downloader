@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import random
+import zipfile
 from typing import List, Optional
 
 import requests
@@ -753,3 +754,80 @@ def display_ascii_art() -> str:
     """
 
     return random.choice([lucky_star, cinnamoroll, cat, coding, female, catgirl, spy])
+
+
+def download_anime4k(mode: str):
+    if platform.system() != 'Windows':
+        logging.debug("Skipping Anime4K setup. [Windows only]")
+        return
+    
+    template_zip = f"https://github.com/Tama47/Anime4K/releases/download/v4.0.1/GLSL_Windows_{mode}-end.zip"
+    logging.debug("Downloading Anime4k from %s", template_zip)
+
+    anime4k_path = os.path.join(os.getenv('APPDATA'), 'aniworld', 'anime4k')
+    shaders_path = os.path.join(anime4k_path, f"GLSL_{platform.system()}_{mode}-end")
+    archive_path = os.path.join(shaders_path, "anime4k.zip")
+
+    os.makedirs(shaders_path, exist_ok=True)
+
+    content = fetch_url_content(template_zip)
+    with open(archive_path, 'wb') as f:
+        f.write(content)
+
+    logging.debug("Extracting package")
+    with zipfile.ZipFile(archive_path, 'r') as zip_ref:
+        zip_ref.extractall(shaders_path)
+
+    try:
+        os.remove(archive_path)
+        shutil.rmtree(os.path.join(shaders_path, "__MACOSX"))
+        logging.debug("Removed %s", archive_path)
+    except OSError as e:
+        logging.error("Error removing %s: %s", archive_path, e)
+
+
+def set_anime4k_config(mode: str):
+    if platform.system() != 'Windows':
+        logging.debug("Skipping Anime4K setup. [Windows only]")
+        return
+    
+    anime4k_path = os.path.join(os.getenv('APPDATA'), 'aniworld', 'anime4k')
+    shaders_path = os.path.join(anime4k_path, f"GLSL_{platform.system()}_{mode}-end")
+    mpv_directory = os.path.join(os.path.expandvars('$APPDATA'), 'mpv')
+
+    os.makedirs(mpv_directory, exist_ok=True)
+    
+    if os.path.exists(os.path.join(mpv_directory, "input.conf")):
+        with open(os.path.join(mpv_directory, "input.conf"), "r") as file:
+            lines = file.readlines()
+
+        for line in lines:
+            if "lower-end" in line:
+                current_mode = "Low"
+                break
+            elif "higher-end" in line:
+                current_mode = "High"
+                break
+
+        if current_mode == mode:
+            logging.debug("Doing nothing, already lower end.")
+            return
+        else:
+            os.remove(os.path.join(mpv_directory, "input.conf"))
+            os.remove(os.path.join(mpv_directory, "mpv.conf"))
+            shaders_directory = os.path.join(mpv_directory, "shaders")
+            if os.path.exists(shaders_directory):
+                shutil.rmtree(shaders_directory)
+
+    for item in os.listdir(shaders_path):
+        source = os.path.join(shaders_path, item)
+        destination = os.path.join(mpv_directory, item)
+        if os.path.isdir(source):
+            shutil.copytree(source, destination, dirs_exist_ok=True)
+        else:
+            shutil.copy(source, destination)
+
+
+def setup_anime4k(mode: str):
+    download_anime4k(mode)
+    set_anime4k_config(mode)
