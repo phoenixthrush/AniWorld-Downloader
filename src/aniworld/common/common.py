@@ -756,12 +756,33 @@ def display_ascii_art() -> str:
     return random.choice([lucky_star, cinnamoroll, cat, coding, female, catgirl, spy])
 
 
-def download_anime4k(mode: str):
+def is_windows():
     if platform.system() != 'Windows':
         logging.debug("Skipping Anime4K setup. [Windows only]")
+        return False
+    return True
+
+
+def remove_path(path):
+    try:
+        if os.path.isfile(path):
+            os.remove(path)
+        elif os.path.isdir(path):
+            shutil.rmtree(path)
+        logging.debug("Removed %s", path)
+    except OSError as e:
+        logging.error("Error removing %s: %s", path, e)
+
+
+def download_anime4k(mode: str):
+    if not is_windows():
+        logging.debug("Skipping download_anime4k: not on Windows.")
         return
-    
-    template_zip = f"https://github.com/Tama47/Anime4K/releases/download/v4.0.1/GLSL_Windows_{mode}-end.zip"
+
+    template_zip = (
+        f"https://github.com/Tama47/Anime4K/releases/download/v4.0.1/"
+        f"GLSL_Windows_{mode}-end.zip"
+    )
     logging.debug("Downloading Anime4k from %s", template_zip)
 
     anime4k_path = os.path.join(os.getenv('APPDATA'), 'aniworld', 'anime4k')
@@ -769,63 +790,72 @@ def download_anime4k(mode: str):
     archive_path = os.path.join(shaders_path, "anime4k.zip")
 
     os.makedirs(shaders_path, exist_ok=True)
+    logging.debug("Created shaders path: %s", shaders_path)
 
     content = fetch_url_content(template_zip)
+    logging.debug("Fetched content from %s", template_zip)
+
     with open(archive_path, 'wb') as f:
         f.write(content)
+    logging.debug("Saved archive to %s", archive_path)
 
     logging.debug("Extracting package")
     with zipfile.ZipFile(archive_path, 'r') as zip_ref:
         zip_ref.extractall(shaders_path)
+    logging.debug("Extracted package to %s", shaders_path)
 
-    try:
-        os.remove(archive_path)
-        shutil.rmtree(os.path.join(shaders_path, "__MACOSX"))
-        logging.debug("Removed %s", archive_path)
-    except OSError as e:
-        logging.error("Error removing %s: %s", archive_path, e)
+    remove_path(archive_path)
+    logging.debug("Removed archive: %s", archive_path)
+    remove_path(os.path.join(shaders_path, "__MACOSX"))
+    logging.debug("Removed __MACOSX directory if it existed.")
 
 
 def set_anime4k_config(mode: str):
-    if platform.system() != 'Windows':
-        logging.debug("Skipping Anime4K setup. [Windows only]")
+    if not is_windows():
+        logging.debug("Skipping set_anime4k_config: not on Windows.")
         return
-    
+
     anime4k_path = os.path.join(os.getenv('APPDATA'), 'aniworld', 'anime4k')
     shaders_path = os.path.join(anime4k_path, f"GLSL_{platform.system()}_{mode}-end")
     mpv_directory = os.path.join(os.path.expandvars('$APPDATA'), 'mpv')
 
     os.makedirs(mpv_directory, exist_ok=True)
-    
-    if os.path.exists(os.path.join(mpv_directory, "input.conf")):
-        with open(os.path.join(mpv_directory, "input.conf"), "r") as file:
+    logging.debug("Created MPV directory: %s", mpv_directory)
+
+    input_conf_path = os.path.join(mpv_directory, "input.conf")
+    if os.path.exists(input_conf_path):
+        logging.debug("Found existing input.conf at %s", input_conf_path)
+        with open(input_conf_path, "r", encoding='utf-8') as file:
             lines = file.readlines()
 
+        current_mode = None
         for line in lines:
             if "lower-end" in line:
                 current_mode = "Low"
                 break
-            elif "higher-end" in line:
+            if "higher-end" in line:
                 current_mode = "High"
                 break
 
         if current_mode == mode:
-            logging.debug("Doing nothing, already lower end.")
+            logging.debug("Current mode is already set to %s. No changes made.", mode)
             return
-        else:
-            os.remove(os.path.join(mpv_directory, "input.conf"))
-            os.remove(os.path.join(mpv_directory, "mpv.conf"))
-            shaders_directory = os.path.join(mpv_directory, "shaders")
-            if os.path.exists(shaders_directory):
-                shutil.rmtree(shaders_directory)
 
+        logging.debug("Removing existing configuration files.")
+        remove_path(input_conf_path)
+        remove_path(os.path.join(mpv_directory, "mpv.conf"))
+        remove_path(os.path.join(mpv_directory, "shaders"))
+
+    logging.debug("Copying shaders from %s to %s", shaders_path, mpv_directory)
     for item in os.listdir(shaders_path):
         source = os.path.join(shaders_path, item)
         destination = os.path.join(mpv_directory, item)
         if os.path.isdir(source):
             shutil.copytree(source, destination, dirs_exist_ok=True)
+            logging.debug("Copied directory %s to %s", source, destination)
         else:
             shutil.copy(source, destination)
+            logging.debug("Copied file %s to %s", source, destination)
 
 
 def setup_anime4k(mode: str):
