@@ -248,6 +248,10 @@ These are automatically installed when you install AniWorld Downloader via pip.
   - [x] Syncplay
 - [x] Implement Movies
 - [ ] Configure Anime4K installation setup
+  - [x] Windows
+  - [ ] MacOS
+  - [ ] Linux
+- [x] Fix wrong episode count
 - [ ] Fix Aniskip Seasons if other than first season
 - [ ] Support Doodstream
 
