@@ -244,27 +244,46 @@ def raise_runtime_error(message: str) -> None:
     raise RuntimeError(message)
 
 
-def get_season_episodes(season_url):
-    logging.debug("Entering get_season_episodes function.")
-    season_url_old = season_url
-    season_url = season_url[:-2]
-    season_suffix = f"/staffel-{season_url_old.split('/')[-1]}"
-
-    logging.debug("Fetching Episode URLs from Season %s", season_suffix)
-
-    season_html = fetch_url_content(season_url)
+def get_season_episode_count(slug: str, season: str) -> int:
+    series_url = f"https://aniworld.to/anime/stream/{slug}/staffel-{season}"
+    season_html = fetch_url_content(series_url)
     if season_html is None:
-        return []
+        return 0
     season_soup = BeautifulSoup(season_html, 'html.parser')
-    episodes = season_soup.find_all('meta', itemprop='episodeNumber')
-    episode_numbers = [int(episode['content']) for episode in episodes]
-    highest_episode = max(episode_numbers, default=None)
 
-    episode_urls = [
-        f"{season_url}{season_suffix}/episode-{num}"
-        for num in range(1, highest_episode + 1)
-    ]
+    episode_links = season_soup.find_all('a', 
+        href=True, 
+        title=lambda x: x and x.startswith("Staffel")
+    )
 
+    episode_numbers = []
+    for link in episode_links:
+        match = re.search(r'\d+', link.get_text())
+        if match:
+            episode_numbers.append(int(match.group()))
+
+    return max(episode_numbers) if episode_numbers else 0
+
+
+def get_season_episodes(season_url):
+    episode_urls = []
+
+    logging.debug("Season URL: %s", season_url)
+
+    parts = season_url.split('/')
+
+    slug = parts[-1]
+    season = slug.split('-')[-1]
+
+    slug = parts[-2]
+
+    logging.debug("Slug: %s", slug)
+    logging.debug("Season: %s", season)
+
+    for i in range(1, get_season_episode_count(slug, season) + 1):
+        episode_urls.append(f"{season_url}/episode-{i}")
+
+    logging.debug("Episode URLs: %s", episode_urls)
     return episode_urls
 
 
@@ -303,7 +322,7 @@ def get_season_data(anime_slug: str):
 
     season_data = []
     for i in range(1, number_of_seasons + 1):
-        season_url = f"{base_url}{i}"
+        season_url = f"{base_url}staffel-{i}"
         season_data.extend(get_season_episodes(season_url))
 
     if movies:
