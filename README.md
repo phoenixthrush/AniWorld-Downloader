@@ -90,14 +90,14 @@ pip uninstall -y aniworld
 To also delete all leftover files, run the following command:
 
 On Windows:
-```shell
+```batch
 del "%APPDATA%\mpv\scripts\autoexit.lua" >nul 2>&1
 del "%APPDATA%\mpv\scripts\autostart.lua" >nul 2>&1
 del "%APPDATA%\mpv\scripts\skip.lua" >nul 2>&1
 
 del "%APPDATA%\mpv\input.conf" >nul 2>&1
 del "%APPDATA%\mpv\mpv.conf" >nul 2>&1
-rmdir /s /q "%APPDATA%\mpv\shaders >nul 2>&1
+rmdir /s /q "%APPDATA%\mpv\shaders" >nul 2>&1
 
 rmdir /s /q "%APPDATA%\aniworld" >nul 2>&1
 ```
