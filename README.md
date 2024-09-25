@@ -270,24 +270,25 @@ These are automatically installed when you install AniWorld Downloader via pip.
 
 ## TODO
 
-- [x] Utilize argparse for command-line argument parsing
-- [x] Refactor code into modular Python files
-- [x] Do not show whole link in selection; display season and episode with name
-- [x] Integrate Python logging module
-- [x] Add proxy support
+- [x] Add argparse for command-line argument parsing.
+- [x] Refactor the code into modular Python files.
+- [x] Avoid displaying the full link in selections; instead, show the season and episode names.
+- [x] Add Python logging module.
+- [x] Add support for proxy configurations.
 - [x] Automatically download and install the following on Windows:
   - [x] mpv
   - [x] yt-dlp
   - [x] Syncplay
-- [x] Implement Movies
-- [ ] Configure Anime4K installation setup
+- [x] Implement movie support.
+- [ ] Configure the Anime4K installation setup:
   - [x] Windows
   - [ ] MacOS
   - [ ] Linux
-- [x] Fix wrong episode count
-- [ ] Fix empty output if selected language not available
-- [ ] Fix Aniskip Seasons if other than first season
-- [ ] Support Doodstream
+- [x] Fix season episode count.
+- [ ] Fix empty output when the selected language is unavailable.
+- [ ] Add an option for Syncplay room passwords.
+- [ ] Fix Aniskip for seasons other than the first.
+- [ ] Support Doodstream.
 
 ---
 
