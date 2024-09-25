@@ -829,6 +829,16 @@ def download_anime4k(mode: str):
     logging.debug("Removed __MACOSX directory if it existed.")
 
 
+def remove_anime4k_files():
+    mpv_directory = os.path.join(os.path.expandvars('$APPDATA'), 'mpv')
+    input_conf_path = os.path.join(mpv_directory, "input.conf")
+    
+    logging.debug("Removing existing configuration files.")
+    remove_path(input_conf_path)
+    remove_path(os.path.join(mpv_directory, "mpv.conf"))
+    remove_path(os.path.join(mpv_directory, "shaders"))
+
+
 def set_anime4k_config(mode: str):
     if not is_windows():
         logging.debug("Skipping set_anime4k_config: not on Windows.")
@@ -860,10 +870,7 @@ def set_anime4k_config(mode: str):
             logging.debug("Current mode is already set to %s. No changes made.", mode)
             return
 
-        logging.debug("Removing existing configuration files.")
-        remove_path(input_conf_path)
-        remove_path(os.path.join(mpv_directory, "mpv.conf"))
-        remove_path(os.path.join(mpv_directory, "shaders"))
+        remove_anime4k_files()
 
     logging.debug("Copying shaders from %s to %s", shaders_path, mpv_directory)
     for item in os.listdir(shaders_path):
@@ -878,5 +885,9 @@ def set_anime4k_config(mode: str):
 
 
 def setup_anime4k(mode: str):
+    if mode == "Remove":
+        remove_anime4k_files()
+        return
+
     download_anime4k(mode)
     set_anime4k_config(mode)

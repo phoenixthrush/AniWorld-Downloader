@@ -322,13 +322,13 @@ def parse_arguments():
         help='Continue watching'
     )
     parser.add_argument(
-        '--anime4k-low', action='store_true',
-        help='Enable Anime4K (Eg. GTX 980, GTX 1060, RX 570) [Windows only]'
-    )
-    parser.add_argument(
-        '--anime4k-high', action='store_true',
-        help='Enable Anime4K (Eg. GTX 1080, RTX 2070, '
-             'RTX 3060, RX 590, Vega 56, 5700XT, 6600XT) [Windows only]'
+        '--anime4k', type=str,
+        choices=['High', 'Low', 'Remove'],
+        default='High',
+        help=('Set Anime4K optimised mode (High Eg.: GTX 1080, RTX 2070, '
+              'RTX 3060, RX 590, Vega 56, 5700XT, 6600XT; Low Eg.: GTX 980, '
+              'GTX 1060, RX 570, or Remove). This only needs to be run once '
+              'to set or remove as the changes are persistent.')
     )
     parser.add_argument(
         '--only-direct-link', action='store_true',
@@ -382,17 +382,8 @@ def parse_arguments():
         aniworld_globals.DEFAULT_PROXY = args.proxy
         logging.debug("Proxy set to: %s", args.proxy)
 
-    if args.anime4k_low and args.anime4k_high:
-        logging.warning(
-            "Both --anime4k-low and --anime4k-high are set. Defaulting to LOW."
-        )
-        args.anime4k_high = False
-
-    if args.anime4k_high:
-        setup_anime4k("High")
-
-    if args.anime4k_low:
-        setup_anime4k("Low")
+    if args.anime4k:
+        setup_anime4k(args.anime4k)
 
     return args
 
