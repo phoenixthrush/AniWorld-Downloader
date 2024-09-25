@@ -25,6 +25,7 @@ AniWorld Downloader is a command-line tool designed to download and stream anime
   - [Example 3: Watch Episodes with Aniskip](#example-3-watch-episodes-with-aniskip)
   - [Example 4: Syncplay with Friends](#example-4-syncplay-with-friends)
   - [Example 5: Download with Specific Provider and Language](#example-5-download-with-specific-provider-and-language)
+- [Anime4K Setup](#anime4k-setup-currently-windows-only)
 - [TODO](#todo)
 - [Contributing](#contributing)
 - [Credits](#credits)
@@ -181,39 +182,71 @@ Download an episode using the VOE provider with English subtitles:
 aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --provider VOE --language "English Sub"
 ```
 
+---
+
+## Anime4K Setup [Currently Windows Only]
+
+To install Anime4K persistently, use the following commands once:
+
+### For Higher-End GPU
+```shell
+aniworld --anime4k High
+```
+
+### For Lower-End GPU
+```shell
+aniworld --anime4k Low
+```
+
+### To Remove Anime4K
+```shell
+aniworld --anime4k Remove
+```
+
+This installs all necessary files into the mpv directory, enabling Anime4K in mpv even outside of AniWorld. You can switch between settings by specifying the different optimized modes. To remove it, simply use the remove option.
+
+---
+
 ### To see all the available options:
 ```shell
 aniworld --help
 ```
 
 ```
+usage: aniworld [-h] [--slug SLUG] [--link LINK] [--query QUERY]
+                [--episode EPISODE [EPISODE ...]] [--action {Watch,Download,Syncplay}]
+                [--output OUTPUT] [--language {German Dub,English Sub,German Sub}]
+                [--provider {Vidoza,Streamtape,VOE,Doodstream}] [--aniskip]
+                [--keep-watching] [--anime4k {High,Low,Remove}] [--only-direct-link]
+                [--only-command] [--proxy PROXY] [--debug]
+
+Parse optional command line arguments.
+
 options:
   -h, --help            show this help message and exit
   --slug SLUG           Search query - E.g. demon-slayer-kimetsu-no-yaiba
-  --link LINK           Search query - E.g.
-                        https://aniworld.to/anime/stream/demon-slayer-kimetsu-
-                        no-yaiba
+  --link LINK           Search query - E.g. https://aniworld.to/anime/stream/demon-
+                        slayer-kimetsu-no-yaiba
   --query QUERY         Search query input - E.g. demon
   --episode EPISODE [EPISODE ...]
-                        List of episode URLs - E.g.
-                        https://aniworld.to/anime/stream/demon-slayer-kimetsu-
-                        no-yaiba/ staffel-1/episode-1,
-                        https://aniworld.to/anime/stream/demon-slayer-kimetsu-
-                        no-yaiba/ staffel-1/episode-2
+                        List of episode URLs
   --action {Watch,Download,Syncplay}
-                        Action to perform - E.g. Watch, Download, Syncplay
-  --output OUTPUT       Download directory (default: ~/Downloads)
+                        Action to perform
+  --output OUTPUT       Download directory
   --language {German Dub,English Sub,German Sub}
-                        Language choice - E.g. German Dub, English Sub, German
-                        Sub
+                        Language choice
   --provider {Vidoza,Streamtape,VOE,Doodstream}
-                        Provider choice - E.g. Vidoza, Streamtape, VOE,
-                        Doodstream
-  --aniskip             Skip anime opening and ending
+                        Provider choice
+  --aniskip             Skip intro and outro
   --keep-watching       Continue watching
+  --anime4k {High,Low,Remove}
+                        Set Anime4K optimised mode (High Eg.: GTX 1080, RTX 2070, RTX
+                        3060, RX 590, Vega 56, 5700XT, 6600XT; Low Eg.: GTX 980, GTX
+                        1060, RX 570, or Remove). This only needs to be run once to set
+                        or remove as the changes are persistent.
   --only-direct-link    Output direct link
   --only-command        Output command
-  --proxy PROXY         Set HTTP Proxy (not working yet)
+  --proxy PROXY         Set HTTP Proxy - E.g. http://0.0.0.0:8080
   --debug               Enable debug mode
 ```
 
@@ -252,6 +285,7 @@ These are automatically installed when you install AniWorld Downloader via pip.
   - [ ] MacOS
   - [ ] Linux
 - [x] Fix wrong episode count
+- [ ] Fix empty output if selected language not available
 - [ ] Fix Aniskip Seasons if other than first season
 - [ ] Support Doodstream
 
@@ -262,6 +296,7 @@ These are automatically installed when you install AniWorld Downloader via pip.
 - **[mpv](https://github.com/mpv-player/mpv.git)** - Media player used for streaming.
 - **[yt-dlp](https://github.com/yt-dlp/yt-dlp.git)** - Tool for downloading videos.
 - **[Syncplay](https://github.com/Syncplay/syncplay.git)** - Service for synchronized playback with friends.
+- **[Anime4K](https://github.com/bloc97/Anime4K)** - A high-quality real-time upscaler for anime video.
 
 ---
 

@@ -404,8 +404,12 @@ def process_provider(params: Dict[str, Any]) -> None:
             get_language_string(lang_code)
             for lang_code in params['data'][params['provider']].keys()
         ]
-        logging.critical(
-            "No available languages for provider %s matching the selected language %s. "
-            "Available languages: %s",
-            params['provider'], get_language_string(int(params['lang'])), available_languages
+
+        message = (
+            f"No available languages for provider {params['provider']} "
+            f"matching the selected language {get_language_string(int(params['lang']))}. "
+            f"Available languages: {available_languages}"
         )
+
+        logging.error(message)
+        print(message)

@@ -99,7 +99,7 @@ def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True)
         }
 
     try:
-        response = requests.get(url, headers=headers, proxies=proxies, timeout=10)
+        response = requests.get(url, headers=headers, proxies=proxies, timeout=5)
         response.raise_for_status()
 
         if "Deine Anfrage wurde als Spam erkannt." in response.text:
@@ -251,8 +251,9 @@ def get_season_episode_count(slug: str, season: str) -> int:
         return 0
     season_soup = BeautifulSoup(season_html, 'html.parser')
 
-    episode_links = season_soup.find_all('a', 
-        href=True, 
+    episode_links = season_soup.find_all(
+        'a',
+        href=True,
         title=lambda x: x and x.startswith("Staffel")
     )
 
@@ -832,7 +833,7 @@ def download_anime4k(mode: str):
 def remove_anime4k_files():
     mpv_directory = os.path.join(os.path.expandvars('$APPDATA'), 'mpv')
     input_conf_path = os.path.join(mpv_directory, "input.conf")
-    
+
     logging.debug("Removing existing configuration files.")
     remove_path(input_conf_path)
     remove_path(os.path.join(mpv_directory, "mpv.conf"))
