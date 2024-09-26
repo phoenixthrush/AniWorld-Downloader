@@ -2,6 +2,7 @@ import os
 import shutil
 import getpass
 import platform
+import hashlib
 from typing import Dict, List, Optional, Any
 import logging
 
@@ -157,25 +158,35 @@ def build_syncplay_command(
         link, mpv_title, aniskip_options
     )
     syncplay = "SyncplayConsole" if platform.system() == "Windows" else "syncplay"
+    syncplay_password = os.getenv("SYNCPLAY_PASSWORD")
+
+    if syncplay_password:
+        room_name = f"{mpv_title.replace(' ', '_')}-{hashlib.sha256(syncplay_password.encode()).hexdigest()}"
+    else:
+        room_name = mpv_title.replace(" ", "_")
+
     command = [
         syncplay,
         "--no-gui",
         "--no-store",
         "--host", "syncplay.pl:8997",
         "--name", getpass.getuser(),
-        "--room", mpv_title.replace(" ", "_"),
+        "--room", room_name,
         "--player-path", shutil.which("mpv"),
+    ]
+    if syncplay_password:
+        command.extend(["--password", syncplay_password])
+    command.extend([
         link,
         "--",
         "--fs",
         f"--force-media-title={mpv_title}"
-    ]
+    ])
     if aniskip_options:
         logging.debug("Aniskip options provided, setting up aniskip")
         setup_aniskip()
         command.extend(aniskip_options)
 
-    command.extend("")
     logging.debug("Built syncplay command: %s", command)
     return command
 

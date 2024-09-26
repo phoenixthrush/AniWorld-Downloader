@@ -331,6 +331,10 @@ def parse_arguments():
               'to set or remove as the changes are persistent.')
     )
     parser.add_argument(
+        '--syncplay-password', type=str, nargs='+',
+        help='Set a syncplay room password'
+    )
+    parser.add_argument(
         '--only-direct-link', action='store_true',
         default=aniworld_globals.DEFAULT_ONLY_DIRECT_LINK,
         help='Output direct link'
@@ -384,6 +388,10 @@ def parse_arguments():
 
     if args.anime4k:
         setup_anime4k(args.anime4k)
+
+    if args.syncplay_password:
+        os.environ['SYNCPLAY_PASSWORD'] = args.syncplay_password[0]
+        logging.debug("Syncplay password set.")
 
     return args
 

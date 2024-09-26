@@ -184,16 +184,19 @@ aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaib
 
 ---
 
-## Anime4K Setup [Currently Windows Only]
+## Anime4K Setup
 
 To install Anime4K persistently, use the following commands once:
 
 ### For Higher-End GPU
+(Eg. GTX 980, GTX 1060, RX 570)
 ```shell
 aniworld --anime4k High
 ```
 
 ### For Lower-End GPU
+(Eg. GTX 1080, RTX 2070, RTX 3060, RX 590, Vega 56, 5700XT, 6600XT)
+
 ```shell
 aniworld --anime4k Low
 ```
@@ -285,8 +288,9 @@ These are automatically installed when you install AniWorld Downloader via pip.
   - [x] MacOS
   - [x] Linux
 - [x] Fix season episode count.
-- [ ] Fix empty output when the selected language is unavailable.
 - [ ] Add an option for Syncplay room passwords.
+- [ ] Fix yt-dlp progress bar on Windows 
+- [ ] Fix empty output when the selected language is unavailable.
 - [ ] Fix Aniskip for seasons other than the first.
 - [ ] Support Doodstream.
 
