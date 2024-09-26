@@ -161,7 +161,7 @@ def build_syncplay_command(
     syncplay_password = os.getenv("SYNCPLAY_PASSWORD")
 
     if syncplay_password:
-        room_name = f"{mpv_title.replace(' ', '_')}-{hashlib.sha256(syncplay_password.encode()).hexdigest()}"
+        room_name = f"aniworld-password-{hashlib.sha256(syncplay_password.encode()).hexdigest()}"
     else:
         room_name = mpv_title.replace(" ", "_")
 
