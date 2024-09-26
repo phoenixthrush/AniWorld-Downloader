@@ -124,7 +124,7 @@ aniworld
 
 ### Command-Line Arguments
 
-AniWorld Downloader provides various command-line options to download and stream anime without using the interactive menu.
+AniWorld Downloader provides various command-line options to download and stream anime without using the interactive menu. This also allows users to utilize advanced options that can't be selected through the normal menu, such as (--aniskip, --keep-watching, --syncplay-password, ...).
 
 ## Command-Line Examples
 
@@ -174,6 +174,12 @@ Your friend wants to watch it in English Sub you can specify it like this:
 aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --action Syncplay --keep-watching --language "English Sub" --aniskip
 ```
 
+Please note that anyone watching the same anime (regardless of the episode) will automatically join the room if Syncplay is enabled. If you prefer to restrict access to strangers, you can set a password for the room that both parties must specify to join.
+
+```shell
+aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --action Syncplay --keep-watching --language "English Sub" --aniskip --syncplay-password beans
+```
+
 ### Example 5: Download with Specific Provider and Language
 
 Download an episode using the VOE provider with English subtitles:
@@ -220,8 +226,9 @@ usage: aniworld [-h] [--slug SLUG] [--link LINK] [--query QUERY]
                 [--episode EPISODE [EPISODE ...]] [--action {Watch,Download,Syncplay}]
                 [--output OUTPUT] [--language {German Dub,English Sub,German Sub}]
                 [--provider {Vidoza,Streamtape,VOE,Doodstream}] [--aniskip]
-                [--keep-watching] [--anime4k {High,Low,Remove}] [--only-direct-link]
-                [--only-command] [--proxy PROXY] [--debug]
+                [--keep-watching] [--anime4k {High,Low,Remove}]
+                [--syncplay-password SYNCPLAY_PASSWORD [SYNCPLAY_PASSWORD ...]]
+                [--only-direct-link] [--only-command] [--proxy PROXY] [--debug]
 
 Parse optional command line arguments.
 
@@ -247,6 +254,8 @@ options:
                         3060, RX 590, Vega 56, 5700XT, 6600XT; Low Eg.: GTX 980, GTX
                         1060, RX 570, or Remove). This only needs to be run once to set
                         or remove as the changes are persistent.
+  --syncplay-password SYNCPLAY_PASSWORD [SYNCPLAY_PASSWORD ...]
+                        Set a syncplay room password
   --only-direct-link    Output direct link
   --only-command        Output command
   --proxy PROXY         Set HTTP Proxy - E.g. http://0.0.0.0:8080
