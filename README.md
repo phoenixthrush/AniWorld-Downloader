@@ -288,7 +288,7 @@ These are automatically installed when you install AniWorld Downloader via pip.
   - [x] MacOS
   - [x] Linux
 - [x] Fix season episode count.
-- [ ] Add an option for Syncplay room passwords.
+- [x] Add an option for Syncplay room passwords.
 - [ ] Fix yt-dlp progress bar on Windows 
 - [ ] Fix empty output when the selected language is unavailable.
 - [ ] Fix Aniskip for seasons other than the first.

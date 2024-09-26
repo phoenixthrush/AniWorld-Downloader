@@ -159,11 +159,12 @@ def build_syncplay_command(
     )
     syncplay = "SyncplayConsole" if platform.system() == "Windows" else "syncplay"
     syncplay_password = os.getenv("SYNCPLAY_PASSWORD")
+    anime_title = mpv_title.split(" - ")[0].replace(" ", "_")
 
     if syncplay_password:
-        room_name = f"aniworld-password-{hashlib.sha256(syncplay_password.encode()).hexdigest()}"
+        room_name = f"aniworld-{hashlib.sha256((syncplay_password + anime_title).encode()).hexdigest()}"
     else:
-        room_name = mpv_title.replace(" ", "_")
+        room_name = f"aniworld-{hashlib.sha256(anime_title.encode()).hexdigest()}"
 
     command = [
         syncplay,
@@ -175,7 +176,7 @@ def build_syncplay_command(
         "--player-path", shutil.which("mpv"),
     ]
     if syncplay_password:
-        command.extend(["--password", syncplay_password])
+        command.extend(["--password", hashlib.sha256(("aniworld" + syncplay_password + anime_title).encode()).hexdigest()])
     command.extend([
         link,
         "--",
