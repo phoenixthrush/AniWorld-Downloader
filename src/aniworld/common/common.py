@@ -776,13 +776,6 @@ def display_ascii_art() -> str:
     return random.choice([lucky_star, cinnamoroll, cat, coding, female, catgirl, spy])
 
 
-def is_windows():
-    if platform.system() != 'Windows':
-        logging.debug("Skipping Anime4K setup. [Windows only]")
-        return False
-    return True
-
-
 def remove_path(path):
     try:
         if os.path.isfile(path):
@@ -794,26 +787,41 @@ def remove_path(path):
         logging.error("Error removing %s: %s", path, e)
 
 
-def download_anime4k(mode: str):
-    if not is_windows():
-        logging.debug("Skipping download_anime4k: not on Windows.")
-        return
+def get_mpv_directory():
+    if platform.system() == "Windows":
+        return os.path.join(os.getenv('APPDATA'), 'mpv')
 
-    template_zip = (
+    return os.path.join(os.getenv('HOME'), '.config', 'mpv')
+
+
+def get_aniworld_data_directory():
+    if platform.system() == "Windows":
+        return os.path.join(os.getenv('APPDATA'), 'aniworld', 'anime4k')
+
+    return os.path.join(os.getenv('HOME'), '.aniworld', 'anime4k')
+
+
+def get_anime4k_download_link(mode: str):
+    os_type = "Windows" if platform.system() == "Windows" else "Mac_Linux"
+    return (
         f"https://github.com/Tama47/Anime4K/releases/download/v4.0.1/"
-        f"GLSL_Windows_{mode}-end.zip"
+        f"GLSL_{os_type}_{mode}-end.zip"
     )
-    logging.debug("Downloading Anime4k from %s", template_zip)
 
-    anime4k_path = os.path.join(os.getenv('APPDATA'), 'aniworld', 'anime4k')
+
+def download_anime4k(mode: str):
+    download_link = get_anime4k_download_link(mode)
+    logging.debug("Downloading Anime4k from %s", download_link)
+
+    anime4k_path = get_aniworld_data_directory()
     shaders_path = os.path.join(anime4k_path, f"GLSL_{platform.system()}_{mode}-end")
     archive_path = os.path.join(shaders_path, "anime4k.zip")
 
     os.makedirs(shaders_path, exist_ok=True)
     logging.debug("Created shaders path: %s", shaders_path)
 
-    content = fetch_url_content(template_zip)
-    logging.debug("Fetched content from %s", template_zip)
+    content = fetch_url_content(download_link)
+    logging.debug("Fetched content from %s", download_link)
 
     with open(archive_path, 'wb') as f:
         f.write(content)
@@ -831,7 +839,7 @@ def download_anime4k(mode: str):
 
 
 def remove_anime4k_files():
-    mpv_directory = os.path.join(os.path.expandvars('$APPDATA'), 'mpv')
+    mpv_directory = get_mpv_directory()
     input_conf_path = os.path.join(mpv_directory, "input.conf")
 
     logging.debug("Removing existing configuration files.")
@@ -841,13 +849,9 @@ def remove_anime4k_files():
 
 
 def set_anime4k_config(mode: str):
-    if not is_windows():
-        logging.debug("Skipping set_anime4k_config: not on Windows.")
-        return
-
-    anime4k_path = os.path.join(os.getenv('APPDATA'), 'aniworld', 'anime4k')
+    anime4k_path = get_aniworld_data_directory()
     shaders_path = os.path.join(anime4k_path, f"GLSL_{platform.system()}_{mode}-end")
-    mpv_directory = os.path.join(os.path.expandvars('$APPDATA'), 'mpv')
+    mpv_directory = get_mpv_directory()
 
     os.makedirs(mpv_directory, exist_ok=True)
     logging.debug("Created MPV directory: %s", mpv_directory)

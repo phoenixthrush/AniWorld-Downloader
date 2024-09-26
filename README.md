@@ -280,10 +280,10 @@ These are automatically installed when you install AniWorld Downloader via pip.
   - [x] yt-dlp
   - [x] Syncplay
 - [x] Implement movie support.
-- [ ] Configure the Anime4K installation setup:
+- [x] Configure the Anime4K installation setup:
   - [x] Windows
-  - [ ] MacOS
-  - [ ] Linux
+  - [x] MacOS
+  - [x] Linux
 - [x] Fix season episode count.
 - [ ] Fix empty output when the selected language is unavailable.
 - [ ] Add an option for Syncplay room passwords.
