@@ -65,14 +65,22 @@ pip install -U aniworld
 
 ### Dev Version (unstable)
 
-To install the latest development changes on GitHub (assuming you have Git installed):
+To install the latest development changes on GitHub:
+
+```shell
+pip install --upgrade git+https://github.com/phoenixthrush/AniWorld-Downloader.git#egg=aniworld
+```
+
+To update, simply rerun the command above. It's recommended to do this regularly as these builds are often unstable.
+
+Or if you want the files locally (assuming you have Git installed):
 
 ```shell
 git clone https://github.com/phoenixthrush/AniWorld-Downloader aniworld
 pip install -U -e ./aniworld
 ```
 
-Please keep it to the latest version by doing this regularly:
+If you have the files locally using the second option above, you need to keep it updated by doing this regularly:
 
 ```shell
 git -C aniworld pull
@@ -195,13 +203,14 @@ aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaib
 To install Anime4K persistently, use the following commands once:
 
 ### For Higher-End GPU
-(Eg. GTX 980, GTX 1060, RX 570)
+(Eg. GTX 1080, RTX 2070, RTX 3060, RX 590, Vega 56, 5700XT, 6600XT, M1 Pro, M1 Max, M1 Ultra, M2 Pro, M2 Max)
+
 ```shell
 aniworld --anime4k High
 ```
 
 ### For Lower-End GPU
-(Eg. GTX 1080, RTX 2070, RTX 3060, RX 590, Vega 56, 5700XT, 6600XT)
+(Eg. GTX 980, GTX 1060, RX 570, M1, M2, Intel chips)
 
 ```shell
 aniworld --anime4k Low
