@@ -116,6 +116,12 @@ On MacOS & Linux:
 rm -f $HOME/.config/mpv/scripts/autoexit.lua
 rm -f $HOME/.config/mpv/scripts/autostart.lua
 rm -f $HOME/.config/mpv/scripts/skip.lua
+
+rm -f $HOME/mpv/input.conf
+rm -f $HOME/mpv/mpv.conf
+rm -rf $HOME/mpv/shaders
+
+rm -rf $HOME/.aniworld
 ```
 
 ---
