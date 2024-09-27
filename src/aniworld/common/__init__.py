@@ -16,5 +16,6 @@ from .common import (
     setup_aniskip,
     get_season_and_episode_numbers,
     display_ascii_art,
-    setup_anime4k
+    setup_anime4k,
+    is_version_outdated
 )

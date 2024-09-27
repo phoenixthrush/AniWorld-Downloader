@@ -22,7 +22,8 @@ from aniworld.common import (
     get_language_code,
     is_tail_running,
     get_season_and_episode_numbers,
-    setup_anime4k
+    setup_anime4k,
+    is_version_outdated
 )
 
 
@@ -262,9 +263,12 @@ class AnimeApp(npyscreen.NPSAppManaged):
     def onStart(self):
         logging.debug("Starting AnimeApp")
         npyscreen.setTheme(CustomTheme)
+        version = get_version_from_pyproject()
+        update_notice = " (Update Available)" if is_version_outdated() else ""
+        name=f"AniWorld-Downloader{version}{update_notice}"
         self.addForm(
             "MAIN", EpisodeForm,
-            name=f"AniWorld-Downloader{get_version_from_pyproject()}"
+            name=name
         )
 
 

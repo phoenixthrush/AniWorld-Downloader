@@ -11,6 +11,7 @@ import sys
 import random
 import zipfile
 from typing import List, Optional
+from packaging.version import Version
 
 import requests
 import py7zr
@@ -99,7 +100,7 @@ def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True)
         }
 
     try:
-        response = requests.get(url, headers=headers, proxies=proxies, timeout=10)
+        response = requests.get(url, headers=headers, proxies=proxies, timeout=15)
         response.raise_for_status()
 
         if "Deine Anfrage wurde als Spam erkannt." in response.text:
@@ -383,6 +384,45 @@ def get_version_from_pyproject():
     except (OSError, IOError, re.error) as e:
         logging.error("Error reading version from pyproject.toml: %s", e)
         return ""
+    
+
+def get_latest_github_version():
+    logging.debug("Entering get_latest_github_version function.")
+    repo = "phoenixthrush/aniworld-downloader"
+    api_url = f"https://api.github.com/repos/{repo}/releases/latest"
+
+    try:
+        response_content = fetch_url_content(api_url, check=False)
+        if not response_content:
+            logging.error("Failed to fetch latest release from %s", repo)
+            return ""
+
+        release_data = json.loads(response_content)
+        latest_version = release_data.get('tag_name', '')
+        logging.debug("Latest GitHub version: %s", latest_version)
+        return latest_version
+    except json.JSONDecodeError as e:
+        logging.error("Error decoding JSON response from %s: %s", repo, e)
+    except requests.exceptions.RequestException as e:
+        logging.error("Unexpected error fetching latest release from %s: %s", repo, e)
+    return ""
+
+
+def is_version_outdated():
+    logging.debug("Entering is_outdated_version function.")
+    current_version = get_version_from_pyproject()
+    latest_version = get_latest_github_version()
+
+    if not current_version or not latest_version:
+        logging.error("Could not determine version information.")
+        return False
+
+    current_version = Version(current_version.strip().lstrip('v').lstrip('.'))
+    latest_version = Version(latest_version.strip().lstrip('v').lstrip('.'))
+
+    logging.debug("Current version: %s, Latest version: %s", current_version, latest_version)
+
+    return current_version < latest_version
 
 
 def get_language_code(language: str) -> str:
