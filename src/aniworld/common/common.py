@@ -95,7 +95,7 @@ def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True)
         }
 
     try:
-        response = requests.get(url, headers=headers, proxies=proxies, timeout=15)
+        response = requests.get(url, headers=headers, proxies=proxies, timeout=300)
         response.raise_for_status()
 
         if "Deine Anfrage wurde als Spam erkannt." in response.text:
