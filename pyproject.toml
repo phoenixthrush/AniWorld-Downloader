@@ -14,6 +14,7 @@ dependencies = [
     'thefuzz',
     'colorlog',
     'py7zr',
+    'packaging',
     'windows-curses; platform_system == "Windows"'
 ]
 classifiers = [
