@@ -266,7 +266,7 @@ class AnimeApp(npyscreen.NPSAppManaged):
         npyscreen.setTheme(CustomTheme)
         version = get_version_from_pyproject()
         update_notice = " (Update Available)" if is_version_outdated() else ""
-        name=f"AniWorld-Downloader{version}{update_notice}"
+        name = f"AniWorld-Downloader{version}{update_notice}"
         self.addForm(
             "MAIN", EpisodeForm,
             name=name
@@ -366,7 +366,7 @@ def parse_arguments():
     args = parser.parse_args()
 
     if args.episode and args.episode_file:
-        msg = ("Cannot specify both --episode and --episode-file.")
+        msg = "Cannot specify both --episode and --episode-file."
         logging.critical(msg)
         print(msg)
         sys.exit()

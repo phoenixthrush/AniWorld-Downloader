@@ -72,27 +72,22 @@ def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True)
 
     proxies = {}
     if proxy:
-        if proxy.startswith('socks'):
-            proxies = {
-                'http': proxy,
-                'https': proxy
-            }
-        else:
-            proxies = {
-                'http': f'http://{proxy}',
-                'https': f'https://{proxy}'
-            }
+        proxies = {
+            'http': proxy,
+            'https': proxy
+        } if proxy.startswith('socks') else {
+            'http': f'http://{proxy}',
+            'https': f'https://{proxy}'
+        }
     elif aniworld_globals.DEFAULT_PROXY:
-        if aniworld_globals.DEFAULT_PROXY.startswith('socks'):
-            proxies = {
-                'http': aniworld_globals.DEFAULT_PROXY,
-                'https': aniworld_globals.DEFAULT_PROXY
-            }
-        else:
-            proxies = {
-                'http': f'http://{aniworld_globals.DEFAULT_PROXY}',
-                'https': f'https://{aniworld_globals.DEFAULT_PROXY}'
-            }
+        default_proxy = aniworld_globals.DEFAULT_PROXY
+        proxies = {
+            'http': default_proxy,
+            'https': default_proxy
+        } if default_proxy.startswith('socks') else {
+            'http': f'http://{default_proxy}',
+            'https': f'https://{default_proxy}'
+        }
     else:
         proxies = {
             "http": os.getenv("HTTP_PROXY"),
@@ -111,6 +106,9 @@ def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True)
             sys.exit(1)
 
         return response.content
+    except requests.exceptions.Timeout:
+        logging.critical("Request to %s timed out.", url)
+        sys.exit(1)
     except requests.exceptions.RequestException as error:
         if check:
             logging.critical("Request to %s failed: %s", url, error)
@@ -384,7 +382,7 @@ def get_version_from_pyproject():
     except (OSError, IOError, re.error) as e:
         logging.error("Error reading version from pyproject.toml: %s", e)
         return ""
-    
+
 
 def get_latest_github_version():
     logging.debug("Entering get_latest_github_version function.")
@@ -943,11 +941,11 @@ def process_episode_file_line(line: str) -> tuple:
         if "/staffel-" in line and "/episode-" in line:
             slug = line.split('/')[5]
             return [line], slug
-        elif "/staffel-" in line:
+        if "/staffel-" in line:
             return get_season_episodes(line), line.split('/')[-2]
-        else:
-            slug = line.split('/')[-1]
-            return list(get_season_data(slug)), slug
+
+        slug = line.split('/')[-1]
+        return list(get_season_data(slug)), slug
 
     return [], None
 
@@ -955,7 +953,7 @@ def process_episode_file_line(line: str) -> tuple:
 def read_episode_file(file: str) -> dict:
     animes = {}
 
-    with open(file, 'r') as f:
+    with open(file, 'r', encoding='utf-8') as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -968,3 +966,7 @@ def read_episode_file(file: str) -> dict:
                 animes[slug].extend(episode)
 
     return animes
+
+
+if __name__ == "__main__":
+    pass
