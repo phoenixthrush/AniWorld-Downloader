@@ -17,5 +17,6 @@ from .common import (
     get_season_and_episode_numbers,
     display_ascii_art,
     setup_anime4k,
-    is_version_outdated
+    is_version_outdated,
+    read_episode_file
 )

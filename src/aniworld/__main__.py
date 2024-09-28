@@ -23,7 +23,8 @@ from aniworld.common import (
     is_tail_running,
     get_season_and_episode_numbers,
     setup_anime4k,
-    is_version_outdated
+    is_version_outdated,
+    read_episode_file
 )
 
 
@@ -294,6 +295,10 @@ def parse_arguments():
         help='List of episode URLs'
     )
     parser.add_argument(
+        '--episode-file', type=str,
+        help='File path containing a list of episode URLs'
+    )
+    parser.add_argument(
         '--action', type=str, choices=['Watch', 'Download', 'Syncplay'],
         default=aniworld_globals.DEFAULT_ACTION,
         help='Action to perform'
@@ -359,6 +364,12 @@ def parse_arguments():
     )
 
     args = parser.parse_args()
+
+    if args.episode and args.episode_file:
+        msg = ("Cannot specify both --episode and --episode-file.")
+        logging.critical(msg)
+        print(msg)
+        sys.exit()
 
     if args.debug:
         os.environ['IS_DEBUG_MODE'] = '1'
@@ -449,12 +460,20 @@ def main():
         validate_link(args)
         handle_query(args)
 
-        anime_title = get_anime_title(args)
-        logging.debug("Anime title: %s", anime_title)
         language = get_language_code(args.language)
         logging.debug("Language code: %s", language)
 
+        if args.episode_file:
+            animes = read_episode_file(args.episode_file)
+            for slug, seasons in animes.items():
+                execute_with_params(args, seasons, slug, language)
+            sys.exit()
+
+        anime_title = get_anime_title(args)
+        logging.debug("Anime title: %s", anime_title)
+
         selected_episodes = get_selected_episodes(args, anime_title)
+
         logging.debug("Selected episodes: %s", selected_episodes)
 
         if args.episode:

@@ -936,3 +936,35 @@ def setup_anime4k(mode: str):
 
     download_anime4k(mode)
     set_anime4k_config(mode)
+
+
+def process_episode_file_line(line: str) -> tuple:
+    if "https://aniworld.to/anime/stream/" in line:
+        if "/staffel-" in line and "/episode-" in line:
+            slug = line.split('/')[5]
+            return [line], slug
+        elif "/staffel-" in line:
+            return get_season_episodes(line), line.split('/')[-2]
+        else:
+            slug = line.split('/')[-1]
+            return list(get_season_data(slug)), slug
+
+    return [], None
+
+
+def read_episode_file(file: str) -> dict:
+    animes = {}
+
+    with open(file, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+
+            episode, slug = process_episode_file_line(line)
+            if episode:
+                if slug not in animes:
+                    animes[slug] = []
+                animes[slug].extend(episode)
+
+    return animes
