@@ -25,6 +25,7 @@ AniWorld Downloader is a command-line tool designed to download and stream anime
   - [Example 3: Watch Episodes with Aniskip](#example-3-watch-episodes-with-aniskip)
   - [Example 4: Syncplay with Friends](#example-4-syncplay-with-friends)
   - [Example 5: Download with Specific Provider and Language](#example-5-download-with-specific-provider-and-language)
+  - [Example 6: Use Episode File](#example-6-use-episode-file)
 - [Anime4K Setup](#anime4k-setup-currently-windows-only)
 - [TODO](#todo)
 - [Contributing](#contributing)
