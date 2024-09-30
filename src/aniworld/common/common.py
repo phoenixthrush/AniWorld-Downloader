@@ -10,6 +10,7 @@ import subprocess
 import sys
 import random
 import zipfile
+import pathlib
 from typing import List, Optional
 from packaging.version import Version
 
@@ -966,6 +967,41 @@ def read_episode_file(file: str) -> dict:
                 animes[slug].extend(episode)
 
     return animes
+
+
+def check_package_installation(package_name: str="aniworld"):
+    """
+    make this all work on linux macos and windows
+
+    check if in ../../../../ exists .git
+    return "clone"
+    """
+
+    """
+    check if inside dist-info exists direct_url.json
+    site-packages/aniworld-x.x.x.dist-info/direct_url.json
+
+    if yes return "git"
+    if no return "pypi"
+    """
+
+    site_packages = next(p for p in sys.path if 'site-packages' in p)
+
+    package_path = pathlib.Path(site_packages) / package_name
+    git_path = package_path / "../../../../.git"
+    
+    if git_path.exists():
+        return "clone"
+
+    dist_info_path = pathlib.Path(site_packages) / f"{package_name}-*.dist-info"
+    dist_info_dirs = list(dist_info_path.parent.glob(f"{package_name}-*.dist-info"))
+    
+    if dist_info_dirs:
+        direct_url_file = dist_info_dirs[0] / "direct_url.json"
+        if direct_url_file.exists():
+            return "git"
+
+    return "pypi"
 
 
 if __name__ == "__main__":

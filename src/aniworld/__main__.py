@@ -24,7 +24,8 @@ from aniworld.common import (
     get_season_and_episode_numbers,
     setup_anime4k,
     is_version_outdated,
-    read_episode_file
+    read_episode_file,
+    check_package_installation
 )
 
 
@@ -362,8 +363,17 @@ def parse_arguments():
         '--debug', action='store_true',
         help='Enable debug mode'
     )
+    parser.add_argument(
+        '--version', action='store_true',
+        help='Enable debug mode'
+    )
 
     args = parser.parse_args()
+
+    if args.version:
+        print("Installed via " + check_package_installation() + get_version_from_pyproject() + ".", end="")
+        print(" (Update Available)" if is_version_outdated() else "")
+        sys.exit()
 
     if args.episode and args.episode_file:
         msg = "Cannot specify both --episode and --episode-file."

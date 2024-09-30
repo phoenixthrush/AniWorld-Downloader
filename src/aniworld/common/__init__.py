@@ -18,5 +18,6 @@ from .common import (
     display_ascii_art,
     setup_anime4k,
     is_version_outdated,
-    read_episode_file
+    read_episode_file,
+    check_package_installation
 )
