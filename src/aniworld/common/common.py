@@ -971,18 +971,16 @@ def read_episode_file(file: str) -> dict:
 
 def check_package_installation(package_name: str="aniworld"):
     """
-    make this all work on linux macos and windows
-
-    check if in ../../../../ exists .git
+    if in ../../../../ exists .git
     return "clone"
     """
 
     """
-    check if inside dist-info exists direct_url.json
+    if inside dist-info exists direct_url.json
     site-packages/aniworld-x.x.x.dist-info/direct_url.json
 
-    if yes return "git"
-    if no return "pypi"
+    if return "git"
+    if not return "pypi"
     """
 
     site_packages = next(p for p in sys.path if 'site-packages' in p)

@@ -371,8 +371,18 @@ def parse_arguments():
     args = parser.parse_args()
 
     if args.version:
-        print("Installed via " + check_package_installation() + get_version_from_pyproject() + ".", end="")
-        print(" (Update Available)" if is_version_outdated() else "")
+        banner = fR"""
+ ___________________________ 
+< Installed via {check_package_installation()}{get_version_from_pyproject()}{" (Update Available)" if is_version_outdated() else ""}. >
+ --------------------------- 
+        \   ^__^
+         \  (oo)\_______
+            (__)\       )\/\\
+                ||----w |
+                ||     ||                                                                                  
+        """
+
+        print(banner)
         sys.exit()
 
     if args.episode and args.episode_file:
