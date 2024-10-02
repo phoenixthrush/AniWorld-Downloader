@@ -334,7 +334,6 @@ def parse_arguments():
     parser.add_argument(
         '--anime4k', type=str,
         choices=['High', 'Low', 'Remove'],
-        default='High',
         help=('Set Anime4K optimised mode (High Eg.: GTX 1080, RTX 2070, '
               'RTX 3060, RX 590, Vega 56, 5700XT, 6600XT; Low Eg.: GTX 980, '
               'GTX 1060, RX 570, or Remove). This only needs to be run once '
