@@ -51,8 +51,6 @@ def check_dependencies(dependencies: list) -> None:
             logging.info("Missing dependencies: %s. Attempting to download.", missing)
             missing = [dep.replace("SyncplayConsole", "syncplay") for dep in missing]
             download_dependencies(missing)
-            # Info no need to check if in path
-            # Will fallback to appdata binaries if found in execute.py
         else:
             missing_with_links = [
                 f"{dep} (Download: {download_links.get(dep, 'No link available')})"
@@ -235,7 +233,6 @@ def execute_command(command: List[str], only_command: bool) -> None:
     else:
         logging.debug("Executing command: %s", command)
 
-        # TODO Somehow I can't supress the warnings or it crashes on MacOS
         subprocess.run(command, check=True)
 
 
@@ -975,31 +972,18 @@ def read_episode_file(file: str) -> dict:
     return animes
 
 
-def check_package_installation(package_name: str="aniworld"):
-    """
-    if in ../../../../ exists .git
-    return "clone"
-    """
-
-    """
-    if inside dist-info exists direct_url.json
-    site-packages/aniworld-x.x.x.dist-info/direct_url.json
-
-    if return "git"
-    if not return "pypi"
-    """
-
+def check_package_installation(package_name: str = "aniworld"):
     site_packages = next(p for p in sys.path if 'site-packages' in p)
 
     package_path = pathlib.Path(site_packages) / package_name
     git_path = package_path / "../../../../.git"
-    
+
     if git_path.exists():
         return "clone"
 
     dist_info_path = pathlib.Path(site_packages) / f"{package_name}-*.dist-info"
     dist_info_dirs = list(dist_info_path.parent.glob(f"{package_name}-*.dist-info"))
-    
+
     if dist_info_dirs:
         direct_url_file = dist_info_dirs[0] / "direct_url.json"
         if direct_url_file.exists():
@@ -1015,7 +999,7 @@ def remove_files(paths):
                 os.remove(path)
             elif os.path.isdir(path):
                 shutil.rmtree(path)
-        except Exception as e:
+        except OSError as e:
             print(f"Error removing {path}: {e}")
 
 
@@ -1040,12 +1024,12 @@ def self_uninstall():
             os.path.expanduser("~/.config/mpv/shaders"),
             os.path.expanduser("~/.aniworld"),
         ]
-    
-    logging.debug(f"Removed Files:\n{paths}")
+
+    logging.debug("Removed Files:\n%s", paths)
     remove_files(paths)
-    
+
     if shutil.which("pip"):
-        subprocess.run(["pip", "uninstall", "aniworld", "-y"])
+        execute_command(["pip", "uninstall", "aniworld", "-y"], only_command=False)
     sys.exit()
 
 
