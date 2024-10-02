@@ -94,35 +94,7 @@ git -C aniworld pull
 To uninstall AniWorld Downloader:
 
 ```shell
-pip uninstall -y aniworld
-```
-
-To also delete all leftover files, run the following command:
-
-On Windows:
-```batch
-del "%APPDATA%\mpv\scripts\autoexit.lua" >nul 2>&1
-del "%APPDATA%\mpv\scripts\autostart.lua" >nul 2>&1
-del "%APPDATA%\mpv\scripts\skip.lua" >nul 2>&1
-
-del "%APPDATA%\mpv\input.conf" >nul 2>&1
-del "%APPDATA%\mpv\mpv.conf" >nul 2>&1
-rmdir /s /q "%APPDATA%\mpv\shaders" >nul 2>&1
-
-rmdir /s /q "%APPDATA%\aniworld" >nul 2>&1
-```
-
-On MacOS & Linux:
-```shell
-rm -f $HOME/.config/mpv/scripts/autoexit.lua
-rm -f $HOME/.config/mpv/scripts/autostart.lua
-rm -f $HOME/.config/mpv/scripts/skip.lua
-
-rm -f $HOME/.config/mpv/input.conf
-rm -f $HOME/.config/mpv/mpv.conf
-rm -rf $HOME/.config/mpv/shaders
-
-rm -rf $HOME/.aniworld
+aniworld --uninstall
 ```
 
 ---
@@ -259,24 +231,22 @@ aniworld --help
 
 ```
 usage: aniworld [-h] [--slug SLUG] [--link LINK] [--query QUERY]
-                [--episode EPISODE [EPISODE ...]]
-                [--episode-file EPISODE_FILE]
+                [--episode EPISODE [EPISODE ...]] [--episode-file EPISODE_FILE]
                 [--action {Watch,Download,Syncplay}] [--output OUTPUT]
                 [--language {German Dub,English Sub,German Sub}]
                 [--provider {Vidoza,Streamtape,VOE,Doodstream}] [--aniskip]
                 [--keep-watching] [--anime4k {High,Low,Remove}]
                 [--syncplay-password SYNCPLAY_PASSWORD [SYNCPLAY_PASSWORD ...]]
-                [--only-direct-link] [--only-command] [--proxy PROXY]
-                [--debug] [--version]
+                [--only-direct-link] [--only-command] [--proxy PROXY] [--debug]
+                [--version] [--uninstall]
 
 Parse optional command line arguments.
 
 options:
   -h, --help            show this help message and exit
   --slug SLUG           Search query - E.g. demon-slayer-kimetsu-no-yaiba
-  --link LINK           Search query - E.g.
-                        https://aniworld.to/anime/stream/demon-slayer-kimetsu-
-                        no-yaiba
+  --link LINK           Search query - E.g. https://aniworld.to/anime/stream/demon-
+                        slayer-kimetsu-no-yaiba
   --query QUERY         Search query input - E.g. demon
   --episode EPISODE [EPISODE ...]
                         List of episode URLs
@@ -292,11 +262,10 @@ options:
   --aniskip             Skip intro and outro
   --keep-watching       Continue watching
   --anime4k {High,Low,Remove}
-                        Set Anime4K optimised mode (High Eg.: GTX 1080, RTX
-                        2070, RTX 3060, RX 590, Vega 56, 5700XT, 6600XT; Low
-                        Eg.: GTX 980, GTX 1060, RX 570, or Remove). This only
-                        needs to be run once to set or remove as the changes
-                        are persistent.
+                        Set Anime4K optimised mode (High Eg.: GTX 1080, RTX 2070, RTX
+                        3060, RX 590, Vega 56, 5700XT, 6600XT; Low Eg.: GTX 980, GTX
+                        1060, RX 570, or Remove). This only needs to be run once to set
+                        or remove as the changes are persistent.
   --syncplay-password SYNCPLAY_PASSWORD [SYNCPLAY_PASSWORD ...]
                         Set a syncplay room password
   --only-direct-link    Output direct link
@@ -304,6 +273,7 @@ options:
   --proxy PROXY         Set HTTP Proxy - E.g. http://0.0.0.0:8080
   --debug               Enable debug mode
   --version             Print version info
+  --uninstall           Self uninstall
 ```
 
 ---
@@ -344,7 +314,7 @@ These are automatically installed when you install AniWorld Downloader via pip.
 - [x] Fix season episode count.
 - [x] Add an option for Syncplay room passwords.
 - [x] Add mass file support
-- [ ] Fix yt-dlp progress bar on Windows 
+- [ ] Fix yt-dlp progress bar on Windows
 - [ ] Fix empty output when the selected language is unavailable.
 - [ ] Use anime title instead of slug on episode list
 - [ ] Optimize performance: less requests and no duplicate function calls

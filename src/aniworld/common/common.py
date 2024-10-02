@@ -911,8 +911,10 @@ def set_anime4k_config(mode: str):
                 break
 
         if current_mode == mode:
-            logging.debug("Current mode is already set to %s. No changes made.", mode)
-            return
+            msg = f"Anime4K: Current mode is already set to {mode}. No changes made."
+            print(msg)
+            logging.debug(msg)
+            sys.exit()
 
         remove_anime4k_files()
 
@@ -931,10 +933,14 @@ def set_anime4k_config(mode: str):
 def setup_anime4k(mode: str):
     if mode == "Remove":
         remove_anime4k_files()
-        return
+        print("Anime4K: Uninstalled.")
+        sys.exit()
 
     download_anime4k(mode)
     set_anime4k_config(mode)
+
+    print(f"Anime4K: Installed using mode: {mode}.")
+    sys.exit()
 
 
 def process_episode_file_line(line: str) -> tuple:
@@ -1035,8 +1041,11 @@ def self_uninstall():
             os.path.expanduser("~/.aniworld"),
         ]
     
+    logging.debug(f"Removed Files:\n{paths}")
     remove_files(paths)
-    subprocess.run(["pip", "uninstall", "aniworld", "-y"])
+    
+    if shutil.which("pip"):
+        subprocess.run(["pip", "uninstall", "aniworld", "-y"])
     sys.exit()
 
 
