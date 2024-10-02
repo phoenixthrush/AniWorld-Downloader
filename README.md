@@ -273,6 +273,8 @@ options:
   --proxy PROXY         Set HTTP Proxy - E.g. http://0.0.0.0:8080
   --debug               Enable debug mode
   --version             Print version info
+  --update {mpv,yt-dlp,syncplay,all}
+                        Update mpv, yt-dlp, syncplay, or all.
   --uninstall           Self uninstall
 ```
 
