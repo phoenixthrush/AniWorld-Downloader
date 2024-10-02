@@ -1033,5 +1033,27 @@ def self_uninstall():
     sys.exit()
 
 
+def get_component_paths():
+    base_path = os.getenv('APPDATA') if platform.system() == "Windows" else os.path.expanduser("~/.aniworld")
+    return {
+        "mpv": os.path.join(base_path, "mpv"),
+        "yt-dlp": os.path.join(base_path, "yt-dlp"),
+        "syncplay": os.path.join(base_path, "syncplay")
+    }
+
+
+def update_component(component: str):
+    paths = get_component_paths()
+
+    components = ["mpv", "yt-dlp", "syncplay"] if component == "all" else [component]
+
+    for comp in components:
+        remove_path(paths[comp])
+        logging.debug("Removed: %s", comp)
+        logging.debug("Downloading component: %s", comp)
+        download_dependencies(comp)
+        print(f"Installed newest {comp} version.")
+
+
 if __name__ == "__main__":
     pass

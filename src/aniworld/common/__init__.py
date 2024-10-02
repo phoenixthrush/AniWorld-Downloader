@@ -20,5 +20,6 @@ from .common import (
     is_version_outdated,
     read_episode_file,
     check_package_installation,
-    self_uninstall
+    self_uninstall,
+    update_component
 )

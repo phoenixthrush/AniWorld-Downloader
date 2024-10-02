@@ -26,7 +26,8 @@ from aniworld.common import (
     is_version_outdated,
     read_episode_file,
     check_package_installation,
-    self_uninstall
+    self_uninstall,
+    update_component
 )
 
 
@@ -368,6 +369,11 @@ def parse_arguments():
         help='Print version info'
     )
     parser.add_argument(
+        '--update', type=str,
+        choices=['mpv', 'yt-dlp', 'syncplay', 'all'],
+        help='Update mpv, yt-dlp, syncplay, or all.'
+    )
+    parser.add_argument(
         '--uninstall', action='store_true',
         help='Self uninstall'
     )
@@ -421,6 +427,10 @@ def parse_arguments():
 
     if args.uninstall:
         self_uninstall()
+
+    if args.update:
+        update_component(args.update)
+        sys.exit()
 
     if args.proxy:
         os.environ['HTTP_PROXY'] = args.proxy
