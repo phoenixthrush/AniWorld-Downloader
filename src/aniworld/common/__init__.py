@@ -19,5 +19,6 @@ from .common import (
     setup_anime4k,
     is_version_outdated,
     read_episode_file,
-    check_package_installation
+    check_package_installation,
+    self_uninstall
 )

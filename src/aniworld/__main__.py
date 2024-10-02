@@ -25,7 +25,8 @@ from aniworld.common import (
     setup_anime4k,
     is_version_outdated,
     read_episode_file,
-    check_package_installation
+    check_package_installation,
+    self_uninstall
 )
 
 
@@ -366,6 +367,10 @@ def parse_arguments():
         '--version', action='store_true',
         help='Print version info'
     )
+    parser.add_argument(
+        '--uninstall', action='store_true',
+        help='Self uninstall'
+    )
 
     args = parser.parse_args()
 
@@ -413,6 +418,9 @@ def parse_arguments():
                     logging.debug("Started tailing the log file in a new Terminal window.")
                 except subprocess.CalledProcessError as e:
                     logging.error("Failed to start tailing the log file: %s", e)
+
+    if args.uninstall:
+        self_uninstall()
 
     if args.proxy:
         os.environ['HTTP_PROXY'] = args.proxy

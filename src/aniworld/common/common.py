@@ -1002,5 +1002,43 @@ def check_package_installation(package_name: str="aniworld"):
     return "pypi"
 
 
+def remove_files(paths):
+    for path in paths:
+        try:
+            if os.path.isfile(path):
+                os.remove(path)
+            elif os.path.isdir(path):
+                shutil.rmtree(path)
+        except Exception as e:
+            print(f"Error removing {path}: {e}")
+
+
+def self_uninstall():
+    if platform.system() == "Windows":
+        paths = [
+            os.path.join(os.getenv('APPDATA'), "mpv", "scripts", "autoexit.lua"),
+            os.path.join(os.getenv('APPDATA'), "mpv", "scripts", "autostart.lua"),
+            os.path.join(os.getenv('APPDATA'), "mpv", "scripts", "skip.lua"),
+            os.path.join(os.getenv('APPDATA'), "mpv", "input.conf"),
+            os.path.join(os.getenv('APPDATA'), "mpv", "mpv.conf"),
+            os.path.join(os.getenv('APPDATA'), "mpv", "shaders"),
+            os.path.join(os.getenv('APPDATA'), "aniworld"),
+        ]
+    else:
+        paths = [
+            os.path.expanduser("~/.config/mpv/scripts/autoexit.lua"),
+            os.path.expanduser("~/.config/mpv/scripts/autostart.lua"),
+            os.path.expanduser("~/.config/mpv/scripts/skip.lua"),
+            os.path.expanduser("~/.config/mpv/input.conf"),
+            os.path.expanduser("~/.config/mpv/mpv.conf"),
+            os.path.expanduser("~/.config/mpv/shaders"),
+            os.path.expanduser("~/.aniworld"),
+        ]
+    
+    remove_files(paths)
+    subprocess.run(["pip", "uninstall", "aniworld", "-y"])
+    sys.exit()
+
+
 if __name__ == "__main__":
     pass
