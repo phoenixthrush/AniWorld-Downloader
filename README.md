@@ -258,19 +258,25 @@ aniworld --help
 ```
 
 ```
-usage: aniworld [-h] [--slug SLUG] [--link LINK] [--query QUERY] [--episode EPISODE [EPISODE ...]]
-                [--episode-file EPISODE_FILE] [--action {Watch,Download,Syncplay}] [--output OUTPUT]
+usage: aniworld [-h] [--slug SLUG] [--link LINK] [--query QUERY]
+                [--episode EPISODE [EPISODE ...]]
+                [--episode-file EPISODE_FILE]
+                [--action {Watch,Download,Syncplay}] [--output OUTPUT]
                 [--language {German Dub,English Sub,German Sub}]
-                [--provider {Vidoza,Streamtape,VOE,Doodstream}] [--aniskip] [--keep-watching]
-                [--anime4k {High,Low,Remove}] [--syncplay-password SYNCPLAY_PASSWORD [SYNCPLAY_PASSWORD ...]]
-                [--only-direct-link] [--only-command] [--proxy PROXY] [--debug]
+                [--provider {Vidoza,Streamtape,VOE,Doodstream}] [--aniskip]
+                [--keep-watching] [--anime4k {High,Low,Remove}]
+                [--syncplay-password SYNCPLAY_PASSWORD [SYNCPLAY_PASSWORD ...]]
+                [--only-direct-link] [--only-command] [--proxy PROXY]
+                [--debug] [--version]
 
 Parse optional command line arguments.
 
 options:
   -h, --help            show this help message and exit
   --slug SLUG           Search query - E.g. demon-slayer-kimetsu-no-yaiba
-  --link LINK           Search query - E.g. https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba
+  --link LINK           Search query - E.g.
+                        https://aniworld.to/anime/stream/demon-slayer-kimetsu-
+                        no-yaiba
   --query QUERY         Search query input - E.g. demon
   --episode EPISODE [EPISODE ...]
                         List of episode URLs
@@ -286,15 +292,18 @@ options:
   --aniskip             Skip intro and outro
   --keep-watching       Continue watching
   --anime4k {High,Low,Remove}
-                        Set Anime4K optimised mode (High Eg.: GTX 1080, RTX 2070, RTX 3060, RX 590, Vega 56,
-                        5700XT, 6600XT; Low Eg.: GTX 980, GTX 1060, RX 570, or Remove). This only needs to be
-                        run once to set or remove as the changes are persistent.
+                        Set Anime4K optimised mode (High Eg.: GTX 1080, RTX
+                        2070, RTX 3060, RX 590, Vega 56, 5700XT, 6600XT; Low
+                        Eg.: GTX 980, GTX 1060, RX 570, or Remove). This only
+                        needs to be run once to set or remove as the changes
+                        are persistent.
   --syncplay-password SYNCPLAY_PASSWORD [SYNCPLAY_PASSWORD ...]
                         Set a syncplay room password
   --only-direct-link    Output direct link
   --only-command        Output command
   --proxy PROXY         Set HTTP Proxy - E.g. http://0.0.0.0:8080
   --debug               Enable debug mode
+  --version             Print version info
 ```
 
 ---

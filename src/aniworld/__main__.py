@@ -365,7 +365,7 @@ def parse_arguments():
     )
     parser.add_argument(
         '--version', action='store_true',
-        help='Enable debug mode'
+        help='Print version info'
     )
 
     args = parser.parse_args()
