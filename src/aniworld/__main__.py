@@ -424,6 +424,13 @@ def parse_arguments():
                     logging.debug("Started tailing the log file in a new Terminal window.")
                 except subprocess.CalledProcessError as e:
                     logging.error("Failed to start tailing the log file: %s", e)
+        elif platform.system() == "Windows":
+            try:
+                command = 'start cmd /k "powershell -c "Get-Content -Wait $env:TEMP\\aniworld.log""'
+                subprocess.run(command, check=True)
+                logging.debug("Started tailing the log file in a new Terminal window.")
+            except subprocess.CalledProcessError as e:
+                logging.error("Failed to start tailing the log file: %s", e)
 
     if args.uninstall:
         self_uninstall()
