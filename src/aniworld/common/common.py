@@ -1003,38 +1003,33 @@ def remove_files(paths):
             print(f"Error removing {path}: {e}")
 
 
+def get_uninstall_paths():
+    base_path = os.getenv('APPDATA') if platform.system() == "Windows" else os.path.expanduser("~/.config/mpv")
+    return [
+        os.path.join(base_path, "scripts", "autoexit.lua"),
+        os.path.join(base_path, "scripts", "autostart.lua"),
+        os.path.join(base_path, "scripts", "skip.lua"),
+        os.path.join(base_path, "input.conf"),
+        os.path.join(base_path, "mpv.conf"),
+        os.path.join(base_path, "shaders"),
+        os.path.join(os.path.expanduser("~/.aniworld") if platform.system() != "Windows" else os.path.join(os.getenv('APPDATA'), "aniworld")),
+    ]
+
+
 def self_uninstall():
-    if platform.system() == "Windows":
-        paths = [
-            os.path.join(os.getenv('APPDATA'), "mpv", "scripts", "autoexit.lua"),
-            os.path.join(os.getenv('APPDATA'), "mpv", "scripts", "autostart.lua"),
-            os.path.join(os.getenv('APPDATA'), "mpv", "scripts", "skip.lua"),
-            os.path.join(os.getenv('APPDATA'), "mpv", "input.conf"),
-            os.path.join(os.getenv('APPDATA'), "mpv", "mpv.conf"),
-            os.path.join(os.getenv('APPDATA'), "mpv", "shaders"),
-            os.path.join(os.getenv('APPDATA'), "aniworld"),
-        ]
-    else:
-        paths = [
-            os.path.expanduser("~/.config/mpv/scripts/autoexit.lua"),
-            os.path.expanduser("~/.config/mpv/scripts/autostart.lua"),
-            os.path.expanduser("~/.config/mpv/scripts/skip.lua"),
-            os.path.expanduser("~/.config/mpv/input.conf"),
-            os.path.expanduser("~/.config/mpv/mpv.conf"),
-            os.path.expanduser("~/.config/mpv/shaders"),
-            os.path.expanduser("~/.aniworld"),
-        ]
+    paths = get_uninstall_paths()
 
     logging.debug("Removed Files:\n%s", paths)
     remove_files(paths)
 
     if shutil.which("pip"):
         execute_command(["pip", "uninstall", "aniworld", "-y"], only_command=False)
+
     sys.exit()
 
 
 def get_component_paths():
-    base_path = os.getenv('APPDATA') if platform.system() == "Windows" else os.path.expanduser("~/.aniworld")
+    base_path = os.path.join(os.getenv('APPDATA'), "aniworld") if platform.system() == "Windows" else os.path.expanduser("~/.aniworld")
     return {
         "mpv": os.path.join(base_path, "mpv"),
         "yt-dlp": os.path.join(base_path, "yt-dlp"),
@@ -1051,8 +1046,8 @@ def update_component(component: str):
         remove_path(paths[comp])
         logging.debug("Removed: %s", comp)
         logging.debug("Downloading component: %s", comp)
-        download_dependencies(comp)
-        print(f"Installed newest {comp} version.")
+        download_dependencies([comp])
+        print(f"Installed latest {comp} version.")
 
 
 if __name__ == "__main__":
