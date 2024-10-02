@@ -1016,15 +1016,29 @@ def get_uninstall_paths():
     ]
 
 
+def execute_detached_command_windows(command):
+    subprocess.Popen(f'timeout 3 >nul & {" ".join(command)}', shell=True, creationflags=subprocess.CREATE_NEW_CONSOLE)
+
+
+def uninstall_aniworld():
+    if shutil.which("pip"):
+        command = ["pip", "uninstall", "aniworld", "-y"]
+
+        if platform.system() == "Windows":
+            execute_detached_command_windows(command)
+        else:
+            execute_command(command, only_command=False)
+
+
 def self_uninstall():
     paths = get_uninstall_paths()
 
     logging.debug("Removed Files:\n%s", paths)
     remove_files(paths)
 
-    if shutil.which("pip"):
-        execute_command(["pip", "uninstall", "aniworld", "-y"], only_command=False)
-
+    logging.debug("Uninstalling using pip.")
+    print("Uninstalling, please wait up to 3 seconds...")
+    uninstall_aniworld()
     sys.exit()
 
 
