@@ -1064,5 +1064,13 @@ def update_component(component: str):
         print(f"Installed latest {comp} version.")
 
 
+def print_progress_info(msg: str):
+    command = [
+        "cmd", "/c",
+        "echo", msg
+    ]
+    execute_command(command)
+
+
 if __name__ == "__main__":
     pass

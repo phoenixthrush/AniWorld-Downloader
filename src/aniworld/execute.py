@@ -24,7 +24,8 @@ from aniworld.common import (
     fetch_url_content,
     check_dependencies,
     get_language_string,
-    get_season_and_episode_numbers
+    get_season_and_episode_numbers,
+    print_progress_info
 )
 
 
@@ -83,10 +84,13 @@ def build_yt_dlp_command(link: str, output_file: str) -> List[str]:
         "--concurrent-fragments", "4",
         "-o", output_file,
         "--quiet",
-        "--progress",
         "--no-warnings",
         link
     ]
+
+    if not platform.system() == "Windows":
+        command.extend(["--progress"])
+
     logging.debug("Built yt-dlp command: %s", command)
     return command
 
@@ -251,7 +255,11 @@ def handle_watch_action(
     mpv_title = mpv_title.replace(" --- ", " - ", 1)
     check_dependencies(["mpv"])
     if not only_command:
-        print(f"Playing '{mpv_title}'")
+        msg = f"Playing '{mpv_title}'"
+        if not platform.system() == "Windows":
+            print(msg)
+        else:
+            print_progress_info(msg)
     command = build_command(link, mpv_title, "mpv", aniskip_selected, aniskip_options)
     logging.debug("Executing command: %s", command)
     execute_command(command, only_command)
@@ -268,7 +276,11 @@ def handle_download_action(params: Dict[str, Any]) -> None:
     )
     file_path = os.path.join(params['output_directory'], file_name).replace(" --- ", "/", 1)
     if not params['only_command']:
-        print(f"Downloading to '{file_path}'")
+        msg = f"Downloading to '{file_path}'"
+        if not platform.system() == "Windows":
+            print(msg)
+        else:
+            print_progress_info(msg)
     command = build_yt_dlp_command(params['link'], file_path)
     logging.debug("Executing command: %s", command)
     try:
@@ -289,7 +301,11 @@ def handle_syncplay_action(
     mpv_title = mpv_title.replace(" --- ", " - ", 1)
     check_dependencies(["mpv", "syncplay"])
     if not only_command:
-        print(f"Playing '{mpv_title}'")
+        msg = f"Playing '{mpv_title}'"
+        if not platform.system() == "Windows":
+            print(msg)
+        else:
+            print_progress_info(msg)
     command = build_syncplay_command(link, mpv_title, aniskip_options)
     logging.debug("Executing command: %s", command)
     execute_command(command, only_command)
