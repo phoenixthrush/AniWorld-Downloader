@@ -382,12 +382,12 @@ def parse_arguments():
 
     if args.version:
         banner = fR"""
- ___________________________
-< Installed via {check_package_installation()}{get_version_from_pyproject()}{" (Update Available)" if is_version_outdated() else ""}. >
- ---------------------------
+ ____________________________________
+< Installed aniworld{get_version_from_pyproject()} via {check_package_installation()}{" (Update Available)" if is_version_outdated() else ""}. >
+ ------------------------------------
         \   ^__^
          \  (oo)\_______
-            (__)\       )\/\\
+            (__)\       )\/\
                 ||----w |
                 ||     ||
         """
