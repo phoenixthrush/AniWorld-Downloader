@@ -2,8 +2,9 @@
 
 AniWorld Downloader is a command-line tool designed to download and stream anime content from [aniworld.to](https://aniworld.to). It allows users to fetch single episodes, download seasons, and organize downloads into structured folders. Compatible with Windows, macOS, and Linux, AniWorld Downloader offers a seamless experience across different operating systems.
 
-![PyPI - Downloads](https://img.shields.io/pypi/dm/aniworld?color=blue)
-![License](https://img.shields.io/pypi/l/aniworld)
+![Downloads](https://img.shields.io/pypi/dm/aniworld?label=Downloads&color=blue)
+![wakatime](https://wakatime.com/badge/user/ebc8f6ad-7a1c-4f3a-ad43-cc402feab5fc/project/408bbea7-23d0-4d6c-846d-79628e6b136c.svg)
+![License](https://img.shields.io/pypi/l/aniworld?label=License&color=blue)
 
 ![AniWorld Downloader - Demo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/main/.github/demo.png?raw=true)
 
