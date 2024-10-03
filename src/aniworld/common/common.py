@@ -1069,7 +1069,7 @@ def print_progress_info(msg: str):
         "cmd", "/c",
         "echo", msg
     ]
-    execute_command(command)
+    execute_command(command, only_command=False)
 
 
 if __name__ == "__main__":
