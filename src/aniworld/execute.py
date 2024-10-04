@@ -273,13 +273,14 @@ def handle_watch_action(
 def handle_download_action(params: Dict[str, Any]) -> None:
     logging.debug("Action is Download")
     check_dependencies(["yt-dlp"])
+    sanitize_anime_title = sanitize_path(params['anime_title'])
     file_name = (
-        f"{params['anime_title']} - S{params['season_number']}E{params['episode_number']}.mp4"
+        f"{sanitize_anime_title} - S{params['season_number']}E{params['episode_number']}.mp4"
         if params['season_number']
-        else f"{params['anime_title']} - Movie {params['episode_number']}.mp4"
+        else f"{sanitize_anime_title} - Movie {params['episode_number']}.mp4"
     )
-    sanitized_filename = sanitize_path(file_name)
-    file_path = os.path.join(params['output_directory'], sanitized_filename).replace(" --- ", "/", 1)
+
+    file_path = os.path.join(params['output_directory'], file_name).replace(" --- ", "/", 1)
     if not params['only_command']:
         msg = f"Downloading to '{file_path}'"
         if not platform.system() == "Windows":
