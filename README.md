@@ -319,7 +319,7 @@ These are automatically installed when you install AniWorld Downloader via pip.
 - [x] Add mass file support
 - [x] Fix yt-dlp progress bar on Windows
 - [x] Fix empty output when the selected language is unavailable.
-- [ ] Use anime title instead of slug on episode list
+- [x] Use anime title instead of slug on episode list
 - [ ] Optimize performance: less requests and no duplicate function calls
 - [ ] Fix Aniskip for seasons other than the first.
 - [ ] Support Doodstream.

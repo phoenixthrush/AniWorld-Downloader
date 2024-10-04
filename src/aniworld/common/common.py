@@ -1073,9 +1073,31 @@ def print_progress_info(msg: str):
 
 
 def get_anime_season_title(slug: str, season: int) -> str:
-    logging.debug("Fetching %s season %s name ", slug, season)
-    # TODO this is temporary and will be replaced with logic
-    return f"{slug.replace("-", " ").title()}"
+    # TODO this should be replaced with a logic for the actual name for each season using api
+    # this will also be called for each season but for now once
+    logging.debug("Fetching %s season %s name", slug, season)
+
+    season_html = fetch_url_content(f"https://aniworld.to/anime/stream/{slug}/staffel-{season}")
+
+    if not season_html:
+        logging.error("Failed to fetch content for %s season %s", slug, season)
+        return slug.replace("-", " ").title()
+
+    soup = BeautifulSoup(season_html, 'html.parser')
+
+    series_div = soup.find('div', class_='series-title')
+    logging.debug(series_div)
+
+    if series_div:
+        name = series_div.find('h1').find('span').text
+    else:
+        logging.warning("No series title found for %s season %s, using slug instead", slug, season)
+        name = slug.replace("-", " ").title()
+
+    logging.debug("Anime season title: %s", name)
+
+    return name
+
 
 if __name__ == "__main__":
     pass

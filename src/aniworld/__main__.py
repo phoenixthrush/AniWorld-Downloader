@@ -78,13 +78,15 @@ class EpisodeForm(npyscreen.ActionForm):
         season_data = get_season_data(anime_slug)
         logging.debug("Season data: %s", season_data)
 
+        # TODO in get_anime_season_title() common.py
+        anime_season_title = get_anime_season_title(slug=anime_slug, season=1)
+
         season_episode_map = {
             f"{anime_season_title} - Season {season} - Episode {episode}"
             if season > 0
-            else f"{anime_title} - Movie {episode}": url
+            else f"{anime_season_title} - Movie {episode}": url
             for url in season_data
             for season, episode in [get_season_and_episode_numbers(url)]
-            for anime_season_title in [get_anime_season_title(anime_slug, season)]
         }
 
         self.episode_map = season_episode_map
