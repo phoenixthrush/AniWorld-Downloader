@@ -439,7 +439,7 @@ def process_provider(params: Dict[str, Any]) -> None:
         message = (
             f"No available languages for provider {params['provider']} "
             f"matching the selected language {get_language_string(int(params['lang']))}. "
-            f"Available languages: {available_languages}"
+            f"\nAvailable languages: {available_languages}"
         )
 
         logging.error(message)
