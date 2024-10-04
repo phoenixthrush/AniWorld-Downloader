@@ -26,7 +26,8 @@ from aniworld.common import (
     get_language_string,
     get_season_and_episode_numbers,
     print_progress_info,
-    countdown
+    countdown,
+    sanitize_path
 )
 
 
@@ -277,7 +278,8 @@ def handle_download_action(params: Dict[str, Any]) -> None:
         if params['season_number']
         else f"{params['anime_title']} - Movie {params['episode_number']}.mp4"
     )
-    file_path = os.path.join(params['output_directory'], file_name).replace(" --- ", "/", 1)
+    sanitized_filename = sanitize_path(file_name)
+    file_path = os.path.join(params['output_directory'], sanitized_filename).replace(" --- ", "/", 1)
     if not params['only_command']:
         msg = f"Downloading to '{file_path}'"
         if not platform.system() == "Windows":

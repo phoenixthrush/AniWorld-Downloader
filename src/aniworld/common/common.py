@@ -1115,5 +1115,15 @@ def countdown():
         sys.exit()
 
 
+def sanitize_path(path):
+    invalid_chars = r'\/:*?"<>|'
+
+    translation_table = str.maketrans('', '', invalid_chars)
+
+    sanitized_path = path.translate(translation_table)
+
+    return sanitized_path
+
+
 if __name__ == "__main__":
     pass
