@@ -1072,5 +1072,10 @@ def print_progress_info(msg: str):
     execute_command(command, only_command=False)
 
 
+def get_anime_season_title(slug: str, season: int) -> str:
+    logging.debug("Fetching %s season %s name ", slug, season)
+    # TODO this is temporary and will be replaced with logic
+    return f"{slug.replace("-", " ").title()}"
+
 if __name__ == "__main__":
     pass

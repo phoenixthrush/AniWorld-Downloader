@@ -22,5 +22,6 @@ from .common import (
     check_package_installation,
     self_uninstall,
     update_component,
-    print_progress_info
+    print_progress_info,
+    get_anime_season_title
 )
