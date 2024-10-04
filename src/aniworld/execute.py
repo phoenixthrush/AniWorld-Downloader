@@ -283,9 +283,11 @@ def handle_download_action(params: Dict[str, Any]) -> None:
     file_path = os.path.join(params['output_directory'], file_name).replace(" --- ", "/", 1)
     if not params['only_command']:
         msg = f"Downloading to '{file_path}'"
+        msg2 = f"Succesfully Downloaded File to '{file_path}'"
         if not platform.system() == "Windows":
             print(msg)
         else:
+            print(msg2)
             print_progress_info(msg)
     command = build_yt_dlp_command(params['link'], file_path)
     logging.debug("Executing command: %s", command)
