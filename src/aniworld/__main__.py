@@ -515,7 +515,7 @@ def main():
             animes = read_episode_file(args.episode_file)
             for slug, seasons in animes.items():
                 if args.output == aniworld_globals.DEFAULT_DOWNLOAD_PATH:
-                    args.output = os.path.join(args.output, get_anime_season_title(slug, season=1))
+                    args.output = os.path.join(args.output, slug.replace("-", " ").title())
                 execute_with_params(args, seasons, slug, language)
             sys.exit()
 
