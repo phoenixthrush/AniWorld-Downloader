@@ -1101,7 +1101,11 @@ def get_anime_season_title(slug: str, season: int) -> str:
 
 def countdown():
     try:
-        print("You now have 3 seconds to press CTRL+C to exit!")
+        msg = "You now have 3 seconds to press CTRL+C to exit!"
+        if not platform.system() == "Windows":
+            print(msg)
+        else:
+            print_progress_info(msg)
         time.sleep(3)
     except KeyboardInterrupt:
         print("\nExiting...")
