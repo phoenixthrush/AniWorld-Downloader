@@ -11,6 +11,7 @@ import sys
 import random
 import zipfile
 import pathlib
+import time
 from typing import List, Optional
 from packaging.version import Version
 
@@ -232,7 +233,6 @@ def execute_command(command: List[str], only_command: bool) -> None:
         print(command_str)
     else:
         logging.debug("Executing command: %s", command)
-
         subprocess.run(command, check=True)
 
 
@@ -1097,6 +1097,15 @@ def get_anime_season_title(slug: str, season: int) -> str:
     logging.debug("Anime season title: %s", name)
 
     return name
+
+
+def countdown():
+    try:
+        print("You now have 3 seconds to press CTRL+C to exit!")
+        time.sleep(3)
+    except KeyboardInterrupt:
+        print("\nExiting...")
+        sys.exit()
 
 
 if __name__ == "__main__":

@@ -3,8 +3,8 @@ import shutil
 import getpass
 import platform
 import hashlib
-from typing import Dict, List, Optional, Any
 import logging
+from typing import Dict, List, Optional, Any
 
 from bs4 import BeautifulSoup
 
@@ -25,7 +25,8 @@ from aniworld.common import (
     check_dependencies,
     get_language_string,
     get_season_and_episode_numbers,
-    print_progress_info
+    print_progress_info,
+    countdown
 )
 
 
@@ -217,12 +218,14 @@ def perform_action(params: Dict[str, Any]) -> None:
     )
 
     if action == "Watch":
+        countdown()
         handle_watch_action(
             link, mpv_title, aniskip_selected, aniskip_options, only_command
         )
     elif action == "Download":
         handle_download_action(params)
     elif action == "Syncplay":
+        countdown()
         handle_syncplay_action(
             link, mpv_title, aniskip_options, only_command
         )
