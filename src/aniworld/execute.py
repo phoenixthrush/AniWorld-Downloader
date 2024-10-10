@@ -189,6 +189,8 @@ def build_syncplay_command(
     command.extend([
         link,
         "--",
+        "--profile=fast",
+        "--hwdec=auto-safe",
         "--fs",
         f"--force-media-title={mpv_title}"
     ])
