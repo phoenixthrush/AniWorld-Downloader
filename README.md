@@ -27,12 +27,13 @@ AniWorld Downloader is a command-line tool designed to download and stream anime
   - [Example 4: Syncplay with Friends](#example-4-syncplay-with-friends)
   - [Example 5: Download with Specific Provider and Language](#example-5-download-with-specific-provider-and-language)
   - [Example 6: Use Episode File](#example-6-use-episode-file)
-- [Anime4K Setup](#anime4k-setup-currently-windows-only)
+- [Anime4K Setup](#anime4k-setup)
 - [TODO](#todo)
 - [Contributing](#contributing)
 - [Credits](#credits)
 - [License](#license)
 - [Support](#support)
+- [Star History](#star-history)
 
 ---
 
@@ -360,3 +361,7 @@ If you need help or have questions about AniWorld Downloader, you can:
 I appreciate your support and feedback!
 
 If you enjoy using AniWorld Downloader and want to support this project, please consider starring the repository on GitHub. It's free and only takes one click, but it would mean the world to me and motivate me to maintain and improve the project for longer.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=phoenixthrush/Aniworld-Downloader&type=Date)](https://star-history.com/#phoenixthrush/Aniworld-Downloader&Date)
