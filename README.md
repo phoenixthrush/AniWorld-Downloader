@@ -358,7 +358,7 @@ See the LICENSE file for more details.
 If you need help or have questions about AniWorld Downloader, you can:
 
 - **Report a bug or request a feature** on the [GitHub Issues](https://github.com/phoenixthrush/AniWorld-Downloader/issues) page.
-- **Contact me** directly via email at [contact@phoenixthrush.com](mailto:contact@phoenixthrush.com) or on Matrix at @phoenixthrush:matrix.org.
+- **Contact me** directly via email at [contact@phoenixthrush.com](mailto:contact@phoenixthrush.com), on Matrix `@phoenixthrush:matrix.org` or on Discord `phoenixthrush`.
 
 I appreciate your support and feedback!
 
