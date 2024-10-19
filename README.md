@@ -317,14 +317,16 @@ These are automatically installed when you install AniWorld Downloader via pip.
   - [x] Linux
 - [x] Fix season episode count.
 - [x] Add an option for Syncplay room passwords.
-- [x] Add mass file support
-- [x] Fix yt-dlp progress bar on Windows
+- [x] Add mass file support.
+- [x] Fix yt-dlp progress bar on Windows.
 - [x] Fix empty output when the selected language is unavailable.
-- [x] Use anime title instead of slug on episode list
-- [x] Add time to cancel
-- [x] Fix mass processed files output folder
-- [ ] Optimize performance: less requests and no duplicate function calls
+- [x] Use anime title instead of slug on episode list.
+- [x] Add time to cancel.
+- [x] Fix mass processed files output folder.
+- [ ] Fix Syncplay & mpv video desync issue.
+- [ ] Add Captcha Bypass/ Headless Browser fetches.
 - [ ] Fix Aniskip for seasons other than the first.
+- [ ] Optimize performance: less requests and no duplicate function calls.
 - [ ] Support Doodstream.
 
 ---
