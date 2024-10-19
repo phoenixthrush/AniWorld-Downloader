@@ -64,6 +64,9 @@ def build_command(
         "--fs",
         "--quiet",
         "--really-quiet",
+        "--profile=fast",
+        "--hwdec=auto-safe",
+        "--video-sync=display-resample",
         f"--force-media-title={mpv_title}"
     ]
 
@@ -192,6 +195,7 @@ def build_syncplay_command(
         "--profile=fast",
         "--hwdec=auto-safe",
         "--fs",
+        "--video-sync=display-resample",
         f"--force-media-title={mpv_title}"
     ])
     if aniskip_options:
