@@ -1255,6 +1255,8 @@ def check_playwright_installed():
             browser.close()
     except ModuleNotFoundError:
         print("Playwright is not installed.")
+        print("Please install Playwright by running:\npip install playwright\n"
+              "playwright install")
         sys.exit()
     except Exception as e:
         print(f"An error occurred: {e}")
