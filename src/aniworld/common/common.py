@@ -48,7 +48,7 @@ def check_dependencies(dependencies: list) -> None:
             "yt-dlp": "https://github.com/yt-dlp/yt-dlp#installation"
         }
 
-        if platform.system() == "Windows":
+        if platform.system() == "Windows" or platform.system() == "Linux":
             logging.info("Missing dependencies: %s. Attempting to download.", missing)
             missing = [dep.replace("SyncplayConsole", "syncplay") for dep in missing]
             download_dependencies(missing)
@@ -468,6 +468,11 @@ def download_dependencies(dependencies: list):
     logging.debug("Entering download_dependencies function.")
     logging.debug("Dependencies to download: %s", dependencies)
 
+    if platform.system() == "Linux":
+        logging.debug("Installing using Package-Manager...!")
+        install_packages(get_package_manager(), dependencies)
+        return
+
     if platform.system() != "Windows":
         logging.debug("Not on Windows, skipping dependency download.")
         return
@@ -820,10 +825,7 @@ def remove_path(path):
         if os.path.isfile(path):
             os.remove(path)
         elif os.path.isdir(path):
-            if not os.listdir(path):
-                os.rmdir(path)
-            else:
-                shutil.rmtree(path)
+            shutil.rmtree(path)
         logging.debug("Removed %s", path)
     except OSError as e:
         logging.error("Error removing %s: %s", path, e)
@@ -1124,6 +1126,53 @@ def sanitize_path(path):
 
     return sanitized_path
 
+def get_package_manager():
+    try:
+        if os.path.exists('/etc/os-release'):
+            with open('/etc/os-release') as f:
+                os_release_info = f.read().lower()
+
+            if 'arch' in os_release_info:
+                return 'pacman'
+            elif 'ubuntu' in os_release_info or 'debian' in os_release_info:
+                return 'apt'
+            elif 'fedora' in os_release_info:
+                return 'dnf'
+            elif 'centos' in os_release_info or 'rhel' in os_release_info:
+                return 'yum'
+            elif 'gentoo' in os_release_info:
+                return 'emerge'
+            elif 'opensuse' in os_release_info:
+                return 'zypper'
+            elif 'alpine' in os_release_info:
+                return 'apk'
+            else:
+                return 'unknown'
+        else:
+            return 'unknown'
+    except Exception as e:
+        return f'Error: {e}'
+
+def install_packages(package_manager, packages):
+    try:
+        if package_manager == 'pacman':
+            subprocess.run(['pkexec', 'pacman', '-S', '--noconfirm'] + packages, stdout=subprocess.DEVNULL)
+        elif package_manager == 'apt':
+            subprocess.run(['pkexec', 'apt-get', 'install', '-y'] + packages, stdout=subprocess.DEVNULL)
+        elif package_manager == 'dnf':
+            subprocess.run(['pkexec', 'dnf', 'install', '-y'] + packages, stdout=subprocess.DEVNULL)
+        elif package_manager == 'yum':
+            subprocess.run(['pkexec', 'yum', 'install', '-y'] + packages, stdout=subprocess.DEVNULL)
+        elif package_manager == 'emerge':
+            subprocess.run(['pkexec', 'emerge'] + packages, stdout=subprocess.DEVNULL)
+        elif package_manager == 'zypper':
+            subprocess.run(['pkexec', 'zypper', 'install', '-y'] + packages, stdout=subprocess.DEVNULL)
+        elif package_manager == 'apk':
+            subprocess.run(['pkexec', 'apk', 'add'] + packages, stdout=subprocess.DEVNULL)
+        else:
+            print(f'Package manager "{package_manager}" not supported or unknown.')
+    except Exception as e:
+        print(f'Error while installing: {e}')
 
 if __name__ == "__main__":
     pass
