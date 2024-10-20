@@ -292,6 +292,7 @@ AniWorld Downloader relies on the following Python packages:
 - `colorlog`
 - `py7zr`
 - `packaging`
+- `yt-dlp`
 - `windows-curses` (only on Windows)
 
 These are automatically installed when you install AniWorld Downloader via pip.
