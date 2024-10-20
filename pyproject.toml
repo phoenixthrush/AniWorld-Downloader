@@ -15,6 +15,7 @@ dependencies = [
     'colorlog',
     'py7zr',
     'packaging',
+    'yt-dlp',
     'windows-curses; platform_system == "Windows"'
 ]
 classifiers = [
