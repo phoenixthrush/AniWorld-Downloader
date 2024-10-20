@@ -67,102 +67,120 @@ def check_dependencies(dependencies: list) -> None:
 
 def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True) -> Optional[bytes]:
     logging.debug("Entering fetch_url_content function.")
-    
+
+    if aniworld_globals.DEFAULT_USE_PLAYWRIGHT or os.getenv("USE_PLAYWRIGHT"):
+        return fetch_url_content_with_playwright(url, proxy, check)
+
+    return fetch_url_content_without_playwright(url, proxy, check)
+
+
+def fetch_url_content_without_playwright(url: str, proxy: Optional[str] = None, check: bool = True) -> Optional[bytes]:
+    logging.debug("Entering fetch_url_content_without_playwright function.")
+
     headers = {
         'User-Agent': aniworld_globals.DEFAULT_USER_AGENT
     }
-    
-    if aniworld_globals.DEFAULT_USE_PLAYWRIGHT or os.getenv("USE_PLAYWRIGHT"):
-        logging.debug("Using playwright")
-        with sync_playwright() as p:
-            browser_options = {}
-            if proxy:
-                browser_options['proxy'] = {
-                    'server': proxy
-                }
 
-            if aniworld_globals.IS_DEBUG_MODE:
-                headless = False
-            else:
-                headless = True
-
-            headless = os.getenv("HEADLESS", headless)
-
-            browser = p.chromium.launch(headless=headless)
-            context = browser.new_context(
-                user_agent=headers['User-Agent'],
-                **browser_options
-            )
-            page = context.new_page()
-            page.set_extra_http_headers(headers)
-
-            try:
-                response = page.goto(url, timeout=300000)  # 300 seconds timeout
-                if response.status != 200:
-                    raise Exception(f"Failed to fetch page: {response.status}")
-
-                content = response.body()
-                if "Deine Anfrage wurde als Spam erkannt." in content.decode('utf-8'):
-                    logging.critical(
-                        "Your IP address is blacklisted. Please use a VPN, complete the captcha "
-                        "by opening the browser link, or try again later."
-                    )
-                    sys.exit(1)
-
-                return content
-            except Exception as error:
-                if check:
-                    logging.critical("Request to %s failed: %s", url, error)
-                    sys.exit(1)
-                return None
-            finally:
-                context.close()
-                browser.close()
+    proxies = {}
+    if proxy:
+        proxies = {
+            'http': proxy,
+            'https': proxy
+        } if proxy.startswith('socks') else {
+            'http': f'http://{proxy}',
+            'https': f'https://{proxy}'
+        }
+    elif aniworld_globals.DEFAULT_PROXY:
+        default_proxy = aniworld_globals.DEFAULT_PROXY
+        proxies = {
+            'http': default_proxy,
+            'https': default_proxy
+        } if default_proxy.startswith('socks') else {
+            'http': f'http://{default_proxy}',
+            'https': f'https://{default_proxy}'
+        }
     else:
-        proxies = {}
+        proxies = {
+            "http": os.getenv("HTTP_PROXY"),
+            "https": os.getenv("HTTPS_PROXY"),
+        }
+
+    try:
+        response = requests.get(url, headers=headers, proxies=proxies, timeout=300)
+        response.raise_for_status()
+
+        if "Deine Anfrage wurde als Spam erkannt." in response.text:
+            logging.critical(
+                "Your IP address is blacklisted. Please use a VPN, complete the captcha "
+                "by opening the browser link, or try again later."
+            )
+            sys.exit(1)
+
+        return response.content
+    except requests.exceptions.Timeout:
+        logging.critical("Request to %s timed out.", url)
+        sys.exit(1)
+    except requests.exceptions.RequestException as error:
+        if check:
+            logging.critical("Request to %s failed: %s", url, error)
+            sys.exit(1)
+        return None
+
+
+def fetch_url_content_with_playwright(url: str, proxy: Optional[str] = None, check: bool = True) -> Optional[bytes]:
+    logging.debug("Entering fetch_url_content_with_playwright function.")
+
+    if "aniworld.to/redirect/" in url:
+        return fetch_url_content_without_playwright(url, proxy, check)
+
+    headers = {
+        'User-Agent': aniworld_globals.DEFAULT_USER_AGENT
+    }
+
+    with sync_playwright() as p:
+        browser_options = {}
         if proxy:
-            proxies = {
-                'http': proxy,
-                'https': proxy
-            } if proxy.startswith('socks') else {
-                'http': f'http://{proxy}',
-                'https': f'https://{proxy}'
+            browser_options['proxy'] = {
+                'server': proxy
             }
-        elif aniworld_globals.DEFAULT_PROXY:
-            default_proxy = aniworld_globals.DEFAULT_PROXY
-            proxies = {
-                'http': default_proxy,
-                'https': default_proxy
-            } if default_proxy.startswith('socks') else {
-                'http': f'http://{default_proxy}',
-                'https': f'https://{default_proxy}'
-            }
+
+        if aniworld_globals.IS_DEBUG_MODE:
+            headless = False
         else:
-            proxies = {
-                "http": os.getenv("HTTP_PROXY"),
-                "https": os.getenv("HTTPS_PROXY"),
-            }
+            headless = True
+
+        headless = os.getenv("HEADLESS", headless)
+
+        browser = p.chromium.launch(headless=headless)
+        context = browser.new_context(
+            user_agent=headers['User-Agent'],
+            **browser_options
+        )
+        page = context.new_page()
+        page.set_extra_http_headers(headers)
 
         try:
-            response = requests.get(url, headers=headers, proxies=proxies, timeout=300)
-            response.raise_for_status()
+            response = page.goto(url, timeout=300000)  # 300 seconds timeout
+            if response.status != 200:
+                raise Exception(f"Failed to fetch page: {response.status}")
 
-            if "Deine Anfrage wurde als Spam erkannt." in response.text:
+            content = response.body()
+            if "Deine Anfrage wurde als Spam erkannt." in content.decode('utf-8'):
                 logging.critical(
                     "Your IP address is blacklisted. Please use a VPN, complete the captcha "
                     "by opening the browser link, or try again later."
                 )
                 sys.exit(1)
 
-            return response.content
-        except requests.exceptions.Timeout:
-            logging.critical("Request to %s timed out.", url)
-            sys.exit(1)
-        except requests.exceptions.RequestException as error:
+            return content
+        except Exception as error:
             if check:
                 logging.critical("Request to %s failed: %s", url, error)
                 sys.exit(1)
             return None
+        finally:
+            context.close()
+            browser.close()
 
 
 def clear_screen() -> None:
@@ -1175,6 +1193,7 @@ def sanitize_path(path):
 
     return sanitized_path
 
+
 def get_package_manager():
     try:
         if os.path.exists('/etc/os-release'):
@@ -1202,26 +1221,28 @@ def get_package_manager():
     except Exception as e:
         return f'Error: {e}'
 
+
 def install_packages(package_manager, packages):
     try:
         if package_manager == 'pacman':
-            subprocess.run(['pkexec', 'pacman', '-S', '--noconfirm'] + packages, stdout=subprocess.DEVNULL)
+            subprocess.run(['pkexec', 'pacman', '-S', '--noconfirm'] + packages, stdout=subprocess.DEVNULL, check=False)
         elif package_manager == 'apt':
-            subprocess.run(['pkexec', 'apt-get', 'install', '-y'] + packages, stdout=subprocess.DEVNULL)
+            subprocess.run(['pkexec', 'apt-get', 'install', '-y'] + packages, stdout=subprocess.DEVNULL, check=False)
         elif package_manager == 'dnf':
-            subprocess.run(['pkexec', 'dnf', 'install', '-y'] + packages, stdout=subprocess.DEVNULL)
+            subprocess.run(['pkexec', 'dnf', 'install', '-y'] + packages, stdout=subprocess.DEVNULL, check=False)
         elif package_manager == 'yum':
-            subprocess.run(['pkexec', 'yum', 'install', '-y'] + packages, stdout=subprocess.DEVNULL)
+            subprocess.run(['pkexec', 'yum', 'install', '-y'] + packages, stdout=subprocess.DEVNULL, check=False)
         elif package_manager == 'emerge':
-            subprocess.run(['pkexec', 'emerge'] + packages, stdout=subprocess.DEVNULL)
+            subprocess.run(['pkexec', 'emerge'] + packages, stdout=subprocess.DEVNULL, check=False)
         elif package_manager == 'zypper':
-            subprocess.run(['pkexec', 'zypper', 'install', '-y'] + packages, stdout=subprocess.DEVNULL)
+            subprocess.run(['pkexec', 'zypper', 'install', '-y'] + packages, stdout=subprocess.DEVNULL, check=False)
         elif package_manager == 'apk':
-            subprocess.run(['pkexec', 'apk', 'add'] + packages, stdout=subprocess.DEVNULL)
+            subprocess.run(['pkexec', 'apk', 'add'] + packages, stdout=subprocess.DEVNULL, check=False)
         else:
             print(f'Package manager "{package_manager}" not supported or unknown.')
     except Exception as e:
         print(f'Error while installing: {e}')
+
 
 if __name__ == "__main__":
     pass

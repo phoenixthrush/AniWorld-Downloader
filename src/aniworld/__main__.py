@@ -434,7 +434,7 @@ def parse_arguments():
                     logging.error("Failed to start tailing the log file: %s", e)
         elif platform.system() == "Windows":
             try:
-                command = f'start cmd /c "powershell -NoExit -c Get-Content -Wait \\"$env:TEMP\\aniworld.log\\""'
+                command = 'start cmd /c "powershell -NoExit -c Get-Content -Wait \\"$env:TEMP\\aniworld.log\\""'
                 subprocess.Popen(command, shell=True)
                 logging.debug("Started tailing the log file in a new Terminal window.")
             except subprocess.CalledProcessError as e:
