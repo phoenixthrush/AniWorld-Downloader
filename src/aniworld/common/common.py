@@ -820,7 +820,10 @@ def remove_path(path):
         if os.path.isfile(path):
             os.remove(path)
         elif os.path.isdir(path):
-            shutil.rmtree(path)
+            if not os.listdir(path):
+                os.rmdir(path)
+            else:
+                shutil.rmtree(path)
         logging.debug("Removed %s", path)
     except OSError as e:
         logging.error("Error removing %s: %s", path, e)
