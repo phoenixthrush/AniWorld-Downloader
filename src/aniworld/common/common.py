@@ -153,7 +153,6 @@ def fetch_url_content_with_playwright(url: str, proxy: Optional[str] = None, che
 
         browser = p.chromium.launch(headless=headless)
         context = browser.new_context(
-            user_agent=headers['User-Agent'],
             **browser_options
         )
         page = context.new_page()
