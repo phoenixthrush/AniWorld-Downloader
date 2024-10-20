@@ -18,6 +18,7 @@ from packaging.version import Version
 import requests
 import py7zr
 from bs4 import BeautifulSoup
+from playwright.sync_api import sync_playwright
 
 import aniworld.globals as aniworld_globals
 
@@ -66,54 +67,102 @@ def check_dependencies(dependencies: list) -> None:
 
 def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True) -> Optional[bytes]:
     logging.debug("Entering fetch_url_content function.")
+    
     headers = {
         'User-Agent': aniworld_globals.DEFAULT_USER_AGENT
     }
+    
+    if aniworld_globals.DEFAULT_USE_PLAYWRIGHT or os.getenv("USE_PLAYWRIGHT"):
+        logging.debug("Using playwright")
+        with sync_playwright() as p:
+            browser_options = {}
+            if proxy:
+                browser_options['proxy'] = {
+                    'server': proxy
+                }
 
-    proxies = {}
-    if proxy:
-        proxies = {
-            'http': proxy,
-            'https': proxy
-        } if proxy.startswith('socks') else {
-            'http': f'http://{proxy}',
-            'https': f'https://{proxy}'
-        }
-    elif aniworld_globals.DEFAULT_PROXY:
-        default_proxy = aniworld_globals.DEFAULT_PROXY
-        proxies = {
-            'http': default_proxy,
-            'https': default_proxy
-        } if default_proxy.startswith('socks') else {
-            'http': f'http://{default_proxy}',
-            'https': f'https://{default_proxy}'
-        }
-    else:
-        proxies = {
-            "http": os.getenv("HTTP_PROXY"),
-            "https": os.getenv("HTTPS_PROXY"),
-        }
+            if aniworld_globals.IS_DEBUG_MODE:
+                headless = False
+            else:
+                headless = True
 
-    try:
-        response = requests.get(url, headers=headers, proxies=proxies, timeout=300)
-        response.raise_for_status()
+            headless = os.getenv("HEADLESS", headless)
 
-        if "Deine Anfrage wurde als Spam erkannt." in response.text:
-            logging.critical(
-                "Your IP address is blacklisted. Please use a VPN, complete the captcha "
-                "by opening the browser link, or try again later."
+            browser = p.chromium.launch(headless=headless)
+            context = browser.new_context(
+                user_agent=headers['User-Agent'],
+                **browser_options
             )
-            sys.exit(1)
+            page = context.new_page()
+            page.set_extra_http_headers(headers)
 
-        return response.content
-    except requests.exceptions.Timeout:
-        logging.critical("Request to %s timed out.", url)
-        sys.exit(1)
-    except requests.exceptions.RequestException as error:
-        if check:
-            logging.critical("Request to %s failed: %s", url, error)
+            try:
+                response = page.goto(url, timeout=300000)  # 300 seconds timeout
+                if response.status != 200:
+                    raise Exception(f"Failed to fetch page: {response.status}")
+
+                content = response.body()
+                if "Deine Anfrage wurde als Spam erkannt." in content.decode('utf-8'):
+                    logging.critical(
+                        "Your IP address is blacklisted. Please use a VPN, complete the captcha "
+                        "by opening the browser link, or try again later."
+                    )
+                    sys.exit(1)
+
+                return content
+            except Exception as error:
+                if check:
+                    logging.critical("Request to %s failed: %s", url, error)
+                    sys.exit(1)
+                return None
+            finally:
+                context.close()
+                browser.close()
+    else:
+        proxies = {}
+        if proxy:
+            proxies = {
+                'http': proxy,
+                'https': proxy
+            } if proxy.startswith('socks') else {
+                'http': f'http://{proxy}',
+                'https': f'https://{proxy}'
+            }
+        elif aniworld_globals.DEFAULT_PROXY:
+            default_proxy = aniworld_globals.DEFAULT_PROXY
+            proxies = {
+                'http': default_proxy,
+                'https': default_proxy
+            } if default_proxy.startswith('socks') else {
+                'http': f'http://{default_proxy}',
+                'https': f'https://{default_proxy}'
+            }
+        else:
+            proxies = {
+                "http": os.getenv("HTTP_PROXY"),
+                "https": os.getenv("HTTPS_PROXY"),
+            }
+
+        try:
+            response = requests.get(url, headers=headers, proxies=proxies, timeout=300)
+            response.raise_for_status()
+
+            if "Deine Anfrage wurde als Spam erkannt." in response.text:
+                logging.critical(
+                    "Your IP address is blacklisted. Please use a VPN, complete the captcha "
+                    "by opening the browser link, or try again later."
+                )
+                sys.exit(1)
+
+            return response.content
+        except requests.exceptions.Timeout:
+            logging.critical("Request to %s timed out.", url)
             sys.exit(1)
-        return None
+        except requests.exceptions.RequestException as error:
+            if check:
+                logging.critical("Request to %s failed: %s", url, error)
+                sys.exit(1)
+            return None
 
 
 def clear_screen() -> None:

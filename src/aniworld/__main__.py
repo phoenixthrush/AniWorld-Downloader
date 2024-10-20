@@ -365,6 +365,10 @@ def parse_arguments():
         help='Set HTTP Proxy - E.g. http://0.0.0.0:8080'
     )
     parser.add_argument(
+        '--use-playwright', action='store_true',
+        help='Print version info'
+    )
+    parser.add_argument(
         '--debug', action='store_true',
         help='Enable debug mode'
     )
@@ -455,6 +459,10 @@ def parse_arguments():
     if args.syncplay_password:
         os.environ['SYNCPLAY_PASSWORD'] = args.syncplay_password[0]
         logging.debug("Syncplay password set.")
+
+    if args.use_playwright:
+        os.environ['USE_PLAYWRIGHT'] = str(args.use_playwright)
+        logging.debug("Playwright set.")
 
     return args
 
