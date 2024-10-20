@@ -305,7 +305,7 @@ These are automatically installed when you install AniWorld Downloader via pip.
 - [x] Avoid displaying the full link in selections; instead, show the season and episode names.
 - [x] Add Python logging module.
 - [x] Add support for proxy configurations.
-- [x] Automatically download and install the following on Windows:
+- [x] Automatically download and install the following on Windows & Linux:
   - [x] mpv
   - [x] yt-dlp
   - [x] Syncplay
@@ -360,14 +360,28 @@ See the LICENSE file for more details.
 
 ## Support
 
-If you need help or have questions about AniWorld Downloader, you can:
+I've received several emails from users reporting that the menu unexpectedly quits without any explanation. In the past few days, streaming providers have started blocking IP addresses from downloading. You can bypass this by using a VPN. If you're still facing issues, try running the following command with the --debug flag in a separate terminal:
 
-- **Report a bug or request a feature** on the [GitHub Issues](https://github.com/phoenixthrush/AniWorld-Downloader/issues) page.
-- **Contact me** directly via email at [contact@phoenixthrush.com](mailto:contact@phoenixthrush.com), on Matrix `@phoenixthrush:matrix.org` or on Discord `phoenixthrush`.
+```shell
+Get-Content -Wait $env:TEMP\aniworld.log # Windows PowerShell
+tail -f /tmp/aniworld.log # Linux
+tail -f $TMPDIR/aniworld.log # MacOS
+```
+
+This will usually show a timeout error, indicating that the domain couldn't be reached or something else went wrong. I will be working on a workaround to this that uses a different url fetch method that will work with fetching the urls using playwright or an alternative that will open a headless browser and optionally handle javascript if needed.
+
+If you still need assistance with AniWorld Downloader, you can:
+
+- **Receive help** via [GitHub Issues](https://github.com/phoenixthrush/AniWorld-Downloader/issues) page.
+- **Reach out to me** directly via email at [contact@phoenixthrush.com](mailto:contact@phoenixthrush.com), on Matrix `@phoenixthrush:matrix.org` or on Discord `phoenixthrush`.
+
+Also, while I do respond to emails, opening a GitHub issue would be great, even for installation questions. That way, others with the same problem can find solutions. But don't worry—I’ll still help you via email if you prefer that.
+
+If you enjoy AniWorld Downloader and want to support the project, please consider starring the repository on GitHub. It’s a small gesture, but it means a lot and motivates me to keep improving the project.
 
 I appreciate your support and feedback!
 
-If you enjoy using AniWorld Downloader and want to support this project, please consider starring the repository on GitHub. It's free and only takes one click, but it would mean the world to me and motivate me to maintain and improve the project for longer.
+---
 
 ## Star History
 
