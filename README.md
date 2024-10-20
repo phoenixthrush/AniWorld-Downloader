@@ -272,7 +272,7 @@ options:
   --only-direct-link    Output direct link
   --only-command        Output command
   --proxy PROXY         Set HTTP Proxy - E.g. http://0.0.0.0:8080
-  --use-playwright      Print version info
+  --use-playwright      Bypass fetching with a headless browser using Playwright instead
   --debug               Enable debug mode
   --version             Print version info
   --update {mpv,yt-dlp,syncplay,all}
