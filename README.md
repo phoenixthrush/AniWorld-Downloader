@@ -38,14 +38,14 @@ AniWorld Downloader is a command-line tool designed to download and stream anime
 
 ## Features
 
-- **Download Episodes:** Fetch individual episodes or seasons.
-- **Streaming:** Watch episodes directly with integrated players.
-- **Netflix Experience:** Automatically play or download the next episode in a series.
-- **Multiple Providers:** Support for Vidoza, VOE, Streamtape, and ~~Doodstream~~ (coming soon).
-- **Language Options:** Choose between German Dub, English Sub, and German Subtitles.
-- **Aniskip Integration:** Automatically skip intros and outros (Unstable yet).
-- **Syncplay Support:** Sync playback with friends for a shared viewing experience.
-- **Proxy Support:** Configure HTTP proxies for your downloads.
+- **Episode Download:** Grab individual episodes or full seasons of anime.
+- **Streaming Capability:** Stream episodes directly using the mpv player.
+- **Seamless Viewing:** Automatically move to the next episode for continuous watching.
+- **Provider Support:** Use providers like Vidoza, VOE, Streamtape, with Doodstream support coming soon.
+- **Language Selection:** Choose between German Dub, English Sub, or German Subtitles.
+- **Aniskip Functionality:** Automatically skip intros and outros (currently only works for first seasons; support for later seasons is on the todo).
+- **Syncplay Integration:** Watch anime with friends in sync, perfect for shared viewing.
+- **Proxy Configuration:** Set up a HTTP proxy if needed.
 
 ---
 
