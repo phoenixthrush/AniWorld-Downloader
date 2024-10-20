@@ -18,7 +18,6 @@ from packaging.version import Version
 import requests
 import py7zr
 from bs4 import BeautifulSoup
-from playwright.sync_api import sync_playwright
 
 import aniworld.globals as aniworld_globals
 
@@ -137,6 +136,7 @@ def fetch_url_content_with_playwright(url: str, proxy: Optional[str] = None, che
         'User-Agent': aniworld_globals.DEFAULT_USER_AGENT
     }
 
+    from playwright.sync_api import sync_playwright
     with sync_playwright() as p:
         browser_options = {}
         if proxy:
@@ -163,7 +163,6 @@ def fetch_url_content_with_playwright(url: str, proxy: Optional[str] = None, che
             response = page.goto(url, timeout=300000)  # 300 seconds timeout
             if response.status != 200:
                 raise Exception(f"Failed to fetch page: {response.status}")
-
             content = response.body()
             if "Deine Anfrage wurde als Spam erkannt." in content.decode('utf-8'):
                 logging.critical(
@@ -1242,6 +1241,25 @@ def install_packages(package_manager, packages):
             print(f'Package manager "{package_manager}" not supported or unknown.')
     except Exception as e:
         print(f'Error while installing: {e}')
+
+
+def check_playwright_installed():
+    try:
+        logging.debug("Checking if Playwright works...")
+
+        from playwright.sync_api import sync_playwright
+
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.goto("https://github.com/")
+            browser.close()
+    except ModuleNotFoundError:
+        print("Playwright is not installed.")
+        sys.exit()
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        sys.exit()
 
 
 if __name__ == "__main__":

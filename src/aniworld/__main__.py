@@ -28,7 +28,8 @@ from aniworld.common import (
     check_package_installation,
     self_uninstall,
     update_component,
-    get_anime_season_title
+    get_anime_season_title,
+    check_playwright_installed
 )
 
 
@@ -463,6 +464,7 @@ def parse_arguments():
     if args.use_playwright:
         os.environ['USE_PLAYWRIGHT'] = str(args.use_playwright)
         logging.debug("Playwright set.")
+        check_playwright_installed()
 
     return args
 
