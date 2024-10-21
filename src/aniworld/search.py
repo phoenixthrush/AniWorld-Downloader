@@ -53,8 +53,8 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
 
         try:
             if os.getenv("USE_PLAYWRIGHT"):
-                soup = BeautifulSoup(html, 'html.parser')
                 html = fetch_url_content(url)
+                soup = BeautifulSoup(html, 'html.parser')
                 json_data = soup.find('pre').text
             else:
                 json_data = fetch_url_content(url)

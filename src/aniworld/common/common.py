@@ -161,7 +161,6 @@ def fetch_url_content_with_playwright(url: str, proxy: Optional[str] = None, che
 
         try:
             response = page.goto(url, timeout=10000)
-            page.wait_for_timeout(3000)
 
             content = page.content()
             logging.debug(content)
