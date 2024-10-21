@@ -143,6 +143,7 @@ def fetch_url_content_with_playwright(url: str, proxy: Optional[str] = None, che
         print("Please install Playwright by running:\npip install playwright\n"
               "playwright install")
         sys.exit(1)
+
     with sync_playwright() as p:
         browser_options = {}
         if proxy:
@@ -150,17 +151,11 @@ def fetch_url_content_with_playwright(url: str, proxy: Optional[str] = None, che
                 'server': proxy
             }
 
-        if aniworld_globals.IS_DEBUG_MODE:
-            headless = False
-        else:
-            headless = True
-
+        headless = not aniworld_globals.IS_DEBUG_MODE
         headless = os.getenv("HEADLESS", headless)
 
         browser = p.chromium.launch(headless=headless)
-        context = browser.new_context(
-            **browser_options
-        )
+        context = browser.new_context(**browser_options)
         page = context.new_page()
         page.set_extra_http_headers(headers)
 
@@ -169,19 +164,33 @@ def fetch_url_content_with_playwright(url: str, proxy: Optional[str] = None, che
             page.wait_for_timeout(3000)
 
             content = page.content()
-
             logging.debug(content)
 
             if page.locator("h1#ddg-l10n-title:has-text('Checking your browser before accessing')").count() > 0:
                 logging.debug("Detected Captcha, please solve it")
-                page.wait_for_timeout(300000)  # Wait for 5 minutes
+
+                max_retries = 120
+                for i in range(max_retries):
+                    page.wait_for_timeout(1000)
+
+                    if page.locator("h1#ddg-l10n-title:has-text('Checking your browser before accessing')").count() == 0:
+                        logging.debug("Captcha solved")
+                        break
+                    else:
+                        logging.debug(f"Captcha still present, retrying... ({i+1}/{max_retries})")
+
+                if page.locator("h1#ddg-l10n-title:has-text('Checking your browser before accessing')").count() > 0:
+                    raise Exception("Captcha not solved within the time limit.")
 
             if response.status != 200:
                 raise Exception(f"Failed to fetch page: {response.status}")
 
+            page.wait_for_timeout(3000)
             content = page.content()
+            logging.debug(content)
 
             return content
+
         except Exception as error:
             if check:
                 logging.critical("Request to %s failed: %s", url, error)
