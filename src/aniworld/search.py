@@ -3,6 +3,7 @@ from json import loads
 from json.decoder import JSONDecodeError
 from urllib.parse import quote
 import logging
+from bs4 import BeautifulSoup
 
 from typing import List, Dict, Optional
 
@@ -49,7 +50,9 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
         url = f"https://aniworld.to/ajax/seriesSearch?keyword={quote(query)}"
         logging.debug("Fetching Anime List with query: %s", query)
 
-        json_data = fetch_url_content(url)
+        html = fetch_url_content(url)
+        soup = BeautifulSoup(html, 'html.parser')
+        json_data = soup.find('pre').text
         try:
             if isinstance(json_data, str):
                 decoded_data = loads(json_data)
