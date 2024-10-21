@@ -52,7 +52,10 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
 
         html = fetch_url_content(url)
         soup = BeautifulSoup(html, 'html.parser')
-        json_data = soup.find('pre').text
+        try:
+            json_data = soup.find('pre').text
+        except AttributeError:
+            continue
         try:
             if isinstance(json_data, str):
                 decoded_data = loads(json_data)
