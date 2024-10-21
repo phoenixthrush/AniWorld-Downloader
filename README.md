@@ -345,10 +345,10 @@ These are automatically installed when you install AniWorld Downloader via pip.
 
 Contributions to AniWorld Downloader are welcome! Whether you're reporting bugs, suggesting features, or submitting pull requests, your input helps improve the project.
 
-Lulu <br>
+Lulu (since Sep 14, 2024)<br>
 ![wakatime](https://wakatime.com/badge/user/ebc8f6ad-7a1c-4f3a-ad43-cc402feab5fc/project/408bbea7-23d0-4d6c-846d-79628e6b136c.svg)
 
-Tmaster055 <br>
+Tmaster055 (since Oct 21, 2024)<br>
 ![wakatime](https://wakatime.com/badge/user/79a1926c-65a1-4f1c-baf3-368712ebbf97/project/5f191c34-1ee2-4850-95c3-8d85d516c449.svg)
 
 ---
