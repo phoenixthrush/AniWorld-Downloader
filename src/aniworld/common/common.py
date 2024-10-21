@@ -136,7 +136,13 @@ def fetch_url_content_with_playwright(url: str, proxy: Optional[str] = None, che
         'User-Agent': aniworld_globals.DEFAULT_USER_AGENT
     }
 
-    from playwright.sync_api import sync_playwright
+    if shutil.which("playwright") is not None:
+        from playwright.sync_api import sync_playwright
+    else:
+        print("Playwright is not installed.")
+        print("Please install Playwright by running:\npip install playwright\n"
+              "playwright install")
+        sys.exit(1)
     with sync_playwright() as p:
         browser_options = {}
         if proxy:
