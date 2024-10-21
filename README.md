@@ -238,8 +238,8 @@ usage: aniworld [-h] [--slug SLUG] [--link LINK] [--query QUERY]
                 [--provider {Vidoza,Streamtape,VOE,Doodstream}] [--aniskip]
                 [--keep-watching] [--anime4k {High,Low,Remove}]
                 [--syncplay-password SYNCPLAY_PASSWORD [SYNCPLAY_PASSWORD ...]]
-                [--only-direct-link] [--only-command] [--proxy PROXY] [--debug]
-                [--version] [--uninstall]
+                [--only-direct-link] [--only-command] [--proxy PROXY] [--use-playwright]
+                [--debug] [--version] [--update {mpv,yt-dlp,syncplay,all}] [--uninstall]
 
 Parse optional command line arguments.
 
@@ -273,11 +273,12 @@ options:
   --only-command        Output command
   --proxy PROXY         Set HTTP Proxy - E.g. http://0.0.0.0:8080
   --use-playwright      Bypass fetching with a headless browser using Playwright instead
+                        (EXPERIMENTAL!!!)
   --debug               Enable debug mode
   --version             Print version info
   --update {mpv,yt-dlp,syncplay,all}
                         Update mpv, yt-dlp, syncplay, or all.
-  --uninstall           Self uninstall
+  --uninstall           Self uninstalls
 ```
 
 ---

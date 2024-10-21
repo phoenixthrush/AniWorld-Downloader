@@ -367,7 +367,7 @@ def parse_arguments():
     )
     parser.add_argument(
         '--use-playwright', action='store_true',
-        help='Bypass fetching with a headless browser using Playwright instead'
+        help='Bypass fetching with a headless browser using Playwright instead (EXPERIMENTAL!!!)'
     )
     parser.add_argument(
         '--debug', action='store_true',
