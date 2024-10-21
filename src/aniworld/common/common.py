@@ -113,17 +113,17 @@ def fetch_url_content_without_playwright(url: str, proxy: Optional[str] = None, 
                 "Your IP address is blacklisted. Please use a VPN, complete the captcha "
                 "by opening the browser link, or try again later."
             )
-            sys.exit(1)
 
         return response.content
-    except requests.exceptions.Timeout:
-        logging.critical("Request to %s timed out.", url)
-        sys.exit(1)
-    except requests.exceptions.RequestException as error:
+
+    except requests.exceptions.Timeout as timeout_error:
+        logging.critical("Request to %s timed out: %s", url, timeout_error)
+        return fetch_url_content_with_playwright(url, proxy, check)
+
+    except requests.exceptions.RequestException as request_error:
         if check:
-            logging.critical("Request to %s failed: %s", url, error)
-            sys.exit(1)
-        return None
+            logging.critical("Request to %s failed: %s", url, request_error)
+        return fetch_url_content_with_playwright(url, proxy, check)
 
 
 def fetch_url_content_with_playwright(url: str, proxy: Optional[str] = None, check: bool = True) -> Optional[bytes]:
@@ -159,16 +159,21 @@ def fetch_url_content_with_playwright(url: str, proxy: Optional[str] = None, che
         page.set_extra_http_headers(headers)
 
         try:
-            response = page.goto(url, timeout=300000)  # 300 seconds timeout
+            response = page.goto(url, timeout=10000)
+            page.wait_for_timeout(3000)
+
+            content = page.content()
+
+            logging.debug(content)
+
+            if page.locator("h1#ddg-l10n-title:has-text('Checking your browser before accessing')").count() > 0:
+                logging.debug("Detected Captcha, please solve it")
+                page.wait_for_timeout(300000)  # Wait for 5 minutes
+
             if response.status != 200:
                 raise Exception(f"Failed to fetch page: {response.status}")
-            content = response.body()
-            if "Deine Anfrage wurde als Spam erkannt." in content.decode('utf-8'):
-                logging.critical(
-                    "Your IP address is blacklisted. Please use a VPN, complete the captcha "
-                    "by opening the browser link, or try again later."
-                )
-                sys.exit(1)
+
+            content = page.content()
 
             return content
         except Exception as error:
