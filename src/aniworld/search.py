@@ -51,7 +51,10 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
 
         json_data = fetch_url_content(url)
         try:
-            decoded_data = loads(json_data.decode())
+            if isinstance(json_data, str):
+                decoded_data = loads(json_data)
+            else:
+                decoded_data = loads(json_data.decode())
         except JSONDecodeError:
             continue
         logging.debug("Anime JSON List: %s", decoded_data)
