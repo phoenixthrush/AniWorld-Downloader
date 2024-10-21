@@ -4,6 +4,7 @@ from json.decoder import JSONDecodeError
 from urllib.parse import quote
 import logging
 from bs4 import BeautifulSoup
+import os
 
 from typing import List, Dict, Optional
 
@@ -50,10 +51,13 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
         url = f"https://aniworld.to/ajax/seriesSearch?keyword={quote(query)}"
         logging.debug("Fetching Anime List with query: %s", query)
 
-        html = fetch_url_content(url)
-        soup = BeautifulSoup(html, 'html.parser')
         try:
-            json_data = soup.find('pre').text
+            if os.getenv("USE_PLAYWRIGHT"):
+                soup = BeautifulSoup(html, 'html.parser')
+                html = fetch_url_content(url)
+                json_data = soup.find('pre').text
+            else:
+                json_data = fetch_url_content(url)
         except AttributeError:
             continue
         try:
