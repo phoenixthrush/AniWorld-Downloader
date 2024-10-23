@@ -552,7 +552,7 @@ def download_dependencies(dependencies: list):
     logging.debug("Entering download_dependencies function.")
     logging.debug("Dependencies to download: %s", dependencies)
 
-    if platform.system() == "Linux":
+    if platform.system() == "Linux" or platform.system() == "Darwin":
         logging.debug("Installing using Package-Manager...!")
         install_packages(get_package_manager(), dependencies)
         return
@@ -956,7 +956,8 @@ def update_component(component: str):
         logging.debug("Removed: %s", comp)
         logging.debug("Downloading component: %s", comp)
         download_dependencies([comp])
-        print(f"Installed latest {comp} version.")
+        if not platform.system() == "Darwin":
+            print(f"Installed latest {comp} version.")
 
 
 def print_progress_info(msg: str):
@@ -1016,6 +1017,11 @@ def sanitize_path(path):
 
 def get_package_manager():
     try:
+        if platform.system() == "Darwin":
+            if shutil.which("brew"):
+                return 'brew'
+            else:
+                return 'unknown'
         if os.path.exists('/etc/os-release'):
             with open('/etc/os-release', encoding='utf-8') as f:
                 os_release_info = f.read().lower()
@@ -1058,6 +1064,10 @@ def install_packages(package_manager, packages):
             subprocess.run(['pkexec', 'zypper', 'install', '-y'] + packages, stdout=subprocess.DEVNULL, check=False)
         elif package_manager == 'apk':
             subprocess.run(['pkexec', 'apk', 'add'] + packages, stdout=subprocess.DEVNULL, check=False)
+        elif package_manager == 'brew':
+            msg = f'Please update "{packages[0]}" manually as it is not currently supported yet on MacOS!'
+            logging.debug(msg)
+            print(msg)
         else:
             print(f'Package manager "{package_manager}" not supported or unknown.')
     except Exception as e:
