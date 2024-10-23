@@ -23,7 +23,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.12'
           architecture: ${{ matrix.os == 'macos-latest' && 'arm64' || 'x64' }}
           cache: 'pip'
           cache-dependency-path: |
@@ -37,7 +37,7 @@ jobs:
         uses: Nuitka/Nuitka-Action@main
         with:
           nuitka-version: main
-          script-name: aniworld
+          script-name: src/aniworld
           onefile: true
 
       - name: Upload Artifacts
