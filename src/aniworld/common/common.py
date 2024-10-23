@@ -617,7 +617,7 @@ def download_mpv(dep_path: str, appdata_path: str):
     zip_path = os.path.join(appdata_path, 'mpv.7z')
     logging.debug("Downloading MPV from %s to %s", direct_link, zip_path)
     url_content = fetch_url_content(direct_link)
-    with open(zip_path, 'wb') as f:
+    with open(zip_path, 'wb', encoding='utf-8') as f:
         f.write(url_content)
     logging.debug("Unpacking %s to %s", zip_path, dep_path)
     with py7zr.SevenZipFile(zip_path, mode='r') as archive:
@@ -641,7 +641,7 @@ def download_syncplay(dep_path: str):
     exe_path = os.path.join(dep_path, 'syncplay.zip')
     logging.debug("Downloading Syncplay from %s to %s", direct_link, exe_path)
     url_content = fetch_url_content(direct_link)
-    with open(exe_path, 'wb') as f:
+    with open(exe_path, 'wb', encoding='utf-8') as f:
         f.write(url_content)
 
     logging.debug("Unpacking %s to %s", exe_path, dep_path)
@@ -655,7 +655,7 @@ def download_yt_dlp(dep_path: str):
     exe_path = os.path.join(dep_path, 'yt-dlp.exe')
     logging.debug("Downloading yt-dlp from %s to %s", url, exe_path)
     url_content = fetch_url_content(url)
-    with open(exe_path, 'wb') as f:
+    with open(exe_path, 'wb', encoding='utf-8') as f:
         f.write(url_content)
 
 
@@ -749,7 +749,7 @@ def download_anime4k(mode: str):
     content = fetch_url_content(download_link)
     logging.debug("Fetched content from %s", download_link)
 
-    with open(archive_path, 'wb') as f:
+    with open(archive_path, 'wb', encoding='utf-8') as f:
         f.write(content)
     logging.debug("Saved archive to %s", archive_path)
 
@@ -1017,7 +1017,7 @@ def sanitize_path(path):
 def get_package_manager():
     try:
         if os.path.exists('/etc/os-release'):
-            with open('/etc/os-release') as f:
+            with open('/etc/os-release', encoding='utf-8') as f:
                 os_release_info = f.read().lower()
 
             if 'arch' in os_release_info:
