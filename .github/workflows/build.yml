@@ -30,20 +30,39 @@ jobs:
         run: |
           pip install .
 
-      - name: Build Executable
+      - name: Build Executable for macOS
+        if: matrix.os == 'macos-latest'
         uses: Nuitka/Nuitka-Action@main
         with:
           nuitka-version: main
           script-name: src/aniworld
           onefile: true
-          extra-options: ${{ matrix.os == 'macos-latest' && '--macos-app' || '' }}
+          macos-create-app-bundle: true
+          output-dir: build
 
-      - name: Upload Artifacts
+      - name: Build Executable for other OS
+        if: matrix.os != 'macos-latest'
+        uses: Nuitka/Nuitka-Action@main
+        with:
+          nuitka-version: main
+          script-name: src/aniworld
+          onefile: true
+          output-dir: build
+
+      - name: Upload Artifacts for macOS
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macOS Build
+          path: build/*.app/**/*
+
+      - name: Upload Artifacts for other OS
+        if: matrix.os != 'macos-latest'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ runner.os }} Build
           path: |
             build/*.exe
             build/*.bin
-            build/*.app/**/*
+            build/**/*.*
           include-hidden-files: true
