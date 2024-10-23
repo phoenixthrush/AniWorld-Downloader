@@ -325,7 +325,7 @@ These are automatically installed when you install AniWorld Downloader via pip.
 - [x] Use anime title instead of slug on episode list.
 - [x] Add time to cancel.
 - [x] Fix mass processed files output folder.
-- [ ] Fix Syncplay & mpv video desync issue.
+- [x] Fix Syncplay & mpv video desync issue. (-> use Vidoza for Watch & Syncplay)
 - [ ] Add Captcha Bypass/ Headless Browser fetches.
 - [ ] Fix Aniskip for seasons other than the first.
 - [ ] Optimize performance: less requests and no duplicate function calls.

@@ -12,6 +12,7 @@ DEFAULT_ACTION = "Download"  # E.g. Watch, Download, Syncplay
 DEFAULT_DOWNLOAD_PATH = os.path.join(os.path.expanduser('~'), 'Downloads')
 DEFAULT_LANGUAGE = "German Sub"  # German Dub, English Sub, German Sub
 DEFAULT_PROVIDER = "VOE"  # Vidoza, Streamtape, VOE, Doodstream
+DEFAULT_PROVIDER_WATCH = "Vidoza"
 DEFAULT_ANISKIP = False
 DEFAULT_KEEP_WATCHING = False
 DEFAULT_ONLY_DIRECT_LINK = False

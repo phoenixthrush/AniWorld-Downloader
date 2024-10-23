@@ -325,7 +325,6 @@ def parse_arguments():
     parser.add_argument(
         '--provider', type=str,
         choices=['Vidoza', 'Streamtape', 'VOE', 'Doodstream'],
-        default=aniworld_globals.DEFAULT_PROVIDER,
         help='Provider choice'
     )
     parser.add_argument(
@@ -388,6 +387,12 @@ def parse_arguments():
     )
 
     args = parser.parse_args()
+
+    if not args.provider:
+        if args.action == "Download":
+            args.provider = aniworld_globals.DEFAULT_PROVIDER
+        else:
+            args.provider = aniworld_globals.DEFAULT_PROVIDER_WATCH
 
     if args.version:
         banner = fR"""
