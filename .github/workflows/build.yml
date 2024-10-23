@@ -36,6 +36,7 @@ jobs:
           nuitka-version: main
           script-name: src/aniworld
           onefile: true
+          extra-options: ${{ matrix.os == 'macos-latest' && '--macos-app' || '' }}
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
