@@ -847,17 +847,22 @@ def process_episode_file_line(line: str) -> tuple:
 def read_episode_file(file: str) -> dict:
     animes = {}
 
-    with open(file, 'r', encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
+    try:
+        with open(file, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
 
-            episode, slug = process_episode_file_line(line)
-            if episode:
-                if slug not in animes:
-                    animes[slug] = []
-                animes[slug].extend(episode)
+                episode, slug = process_episode_file_line(line)
+                if episode:
+                    if slug not in animes:
+                        animes[slug] = []
+                    animes[slug].extend(episode)
+    except FileNotFoundError:
+        msg = "The specified episode file was not found!"
+        logging.debug(msg)
+        print(msg)
 
     return animes
 
