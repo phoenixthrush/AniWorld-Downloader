@@ -369,6 +369,7 @@ These packages are automatically installed when you set up AniWorld Downloader u
     - [x] Linux
   - [x] Add options for Syncplay room passwords.
   - [x] Add mass file support.
+  - [x] Add Captcha bypass for headless browser fetches.
   
 - **Bug Fixes**
   - [x] Fix season episode count.
@@ -378,10 +379,11 @@ These packages are automatically installed when you set up AniWorld Downloader u
   - [x] Add time to cancel.
   - [x] Fix output folder for mass processed files.
   - [x] Fix Syncplay and mpv video desync issue (use Vidoza for Watch & Syncplay).
-  - [x] Add Captcha bypass for headless browser fetches.
 
 ### Upcoming Tasks
-- [ ] Anonymize logs (remove usernames).
+- [ ] Anonymize logs by removing usernames and automatically clean up old logs.
+- [ ] Implement an ordered list for provider fallback in globals.py.
+- [ ] Separate the functionalities of aniskip and auto start & exit.
 - [ ] Fix Aniskip for seasons beyond the first.
 - [ ] Optimize performance to reduce requests and eliminate duplicate function calls.
 - [ ] Add support for Doodstream.
