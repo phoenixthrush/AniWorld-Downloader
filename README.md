@@ -1,3 +1,4 @@
+<a id="readme-top"></a>
 # AniWorld Downloader
 
 AniWorld Downloader is a command-line tool built to download and stream anime content from [aniworld.to](https://aniworld.to). With it, you can grab single episodes, download entire seasons, and organize files into neatly structured folders. It’s cross-platform, so it works on Windows, macOS, and Linux for a smooth experience across all major OSes.
@@ -61,7 +62,9 @@ AniWorld Downloader is a command-line tool built to download and stream anime co
 - **Language Options**: Switch between German Dub, English Sub, or German Sub based on your preference.
 - **Aniskip Integration**: Automatically skip intros and outros (currently available for Season 1; expanding soon).
 - **Syncplay for Group Watching**: Enjoy synchronized anime watching sessions with friends.
-- **Proxy Compatibility**: Set up an HTTP proxy for restricted network environments. 
+- **Proxy Compatibility**: Set up an HTTP proxy for restricted network environments.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Installation
 
@@ -116,6 +119,8 @@ If you prefer to have the files locally:
     git -C aniworld pull
     ```
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## Uninstallation
 
 To uninstall AniWorld Downloader, run the following command:
@@ -123,6 +128,8 @@ To uninstall AniWorld Downloader, run the following command:
 ```shell
 aniworld --uninstall
 ```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Usage
 
@@ -134,11 +141,11 @@ To launch AniWorld Downloader with an interactive menu, use:
 aniworld
 ```
 
-### Command-Line Arguments
-
-AniWorld Downloader supports various command-line options for downloading and streaming anime without using the interactive menu. This allows access to advanced features not available in the menu (e.g., `--aniskip`, `--keep-watching`, `--syncplay-password`).
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Command-Line Examples
+
+AniWorld Downloader supports various command-line options for downloading and streaming anime without using the interactive menu. This allows access to advanced features not available in the menu (e.g., `--aniskip`, `--keep-watching`, `--syncplay-password`).
 
 ### Example 1: Download a Single Episode
 
@@ -225,6 +232,8 @@ aniworld --episode-file /Users/goofball/Downloads/test.txt --language "German Du
 
 You can also combine this with `Watch` and `Syncplay` actions, along with other arguments as needed.
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## Anime4K Setup
 
 To set up Anime4K, run the following commands based on your GPU type. This setup will install everything needed to use Anime4K in the mpv player, even outside of AniWorld.
@@ -255,6 +264,7 @@ aniworld --anime4k Remove
 - You can switch between settings by specifying the optimized modes (`High` or `Low`).
 - Use the `Remove` option to uninstall Anime4K easily.
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## AniWorld Command Options
 
@@ -313,7 +323,7 @@ options:
   --uninstall           Self uninstalls
 ```
 
----
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Dependencies
 
@@ -330,6 +340,8 @@ AniWorld Downloader requires the following Python packages:
 - `windows-curses` (only for Windows users)
 
 These packages are automatically installed when you set up AniWorld Downloader using pip.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## TODO List
 
@@ -374,6 +386,8 @@ These packages are automatically installed when you set up AniWorld Downloader u
 - [ ] Optimize performance to reduce requests and eliminate duplicate function calls.
 - [ ] Add support for Doodstream.
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## FAQ
 
 ### Providers
@@ -409,11 +423,15 @@ Regarding Aniworld’s claim of hosting 1,000+ license-free anime, it’s worth 
 
 Feel free to contribute! Any help is appreciated, and I’d be happy to merge in support for s.to or bs.to if it gets added.
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## Credits
 - **[mpv](https://github.com/mpv-player/mpv.git)**: Media player used for streaming.
 - **[yt-dlp](https://github.com/yt-dlp/yt-dlp.git)**: Tool for downloading videos.
 - **[Syncplay](https://github.com/Syncplay/syncplay.git)**: Service for synchronized playback with friends.
 - **[Anime4K](https://github.com/bloc97/Anime4K)**: A high-quality real-time upscaler for anime video.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Contributing
 Contributions to AniWorld Downloader are welcome! Your input helps improve the project, whether it’s through:
@@ -428,27 +446,30 @@ Contributions to AniWorld Downloader are welcome! Your input helps improve the p
 - **Tmaster055** (since Oct 21, 2024)  
   ![wakatime](https://wakatime.com/badge/user/79a1926c-65a1-4f1c-baf3-368712ebbf97/project/5f191c34-1ee2-4850-95c3-8d85d516c449.svg)
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## License
 This project is licensed under the **[MIT License](LICENSE)**.  
 For more details, see the LICENSE file.
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## Support
 
-I’ve received several reports from users experiencing unexpected menu quits. Recently, streaming providers have started blocking IP addresses from downloading. You can bypass this by using a VPN. If you're still having issues, you might try using the `--use-playwright` option, though it's still experimental and may not be very effective. Additionally, run the following command with the `--debug` flag in a separate terminal:
+I’ve received several reports from users experiencing unexpected menu quits. Recently, streaming providers have started blocking IP addresses from downloading. You can bypass this by using a VPN. You might try using the `--use-playwright` option instead, though it's still experimental and may not be very effective. Additionally, run the following command with the `--debug` flag in a separate terminal:
 
 ```shell
-# Windows PowerShell
+# Windows PowerShell (opens automatically in newer versions)
 Get-Content -Wait $env:TEMP\aniworld.log 
 
 # Linux
 tail -f /tmp/aniworld.log 
 
-# MacOS
+# MacOS (opens automatically in newer versions)
 tail -f $TMPDIR/aniworld.log 
 ```
 
-This will typically reveal a timeout error, indicating the domain couldn’t be reached or another issue. I am working on a workaround that uses a different URL fetch method, potentially employing Playwright or another tool to open a headless browser and handle JavaScript if needed.
+This will typically reveal a timeout error, indicating the domain couldn’t be reached or another issue.
 
 ### How to Get Help
 If you still need assistance with AniWorld Downloader, you can:
@@ -462,8 +483,10 @@ If you enjoy AniWorld Downloader and want to support the project, please conside
 
 Thank you for your support and feedback!
 
----
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=phoenixthrush/Aniworld-Downloader&type=Date)](https://star-history.com/#phoenixthrush/Aniworld-Downloader&Date)
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
