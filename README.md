@@ -52,81 +52,87 @@ AniWorld Downloader is a command-line tool built to download and stream anime co
 - [Star History](#star-history)
 </details>
 
----
-
 ## Features
 
-- **Episode Download:** Grab individual episodes or full seasons of anime.
-- **Streaming Capability:** Stream episodes directly using the mpv player.
-- **Seamless Viewing:** Automatically move to the next episode for continuous watching.
-- **Provider Support:** Use providers like Vidoza, VOE, Streamtape, with Doodstream support coming soon.
-- **Language Selection:** Choose between German Dub, English Sub, or German Subtitles.
-- **Aniskip Functionality:** Automatically skip intros and outros (currently only works for first seasons; support for later seasons is on the todo).
-- **Syncplay Integration:** Watch anime with friends in sync, perfect for shared viewing.
-- **Proxy Configuration:** Set up a HTTP proxy if needed.
+- **Episode Downloads**: Easily download single episodes or entire seasons in one go.
+- **Instant Streaming**: Stream episodes directly via the mpv player.
+- **Auto Play Next**: Automatically transition to the next episode for uninterrupted viewing.
+- **Flexible Providers**: Choose from Vidoza, VOE, and Streamtape, with Doodstream support coming soon.
+- **Language Options**: Switch between German Dub, English Sub, or German Sub based on your preference.
+- **Aniskip Integration**: Automatically skip intros and outros (currently available for Season 1; expanding soon).
+- **Syncplay for Group Watching**: Enjoy synchronized anime watching sessions with friends.
+- **Proxy Compatibility**: Set up an HTTP proxy for restricted network environments. 
+
+Here’s a restructured and easier-to-follow version of your installation section:
 
 ---
 
 ## Installation
 
-### Latest Release
+### Prerequisites
 
-Make sure you have **[Python 3.8](https://www.python.org/downloads/)** or higher installed.
+1. **Python Version**: Ensure you have **[Python 3.8](https://www.python.org/downloads/)** or higher installed.  
+   - **Note**: Although Python 3.13 is available, it does not include `windows-curses`, which is needed for the menu to work on Windows. To avoid issues, please use **Python 3.12** until `windows-curses` is updated. Check for updates [here](https://pypi.org/project/windows-curses/#files).
 
-Heads up: Python 3.13 is out, but it currently doesn’t include `windows-curses`, which the menu requires to work on Windows. For now, install Python 3.12 to use Aniworld without issues, and keep an eye out for updates on `windows-curses` [here](https://pypi.org/project/windows-curses/#files).
+### Installing AniWorld Downloader
 
-Then, install AniWorld Downloader using pip:
+- To install the latest release of AniWorld Downloader, run:
 
-```shell
-pip install aniworld
-```
+    ```shell
+    pip install aniworld
+    ```
 
-To update AniWorld Downloader to the latest version:
+- To update to the latest version, use:
 
-```shell
-pip install -U aniworld
-```
+    ```shell
+    pip install -U aniworld
+    ```
 
-### Dev Version (unstable)
+### Development Version (Unstable)
 
-To install the latest development changes on GitHub:
+- To install the latest development changes directly from GitHub, use:
 
-```shell
-pip install --upgrade git+https://github.com/phoenixthrush/AniWorld-Downloader.git#egg=aniworld
-```
+    ```shell
+    pip install --upgrade git+https://github.com/phoenixthrush/AniWorld-Downloader.git#egg=aniworld
+    ```
 
-To update, simply rerun the command above. It's recommended to do this regularly as these builds are often unstable.
+- To update, simply rerun the command above. These builds may be unstable, so it’s good to check regularly.
 
-Or if you want the files locally (assuming you have Git installed):
+#### Local Installation (Requires Git)
 
-```shell
-git clone https://github.com/phoenixthrush/AniWorld-Downloader aniworld
-pip install -U -e ./aniworld
-```
+If you prefer to have the files locally:
 
-If you have the files locally using the second option above, you need to keep it updated by doing this regularly:
+1. Clone the repository:
 
-```shell
-git -C aniworld pull
-```
+    ```shell
+    git clone https://github.com/phoenixthrush/AniWorld-Downloader aniworld
+    ```
 
----
+2. Install it in editable mode:
+
+    ```shell
+    pip install -U -e ./aniworld
+    ```
+
+3. To keep your local version up to date, run:
+
+    ```shell
+    git -C aniworld pull
+    ```
 
 ## Uninstallation
 
-To uninstall AniWorld Downloader:
+To uninstall AniWorld Downloader, run the following command:
 
 ```shell
 aniworld --uninstall
 ```
 
----
-
 ## Usage
 
 ### Running with Menu
 
-Launch AniWorld Downloader with an interactive menu:
+To launch AniWorld Downloader with an interactive menu, use:
 
 ```shell
 aniworld
@@ -134,21 +140,21 @@ aniworld
 
 ### Command-Line Arguments
 
-AniWorld Downloader provides various command-line options to download and stream anime without using the interactive menu. This also allows users to utilize advanced options that can't be selected through the normal menu, such as (--aniskip, --keep-watching, --syncplay-password, ...).
+AniWorld Downloader supports various command-line options for downloading and streaming anime without using the interactive menu. This allows access to advanced features not available in the menu (e.g., `--aniskip`, `--keep-watching`, `--syncplay-password`).
 
 ## Command-Line Examples
 
 ### Example 1: Download a Single Episode
 
-Download episode 1 of "Demon Slayer: Kimetsu no Yaiba":
+To download episode 1 of "Demon Slayer: Kimetsu no Yaiba":
 
 ```shell
 aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
 ```
 
-### Example 2: Download multiple episodes
+### Example 2: Download Multiple Episodes
 
-Download multiple episodes of "Demon Slayer":
+To download multiple episodes of "Demon Slayer":
 
 ```shell
 aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-2
@@ -156,7 +162,7 @@ aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaib
 
 ### Example 3: Watch Episodes with Aniskip
 
-Watch an episode while skipping intros and outros if available:
+To watch an episode while skipping intros and outros:
 
 ```shell
 aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --action Watch --aniskip
@@ -164,27 +170,29 @@ aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaib
 
 ### Example 4: Syncplay with Friends
 
-Syncplay a specific episode with friends:
+To syncplay a specific episode with friends:
 
 ```shell
 aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --action Syncplay --keep-watching
 ```
 
-If you want to have different languages you can specify it your own and your friends don't have to use the same language as you.
+#### Language Options for Syncplay
 
-You want to watch it in German Dub you can specify it like this:
+You can choose different languages for yourself and your friends:
 
-```shell
-aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --action Syncplay --keep-watching --language "German Dub" --aniskip
-```
+- For German Dub:
 
-Your friend wants to watch it in English Sub you can specify it like this:
+    ```shell
+    aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --action Syncplay --keep-watching --language "German Dub" --aniskip
+    ```
 
-```shell
-aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --action Syncplay --keep-watching --language "English Sub" --aniskip
-```
+- For English Sub:
 
-Please note that anyone watching the same anime (regardless of the episode) will automatically join the room if Syncplay is enabled. If you prefer to restrict access to strangers, you can set a password for the room that both parties must specify to join.
+    ```shell
+    aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --action Syncplay --keep-watching --language "English Sub" --aniskip
+    ```
+
+**Note:** Anyone watching the same anime (regardless of episode) will automatically join the room if Syncplay is enabled. To restrict access to strangers, set a password for the room:
 
 ```shell
 aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --action Syncplay --keep-watching --language "English Sub" --aniskip --syncplay-password beans
@@ -192,15 +200,16 @@ aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaib
 
 ### Example 5: Download with Specific Provider and Language
 
-Download an episode using the VOE provider with English subtitles:
+To download an episode using the VOE provider with English subtitles:
 
 ```shell
 aniworld --episode https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 --provider VOE --language "English Sub"
 ```
 
-### Example 6: Use Episode File
+### Example 6: Use an Episode File
 
-test.txt
+You can download episodes listed in a text file. Here’s an example of what the text file (`test.txt`) should look like:
+
 ```
 # The whole anime
 https://aniworld.to/anime/stream/alya-sometimes-hides-her-feelings-in-russian
@@ -212,42 +221,47 @@ https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-2
 https://aniworld.to/anime/stream/kaguya-sama-love-is-war/staffel-3/episode-13
 ```
 
+To download the episodes specified in the file, use:
+
 ```shell
 aniworld --episode-file /Users/goofball/Downloads/test.txt --language "German Dub"
 ```
 
-You can also use the `Watch` and `Syncplay` actions along with other arguments as normal.
-
----
+You can also combine this with `Watch` and `Syncplay` actions, along with other arguments as needed.
 
 ## Anime4K Setup
 
-To install Anime4K persistently, use the following commands once:
+To set up Anime4K, run the following commands based on your GPU type. This setup will install everything needed to use Anime4K in the mpv player, even outside of AniWorld.
 
-### For Higher-End GPU
-(Eg. GTX 1080, RTX 2070, RTX 3060, RX 590, Vega 56, 5700XT, 6600XT, M1 Pro, M1 Max, M1 Ultra, M2 Pro, M2 Max)
+### For Higher-End GPUs
+*(e.g., GTX 1080, RTX 2070, RTX 3060, RX 590, Vega 56, 5700XT, 6600XT, M1 Pro, M1 Max, M1 Ultra, M2 Pro, M2 Max)*
 
 ```shell
 aniworld --anime4k High
 ```
 
-### For Lower-End GPU
-(Eg. GTX 980, GTX 1060, RX 570, M1, M2, Intel chips)
+### For Lower-End GPUs
+*(e.g., GTX 980, GTX 1060, RX 570, M1, M2, Intel chips)*
 
 ```shell
 aniworld --anime4k Low
 ```
 
 ### To Remove Anime4K
+If you want to uninstall Anime4K, use the following command:
+
 ```shell
 aniworld --anime4k Remove
 ```
 
-This installs all necessary files into the mpv directory, enabling Anime4K in mpv even outside of AniWorld. You can switch between settings by specifying the different optimized modes. To remove it, simply use the remove option.
+### Notes
+- This installation saves all necessary files into the **mpv** directory.
+- You can switch between settings by specifying the optimized modes (`High` or `Low`).
+- Use the `Remove` option to uninstall Anime4K easily.
 
----
 
 ### To see all the available options:
+
 ```shell
 aniworld --help
 ```
