@@ -26,6 +26,9 @@ AniWorld Downloader is a command-line tool designed to download and stream anime
   - [Example 4: Syncplay with Friends](#example-4-syncplay-with-friends)
   - [Example 5: Download with Specific Provider and Language](#example-5-download-with-specific-provider-and-language)
   - [Example 6: Use Episode File](#example-6-use-episode-file)
+- [FAQ](#faq)
+  - [Providers](#providers)
+  - [s.to & bs.to support](#sto--bsto-support)
 - [Anime4K Setup](#anime4k-setup)
 - [TODO](#todo)
 - [Contributing](#contributing)
@@ -53,7 +56,11 @@ AniWorld Downloader is a command-line tool designed to download and stream anime
 
 ### Latest Release
 
-Ensure you have **[Python 3.8](https://www.python.org/downloads/)** or higher installed. Then, install AniWorld Downloader using pip:
+Make sure you have **[Python 3.8](https://www.python.org/downloads/)** or higher installed.
+
+Heads up: Python 3.13 is out, but it currently doesn’t include `windows-curses`, which the menu requires to work on Windows. For now, install Python 3.12 to use Aniworld without issues, and keep an eye out for updates on `windows-curses` [here](https://pypi.org/project/windows-curses/#files).
+
+Then, install AniWorld Downloader using pip:
 
 ```shell
 pip install aniworld
@@ -326,12 +333,43 @@ These are automatically installed when you install AniWorld Downloader via pip.
 - [x] Add time to cancel.
 - [x] Fix mass processed files output folder.
 - [x] Fix Syncplay & mpv video desync issue. (-> use Vidoza for Watch & Syncplay)
-- [ ] Add Captcha Bypass/ Headless Browser fetches.
+- [x] Add Captcha Bypass/ Headless Browser fetches.
+- [ ] Anonimize log (usernames)
 - [ ] Fix Aniskip for seasons other than the first.
 - [ ] Optimize performance: less requests and no duplicate function calls.
 - [ ] Support Doodstream.
 
 ---
+
+## FAQ
+
+### Providers
+
+Currently Aniworld-Downloader supports three providers: VOE, Vidoza and Streamtape.
+
+Doodstream is still unsupported due to constant backend updates aimed at blocking download attempts. I had support for it initially, but Doodstream's backend changes made my previous method obsolete.
+
+In older versions, the default was to use Vidoza for both downloading and watching with syncplay and mpv. However, Vidoza and Streamtape throttle download speeds, so I recommend using VOE for downloads as it can fully utilise your bandwidth.
+
+There is one drawback to VOE: many fragments end up invalid. This only affects playback with mpv - downloads using yt-dlp are fine. When these fragments act up, scenes either skip forward or glitch, which is usually only a few seconds, but becomes really noticeable when using syncplay, as others may have different fragment problems, leading to annoying back and forth jumps that make it virtually unwatchable.
+
+Here's the current recommendation:
+
+Download in this order:
+VOE > Vidoza > Streamtape
+
+For viewing in mpv or syncplay, use this order:
+Vidoza > Streamtape > VOE
+
+### s.to & bs.to support
+
+I had s.to support in a separate branch, but it’s now unmaintained and untested. Right now, I don’t plan on re-implementing support for s.to since I’ve already put a lot of time into stabilizing the current code. To keep it clean, I need to rewrite parts of the backend, as it’s a bit messy with redundant functions and fetches from adding new features on the fly. Streamlining this is a priority before adding new providers.
+
+Adding s.to support wouldn’t actually be hard—it only requires one fewer fetch than Aniworld’s existing method to reach the streaming providers. Once there, it’d work the same as it does now. If anyone wants to help add support for s.to or bs.to, I'd definitely welcome and merge it.
+
+There are already other tools that support s.to. If you’re looking to watch s.to from the terminal, check out my friend’s project called "gucken"—he’s doing some great work over there. On another note, Aniworld claims to host 1,000+ license-free animes, but they also stream some brand-new shows that usually require a subscription elsewhere, so take that with a grain of salt. Just remember that supporting s.to would mean indirectly accessing Netflix originals and other copyright-heavy content. Since I don’t host any content and only fetch directly from streaming providers, I’m not liable for any issues that come up from downloading anime.
+
+So, if you’re up for it, feel free to contribute! Any help is appreciated, and I’d be happy to merge in s.to or bs.to support if it’s added.
 
 ## Credits
 
