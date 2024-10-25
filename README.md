@@ -1,41 +1,56 @@
 # AniWorld Downloader
 
-AniWorld Downloader is a command-line tool designed to download and stream anime content from [aniworld.to](https://aniworld.to). It allows users to fetch single episodes, download seasons, and organize downloads into structured folders. Compatible with Windows, macOS, and Linux, AniWorld Downloader offers a seamless experience across different operating systems.
+AniWorld Downloader is a command-line tool built to download and stream anime content from [aniworld.to](https://aniworld.to). With it, you can grab single episodes, download entire seasons, and organize files into neatly structured folders. It’s cross-platform, so it works on Windows, macOS, and Linux for a smooth experience across all major OSes.
 
 ![Downloads](https://img.shields.io/pypi/dm/aniworld?label=Downloads&color=blue)
 ![License](https://img.shields.io/pypi/l/aniworld?label=License&color=blue)
 
 ![AniWorld Downloader - Demo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/main/.github/demo.png?raw=true)
 
----
+<details>
+  <summary>## Table of Contents</summary>
 
-## Table of Contents
-
+### Overview
 - [Features](#features)
+- [TODO](#todo)
+
+### Getting Started
 - [Installation](#installation)
   - [Latest Release](#latest-release)
-  - [Dev Version](#dev-version-unstable)
+  - [Dev Version (Unstable)](#dev-version-unstable)
 - [Uninstallation](#uninstallation)
-- [Usage](#usage)
+
+### Usage Guide
+- [Usage Basics](#usage)
   - [Running with Menu](#running-with-menu)
   - [Command-Line Arguments](#command-line-arguments)
-- [Examples](#command-line-examples)
-  - [Example 1: Download a Single Episode](#example-1-download-a-single-episode)
-  - [Example 2: Download multiple episodes](#example-2-download-multiple-episodes)
-  - [Example 3: Watch Episodes with Aniskip](#example-3-watch-episodes-with-aniskip)
-  - [Example 4: Syncplay with Friends](#example-4-syncplay-with-friends)
-  - [Example 5: Download with Specific Provider and Language](#example-5-download-with-specific-provider-and-language)
-  - [Example 6: Use Episode File](#example-6-use-episode-file)
+
+### Examples
+- [Command-Line Examples](#examples)
+  - [Download a Single Episode](#example-1-download-a-single-episode)
+  - [Download Multiple Episodes](#example-2-download-multiple-episodes)
+  - [Watch Episodes with Aniskip](#example-3-watch-episodes-with-aniskip)
+  - [Syncplay with Friends](#example-4-syncplay-with-friends)
+  - [Download with Specific Provider and Language](#example-5-download-with-specific-provider-and-language)
+  - [Use Episode File](#example-6-use-episode-file)
+
+### Advanced Setup
+- [Anime4K Setup](#anime4k-setup)
+
+### FAQs and Support
 - [FAQ](#faq)
   - [Providers](#providers)
-  - [s.to & bs.to support](#sto--bsto-support)
-- [Anime4K Setup](#anime4k-setup)
-- [TODO](#todo)
+  - [s.to & bs.to Support](#sto--bsto-support)
+- [Support](#support)
+
+### Contribution and Licensing
 - [Contributing](#contributing)
 - [Credits](#credits)
 - [License](#license)
-- [Support](#support)
+
+### Project Insights
 - [Star History](#star-history)
+</details>
 
 ---
 
