@@ -13,27 +13,27 @@ AniWorld Downloader is a command-line tool built to download and stream anime co
 
 ### Overview
 - [Features](#features)
-- [TODO](#todo)
+- [TODO](#todo-list)
 
 ### Getting Started
 - [Installation](#installation)
-  - [Latest Release](#latest-release)
-  - [Dev Version (Unstable)](#dev-version-unstable)
+  - [Latest Release](#installing-aniworld-downloader)
+  - [Dev Version (Unstable)](#development-version-unstable)
 - [Uninstallation](#uninstallation)
 
 ### Usage Guide
 - [Usage Basics](#usage)
   - [Running with Menu](#running-with-menu)
-  - [Command-Line Arguments](#command-line-arguments)
+  - [Command-Line Arguments](#aniworld-command-options)
 
 ### Examples
-- [Command-Line Examples](#examples)
+- [Command-Line Examples](#command-line-examples)
   - [Download a Single Episode](#example-1-download-a-single-episode)
   - [Download Multiple Episodes](#example-2-download-multiple-episodes)
   - [Watch Episodes with Aniskip](#example-3-watch-episodes-with-aniskip)
   - [Syncplay with Friends](#example-4-syncplay-with-friends)
   - [Download with Specific Provider and Language](#example-5-download-with-specific-provider-and-language)
-  - [Use Episode File](#example-6-use-episode-file)
+  - [Use Episode File](#example-6-use-an-episode-file)
 
 ### Advanced Setup
 - [Anime4K Setup](#anime4k-setup)
