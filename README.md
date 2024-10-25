@@ -384,6 +384,7 @@ These packages are automatically installed when you set up AniWorld Downloader u
 - [ ] Anonymize logs by removing usernames and automatically clean up old logs.
 - [ ] Implement an ordered list for provider fallback in globals.py.
 - [ ] Separate the functionalities of aniskip and auto start & exit.
+- [ ] Remove unnecessary dependencies, add additional installation variants (e.g., without curses dependency).
 - [ ] Fix Aniskip for seasons beyond the first.
 - [ ] Optimize performance to reduce requests and eliminate duplicate function calls.
 - [ ] Add support for Doodstream.
