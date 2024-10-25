@@ -63,10 +63,6 @@ AniWorld Downloader is a command-line tool built to download and stream anime co
 - **Syncplay for Group Watching**: Enjoy synchronized anime watching sessions with friends.
 - **Proxy Compatibility**: Set up an HTTP proxy for restricted network environments. 
 
-Here’s a restructured and easier-to-follow version of your installation section:
-
----
-
 ## Installation
 
 ### Prerequisites
@@ -335,8 +331,6 @@ AniWorld Downloader requires the following Python packages:
 
 These packages are automatically installed when you set up AniWorld Downloader using pip.
 
-Here’s a restructured and combined version of your TODO list for better clarity and organization:
-
 ## TODO List
 
 ### Completed Tasks
@@ -380,8 +374,6 @@ Here’s a restructured and combined version of your TODO list for better clarit
 - [ ] Optimize performance to reduce requests and eliminate duplicate function calls.
 - [ ] Add support for Doodstream.
 
-Sure! Here’s a restructured version of your FAQ section that organizes the information into clearer subsections for better readability.
-
 ## FAQ
 
 ### Providers
@@ -416,8 +408,6 @@ There are already other tools that support s.to. For terminal-based viewing of s
 Regarding Aniworld’s claim of hosting 1,000+ license-free anime, it’s worth noting that they also stream new shows that may require subscriptions elsewhere. Supporting s.to could mean indirectly accessing copyrighted content, such as Netflix originals. As I do not host any content but fetch it directly from streaming providers, I am not liable for any issues arising from downloading anime.
 
 Feel free to contribute! Any help is appreciated, and I’d be happy to merge in support for s.to or bs.to if it gets added.
-
-Here’s a restructured version of your Credits, Contributing, and License sections to enhance clarity and organization:
 
 ## Credits
 - **[mpv](https://github.com/mpv-player/mpv.git)**: Media player used for streaming.
