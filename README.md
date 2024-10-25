@@ -8,7 +8,7 @@ AniWorld Downloader is a command-line tool built to download and stream anime co
 ![AniWorld Downloader - Demo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/main/.github/demo.png?raw=true)
 
 <details>
-  <summary>## Table of Contents</summary>
+  <summary>Table of Contents</summary>
 
 ### Overview
 - [Features](#features)
@@ -260,7 +260,7 @@ aniworld --anime4k Remove
 - Use the `Remove` option to uninstall Anime4K easily.
 
 
-### To see all the available options:
+## AniWorld Command Options
 
 ```shell
 aniworld --help
@@ -319,9 +319,9 @@ options:
 
 ---
 
-### Dependencies
+## Dependencies
 
-AniWorld Downloader relies on the following Python packages:
+AniWorld Downloader requires the following Python packages:
 
 - `requests`
 - `beautifulsoup4`
@@ -331,125 +331,146 @@ AniWorld Downloader relies on the following Python packages:
 - `py7zr`
 - `packaging`
 - `yt-dlp`
-- `windows-curses` (only on Windows)
+- `windows-curses` (only for Windows users)
 
-These are automatically installed when you install AniWorld Downloader via pip.
+These packages are automatically installed when you set up AniWorld Downloader using pip.
 
----
+Here’s a restructured and combined version of your TODO list for better clarity and organization:
 
-## TODO
+## TODO List
 
-- [x] Add argparse for command-line argument parsing.
-- [x] Refactor the code into modular Python files.
-- [x] Avoid displaying the full link in selections; instead, show the season and episode names.
-- [x] Add Python logging module.
-- [x] Add support for proxy configurations.
-- [x] Automatically download and install the following on Windows & Linux:
-  - [x] mpv
-  - [x] yt-dlp
-  - [x] Syncplay
-- [x] Implement movie support.
-- [x] Configure the Anime4K installation setup:
-  - [x] Windows
-  - [x] MacOS
-  - [x] Linux
-- [x] Fix season episode count.
-- [x] Add an option for Syncplay room passwords.
-- [x] Add mass file support.
-- [x] Fix yt-dlp progress bar on Windows.
-- [x] Fix empty output when the selected language is unavailable.
-- [x] Use anime title instead of slug on episode list.
-- [x] Add time to cancel.
-- [x] Fix mass processed files output folder.
-- [x] Fix Syncplay & mpv video desync issue. (-> use Vidoza for Watch & Syncplay)
-- [x] Add Captcha Bypass/ Headless Browser fetches.
-- [ ] Anonimize log (usernames)
-- [ ] Fix Aniskip for seasons other than the first.
-- [ ] Optimize performance: less requests and no duplicate function calls.
-- [ ] Support Doodstream.
+### Completed Tasks
+- **Command-Line Improvements**
+  - [x] Implement `argparse` for command-line argument parsing.
+  - [x] Refactor the code into modular Python files.
+  - [x] Display season and episode names instead of full links in selections.
 
----
+- **Logging and Proxy Support**
+  - [x] Integrate the Python logging module.
+  - [x] Add support for proxy configurations.
+
+- **Automatic Installations**
+  - [x] Automatically download and install the following on Windows & Linux:
+    - [x] `mpv`
+    - [x] `yt-dlp`
+    - [x] `Syncplay`
+
+- **Feature Enhancements**
+  - [x] Implement movie support.
+  - [x] Configure Anime4K installation for:
+    - [x] Windows
+    - [x] MacOS
+    - [x] Linux
+  - [x] Add options for Syncplay room passwords.
+  - [x] Add mass file support.
+  
+- **Bug Fixes**
+  - [x] Fix season episode count.
+  - [x] Fix yt-dlp progress bar on Windows.
+  - [x] Fix empty output for unavailable selected languages.
+  - [x] Use anime title instead of slug on the episode list.
+  - [x] Add time to cancel.
+  - [x] Fix output folder for mass processed files.
+  - [x] Fix Syncplay and mpv video desync issue (use Vidoza for Watch & Syncplay).
+  - [x] Add Captcha bypass for headless browser fetches.
+
+### Upcoming Tasks
+- [ ] Anonymize logs (remove usernames).
+- [ ] Fix Aniskip for seasons beyond the first.
+- [ ] Optimize performance to reduce requests and eliminate duplicate function calls.
+- [ ] Add support for Doodstream.
+
+Sure! Here’s a restructured version of your FAQ section that organizes the information into clearer subsections for better readability.
 
 ## FAQ
 
 ### Providers
+Aniworld-Downloader currently supports three providers:
+- **VOE**
+- **Vidoza**
+- **Streamtape**
 
-Currently Aniworld-Downloader supports three providers: VOE, Vidoza and Streamtape.
+**Doodstream** is not supported due to constant backend updates that block download attempts. While I initially had support for it, Doodstream's backend changes rendered my previous method obsolete.
 
-Doodstream is still unsupported due to constant backend updates aimed at blocking download attempts. I had support for it initially, but Doodstream's backend changes made my previous method obsolete.
+#### Download and Viewing Recommendations
+In older versions, the default provider for both downloading and watching with syncplay and mpv was Vidoza. However, since Vidoza and Streamtape throttle download speeds, I recommend using **VOE** for downloads, as it can fully utilize your bandwidth.
 
-In older versions, the default was to use Vidoza for both downloading and watching with syncplay and mpv. However, Vidoza and Streamtape throttle download speeds, so I recommend using VOE for downloads as it can fully utilise your bandwidth.
+**Drawback of VOE:**
+- Many fragments can be invalid, affecting playback with mpv. While downloads using yt-dlp work fine, invalid fragments may cause scenes to skip or glitch, leading to noticeable disruptions, especially during syncplay, where different fragment issues among viewers can result in annoying jumps.
 
-There is one drawback to VOE: many fragments end up invalid. This only affects playback with mpv - downloads using yt-dlp are fine. When these fragments act up, scenes either skip forward or glitch, which is usually only a few seconds, but becomes really noticeable when using syncplay, as others may have different fragment problems, leading to annoying back and forth jumps that make it virtually unwatchable.
+**Current Recommendations:**
+- **Download in this order:**  
+  VOE > Vidoza > Streamtape
 
-Here's the current recommendation:
+- **For viewing in mpv or syncplay:**  
+  Vidoza > Streamtape > VOE
 
-Download in this order:
-VOE > Vidoza > Streamtape
+### s.to & bs.to Support
+I previously had support for s.to in a separate branch, but it is now unmaintained and untested. Currently, I do not plan to re-implement support for s.to, as I've focused on stabilizing the existing code. Before adding new providers, I need to streamline the backend, which is somewhat messy due to redundant functions and fetches from recent feature additions.
 
-For viewing in mpv or syncplay, use this order:
-Vidoza > Streamtape > VOE
+**Note on Adding s.to Support:**
+- Adding s.to support would not be difficult—it only requires one fewer fetch than Aniworld's current method to access streaming providers. If anyone is interested in contributing to this effort, I would be happy to merge the addition.
 
-### s.to & bs.to support
+There are already other tools that support s.to. For terminal-based viewing of s.to, check out my friend's project called **gucken**—he’s doing great work there. 
 
-I had s.to support in a separate branch, but it’s now unmaintained and untested. Right now, I don’t plan on re-implementing support for s.to since I’ve already put a lot of time into stabilizing the current code. To keep it clean, I need to rewrite parts of the backend, as it’s a bit messy with redundant functions and fetches from adding new features on the fly. Streamlining this is a priority before adding new providers.
+Regarding Aniworld’s claim of hosting 1,000+ license-free anime, it’s worth noting that they also stream new shows that may require subscriptions elsewhere. Supporting s.to could mean indirectly accessing copyrighted content, such as Netflix originals. As I do not host any content but fetch it directly from streaming providers, I am not liable for any issues arising from downloading anime.
 
-Adding s.to support wouldn’t actually be hard—it only requires one fewer fetch than Aniworld’s existing method to reach the streaming providers. Once there, it’d work the same as it does now. If anyone wants to help add support for s.to or bs.to, I'd definitely welcome and merge it.
+Feel free to contribute! Any help is appreciated, and I’d be happy to merge in support for s.to or bs.to if it gets added.
 
-There are already other tools that support s.to. If you’re looking to watch s.to from the terminal, check out my friend’s project called "gucken"—he’s doing some great work over there. On another note, Aniworld claims to host 1,000+ license-free animes, but they also stream some brand-new shows that usually require a subscription elsewhere, so take that with a grain of salt. Just remember that supporting s.to would mean indirectly accessing Netflix originals and other copyright-heavy content. Since I don’t host any content and only fetch directly from streaming providers, I’m not liable for any issues that come up from downloading anime.
-
-So, if you’re up for it, feel free to contribute! Any help is appreciated, and I’d be happy to merge in s.to or bs.to support if it’s added.
+Here’s a restructured version of your Credits, Contributing, and License sections to enhance clarity and organization:
 
 ## Credits
-
-- **[mpv](https://github.com/mpv-player/mpv.git)** - Media player used for streaming.
-- **[yt-dlp](https://github.com/yt-dlp/yt-dlp.git)** - Tool for downloading videos.
-- **[Syncplay](https://github.com/Syncplay/syncplay.git)** - Service for synchronized playback with friends.
-- **[Anime4K](https://github.com/bloc97/Anime4K)** - A high-quality real-time upscaler for anime video.
-
----
+- **[mpv](https://github.com/mpv-player/mpv.git)**: Media player used for streaming.
+- **[yt-dlp](https://github.com/yt-dlp/yt-dlp.git)**: Tool for downloading videos.
+- **[Syncplay](https://github.com/Syncplay/syncplay.git)**: Service for synchronized playback with friends.
+- **[Anime4K](https://github.com/bloc97/Anime4K)**: A high-quality real-time upscaler for anime video.
 
 ## Contributing
+Contributions to AniWorld Downloader are welcome! Your input helps improve the project, whether it’s through:
+- Reporting bugs
+- Suggesting features
+- Submitting pull requests
 
-Contributions to AniWorld Downloader are welcome! Whether you're reporting bugs, suggesting features, or submitting pull requests, your input helps improve the project.
+### Contributors
+- **Lulu** (since Sep 14, 2024)  
+  ![wakatime](https://wakatime.com/badge/user/ebc8f6ad-7a1c-4f3a-ad43-cc402feab5fc/project/408bbea7-23d0-4d6c-846d-79628e6b136c.svg)
 
-Lulu (since Sep 14, 2024)<br>
-![wakatime](https://wakatime.com/badge/user/ebc8f6ad-7a1c-4f3a-ad43-cc402feab5fc/project/408bbea7-23d0-4d6c-846d-79628e6b136c.svg)
+- **Tmaster055** (since Oct 21, 2024)  
+  ![wakatime](https://wakatime.com/badge/user/79a1926c-65a1-4f1c-baf3-368712ebbf97/project/5f191c34-1ee2-4850-95c3-8d85d516c449.svg)
 
-Tmaster055 (since Oct 21, 2024)<br>
-![wakatime](https://wakatime.com/badge/user/79a1926c-65a1-4f1c-baf3-368712ebbf97/project/5f191c34-1ee2-4850-95c3-8d85d516c449.svg)
-
----
 
 ## License
-
-This project is licensed under the [MIT License](LICENSE).  
-See the LICENSE file for more details.
-
----
+This project is licensed under the **[MIT License](LICENSE)**.  
+For more details, see the LICENSE file.
 
 ## Support
 
-I've received several emails from users reporting that the menu unexpectedly quits without any explanation. In the past few days, streaming providers have started blocking IP addresses from downloading. You can bypass this by using a VPN. If you're still facing issues, try running the following command with the --debug flag in a separate terminal:
+I’ve received several reports from users experiencing unexpected menu quits. Recently, streaming providers have started blocking IP addresses from downloading. You can bypass this by using a VPN. If you're still having issues, you might try using the `--use-playwright` option, though it's still experimental and may not be very effective. Additionally, run the following command with the `--debug` flag in a separate terminal:
 
 ```shell
-Get-Content -Wait $env:TEMP\aniworld.log # Windows PowerShell
-tail -f /tmp/aniworld.log # Linux
-tail -f $TMPDIR/aniworld.log # MacOS
+# Windows PowerShell
+Get-Content -Wait $env:TEMP\aniworld.log 
+
+# Linux
+tail -f /tmp/aniworld.log 
+
+# MacOS
+tail -f $TMPDIR/aniworld.log 
 ```
 
-This will usually show a timeout error, indicating that the domain couldn't be reached or something else went wrong. I will be working on a workaround to this that uses a different url fetch method that will work with fetching the urls using playwright or an alternative that will open a headless browser and optionally handle javascript if needed.
+This will typically reveal a timeout error, indicating the domain couldn’t be reached or another issue. I am working on a workaround that uses a different URL fetch method, potentially employing Playwright or another tool to open a headless browser and handle JavaScript if needed.
 
+### How to Get Help
 If you still need assistance with AniWorld Downloader, you can:
 
-- **Receive help** via [GitHub Issues](https://github.com/phoenixthrush/AniWorld-Downloader/issues) page.
-- **Reach out to me** directly via email at [contact@phoenixthrush.com](mailto:contact@phoenixthrush.com), on Matrix `@phoenixthrush:matrix.org` or on Discord `phoenixthrush`.
+- **File a report** via the [GitHub Issues](https://github.com/phoenixthrush/AniWorld-Downloader/issues) page.
+- **Contact me directly** via email at [contact@phoenixthrush.com](mailto:contact@phoenixthrush.com), on Matrix `@phoenixthrush:matrix.org`, or on Discord `phoenixthrush`.
 
-Also, while I do respond to emails, opening a GitHub issue would be great, even for installation questions. That way, others with the same problem can find solutions. But don't worry—I’ll still help you via email if you prefer that.
+While I do respond to emails, opening a GitHub issue is preferable, even for installation questions, so others can find solutions too. However, I’m still happy to help via email if you prefer.
 
-If you enjoy AniWorld Downloader and want to support the project, please consider starring the repository on GitHub. It’s a small gesture, but it means a lot and motivates me to keep improving the project.
+If you enjoy AniWorld Downloader and want to support the project, please consider starring the repository on GitHub. It’s a small gesture that means a lot and motivates me to keep improving the project.
 
-I appreciate your support and feedback!
+Thank you for your support and feedback!
 
 ---
 
