@@ -70,7 +70,7 @@ AniWorld Downloader is a command-line tool built to download and stream anime co
 
 ### Prerequisites
 
-1. **Python Version**: Ensure you have **[Python 3.8](https://www.python.org/downloads/)** or higher installed.  
+1. **Python Version**: Ensure you have **[Python 3.9](https://www.python.org/downloads/)** or higher installed.  
    - **Note**: Although Python 3.13 is available, it does not include `windows-curses`, which is needed for the menu to work on Windows. To avoid issues, please use **Python 3.12** until `windows-curses` is updated. Check for updates [here](https://pypi.org/project/windows-curses/#files).
 
 ### Installing AniWorld Downloader
