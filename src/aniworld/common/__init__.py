@@ -25,7 +25,8 @@ from .common import (
     get_anime_season_title,
     countdown,
     sanitize_path,
-    check_playwright_installed
+    check_playwright_installed,
+    open_terminal_with_command
 )
 
 from .ascii_art import display_ascii_art

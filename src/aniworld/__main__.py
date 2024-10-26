@@ -29,7 +29,8 @@ from aniworld.common import (
     self_uninstall,
     update_component,
     get_anime_season_title,
-    check_playwright_installed
+    check_playwright_installed,
+    open_terminal_with_command
 )
 
 
@@ -445,6 +446,8 @@ def parse_arguments():
                 logging.debug("Started tailing the log file in a new Terminal window.")
             except subprocess.CalledProcessError as e:
                 logging.error("Failed to start tailing the log file: %s", e)
+        elif platform.system() == "Linux":
+            open_terminal_with_command('tail -f /tmp/aniworld.log')
 
     if args.uninstall:
         self_uninstall()
