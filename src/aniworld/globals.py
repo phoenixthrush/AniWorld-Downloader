@@ -8,10 +8,10 @@ import colorlog
 IS_DEBUG_MODE = os.getenv('IS_DEBUG_MODE', 'False').lower() in ('true', '1', 't', 'y', 'yes')
 LOG_FILE_PATH = os.path.join(tempfile.gettempdir(), 'aniworld.log')
 
-DEFAULT_ACTION = "Download"  # E.g. Watch, Download, Syncplay
+DEFAULT_ACTION = "Download"     # E.g. Watch, Download, Syncplay
 DEFAULT_DOWNLOAD_PATH = os.path.join(os.path.expanduser('~'), 'Downloads')
-DEFAULT_LANGUAGE = "German Sub"  # German Dub, English Sub, German Sub
-DEFAULT_PROVIDER = "VOE"  # Vidoza, Streamtape, VOE, Doodstream
+DEFAULT_LANGUAGE = "German Sub" # German Dub, English Sub, German Sub
+DEFAULT_PROVIDER = "VOE"        # Vidoza, Streamtape, VOE, Doodstream
 DEFAULT_PROVIDER_WATCH = "Vidoza"
 DEFAULT_ANISKIP = False
 DEFAULT_KEEP_WATCHING = False
@@ -19,7 +19,6 @@ DEFAULT_ONLY_DIRECT_LINK = False
 DEFAULT_ONLY_COMMAND = False
 DEFAULT_PROXY = None
 DEFAULT_USE_PLAYWRIGHT = False
-
 DEFAULT_TERMINAL_SIZE = (90, 28)
 
 log_colors = {
@@ -30,20 +29,23 @@ log_colors = {
     'CRITICAL': 'bold_purple'
 }
 
-formatter = colorlog.ColoredFormatter(
-    '%(log_color)s%(asctime)s - %(levelname)s - %(message)s',
-    log_colors=log_colors
-)
-
 file_handler = logging.FileHandler(LOG_FILE_PATH)
-file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(funcName)s - %(message)s'))
+
+console_handler = colorlog.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(colorlog.ColoredFormatter(
+    '%(log_color)s%(asctime)s - %(levelname)s - %(funcName)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    log_colors=log_colors
+))
 
 logging.basicConfig(
     level=logging.DEBUG if IS_DEBUG_MODE else logging.INFO,
-    handlers=[file_handler]
+    handlers=[file_handler, console_handler]
 )
 
-# logging.getLogger('requests').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 
 USER_AGENTS = [
