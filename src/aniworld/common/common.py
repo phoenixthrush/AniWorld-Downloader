@@ -1095,15 +1095,12 @@ def check_playwright_installed():
 
 def open_terminal_with_command(command):
     try:
-        # Attempt to use gnome-terminal
         subprocess.Popen(['gnome-terminal', '--', 'bash', '-c', f'{command}; exec bash'])
     except FileNotFoundError:
         try:
-            # Fallback to xterm
             subprocess.Popen(['xterm', '-hold', '-e', command])
         except FileNotFoundError:
             try:
-                # Fallback to konsole
                 subprocess.Popen(['konsole', '--hold', '-e', command])
             except FileNotFoundError:
                 logging.error("No supported terminal emulator found. Please install gnome-terminal, xterm, or konsole.")

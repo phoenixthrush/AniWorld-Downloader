@@ -29,6 +29,7 @@ log_colors = {
     'CRITICAL': 'bold_purple'
 }
 
+os.remove(LOG_FILE_PATH)
 file_handler = logging.FileHandler(LOG_FILE_PATH)
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(funcName)s - %(message)s'))

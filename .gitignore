@@ -167,3 +167,8 @@ Resources/
 aniworld.app/
 aniworld.dist/
 icon.ico
+
+# Nuitka Windows
+aniworld.exe
+aniworld.build/
+aniworld.onefile-build/
