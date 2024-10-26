@@ -241,13 +241,7 @@ def clean_up_leftovers(directory: str) -> None:
 
 
 def setup_aniskip() -> None:
-    logging.debug("Entering setup_aniskip function.")
     script_directory = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-    skip_source_path = os.path.join(script_directory, 'aniskip', 'skip.lua')
-    autostart_source_path = os.path.join(script_directory, 'aniskip', 'autostart.lua')
-    autoexit_source_path = os.path.join(script_directory, 'aniskip', 'autoexit.lua')
-
     if os.name == 'nt':
         mpv_scripts_directory = os.path.join(
             os.environ.get('APPDATA', ''), 'mpv', 'scripts'
@@ -255,20 +249,54 @@ def setup_aniskip() -> None:
     else:
         mpv_scripts_directory = os.path.expanduser('~/.config/mpv/scripts')
 
-    logging.debug("Creating directory %s", mpv_scripts_directory)
-    os.makedirs(mpv_scripts_directory, exist_ok=True)
+    if not os.path.exists(mpv_scripts_directory):
+        os.makedirs(mpv_scripts_directory)
 
+    skip_source_path = os.path.join(script_directory, 'aniskip', 'skip.lua')
     skip_destination_path = os.path.join(mpv_scripts_directory, 'skip.lua')
+
     if not os.path.exists(skip_destination_path):
         logging.debug("Copying skip.lua to %s", mpv_scripts_directory)
         shutil.copy(skip_source_path, skip_destination_path)
 
+
+def setup_autostart() -> None:
+    logging.debug("Copying autostart.lua to mpv script directory")
+    script_directory = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if os.name == 'nt':
+        mpv_scripts_directory = os.path.join(
+            os.environ.get('APPDATA', ''), 'mpv', 'scripts'
+        )
+    else:
+        mpv_scripts_directory = os.path.expanduser('~/.config/mpv/scripts')
+
+    if not os.path.exists(mpv_scripts_directory):
+        os.makedirs(mpv_scripts_directory)
+
+    autostart_source_path = os.path.join(script_directory, 'aniskip', 'autostart.lua')
     autostart_destination_path = os.path.join(mpv_scripts_directory, 'autostart.lua')
+
     if not os.path.exists(autostart_destination_path):
         logging.debug("Copying autostart.lua to %s", mpv_scripts_directory)
         shutil.copy(autostart_source_path, autostart_destination_path)
 
+
+def setup_autoexit() -> None:
+    logging.debug("Copying autoexit.lua to mpv script directory")
+    script_directory = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if os.name == 'nt':
+        mpv_scripts_directory = os.path.join(
+            os.environ.get('APPDATA', ''), 'mpv', 'scripts'
+        )
+    else:
+        mpv_scripts_directory = os.path.expanduser('~/.config/mpv/scripts')
+
+    if not os.path.exists(mpv_scripts_directory):
+        os.makedirs(mpv_scripts_directory)
+
+    autoexit_source_path = os.path.join(script_directory, 'aniskip', 'autoexit.lua')
     autoexit_destination_path = os.path.join(mpv_scripts_directory, 'autoexit.lua')
+
     if not os.path.exists(autoexit_destination_path):
         logging.debug("Copying autoexit.lua to %s", mpv_scripts_directory)
         shutil.copy(autoexit_source_path, autoexit_destination_path)

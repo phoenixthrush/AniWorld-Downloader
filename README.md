@@ -380,10 +380,10 @@ These packages are automatically installed when you set up AniWorld Downloader u
   - [x] Fix output folder for mass processed files.
   - [x] Fix Syncplay and mpv video desync issue (use Vidoza for Watch & Syncplay).
   - [x] Automatically clean up old logs.
+  - [x] Separate the functionalities of aniskip and auto start & exit.
 
 ### Upcoming Tasks
 - [ ] Implement an ordered list for provider fallback in globals.py.
-- [ ] Separate the functionalities of aniskip and auto start & exit.
 - [ ] Remove unnecessary dependencies, add additional installation variants (e.g., without curses dependency).
 - [ ] Fix Aniskip for seasons beyond the first.
 - [ ] Optimize performance to reduce requests and eliminate duplicate function calls.

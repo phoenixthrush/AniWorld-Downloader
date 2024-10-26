@@ -2,6 +2,7 @@ import os
 import logging
 import tempfile
 import random
+import sys
 
 import colorlog
 
@@ -109,3 +110,11 @@ USER_AGENTS = [
 ]
 
 DEFAULT_USER_AGENT = random.choice(USER_AGENTS)
+
+class ExitOnError(logging.Handler):
+    def emit(self, record):
+        if record.levelno >= logging.ERROR:
+            sys.exit(1)
+
+exit_on_error_handler = ExitOnError()
+logging.getLogger().addHandler(exit_on_error_handler)

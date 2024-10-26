@@ -27,7 +27,9 @@ from aniworld.common import (
     get_season_and_episode_numbers,
     print_progress_info,
     countdown,
-    sanitize_path
+    sanitize_path,
+    setup_autostart,
+    setup_autoexit
 )
 
 
@@ -138,7 +140,10 @@ def get_episode_title(soup: BeautifulSoup) -> str:
 
 def get_anime_title(soup: BeautifulSoup) -> str:
     logging.debug("Getting anime title from soup")
-    anime_title = soup.find('div', class_='hostSeriesTitle').text
+    try:
+        anime_title = soup.find('div', class_='hostSeriesTitle').text
+    except AttributeError:
+        logging.error("Could not use the link provided. Please try using a different one.")
     logging.debug("Anime title: %s", anime_title)
     return anime_title
 
@@ -232,6 +237,8 @@ def perform_action(params: Dict[str, Any]) -> None:
     elif action == "Download":
         handle_download_action(params)
     elif action == "Syncplay":
+        setup_autostart()
+        setup_autoexit()
         countdown()
         handle_syncplay_action(
             link, mpv_title, aniskip_options, only_command

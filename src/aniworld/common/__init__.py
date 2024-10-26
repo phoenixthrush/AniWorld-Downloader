@@ -26,7 +26,9 @@ from .common import (
     countdown,
     sanitize_path,
     check_playwright_installed,
-    open_terminal_with_command
+    open_terminal_with_command,
+    setup_autostart,
+    setup_autoexit
 )
 
 from .ascii_art import display_ascii_art
