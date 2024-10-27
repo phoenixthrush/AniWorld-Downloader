@@ -484,7 +484,7 @@ def ftoi(value: float) -> str:
 
 def get_version_from_pyproject():
     try:
-        pyproject_path = os.path.join(os.path.dirname(__file__), '../../../pyproject.toml')
+        pyproject_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'pyproject.toml')
         with open(pyproject_path, 'r', encoding='utf-8') as f:
             pyproject_data = f.read()
             match = re.search(r'version\s*=\s*["\'](.*?)["\']', pyproject_data)
