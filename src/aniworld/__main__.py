@@ -18,7 +18,7 @@ from aniworld.common import (
     clean_up_leftovers,
     get_season_data,
     set_terminal_size,
-    get_version_from_pyproject,
+    get_version,
     get_language_code,
     is_tail_running,
     get_season_and_episode_numbers,
@@ -273,7 +273,7 @@ class AnimeApp(npyscreen.NPSAppManaged):
     def onStart(self):
         logging.debug("Starting AnimeApp")
         npyscreen.setTheme(CustomTheme)
-        version = get_version_from_pyproject()
+        version = get_version()
         update_notice = " (Update Available)" if is_version_outdated() else ""
         name = f"AniWorld-Downloader{version}{update_notice}"
         self.addForm(
@@ -398,7 +398,7 @@ def parse_arguments():
     if args.version:
         banner = fR"""
  ____________________________________{"___________________" if is_version_outdated() else ""}
-< Installed aniworld{get_version_from_pyproject()} via {check_package_installation()}{" (Update Available)" if is_version_outdated() else ""}. >
+< Installed aniworld{get_version()} via {check_package_installation()}{" (Update Available)" if is_version_outdated() else ""}. >
  ------------------------------------{"-------------------" if is_version_outdated() else ""}
         \   ^__^
          \  (oo)\_______

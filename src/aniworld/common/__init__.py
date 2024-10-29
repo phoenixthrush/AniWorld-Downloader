@@ -9,7 +9,7 @@ from .common import (
     get_language_code,
     get_language_string,
     get_season_data,
-    get_version_from_pyproject,
+    get_version,
     is_tail_running,
     raise_runtime_error,
     set_terminal_size,

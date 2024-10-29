@@ -13,6 +13,7 @@ import pathlib
 import time
 from typing import List, Optional
 from packaging.version import Version
+from importlib.metadata import version, PackageNotFoundError
 
 import requests
 import py7zr
@@ -482,18 +483,13 @@ def ftoi(value: float) -> str:
     return str(int(value * 1000))
 
 
-def get_version_from_pyproject():
+def get_version():
     try:
-        pyproject_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'pyproject.toml')
-        with open(pyproject_path, 'r', encoding='utf-8') as f:
-            pyproject_data = f.read()
-            match = re.search(r'version\s*=\s*["\'](.*?)["\']', pyproject_data)
-            if match:
-                return f" v{match.group(1)}"
-            return ""
-    except (OSError, IOError, re.error) as e:
-        logging.error("Error reading version from pyproject.toml: %s", e)
-        return ""
+        __version__ = version("aniworld")
+    except PackageNotFoundError:
+        __version__ = "0.0.0"
+
+    return f" v.{__version__}"
 
 
 def get_latest_github_version():
@@ -520,7 +516,7 @@ def get_latest_github_version():
 
 def is_version_outdated():
     logging.debug("Entering is_outdated_version function.")
-    current_version = get_version_from_pyproject()
+    current_version = get_version()
     latest_version = get_latest_github_version()
 
     if not current_version or not latest_version:
