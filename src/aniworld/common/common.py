@@ -684,7 +684,7 @@ def is_tail_running():
 
 def check_avx2_support() -> bool:
     if platform.system() != "Windows":
-        logging.info("AVX2 check is only supported on Windows.")
+        logging.debug("AVX2 check is only supported on Windows.")
         return False
 
     try:
@@ -695,9 +695,9 @@ def check_avx2_support() -> bool:
         )
         logging.debug("CPU Info: %s", cpu_info.stdout)
         if 'avx2' in cpu_info.stdout.lower():
-            logging.info("AVX2 is supported.")
+            logging.debug("AVX2 is supported.")
             return True
-        logging.info("AVX2 is not supported.")
+        logging.debug("AVX2 is not supported.")
         return False
     except subprocess.CalledProcessError as e:
         logging.error("Error checking AVX2 support: %s", e)

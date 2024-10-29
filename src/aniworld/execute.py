@@ -401,7 +401,7 @@ def process_episode(params: Dict[str, Any]) -> None:
                 'only_command': params['only_command']
             })
             break
-        logging.warning("Provider %s not available, trying next provider.", provider)
+        logging.info("Provider %s not available, trying next provider.", provider)
     else:
         logging.error("Provider %s not found in available providers.", params['provider_selected'])
 
