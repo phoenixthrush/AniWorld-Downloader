@@ -337,11 +337,7 @@ def execute_command(command: List[str], only_command: bool) -> None:
     else:
         logging.debug("Executing command: %s", command)
         try:
-            print(command)
-            if None in command:
-                logging.warning("No direct link found, skipping episode.")
-            else:
-                subprocess.run(command, check=True)
+            subprocess.run(command, check=True)
         except subprocess.CalledProcessError as e:
             logging.critical(e)
 
@@ -573,7 +569,7 @@ def download_dependencies(dependencies: list):
 
     dependencies = [dep for dep in dependencies if not shutil.which(dep)]
     if not dependencies:
-        logging.info("All required dependencies are already in PATH. No downloads needed.")
+        logging.debug("All required dependencies are already in PATH. No downloads needed.")
         return
 
     appdata_path = os.path.join(os.getenv('APPDATA'), 'aniworld')
@@ -583,7 +579,7 @@ def download_dependencies(dependencies: list):
     for dep in dependencies:
         dep_path = os.path.join(appdata_path, dep)
         if os.path.exists(dep_path):
-            logging.info("%s already exists. Skipping download.", dep_path)
+            logging.debug("%s already exists. Skipping download.", dep_path)
             continue
 
         logging.debug("Creating directory for %s at %s", dep, dep_path)
