@@ -82,6 +82,8 @@ def run_test(test_name, args, expected_pattern, first_test=False):
         print("\033[92mOK\033[0m")
     except AssertionError:
         print("\033[91mFAILURE\033[0m")
+        print(f"Failed string: {output}")
+        print(f"Expected string: {expected_pattern}")
 
 
 def test_functions():
