@@ -64,6 +64,7 @@ def check_dependencies(dependencies: list) -> None:
 
 
 def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True) -> Optional[bytes]:
+    logging.debug(f"Now fetching {url}")
     if aniworld_globals.DEFAULT_USE_PLAYWRIGHT or os.getenv("USE_PLAYWRIGHT"):
         return fetch_url_content_with_playwright(url, proxy, check)
 
