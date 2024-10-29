@@ -383,6 +383,7 @@ These packages are automatically installed when you set up AniWorld Downloader u
   - [x] Separate the functionalities of aniskip and auto start & exit.
 
 ### Upcoming Tasks
+- [ ] Fix is_tail_running on MacOS
 - [ ] Implement an ordered list for provider fallback in globals.py.
 - [ ] Remove unnecessary dependencies, add additional installation variants (e.g., without curses dependency).
 - [ ] Fix Aniskip for seasons beyond the first.

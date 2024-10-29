@@ -688,7 +688,7 @@ def is_tail_running():
             ["sh", "-c", "ps aux | grep 'tail -f.*/aniworld.log' | grep -v grep"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            check=True
+            check=False  # TODO fix on MacOS
         )
         return result.returncode == 0
     except subprocess.CalledProcessError as e:
