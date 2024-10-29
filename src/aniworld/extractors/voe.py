@@ -1,5 +1,6 @@
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
+import logging
 import re
 
 from aniworld import globals as aniworld_globals
@@ -32,5 +33,5 @@ def voe_get_direct_link(soup):
             if node_details_match:
                 return node_details_match.group(1)
 
-    print("No direct link found.")
+    logging.warning("No direct link found.")
     return None
