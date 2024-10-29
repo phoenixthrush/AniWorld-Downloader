@@ -23,7 +23,6 @@ import aniworld.globals as aniworld_globals
 
 
 def check_dependencies(dependencies: list) -> None:
-    logging.debug("Entering check_dependencies function.")
     resolved_dependencies = []
 
     for dep in dependencies:
@@ -65,8 +64,6 @@ def check_dependencies(dependencies: list) -> None:
 
 
 def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True) -> Optional[bytes]:
-    logging.debug("Entering fetch_url_content function.")
-
     if aniworld_globals.DEFAULT_USE_PLAYWRIGHT or os.getenv("USE_PLAYWRIGHT"):
         return fetch_url_content_with_playwright(url, proxy, check)
 
@@ -74,8 +71,6 @@ def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True)
 
 
 def fetch_url_content_without_playwright(url: str, proxy: Optional[str] = None, check: bool = True) -> Optional[bytes]:
-    logging.debug("Entering fetch_url_content_without_playwright function.")
-
     headers = {
         'User-Agent': aniworld_globals.DEFAULT_USER_AGENT
     }
@@ -127,8 +122,6 @@ def fetch_url_content_without_playwright(url: str, proxy: Optional[str] = None, 
 
 
 def fetch_url_content_with_playwright(url: str, proxy: Optional[str] = None, check: bool = True) -> Optional[bytes]:
-    logging.debug("Entering fetch_url_content_with_playwright function.")
-
     if "aniworld.to/redirect/" in url:
         return fetch_url_content_without_playwright(url, proxy, check)
 
@@ -201,7 +194,6 @@ def fetch_url_content_with_playwright(url: str, proxy: Optional[str] = None, che
 
 
 def clear_screen() -> None:
-    logging.debug("Entering clear_screen function.")
     if not aniworld_globals.IS_DEBUG_MODE:
         if platform.system() == "Windows":
             os.system("cls")
@@ -210,7 +202,6 @@ def clear_screen() -> None:
 
 
 def clean_up_leftovers(directory: str) -> None:
-    logging.debug("Entering clean_up_leftovers function.")
     patterns: List[str] = ['*.part', '*.ytdl', '*.part-Frag*']
 
     leftover_files: List[str] = []
@@ -304,7 +295,6 @@ def setup_autoexit() -> None:
 
 
 def execute_command(command: List[str], only_command: bool) -> None:
-    logging.debug("Entering execute_command function.")
     logging.debug("Initial command: %s", command)
 
     if platform.system() == "Windows":
@@ -352,7 +342,6 @@ def execute_command(command: List[str], only_command: bool) -> None:
 
 
 def raise_runtime_error(message: str) -> None:
-    logging.debug("Entering raise_runtime_error function.")
     raise RuntimeError(message)
 
 
@@ -413,7 +402,6 @@ def get_movies_episode_count(slug: str) -> int:
 
 
 def get_season_data(anime_slug: str):
-    logging.debug("Entering get_season_data function.")
     base_url_template = "https://aniworld.to/anime/stream/{anime}/"
     base_url = base_url_template.format(anime=anime_slug)
 
@@ -450,7 +438,6 @@ def get_season_data(anime_slug: str):
 
 
 def set_terminal_size(columns: int = None, lines: int = None):
-    logging.debug("Entering set_terminal_size function.")
     logging.debug("Setting terminal size to %s columns and %s lines.", columns, lines)
     system_name = platform.system()
 
@@ -479,7 +466,6 @@ def get_season_and_episode_numbers(episode_url: str) -> tuple:
 
 
 def ftoi(value: float) -> str:
-    logging.debug("Entering ftoi function.")
     return str(int(value * 1000))
 
 
@@ -493,7 +479,6 @@ def get_version():
 
 
 def get_latest_github_version():
-    logging.debug("Entering get_latest_github_version function.")
     repo = "phoenixthrush/aniworld-downloader"
     api_url = f"https://api.github.com/repos/{repo}/releases/latest"
 
@@ -515,7 +500,6 @@ def get_latest_github_version():
 
 
 def is_version_outdated():
-    logging.debug("Entering is_outdated_version function.")
     current_version = get_version()
     latest_version = get_latest_github_version()
 
@@ -541,7 +525,6 @@ def get_language_code(language: str) -> str:
 
 
 def get_language_string(lang_key: int) -> str:
-    logging.debug("Entering get_language_string function.")
     lang_map = {
         1: "German Dub",
         2: "English Sub",
@@ -572,7 +555,6 @@ def get_github_release(repo: str) -> dict:
 
 
 def download_dependencies(dependencies: list):
-    logging.debug("Entering download_dependencies function.")
     logging.debug("Dependencies to download: %s", dependencies)
 
     if platform.system() == "Linux" or platform.system() == "Darwin":
@@ -700,7 +682,6 @@ def is_tail_running():
 
 
 def check_avx2_support() -> bool:
-    logging.debug("Entering check_avx2_support function.")
     if platform.system() != "Windows":
         logging.info("AVX2 check is only supported on Windows.")
         return False
