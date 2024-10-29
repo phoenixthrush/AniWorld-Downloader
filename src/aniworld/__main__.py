@@ -420,6 +420,9 @@ def parse_arguments():
         os.environ['IS_DEBUG_MODE'] = '1'
         aniworld_globals.IS_DEBUG_MODE = True
         logging.getLogger().setLevel(logging.DEBUG)
+        logging.debug("============================================")
+        logging.debug("Welcome to Aniworld!")
+        logging.debug("============================================\n")
         logging.debug("Debug mode enabled")
 
         if platform.system() == "Darwin":
