@@ -434,7 +434,7 @@ def parse_arguments():
                             "-e",
                             'tell application "Terminal" to do script "'
                             'trap exit SIGINT; '
-                            'tail -f $TMPDIR/aniworld.log" '
+                            'tail -f -n +1 $TMPDIR/aniworld.log" '
                             'activate'
                         ],
                         check=True
@@ -450,7 +450,7 @@ def parse_arguments():
             except subprocess.CalledProcessError as e:
                 logging.error("Failed to start tailing the log file: %s", e)
         elif platform.system() == "Linux":
-            open_terminal_with_command('tail -f /tmp/aniworld.log')
+            open_terminal_with_command('tail -f -n +1 /tmp/aniworld.log')
 
     if args.uninstall:
         self_uninstall()
