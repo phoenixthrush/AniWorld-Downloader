@@ -337,7 +337,11 @@ def execute_command(command: List[str], only_command: bool) -> None:
     else:
         logging.debug("Executing command: %s", command)
         try:
-            subprocess.run(command, check=True)
+            print(command)
+            if None in command:
+                logging.warning("No direct link found, skipping episode.")
+            else:
+                subprocess.run(command, check=True)
         except subprocess.CalledProcessError as e:
             logging.critical(e)
 
