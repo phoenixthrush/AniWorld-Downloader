@@ -337,7 +337,9 @@ def execute_command(command: List[str], only_command: bool) -> None:
     else:
         logging.debug("Executing command: %s", command)
         try:
-            subprocess.run(command, check=True)
+            for arg in command:
+                if arg and any(substring.startswith("http://") or substring.startswith("https://") for substring in arg.split()):
+                    subprocess.run(command, check=True)
         except subprocess.CalledProcessError as e:
             logging.critical(e)
 

@@ -38,17 +38,21 @@ from aniworld.aniskip import aniskip
 
 def providers(soup: BeautifulSoup) -> Dict[str, Dict[int, str]]:
     logging.debug("Extracting provider data from soup")
-    provider_options = soup.find(class_='hosterSiteVideo').find('ul', class_='row').find_all('li')
-    extracted_data = {}
-    for provider in provider_options:
-        lang_key = int(provider.get('data-lang-key'))
-        redirect_link = provider.get('data-link-target')
-        provider_name = provider.find('h4').text.strip()
-        if provider_name not in extracted_data:
-            extracted_data[provider_name] = {}
-        extracted_data[provider_name][lang_key] = f"https://aniworld.to{redirect_link}"
-    logging.debug("Extracted provider data: %s", extracted_data)
-    return extracted_data
+    try:
+        provider_options = soup.find(class_='hosterSiteVideo').find('ul', class_='row').find_all('li')
+    
+        extracted_data = {}
+        for provider in provider_options:
+            lang_key = int(provider.get('data-lang-key'))
+            redirect_link = provider.get('data-link-target')
+            provider_name = provider.find('h4').text.strip()
+            if provider_name not in extracted_data:
+                extracted_data[provider_name] = {}
+            extracted_data[provider_name][lang_key] = f"https://aniworld.to{redirect_link}"
+        logging.debug("Extracted provider data: %s", extracted_data)
+        return extracted_data
+    except AttributeError:
+        return None
 
 
 def build_command(
@@ -142,9 +146,11 @@ def get_anime_title(soup: BeautifulSoup) -> str:
     try:
         anime_title = soup.find('div', class_='hostSeriesTitle').text
     except AttributeError:
-        logging.error("Could not use the link provided. Please try using a different one.")
-    logging.debug("Anime title: %s", anime_title)
-    return anime_title
+        logging.warning("Could not use the link provided. Please try using a different one.")
+    if 'anime_title' in locals():
+        logging.debug("Anime title: %s", anime_title)
+        return anime_title
+    return None
 
 
 def get_provider_data(soup: BeautifulSoup) -> Dict[str, Dict[int, str]]:
@@ -367,43 +373,46 @@ def execute(params: Dict[str, Any]) -> None:
 
 
 def process_episode(params: Dict[str, Any]) -> None:
-    logging.debug("Fetching episode HTML for URL: %s", params['episode_url'])
-    episode_html = fetch_url_content(params['episode_url'])
-    if episode_html is None:
-        logging.debug("No HTML content fetched for URL: %s", params['episode_url'])
-        return
+    try:
+        logging.debug("Fetching episode HTML for URL: %s", params['episode_url'])
+        episode_html = fetch_url_content(params['episode_url'])
+        if episode_html is None:
+            logging.debug("No HTML content fetched for URL: %s", params['episode_url'])
+            return
 
-    soup = BeautifulSoup(episode_html, 'html.parser')
-    episode_title = get_episode_title(soup)
-    anime_title = get_anime_title(soup)
-    data = get_provider_data(soup)
+        soup = BeautifulSoup(episode_html, 'html.parser')
+        episode_title = get_episode_title(soup)
+        anime_title = get_anime_title(soup)
+        data = get_provider_data(soup)
 
-    logging.debug("Language Code: %s", params['lang'])
-    logging.debug("Available Providers: %s", data.keys())
+        logging.debug("Language Code: %s", params['lang'])
+        logging.debug("Available Providers: %s", data.keys())
 
-    providers_to_try = [params['provider_selected']] + [
-        p for p in params['provider_mapping'] if p != params['provider_selected']
-    ]
-    for provider in providers_to_try:
-        if provider in data:
-            process_provider({
-                'provider': provider,
-                'data': data,
-                'lang': params['lang'],
-                'provider_mapping': params['provider_mapping'],
-                'episode_url': params['episode_url'],
-                'action_selected': params['action_selected'],
-                'aniskip_selected': params['aniskip_selected'],
-                'output_directory': params['output_directory'],
-                'anime_title': anime_title,
-                'episode_title': episode_title,
-                'only_direct_link': params['only_direct_link'],
-                'only_command': params['only_command']
-            })
-            break
-        logging.info("Provider %s not available, trying next provider.", provider)
-    else:
-        logging.error("Provider %s not found in available providers.", params['provider_selected'])
+        providers_to_try = [params['provider_selected']] + [
+            p for p in params['provider_mapping'] if p != params['provider_selected']
+        ]
+        for provider in providers_to_try:
+            if provider in data:
+                process_provider({
+                    'provider': provider,
+                    'data': data,
+                    'lang': params['lang'],
+                    'provider_mapping': params['provider_mapping'],
+                    'episode_url': params['episode_url'],
+                    'action_selected': params['action_selected'],
+                    'aniskip_selected': params['aniskip_selected'],
+                    'output_directory': params['output_directory'],
+                    'anime_title': anime_title,
+                    'episode_title': episode_title,
+                    'only_direct_link': params['only_direct_link'],
+                    'only_command': params['only_command']
+                })
+                break
+            logging.info("Provider %s not available, trying next provider.", provider)
+        else:
+            logging.error("Provider %s not found in available providers.", params['provider_selected'])
+    except AttributeError:
+        logging.warning("Episode broken.")
 
 
 def process_provider(params: Dict[str, Any]) -> None:
@@ -419,6 +428,9 @@ def process_provider(params: Dict[str, Any]) -> None:
             provider_function = params['provider_mapping'][params['provider']]
             request_url = params['data'][params['provider']][language]
             link = fetch_direct_link(provider_function, request_url)
+
+            if link is None:
+                continue
 
             if params['only_direct_link']:
                 logging.debug("Only direct link requested: %s", link)
@@ -460,5 +472,5 @@ def process_provider(params: Dict[str, Any]) -> None:
             f"\nAvailable languages: {available_languages}"
         )
 
-        logging.error(message)
+        logging.warning(message)
         print(message)
