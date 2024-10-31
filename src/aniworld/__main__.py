@@ -315,7 +315,11 @@ def parse_arguments():
     parser.add_argument(
         '--output', type=str,
         default=aniworld_globals.DEFAULT_DOWNLOAD_PATH,
-        help='Download directory'
+        help='Download directory E.g. /Users/phoenixthrush/Downloads'
+    )
+    parser.add_argument(
+        '--output-directory', type=str,
+        help='Final download directory E.g ExampleDirectory, defaults to anime name if not specified'
     )
     parser.add_argument(
         '--language', type=str,
@@ -471,6 +475,10 @@ def parse_arguments():
     if args.syncplay_password:
         os.environ['SYNCPLAY_PASSWORD'] = args.syncplay_password[0]
         logging.debug("Syncplay password set.")
+
+    if args.output_directory:
+        os.environ['OUTPUT_DIRECTORY'] = args.output_directory
+        logging.debug("Output directory set.")
 
     if args.use_playwright:
         os.environ['USE_PLAYWRIGHT'] = str(args.use_playwright)

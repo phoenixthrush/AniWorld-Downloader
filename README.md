@@ -276,6 +276,7 @@ aniworld --help
 usage: aniworld [-h] [--slug SLUG] [--link LINK] [--query QUERY]
                 [--episode EPISODE [EPISODE ...]] [--episode-file EPISODE_FILE]
                 [--action {Watch,Download,Syncplay}] [--output OUTPUT]
+                [--output-directory OUTPUT_DIRECTORY]
                 [--language {German Dub,English Sub,German Sub}]
                 [--provider {Vidoza,Streamtape,VOE,Doodstream}] [--aniskip]
                 [--keep-watching] [--anime4k {High,Low,Remove}]
@@ -297,7 +298,10 @@ options:
                         File path containing a list of episode URLs
   --action {Watch,Download,Syncplay}
                         Action to perform
-  --output OUTPUT       Download directory
+  --output OUTPUT       Download directory E.g. /Users/phoenixthrush/Downloads
+  --output-directory OUTPUT_DIRECTORY
+                        Final download directory E.g ExampleDirectory, defaults to anime
+                        name if not specified
   --language {German Dub,English Sub,German Sub}
                         Language choice
   --provider {Vidoza,Streamtape,VOE,Doodstream}
@@ -320,7 +324,7 @@ options:
   --version             Print version info
   --update {mpv,yt-dlp,syncplay,all}
                         Update mpv, yt-dlp, syncplay, or all.
-  --uninstall           Self uninstalls
+  --uninstall           Self uninstall
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -370,6 +374,7 @@ These packages are automatically installed when you set up AniWorld Downloader u
   - [x] Add options for Syncplay room passwords.
   - [x] Add mass file support.
   - [x] Add Captcha bypass for headless browser fetches.
+  - [x] Allow changing final output folder
   
 - **Bug Fixes**
   - [x] Fix season episode count.
@@ -383,6 +388,7 @@ These packages are automatically installed when you set up AniWorld Downloader u
   - [x] Separate the functionalities of aniskip and auto start & exit.
 
 ### Upcoming Tasks
+- [-] Sanitise echo strings on Windows
 - [ ] Fix is_tail_running on MacOS
 - [ ] Implement an ordered list for provider fallback in globals.py.
 - [ ] Remove unnecessary dependencies, add additional installation variants (e.g., without curses dependency).

@@ -298,7 +298,12 @@ def handle_download_action(params: Dict[str, Any]) -> None:
         else f"{sanitize_anime_title} - Movie {params['episode_number']}.mp4"
     )
 
-    file_path = os.path.join(params['output_directory'], file_name).replace(" --- ", "/", 1)
+    if os.getenv("OUTPUT_DIRECTORY"):
+        output_directory = os.getenv("OUTPUT_DIRECTORY")
+    else:
+        output_directory = ""
+
+    file_path = os.path.join(params['output_directory'], output_directory if output_directory else "", file_name).replace(" --- ", "/", 1)
     if not params['only_command']:
         msg = f"Downloading to '{file_path}'"
         if not platform.system() == "Windows":
