@@ -318,6 +318,7 @@ def handle_download_action(params: Dict[str, Any]) -> None:
         logging.debug("KeyboardInterrupt encountered, cleaning up leftovers")
         clean_up_leftovers(os.path.dirname(file_path))
     logging.debug("yt-dlp has finished.\nBye bye!")
+    logging.info("Download was finished!")
 
 
 def handle_syncplay_action(
