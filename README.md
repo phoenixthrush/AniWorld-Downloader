@@ -467,18 +467,7 @@ For more details, see the LICENSE file.
 
 ## Support
 
-I’ve received several reports from users experiencing unexpected menu quits. Recently, streaming providers have started blocking IP addresses from downloading. You can bypass this by using a VPN. You might try using the `--use-playwright` option instead, though it's still experimental and may not be very effective. Additionally, run the following command with the `--debug` flag in a separate terminal:
-
-```shell
-# Windows PowerShell (opens automatically in newer versions)
-Get-Content -Wait $env:TEMP\aniworld.log 
-
-# Linux
-tail -f /tmp/aniworld.log 
-
-# MacOS (opens automatically in newer versions)
-tail -f $TMPDIR/aniworld.log 
-```
+I’ve received several reports from users experiencing unexpected menu quits. Recently, streaming providers have started blocking IP addresses from downloading. You can bypass this by using a VPN. You might try using the `--use-playwright` option instead, though it's still experimental and may not be very effective. Additionally, run aniworld with the `--debug` flag.
 
 This will typically reveal a timeout error, indicating the domain couldn’t be reached or another issue.
 
