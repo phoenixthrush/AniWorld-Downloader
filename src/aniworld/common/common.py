@@ -603,8 +603,10 @@ def download_and_extract_dependency(dep: str, dep_path: str, appdata_path: str):
 
 def download_mpv(dep_path: str, appdata_path: str):
     direct_links = get_github_release("shinchiro/mpv-winbuild-cmake")
-
-    avx2_supported = check_avx2_support()
+    try:
+        avx2_supported = check_avx2_support()
+    except Exception:
+        avx2_supported = False
     pattern = r'mpv-x86_64-\d{8}-git-[a-f0-9]{7}\.7z'
     if avx2_supported:
         pattern = r'mpv-x86_64-v3-\d{8}-git-[a-f0-9]{7}\.7z'
