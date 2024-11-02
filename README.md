@@ -386,9 +386,9 @@ These packages are automatically installed when you set up AniWorld Downloader u
   - [x] Fix Syncplay and mpv video desync issue (use Vidoza for Watch & Syncplay).
   - [x] Automatically clean up old logs.
   - [x] Separate the functionalities of aniskip and auto start & exit.
+  - [x] Sanitise echo strings on Windows
 
 ### Upcoming Tasks
-- [-] Sanitise echo strings on Windows
 - [ ] Fix is_tail_running on MacOS
 - [ ] Implement an ordered list for provider fallback in globals.py.
 - [ ] Remove unnecessary dependencies, add additional installation variants (e.g., without curses dependency).
@@ -428,7 +428,7 @@ I previously had support for s.to in a separate branch, but it is now unmaintain
 **Note on Adding s.to Support:**
 - Adding s.to support would not be difficult—it only requires one fewer fetch than Aniworld's current method to access streaming providers. If anyone is interested in contributing to this effort, I would be happy to merge the addition.
 
-There are already other tools that support s.to. For terminal-based viewing of s.to, check out my friend's project called **gucken**—he’s doing great work there. 
+There are already other tools that support s.to. For terminal-based viewing of s.to, check out my friend's project called **[gucken](https://github.com/Commandcracker/gucken)**—he’s doing great work there. 
 
 Regarding Aniworld’s claim of hosting 1,000+ license-free anime, it’s worth noting that they also stream new shows that may require subscriptions elsewhere. Supporting s.to could mean indirectly accessing copyrighted content, such as Netflix originals. As I do not host any content but fetch it directly from streaming providers, I am not liable for any issues arising from downloading anime.
 

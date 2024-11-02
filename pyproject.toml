@@ -4,9 +4,14 @@ version = "2.1.9"
 authors = [
   { name="Phoenixthrush UwU", email="contact@phoenixthrush.com" },
 ]
-description = "Command line tool designed to download and stream content from aniworld.to"
+maintainers = [
+  { name="Phoenixthrush UwU", email="contact@phoenixthrush.com" }
+]
+description = "Cross-platform command-line tool to download and stream anime from aniworld.to"
+keywords = ["anime", "aniworld", "anime-downloader", "aniworld-downloader",
+            "scraping", "mpv","syncplay", "yt-dlp", "voe", "streamtape", "vidoza"]
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 dependencies = [
     'requests',
     'bs4',
@@ -20,13 +25,41 @@ dependencies = [
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.9",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+    "Environment :: Console",
+    "Natural Language :: English",
+    "Topic :: Multimedia",
+    "Topic :: Multimedia :: Sound/Audio",
+    "Topic :: Multimedia :: Video",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pylint",
+    "flake8",
+    "build",
+    "twine",
+    "playwright"
+]
+playwright = [
+    "playwright"
 ]
 
 [project.urls]
 Homepage = "https://github.com/phoenixthrush/Aniworld-Downloader"
+Documentation = "https://github.com/phoenixthrush/AniWorld-Downloader/blob/main/README.md"
+Repository = "https://github.com/phoenixthrush/AniWorld-Downloader.git"
 Issues = "https://github.com/phoenixthrush/Aniworld-Downloader/issues"
+Changelog = "https://github.com/phoenixthrush/AniWorld-Downloader/commits"
+"Download Link" = "https://github.com/phoenixthrush/AniWorld-Downloader/archive/refs/heads/main.zip"
 
 [project.scripts]
 aniworld = "aniworld.__main__:main"
