@@ -604,18 +604,24 @@ def download_and_extract_dependency(dep: str, dep_path: str, appdata_path: str):
 def download_mpv(dep_path: str, appdata_path: str):
     direct_links = get_github_release("shinchiro/mpv-winbuild-cmake")
     try:
+        logging.debug("Checking for AVX2 support...")
         avx2_supported = check_avx2_support()
     except Exception:
         avx2_supported = False
     pattern = r'mpv-x86_64-\d{8}-git-[a-f0-9]{7}\.7z'
     if avx2_supported:
+        logging.debug("AVX2 is supported, using mpv v3.")
         pattern = r'mpv-x86_64-v3-\d{8}-git-[a-f0-9]{7}\.7z'
+    else:
+        logging.debug("AVX2 is not supported.")
 
     direct_link = next(
         (link for name, link in direct_links.items()
          if re.match(pattern, name)),
         None
     )
+
+    logging.debug("Download link: %s", direct_link)
 
     if not direct_link:
         logging.error("No download link found for MPV.")
@@ -693,10 +699,11 @@ def check_avx2_support() -> bool:
         cpu_info = subprocess.run(
             ['wmic', 'cpu', 'get',
              'Caption, Architecture, DataWidth, Manufacturer, ProcessorType, Status'],
-            capture_output=True, text=True, check=True
+            capture_output=True, text=True, check=False
         )
-        logging.debug("CPU Info: %s", cpu_info.stdout)
-        if 'avx2' in cpu_info.stdout.lower():
+        logging.debug("CPU Info: %s", cpu_info.stdout.decode('utf-8', errors='replace'))
+
+        if 'avx2' in cpu_info.stdout.decode('utf-8', errors='replace').lower():
             logging.debug("AVX2 is supported.")
             return True
         logging.debug("AVX2 is not supported.")
@@ -986,7 +993,6 @@ def get_anime_season_title(slug: str, season: int) -> str:
     soup = BeautifulSoup(season_html, 'html.parser')
 
     series_div = soup.find('div', class_='series-title')
-    logging.debug(series_div)
 
     if series_div:
         name = series_div.find('h1').find('span').text
