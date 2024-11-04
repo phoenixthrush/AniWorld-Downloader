@@ -11,6 +11,7 @@ import sys
 import zipfile
 import pathlib
 import time
+import random
 from typing import List, Optional
 from packaging.version import Version
 from importlib.metadata import version, PackageNotFoundError
@@ -1142,5 +1143,57 @@ def open_terminal_with_command(command):
             except FileNotFoundError:
                 logging.error("No supported terminal emulator found. Please install gnome-terminal, xterm, or konsole.")
 
+
+def get_random_anime(genre: str) -> str:
+    url = 'https://aniworld.to/ajax/randomGeneratorSeries'
+    headers = {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'Accept': '*/*',
+        'Sec-Fetch-Site': 'same-origin',
+        'Accept-Language': 'en-GB,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Sec-Fetch-Mode': 'cors',
+        'Origin': 'https://aniworld.to',
+        'User-Agent': aniworld_globals.DEFAULT_USER_AGENT,
+        'Referer': 'https://aniworld.to/random',
+        'X-Requested-With': 'XMLHttpRequest',
+    }
+    data = {
+        'productionStart': 'all',
+        'productionEnd': 'all',
+        'genres[]': genre
+    }
+
+    response = requests.post(url, headers=headers, data=data)
+    logging.debug(f"Response Status Code: {response.status_code}")
+    logging.debug(f"Response Text: {response.text}")
+
+    try:
+        anime_list = json.loads(response.text)
+        logging.debug(f"Anime List: {anime_list}")
+    except json.JSONDecodeError as e:
+        logging.error(f"JSON Decode Error: {e}")
+        return
+
+    try:
+        random_anime = random.choice(anime_list)
+        logging.debug(f"Selected Anime: {random_anime}")
+    except IndexError as e:
+        logging.warning("Error: No anime found in the list using this genre: %s.", genre)
+        return
+    except TypeError:
+        logging.warning("Error: No anime found in the list using this genre: %s.", genre)
+        return
+
+    name = random_anime['name']
+    link = random_anime['link']
+
+    logging.debug(f"Random Anime: {name}")
+    logging.debug(f"Link: https://aniworld.to/{link}")
+
+    return link
+
+
 if __name__ == "__main__":
+    print(get_random_anime("Drama"))
     pass

@@ -284,7 +284,8 @@ usage: aniworld [-h] [--slug SLUG] [--link LINK] [--query QUERY]
                 [--output-directory OUTPUT_DIRECTORY]
                 [--language {German Dub,English Sub,German Sub}]
                 [--provider {Vidoza,Streamtape,VOE,Doodstream}] [--aniskip]
-                [--keep-watching] [--anime4k {High,Low,Remove}]
+                [--keep-watching] [--random-anime [RANDOM_ANIME]]
+                [--anime4k {High,Low,Remove}]
                 [--syncplay-password SYNCPLAY_PASSWORD [SYNCPLAY_PASSWORD ...]]
                 [--only-direct-link] [--only-command] [--proxy PROXY] [--use-playwright]
                 [--debug] [--version] [--update {mpv,yt-dlp,syncplay,all}] [--uninstall]
@@ -313,6 +314,8 @@ options:
                         Provider choice
   --aniskip             Skip intro and outro
   --keep-watching       Continue watching
+  --random-anime [RANDOM_ANIME]
+                        Select random anime (default genre is "all", Eg.: Drama)
   --anime4k {High,Low,Remove}
                         Set Anime4K optimised mode (High Eg.: GTX 1080, RTX 2070, RTX
                         3060, RX 590, Vega 56, 5700XT, 6600XT; Low Eg.: GTX 980, GTX
@@ -380,6 +383,7 @@ These packages are automatically installed when you set up AniWorld Downloader u
   - [x] Add mass file support.
   - [x] Add Captcha bypass for headless browser fetches.
   - [x] Allow changing final output folder
+  - [x] Add option to select a random anime optionally via genre
   
 - **Bug Fixes**
   - [x] Fix season episode count.

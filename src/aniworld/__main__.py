@@ -30,7 +30,8 @@ from aniworld.common import (
     update_component,
     get_anime_season_title,
     check_playwright_installed,
-    open_terminal_with_command
+    open_terminal_with_command,
+    get_random_anime
 )
 
 
@@ -343,6 +344,12 @@ def parse_arguments():
         help='Continue watching'
     )
     parser.add_argument(
+        '--random-anime', type=str,
+        nargs='?',
+        const="all",
+        help='Select random anime (default genre is "all", Eg.: Drama)'
+    )
+    parser.add_argument(
         '--anime4k', type=str,
         choices=['High', 'Low', 'Remove'],
         help=('Set Anime4K optimised mode (High Eg.: GTX 1080, RTX 2070, '
@@ -484,6 +491,9 @@ def parse_arguments():
         os.environ['USE_PLAYWRIGHT'] = str(args.use_playwright)
         logging.debug("Playwright set.")
         check_playwright_installed()
+
+    if not args.slug:
+        args.slug = get_random_anime(args.random_anime)
 
     return args
 

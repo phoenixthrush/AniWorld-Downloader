@@ -28,7 +28,8 @@ from .common import (
     check_playwright_installed,
     open_terminal_with_command,
     setup_autostart,
-    setup_autoexit
+    setup_autoexit,
+    get_random_anime
 )
 
 from .ascii_art import display_ascii_art
