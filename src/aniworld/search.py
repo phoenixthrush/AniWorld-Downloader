@@ -5,6 +5,7 @@ from urllib.parse import quote
 import logging
 from bs4 import BeautifulSoup
 import os
+import webbrowser
 
 from typing import List, Dict, Optional
 
@@ -88,6 +89,18 @@ def display_menu(stdscr: curses.window, items: List[Dict[str, Optional[str]]]) -
     logging.debug("Starting display_menu function")
     current_row = 0
 
+    KONAMI_CODE = ['UP', 'UP', 'DOWN', 'DOWN', 'LEFT', 'RIGHT', 'LEFT', 'RIGHT', 'b', 'a']
+    entered_keys = []
+
+    key_map = {
+        curses.KEY_UP: 'UP',
+        curses.KEY_DOWN: 'DOWN',
+        curses.KEY_LEFT: 'LEFT',
+        curses.KEY_RIGHT: 'RIGHT',
+        ord('b'): 'b',
+        ord('a'): 'a'
+    }
+
     while True:
         stdscr.clear()
         for idx, anime in enumerate(items):
@@ -101,6 +114,17 @@ def display_menu(stdscr: curses.window, items: List[Dict[str, Optional[str]]]) -
         stdscr.refresh()
         key = stdscr.getch()
 
+        if key in key_map:
+            entered_keys.append(key_map[key])
+            if len(entered_keys) > len(KONAMI_CODE):
+                entered_keys.pop(0)
+
+            if entered_keys == KONAMI_CODE:
+                konami_code_activated()
+                entered_keys.clear()
+        else:
+            entered_keys.clear()
+
         if key == curses.KEY_DOWN:
             current_row = (current_row + 1) % len(items)
         elif key == curses.KEY_UP:
@@ -113,3 +137,9 @@ def display_menu(stdscr: curses.window, items: List[Dict[str, Optional[str]]]) -
             break
 
     return None
+
+
+def konami_code_activated():
+    logging.debug("Konami Code activated!")
+    curses.endwin()
+    webbrowser.open('https://www.youtube.com/watch?v=PDJLvF1dUek')
