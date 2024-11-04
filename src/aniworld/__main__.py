@@ -34,7 +34,9 @@ from aniworld.common import (
     check_playwright_installed,
     open_terminal_with_command,
     get_random_anime,
-    show_messagebox
+    show_messagebox,
+    check_internet_connection,
+    display_ascii_art
 )
 
 
@@ -501,6 +503,10 @@ def main():
     logging.debug("============================================")
     logging.debug("Welcome to Aniworld!")
     logging.debug("============================================\n")
+    if not check_internet_connection():
+        clear_screen()
+        print(display_ascii_art(is_offline=True))
+        sys.exit()
     try:
         args = parse_arguments()
         logging.debug("Parsed arguments: %s", args)

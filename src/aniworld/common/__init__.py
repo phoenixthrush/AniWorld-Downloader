@@ -30,7 +30,8 @@ from .common import (
     setup_autostart,
     setup_autoexit,
     get_random_anime,
-    get_windows_version
+    get_windows_version,
+    check_internet_connection
 )
 
 from .ascii_art import display_ascii_art
