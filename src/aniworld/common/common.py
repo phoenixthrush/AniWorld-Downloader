@@ -1195,5 +1195,4 @@ def get_random_anime(genre: str) -> str:
 
 
 if __name__ == "__main__":
-    print(get_random_anime("Drama"))
     pass
