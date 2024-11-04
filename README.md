@@ -278,61 +278,77 @@ aniworld --help
 ```
 
 ```
-usage: aniworld [-h] [--slug SLUG] [--link LINK] [--query QUERY]
-                [--episode EPISODE [EPISODE ...]] [--episode-file EPISODE_FILE]
-                [--action {Watch,Download,Syncplay}] [--output OUTPUT]
-                [--output-directory OUTPUT_DIRECTORY]
-                [--language {German Dub,English Sub,German Sub}]
-                [--provider {Vidoza,Streamtape,VOE,Doodstream}] [--aniskip]
-                [--keep-watching] [--random-anime [RANDOM_ANIME]]
-                [--anime4k {High,Low,Remove}]
-                [--syncplay-password SYNCPLAY_PASSWORD [SYNCPLAY_PASSWORD ...]]
-                [--only-direct-link] [--only-command] [--proxy PROXY] [--use-playwright]
-                [--debug] [--version] [--update {mpv,yt-dlp,syncplay,all}] [--uninstall]
+usage: aniworld [-h] [-v] [-d] [-u] [-U {mpv,yt-dlp,syncplay,all}] [-s SLUG]
+                [-l LINK] [-q QUERY] [-e EPISODE [EPISODE ...]]
+                [-f EPISODE_FILE] [-a {Watch,Download,Syncplay}] [-o OUTPUT]
+                [-O OUTPUT_DIRECTORY] [-L {German Dub,English Sub,German Sub}]
+                [-p {Vidoza,Streamtape,VOE,Doodstream}] [-k] [-K]
+                [-r [RANDOM_ANIME]] [-A {High,Low,Remove}]
+                [-P SYNCPLAY_PASSWORD [SYNCPLAY_PASSWORD ...]] [-D] [-C]
+                [-x PROXY] [-w]
 
 Parse optional command line arguments.
 
 options:
   -h, --help            show this help message and exit
-  --slug SLUG           Search query - E.g. demon-slayer-kimetsu-no-yaiba
-  --link LINK           Search query - E.g. https://aniworld.to/anime/stream/demon-
-                        slayer-kimetsu-no-yaiba
-  --query QUERY         Search query input - E.g. demon
-  --episode EPISODE [EPISODE ...]
-                        List of episode URLs
-  --episode-file EPISODE_FILE
-                        File path containing a list of episode URLs
-  --action {Watch,Download,Syncplay}
-                        Action to perform
-  --output OUTPUT       Download directory E.g. /Users/phoenixthrush/Downloads
-  --output-directory OUTPUT_DIRECTORY
-                        Final download directory E.g ExampleDirectory, defaults to anime
-                        name if not specified
-  --language {German Dub,English Sub,German Sub}
-                        Language choice
-  --provider {Vidoza,Streamtape,VOE,Doodstream}
-                        Provider choice
-  --aniskip             Skip intro and outro
-  --keep-watching       Continue watching
-  --random-anime [RANDOM_ANIME]
-                        Select random anime (default genre is "all", Eg.: Drama)
-  --anime4k {High,Low,Remove}
-                        Set Anime4K optimised mode (High Eg.: GTX 1080, RTX 2070, RTX
-                        3060, RX 590, Vega 56, 5700XT, 6600XT; Low Eg.: GTX 980, GTX
-                        1060, RX 570, or Remove). This only needs to be run once to set
-                        or remove as the changes are persistent.
-  --syncplay-password SYNCPLAY_PASSWORD [SYNCPLAY_PASSWORD ...]
-                        Set a syncplay room password
-  --only-direct-link    Output direct link
-  --only-command        Output command
-  --proxy PROXY         Set HTTP Proxy - E.g. http://0.0.0.0:8080
-  --use-playwright      Bypass fetching with a headless browser using Playwright instead
-                        (EXPERIMENTAL!!!)
-  --debug               Enable debug mode
-  --version             Print version info
-  --update {mpv,yt-dlp,syncplay,all}
+
+General Options:
+  -v, --version         Print version info
+  -d, --debug           Enable debug mode
+  -u, --uninstall       Self uninstall
+  -U {mpv,yt-dlp,syncplay,all}, --update {mpv,yt-dlp,syncplay,all}
                         Update mpv, yt-dlp, syncplay, or all.
-  --uninstall           Self uninstall
+
+Search Options:
+  -s SLUG, --slug SLUG  Search query - E.g. demon-slayer-kimetsu-no-yaiba
+  -l LINK, --link LINK  Search query - E.g.
+                        https://aniworld.to/anime/stream/demon-slayer-kimetsu-
+                        no-yaiba
+  -q QUERY, --query QUERY
+                        Search query input - E.g. demon
+
+Episode Options:
+  -e EPISODE [EPISODE ...], --episode EPISODE [EPISODE ...]
+                        List of episode URLs
+  -f EPISODE_FILE, --episode-file EPISODE_FILE
+                        File path containing a list of episode URLs
+
+Action Options:
+  -a {Watch,Download,Syncplay}, --action {Watch,Download,Syncplay}
+                        Action to perform
+  -o OUTPUT, --output OUTPUT
+                        Download directory E.g. /Users/phoenixthrush/Downloads
+  -O OUTPUT_DIRECTORY, --output-directory OUTPUT_DIRECTORY
+                        Final download directory E.g ExampleDirectory,
+                        defaults to anime name if not specified
+  -L {German Dub,English Sub,German Sub}, --language {German Dub,English Sub,German Sub}
+                        Language choice
+  -p {Vidoza,Streamtape,VOE,Doodstream}, --provider {Vidoza,Streamtape,VOE,Doodstream}
+                        Provider choice
+
+Additional Options:
+  -k, --aniskip         Skip intro and outro
+  -K, --keep-watching   Continue watching
+  -r [RANDOM_ANIME], --random-anime [RANDOM_ANIME]
+                        Select random anime (default genre is "all", Eg.:
+                        Drama)
+
+Anime4K Options:
+  -A {High,Low,Remove}, --anime4k {High,Low,Remove}
+                        Set Anime4K optimised mode (High Eg.: GTX 1080, RTX
+                        2070, RTX 3060, RX 590, Vega 56, 5700XT, 6600XT; Low
+                        Eg.: GTX 980, GTX 1060, RX 570, or Remove).
+
+Miscellaneous Options:
+  -P SYNCPLAY_PASSWORD [SYNCPLAY_PASSWORD ...], --syncplay-password SYNCPLAY_PASSWORD [SYNCPLAY_PASSWORD ...]
+                        Set a syncplay room password
+  -D, --only-direct-link
+                        Output direct link
+  -C, --only-command    Output command
+  -x PROXY, --proxy PROXY
+                        Set HTTP Proxy - E.g. http://0.0.0.0:8080
+  -w, --use-playwright  Bypass fetching with a headless browser using
+                        Playwright instead (EXPERIMENTAL!!!)
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -397,9 +413,10 @@ These packages are automatically installed when you set up AniWorld Downloader u
   - [x] Separate the functionalities of aniskip and auto start & exit.
   - [x] Sanitise echo strings on Windows
   - [x] Add ascii art fallback on Windows 10
+  - [x] Fix mpv auto download on Windows 10
 
 ### Upcoming Tasks
-- [ ] Fix mpv auto download on Windows 10
+- [ ] Sort argument help section
 - [ ] Implement an ordered list for provider fallback in globals.py.
 - [ ] Remove unnecessary dependencies, add additional installation variants (e.g., without curses dependency).
 - [ ] Fix Aniskip for seasons beyond the first.
