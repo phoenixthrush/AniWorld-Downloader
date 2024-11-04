@@ -92,7 +92,7 @@ AniWorld Downloader is a command-line tool built to download and stream anime co
     pip install -U aniworld
     ```
 
-### Development Version (Unstable)
+### Development Version (Unstable & Requires Git)
 
 - To install the latest development changes directly from GitHub, use:
 
@@ -102,7 +102,7 @@ AniWorld Downloader is a command-line tool built to download and stream anime co
 
 - To update, simply rerun the command above. These builds may be unstable, so it’s good to check regularly.
 
-#### Local Installation (Requires Git)
+#### Local Installation
 
 If you prefer to have the files locally:
 
