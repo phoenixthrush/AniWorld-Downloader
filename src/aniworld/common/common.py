@@ -64,10 +64,11 @@ def check_dependencies(dependencies: list) -> None:
 
 
 def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True) -> Optional[bytes]:
-    logging.debug(f"Now fetching {url}")
     if aniworld_globals.DEFAULT_USE_PLAYWRIGHT or os.getenv("USE_PLAYWRIGHT"):
+        logging.debug("Now fetching without playwright: %s", url)
         return fetch_url_content_with_playwright(url, proxy, check)
 
+    logging.debug("Now fetching using playwright: %s", url)
     return fetch_url_content_without_playwright(url, proxy, check)
 
 
@@ -75,6 +76,8 @@ def fetch_url_content_without_playwright(url: str, proxy: Optional[str] = None, 
     headers = {
         'User-Agent': aniworld_globals.DEFAULT_USER_AGENT
     }
+
+    logging.debug("Using headers: %s", headers)
 
     proxies = {}
     if proxy:
@@ -606,7 +609,12 @@ def download_mpv(dep_path: str, appdata_path: str):
     try:
         logging.debug("Checking for AVX2 support...")
         avx2_supported = check_avx2_support()
+        if avx2_supported:
+            logging.debug("AVX2 is supported.")
+        else:
+            logging.debug("AVX2 is not supported.")
     except Exception:
+        logging.debug("Exception while checking for avx2, defaulting support to False.")
         avx2_supported = False
     pattern = r'mpv-x86_64-\d{8}-git-[a-f0-9]{7}\.7z'
     if avx2_supported:
@@ -615,32 +623,39 @@ def download_mpv(dep_path: str, appdata_path: str):
     else:
         logging.debug("AVX2 is not supported.")
 
+    logging.debug("Downloading %s", pattern)
+
     direct_link = next(
         (link for name, link in direct_links.items()
          if re.match(pattern, name)),
         None
     )
 
-    logging.debug("Download link: %s", direct_link)
+    logging.debug("Direct link: %s", direct_link)
 
     if not direct_link:
-        logging.error("No download link found for MPV.")
+        logging.error("No download link found for MPV. Please download it manually.")
         return
     logging.debug(direct_link)
 
     zip_path = os.path.join(appdata_path, 'mpv.7z')
     logging.debug("Downloading MPV from %s to %s", direct_link, zip_path)
     url_content = fetch_url_content(direct_link)
+
+    logging.debug("Saving url content.")
     with open(zip_path, 'wb') as f:
         f.write(url_content)
+
     logging.debug("Unpacking %s to %s", zip_path, dep_path)
     with py7zr.SevenZipFile(zip_path, mode='r') as archive:
         archive.extractall(path=dep_path)
+
+    logging.debug("Removing %s after unpacking", zip_path)
     os.remove(zip_path)
-    logging.debug("Removed %s after unpacking", zip_path)
 
 
 def download_syncplay(dep_path: str):
+    logging.debug("Getting latest syncplay direct link.")
     direct_links = get_github_release("Syncplay/syncplay")
     direct_link = next(
         (link for name, link in direct_links.items()
@@ -648,7 +663,7 @@ def download_syncplay(dep_path: str):
         None
     )
     if not direct_link:
-        logging.error("No download link found for Syncplay.")
+        logging.error("No download link found for Syncplay. Please install it manually.")
         return
     logging.debug(direct_link)
 
@@ -660,15 +675,19 @@ def download_syncplay(dep_path: str):
 
     logging.debug("Unpacking %s to %s", exe_path, dep_path)
     shutil.unpack_archive(exe_path, dep_path)
+
+    logging.debug("Removing %s after unpacking", exe_path)
     os.remove(exe_path)
-    logging.debug("Removed %s after unpacking", exe_path)
 
 
 def download_yt_dlp(dep_path: str):
     url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
     exe_path = os.path.join(dep_path, 'yt-dlp.exe')
+
     logging.debug("Downloading yt-dlp from %s to %s", url, exe_path)
     url_content = fetch_url_content(url)
+
+    logging.debug("Saving url content.")
     with open(exe_path, 'wb') as f:
         f.write(url_content)
 
@@ -683,16 +702,16 @@ def is_tail_running():
         )
         return result.returncode == 0
     except subprocess.CalledProcessError as e:
-        logging.error("Error checking if tail is running: %s", e)
+        logging.error("CalledProcessError checking if tail is running: %s", e)
         return False
     except subprocess.SubprocessError as e:
-        logging.error("Subprocess error checking if tail is running: %s", e)
+        logging.error("SubprocessError checking if tail is running: %s", e)
         return False
 
 
 def check_avx2_support() -> bool:
     if platform.system() != "Windows":
-        logging.debug("AVX2 check is only supported on Windows.")
+        logging.debug("AVX2 check is only supported on Windows, defaulting to False.")
         return False
 
     try:
@@ -707,20 +726,24 @@ def check_avx2_support() -> bool:
             if 'avx2' in cpu_info.stdout.decode('utf-8', errors='replace').lower():
                 logging.debug("AVX2 is supported.")
                 return True
+        else:
+            logging.debug("wmic is not in path, defaulting to False.")
         return False
     except subprocess.CalledProcessError as e:
-        logging.error("Error checking AVX2 support: %s", e)
+        logging.error("Error checking AVX2 support, defaulting to False.: %s", e)
         return False
     except subprocess.SubprocessError as e:
-        logging.error("Subprocess error checking AVX2 support: %s", e)
+        logging.error("Subprocess error checking AVX2 support, defaulting to False.: %s", e)
         return False
 
 
 def remove_path(path):
     try:
         if os.path.isfile(path):
+            logging.debug("Removing file: %s", path)
             os.remove(path)
         elif os.path.isdir(path):
+            logging.debug("Removing directory: %s", path)
             shutil.rmtree(path)
         logging.debug("Removed %s", path)
     except OSError as e:
