@@ -396,10 +396,10 @@ These packages are automatically installed when you set up AniWorld Downloader u
   - [x] Automatically clean up old logs.
   - [x] Separate the functionalities of aniskip and auto start & exit.
   - [x] Sanitise echo strings on Windows
+  - [x] Add ascii art fallback on Windows 10
 
 ### Upcoming Tasks
 - [ ] Fix mpv auto download on Windows 10
-- [ ] Add ascii art fallback
 - [ ] Implement an ordered list for provider fallback in globals.py.
 - [ ] Remove unnecessary dependencies, add additional installation variants (e.g., without curses dependency).
 - [ ] Fix Aniskip for seasons beyond the first.

@@ -49,7 +49,7 @@ def check_dependencies(dependencies: list) -> None:
         }
 
         if platform.system() == "Windows" or platform.system() == "Linux":
-            logging.info("Missing dependencies: %s. Attempting to download.", missing)
+            logging.debug("Missing dependencies: %s. Attempting to download.", missing)
             missing = [dep.replace("SyncplayConsole", "syncplay") for dep in missing]
             download_dependencies(missing)
         else:
@@ -595,13 +595,13 @@ def download_dependencies(dependencies: list):
 
 def download_and_extract_dependency(dep: str, dep_path: str, appdata_path: str):
     if dep == 'mpv':
-        logging.info("Downloading mpv...")
+        logging.debug("Downloading mpv...")
         download_mpv(dep_path, appdata_path)
     elif dep == 'syncplay':
-        logging.info("Downloading Syncplay...")
+        logging.debug("Downloading Syncplay...")
         download_syncplay(dep_path)
     elif dep == 'yt-dlp':
-        logging.info("Downloading yt-dlp...")
+        logging.debug("Downloading yt-dlp...")
         download_yt_dlp(dep_path)
 
 
