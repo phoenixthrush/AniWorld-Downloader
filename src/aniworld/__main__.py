@@ -430,7 +430,7 @@ def parse_arguments():
         logging.debug("Playwright set.")
         check_playwright_installed()
 
-    if not args.slug:
+    if not args.slug and args.random_anime:
         args.slug = get_random_anime(args.random_anime)
 
     return args
