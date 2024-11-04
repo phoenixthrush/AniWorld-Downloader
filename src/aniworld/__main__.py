@@ -8,6 +8,8 @@ import re
 import logging
 import subprocess
 import platform
+import threading
+import random
 
 import npyscreen
 
@@ -31,7 +33,8 @@ from aniworld.common import (
     get_anime_season_title,
     check_playwright_installed,
     open_terminal_with_command,
-    get_random_anime
+    get_random_anime,
+    show_messagebox
 )
 
 
@@ -74,12 +77,18 @@ class EpisodeForm(npyscreen.ActionForm):
     # pylint: disable=too-many-ancestors
     def create(self):
         logging.debug("Creating EpisodeForm")
+
         anime_slug = self.parentApp.anime_slug
         logging.debug("Anime slug: %s", anime_slug)
+
         anime_title = format_anime_title(anime_slug)
         logging.debug("Anime title: %s", anime_title)
+
         season_data = get_season_data(anime_slug)
         logging.debug("Season data: %s", season_data)
+
+        self.timer = None
+        self.start_timer()
 
         # TODO in get_anime_season_title() common.py
         anime_season_title = get_anime_season_title(slug=anime_slug, season=1)
@@ -177,6 +186,7 @@ class EpisodeForm(npyscreen.ActionForm):
 
     def on_ok(self):
         logging.debug("OK button pressed")
+        self.cancel_timer()
         npyscreen.blank_terminal()
         output_directory = self.directory_field.value if not self.directory_field.hidden else None
         logging.debug("Output directory: %s", output_directory)
@@ -238,6 +248,19 @@ class EpisodeForm(npyscreen.ActionForm):
 
         self.parentApp.setNextForm(None)
         self.parentApp.switchFormNow()
+
+    def start_timer(self):
+        self.timer = threading.Timer(random.randint(600, 900), self.delayed_message_box)
+        #self.timer = threading.Timer(random.randint(5, 10), self.delayed_message_box)  # :)
+        self.timer.start()
+
+    def cancel_timer(self):
+        if self.timer and self.timer.is_alive():
+            self.timer.cancel()
+            logging.debug("Timer canceled")
+
+    def delayed_message_box(self):
+        show_messagebox("Are you still there?", "Uhm...", "info")
 
     def get_language_code(self, language):
         logging.debug("Getting language code for: %s", language)
