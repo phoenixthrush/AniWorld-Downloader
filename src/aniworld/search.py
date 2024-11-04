@@ -12,7 +12,8 @@ from typing import List, Dict, Optional
 from aniworld.common import (
     clear_screen,
     fetch_url_content,
-    display_ascii_art
+    display_ascii_art,
+    show_messagebox
 )
 
 
@@ -46,6 +47,8 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
         if not query:
             print(display_ascii_art())
             query = input("Search for a series: ")
+            if query.lower().strip() == "boku no piko":
+                show_messagebox("This is not on aniworld...\nThank god...", "Really?...", "info")
         else:
             logging.debug("Using provided query: %s", query)
 
