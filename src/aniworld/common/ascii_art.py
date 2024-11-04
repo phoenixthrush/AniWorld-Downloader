@@ -1,5 +1,8 @@
 import random
 import time
+import platform
+
+from aniworld.common import get_windows_version
 
 
 def display_ascii_art() -> str:
@@ -838,6 +841,26 @@ def display_ascii_art() -> str:
         girl3
     ]
 
+    options_legacy = R"""
+   _____         .__ __      __            .__       .___            
+  /  _  \   ____ |__/  \    /  \___________|  |    __| _/            
+ /  /_\  \ /    \|  \   \/\/   /  _ \_  __ \  |   / __ |             
+/    |    \   |  \  |\        (  <_> )  | \/  |__/ /_/ |             
+\____|__  /___|  /__| \__/\  / \____/|__|  |____/\____ |             
+        \/     \/          \/                         \/             
+________                      .__                    .___            
+\______ \   ______  _  ______ |  |   _________     __| _/___________ 
+ |    |  \ /  _ \ \/ \/ /    \|  |  /  _ \__  \   / __ |/ __ \_  __ \
+ |    `   (  <_> )     /   |  \  |_(  <_> ) __ \_/ /_/ \  ___/|  | \/
+/_______  /\____/ \/\_/|___|  /____/\____(____  /\____ |\___  >__|   
+        \/                  \/                \/      \/    \/       
+    """
+
     random.seed(time.time())
+
+    if platform.system() == "Windows":
+        if get_windows_version() == "Legacy":
+            return options_legacy
+
     return random.choice(options)
     #return options[-1]

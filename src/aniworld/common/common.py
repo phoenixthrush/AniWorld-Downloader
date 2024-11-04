@@ -1194,5 +1194,20 @@ def get_random_anime(genre: str) -> str:
     return link
 
 
+def get_windows_version():
+    version = platform.version()
+    release = platform.release()
+
+    if release == "10":
+        build_number = int(re.search(r"\d+", version).group())
+
+        if build_number >= 22000:
+            return "Modern"
+        else:
+            return "Legacy"
+    else:
+        return f"Other"
+
+
 if __name__ == "__main__":
     pass

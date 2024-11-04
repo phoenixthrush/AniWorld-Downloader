@@ -29,7 +29,8 @@ from .common import (
     open_terminal_with_command,
     setup_autostart,
     setup_autoexit,
-    get_random_anime
+    get_random_anime,
+    get_windows_version
 )
 
 from .ascii_art import display_ascii_art
