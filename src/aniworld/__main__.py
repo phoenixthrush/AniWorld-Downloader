@@ -285,118 +285,56 @@ class AnimeApp(npyscreen.NPSAppManaged):
 
 def parse_arguments():
     logging.debug("Parsing command line arguments")
+
     parser = argparse.ArgumentParser(
         description="Parse optional command line arguments."
     )
-    parser.add_argument(
-        '--slug', type=str,
-        help='Search query - E.g. demon-slayer-kimetsu-no-yaiba'
-    )
-    parser.add_argument(
-        '--link', type=str,
-        help='Search query - E.g. https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba'
-    )
-    parser.add_argument(
-        '--query', type=str,
-        help='Search query input - E.g. demon'
-    )
-    parser.add_argument(
-        '--episode', type=str, nargs='+',
-        help='List of episode URLs'
-    )
-    parser.add_argument(
-        '--episode-file', type=str,
-        help='File path containing a list of episode URLs'
-    )
-    parser.add_argument(
-        '--action', type=str, choices=['Watch', 'Download', 'Syncplay'],
-        default=aniworld_globals.DEFAULT_ACTION,
-        help='Action to perform'
-    )
-    parser.add_argument(
-        '--output', type=str,
-        default=aniworld_globals.DEFAULT_DOWNLOAD_PATH,
-        help='Download directory E.g. /Users/phoenixthrush/Downloads'
-    )
-    parser.add_argument(
-        '--output-directory', type=str,
-        help='Final download directory E.g ExampleDirectory, defaults to anime name if not specified'
-    )
-    parser.add_argument(
-        '--language', type=str,
-        choices=['German Dub', 'English Sub', 'German Sub'],
-        default=aniworld_globals.DEFAULT_LANGUAGE,
-        help='Language choice'
-    )
-    parser.add_argument(
-        '--provider', type=str,
-        choices=['Vidoza', 'Streamtape', 'VOE', 'Doodstream'],
-        help='Provider choice'
-    )
-    parser.add_argument(
-        '--aniskip', action='store_true',
-        default=aniworld_globals.DEFAULT_ANISKIP,
-        help='Skip intro and outro'
-    )
-    parser.add_argument(
-        '--keep-watching', action='store_true',
-        default=aniworld_globals.DEFAULT_KEEP_WATCHING,
-        help='Continue watching'
-    )
-    parser.add_argument(
-        '--random-anime', type=str,
-        nargs='?',
-        const="all",
-        help='Select random anime (default genre is "all", Eg.: Drama)'
-    )
-    parser.add_argument(
-        '--anime4k', type=str,
-        choices=['High', 'Low', 'Remove'],
-        help=('Set Anime4K optimised mode (High Eg.: GTX 1080, RTX 2070, '
-              'RTX 3060, RX 590, Vega 56, 5700XT, 6600XT; Low Eg.: GTX 980, '
-              'GTX 1060, RX 570, or Remove). This only needs to be run once '
-              'to set or remove as the changes are persistent.')
-    )
-    parser.add_argument(
-        '--syncplay-password', type=str, nargs='+',
-        help='Set a syncplay room password'
-    )
-    parser.add_argument(
-        '--only-direct-link', action='store_true',
-        default=aniworld_globals.DEFAULT_ONLY_DIRECT_LINK,
-        help='Output direct link'
-    )
-    parser.add_argument(
-        '--only-command', action='store_true',
-        default=aniworld_globals.DEFAULT_ONLY_COMMAND,
-        help='Output command'
-    )
-    parser.add_argument(
-        '--proxy', type=str,
-        default=aniworld_globals.DEFAULT_PROXY,
-        help='Set HTTP Proxy - E.g. http://0.0.0.0:8080'
-    )
-    parser.add_argument(
-        '--use-playwright', action='store_true',
-        help='Bypass fetching with a headless browser using Playwright instead (EXPERIMENTAL!!!)'
-    )
-    parser.add_argument(
-        '--debug', action='store_true',
-        help='Enable debug mode'
-    )
-    parser.add_argument(
-        '--version', action='store_true',
-        help='Print version info'
-    )
-    parser.add_argument(
-        '--update', type=str,
-        choices=['mpv', 'yt-dlp', 'syncplay', 'all'],
-        help='Update mpv, yt-dlp, syncplay, or all.'
-    )
-    parser.add_argument(
-        '--uninstall', action='store_true',
-        help='Self uninstall'
-    )
+
+    # General options
+    general_group = parser.add_argument_group('General Options')
+    general_group.add_argument('-v', '--version', action='store_true', help='Print version info')
+    general_group.add_argument('-d', '--debug', action='store_true', help='Enable debug mode')
+    general_group.add_argument('-u', '--uninstall', action='store_true', help='Self uninstall')
+    general_group.add_argument('-U', '--update', type=str, choices=['mpv', 'yt-dlp', 'syncplay', 'all'], help='Update mpv, yt-dlp, syncplay, or all.')
+
+    # Search options
+    search_group = parser.add_argument_group('Search Options')
+    search_group.add_argument('-s', '--slug', type=str, help='Search query - E.g. demon-slayer-kimetsu-no-yaiba')
+    search_group.add_argument('-l', '--link', type=str, help='Search query - E.g. https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba')
+    search_group.add_argument('-q', '--query', type=str, help='Search query input - E.g. demon')
+
+    # Episode options
+    episode_group = parser.add_argument_group('Episode Options')
+    episode_group.add_argument('-e', '--episode', type=str, nargs='+', help='List of episode URLs')
+    episode_group.add_argument('-f', '--episode-file', type=str, help='File path containing a list of episode URLs')
+
+    # Action options
+    action_group = parser.add_argument_group('Action Options')
+    action_group.add_argument('-a', '--action', type=str, choices=['Watch', 'Download', 'Syncplay'], help='Action to perform')
+    action_group.add_argument('-o', '--output', type=str, help='Download directory E.g. /Users/phoenixthrush/Downloads')
+    action_group.add_argument('-O', '--output-directory', type=str, help='Final download directory E.g ExampleDirectory, defaults to anime name if not specified')
+    action_group.add_argument('-L', '--language', type=str, choices=['German Dub', 'English Sub', 'German Sub'], help='Language choice')
+    action_group.add_argument('-p', '--provider', type=str, choices=['Vidoza', 'Streamtape', 'VOE', 'Doodstream'], help='Provider choice')
+
+    # Additional options
+    additional_group = parser.add_argument_group('Additional Options')
+    additional_group.add_argument('-k', '--aniskip', action='store_true', help='Skip intro and outro')
+    additional_group.add_argument('-K', '--keep-watching', action='store_true', help='Continue watching')
+    additional_group.add_argument('-r', '--random-anime', type=str, nargs='?', const="all", help='Select random anime (default genre is "all", Eg.: Drama)')
+
+    # Anime4K options
+    anime4k_group = parser.add_argument_group('Anime4K Options')
+    anime4k_group.add_argument('-A', '--anime4k', type=str, choices=['High', 'Low', 'Remove'], help=('Set Anime4K optimised mode (High Eg.: GTX 1080, RTX 2070, '
+                'RTX 3060, RX 590, Vega 56, 5700XT, 6600XT; Low Eg.: GTX 980, '
+                'GTX 1060, RX 570, or Remove).'))
+
+    # Miscellaneous options
+    misc_group = parser.add_argument_group('Miscellaneous Options')
+    misc_group.add_argument('-P', '--syncplay-password', type=str, nargs='+', help='Set a syncplay room password')
+    misc_group.add_argument('-D', '--only-direct-link', action='store_true', help='Output direct link')
+    misc_group.add_argument('-C', '--only-command', action='store_true', help='Output command')
+    misc_group.add_argument('-x', '--proxy', type=str, help='Set HTTP Proxy - E.g. http://0.0.0.0:8080')
+    misc_group.add_argument('-w', '--use-playwright', action='store_true', help='Bypass fetching with a headless browser using Playwright instead (EXPERIMENTAL!!!)')
 
     args = parser.parse_args()
 
