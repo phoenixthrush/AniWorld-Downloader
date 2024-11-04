@@ -398,7 +398,7 @@ These packages are automatically installed when you set up AniWorld Downloader u
   - [x] Sanitise echo strings on Windows
 
 ### Upcoming Tasks
-- [ ] Fix mpv auto download on Windows 10
+- [ ] Fix mpv auto download on Windows 10
 - [ ] Add ascii art fallback
 - [ ] Implement an ordered list for provider fallback in globals.py.
 - [ ] Remove unnecessary dependencies, add additional installation variants (e.g., without curses dependency).
