@@ -112,6 +112,12 @@ def play():
             You need to describe what's going to happen when the user tells you to look around, for example,
             then tell them what they can see in the current sentence.
             Keep your answers very short, no more than two sentences, and focus on the most important things.
+            You need to think about a storyline that does end after some time.
+            Also add highlights like monster fights with options as running away or fighting.
+            If the player tries todo non logical things like going to a desert while being at the ocean it shouldn't work.
+            Also if he tries to use any items that are not logically near you don't allow it, you can't equip a sword without buying it somewhere first.
+            You can't buy things while fighting.
+            Make the fights longer than one prompt, do multiple fight scenes.
         """
 
         print("Welcome to the Text Adventure Game!")
