@@ -10,6 +10,7 @@ import subprocess
 import platform
 import threading
 import random
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import npyscreen
 
@@ -92,16 +93,38 @@ class EpisodeForm(npyscreen.ActionForm):
         self.timer = None
         self.start_timer()
 
-        # TODO in get_anime_season_title() common.py
         anime_season_title = get_anime_season_title(slug=anime_slug, season=1)
 
-        season_episode_map = {
-            f"{anime_season_title} - Season {season} - Episode {episode}"
-            if season > 0
-            else f"{anime_season_title} - Movie {episode}": url
-            for url in season_data
-            for season, episode in [get_season_and_episode_numbers(url)]
-        }
+        def process_url(url):
+            logging.debug("Processing URL: %s", url)
+            season, episode = get_season_and_episode_numbers(url)
+            title = (
+                f"{anime_season_title} - Season {season} - Episode {episode}"
+                if season > 0
+                else f"{anime_season_title} - Movie {episode}"
+            )
+            return (season, episode, title, url)
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            future_to_url = {executor.submit(process_url, url): url for url in season_data}
+
+            results = []
+            for future in as_completed(future_to_url):
+                try:
+                    result = future.result(timeout=5)  # Timeout for future result
+                    results.append(result)
+                    logging.debug("Processed result: %s", result)
+                except Exception as e:
+                    logging.error("Error processing %s: %s", future_to_url[future], e)
+
+        sorted_results = sorted(
+            results,
+            key=lambda x: (x[0] if x[0] > 0 else 999, x[1])
+        )
+
+        season_episode_map = {title: url for _, _, title, url in sorted_results}
+
+        # TODO send quit signal if ctrl c
 
         self.episode_map = season_episode_map
 
@@ -287,6 +310,7 @@ class EpisodeForm(npyscreen.ActionForm):
 
     def on_cancel(self):
         logging.debug("Cancel button pressed")
+        self.cancel_timer()
         self.parentApp.setNextForm(None)
 
 
