@@ -15,6 +15,7 @@ import random
 import socket
 import tempfile
 import base64
+import threading
 from typing import List, Optional
 from packaging.version import Version
 from importlib.metadata import version, PackageNotFoundError
@@ -1236,6 +1237,86 @@ def check_internet_connection():
 
     return False
 
+
+def show_messagebox(message, title="Message", box_type="info"):
+    # box_type -> info, yesno, warning, error
+    system = platform.system()
+    
+    if system == "Windows":
+        import ctypes
+        msg_box_type = {
+            "info": 0x40,
+            "yesno": 0x04 | 0x20,
+            "warning": 0x30,
+            "error": 0x10,
+        }.get(box_type, 0x40)
+        
+        response = ctypes.windll.user32.MessageBoxW(0, message, title, msg_box_type)
+        if box_type == "yesno":
+            return response == 6
+        return True
+
+    elif system == "Darwin":
+        script = {
+            "info": f'display dialog "{message}" with title "{title}" buttons "OK"',
+            "yesno": f'display dialog "{message}" with title "{title}" buttons {{"Yes", "No"}}',
+            "warning": f'display dialog "{message}" with title "{title}" buttons "OK" with icon caution',
+            "error": f'display dialog "{message}" with title "{title}" buttons "OK" with icon stop',
+        }.get(box_type, f'display dialog "{message}" with title "{title}" buttons "OK"')
+        
+        try:
+            result = subprocess.run(["osascript", "-e", script], text=True, capture_output=True)
+            if box_type == "yesno":
+                return "Yes" in result.stdout
+            return True
+        except Exception as e:
+            logging.debug(f"Error showing messagebox on macOS: {e}")
+            return False
+
+    elif system == "Linux":
+        try:
+            if subprocess.run(["which", "zenity"], capture_output=True, text=True).returncode == 0:
+                cmd = {
+                    "info": ["zenity", "--info", "--text", message, "--title", title],
+                    "yesno": ["zenity", "--question", "--text", message, "--title", title],
+                    "warning": ["zenity", "--warning", "--text", message, "--title", title],
+                    "error": ["zenity", "--error", "--text", message, "--title", title],
+                }.get(box_type, ["zenity", "--info", "--text", message, "--title", title])
+                
+                result = subprocess.run(cmd)
+                return result.returncode == 0 if box_type == "yesno" else True
+            
+            elif subprocess.run(["which", "kdialog"], capture_output=True, text=True).returncode == 0:
+                cmd = {
+                    "info": ["kdialog", "--msgbox", message, "--title", title],
+                    "yesno": ["kdialog", "--yesno", message, "--title", title],
+                    "warning": ["kdialog", "--sorry", message, "--title", title],
+                    "error": ["kdialog", "--error", message, "--title", title],
+                }.get(box_type, ["kdialog", "--msgbox", message, "--title", title])
+                
+                result = subprocess.run(cmd)
+                return result.returncode == 0 if box_type == "yesno" else True
+            
+        except Exception as e:
+            logging.debug(f"Error showing messagebox on Linux: {e}")
+            return False
+    
+    import tkinter as tk
+    from tkinter import messagebox
+
+    root = tk.Tk()
+    root.withdraw()
+    if box_type == "yesno":
+        return messagebox.askyesno(title, message)
+    elif box_type == "warning":
+        messagebox.showwarning(title, message)
+    elif box_type == "error":
+        messagebox.showerror(title, message)
+    else:
+        messagebox.showinfo(title, message)
+    return True
+
+
 def get_current_wallpaper():
     system = platform.system()
     if system == "Windows":
@@ -1245,15 +1326,16 @@ def get_current_wallpaper():
         return buf.value
     elif system == "Darwin":
         result = os.popen(
-            'osascript -e \'tell application "System Events" to get picture of current desktop\'').read().strip()
+            'osascript -e \'tell application "System Events" to get the picture of the current desktop\'').read().strip()
+        if not result:
+            result = os.popen('osascript -e \'tell application "System Events" to get the desktop picture\'').read().strip()
         return result
     elif system == "Linux":
         try:
-            result = os.popen('gsettings get org.gnome.desktop.background picture-uri').read().strip().strip(
-                "'").replace("file://", "")
+            result = os.popen('gsettings get org.gnome.desktop.background picture-uri').read().strip().strip("'").replace("file://", "")
             return result
         except Exception as e:
-            logging.debug(f"Could not get current wallpaper: {e}")
+            print(f"Could not get current wallpaper: {e}")
             return None
     return None
 
@@ -1286,6 +1368,12 @@ def minimize_all_windows():
         ctypes.windll.user32.keybd_event(0x44, 0, 0, 0)
         ctypes.windll.user32.keybd_event(0x44, 0, 2, 0)
         ctypes.windll.user32.keybd_event(0x5B, 0, 2, 0)
+    elif platform.system() == "Linux":
+        os.system("xdotool key super+d")
+
+
+def sleep_detached(time: int):
+    time.sleep(time)
 
 
 def set_temp_wallpaper():
@@ -1309,8 +1397,13 @@ def set_temp_wallpaper():
             logging.debug(f"New wallpaper set: {file_path}")
 
             minimize_all_windows()
-            time.sleep(5)
-            minimize_all_windows()
+            if platform.system() == "Darwin":
+                show_messagebox("DO NOT LOOK AT YOUR DESKTOP!\n(DO NOT PRESS FN + F11!!!)", "IMPORTANT!!!", "info")
+                detached_thread = threading.Thread(target=sleep_detached)
+                detached_thread.start()
+            else:
+                time.sleep(5)
+                minimize_all_windows()
 
             if current_wallpaper:
                 set_wallpaper(current_wallpaper)
