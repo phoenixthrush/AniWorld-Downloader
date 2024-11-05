@@ -1388,6 +1388,7 @@ def sleep_detached(time: int):
 
 
 def set_temp_wallpaper():
+    # TODO - if no old background set use default windows background
     data = ("aHR0cHM6Ly9naXRodWIuY29tL3Bob2VuaXh0aHJ1c2gvTWFnaWMtRW5naW5l"
             "L2Jsb2IvbWFzdGVyL2xpYnJhcnkvZG9ub3RkZWxldGUucG5nP3Jhdz10cnVl")
 
