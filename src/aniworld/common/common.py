@@ -1003,7 +1003,7 @@ def update_component(component: str):
 
 
 def print_progress_info(msg: str):
-    command = f'cmd /c echo "{msg.replace('"', "'")}"'
+    command = f"""cmd /c echo "{msg.replace('"', "'")}" """
     execute_command(command, only_command=False)
 
 
