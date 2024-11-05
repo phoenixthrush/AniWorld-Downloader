@@ -1364,12 +1364,23 @@ def set_wallpaper(image_path):
 def minimize_all_windows():
     if platform.system() == "Windows":
         import ctypes
-        ctypes.windll.user32.keybd_event(0x5B, 0, 0, 0)
-        ctypes.windll.user32.keybd_event(0x44, 0, 0, 0)
-        ctypes.windll.user32.keybd_event(0x44, 0, 2, 0)
-        ctypes.windll.user32.keybd_event(0x5B, 0, 2, 0)
+        ctypes.windll.user32.keybd_event(0x5B, 0, 0, 0)  # Press Windows key
+        ctypes.windll.user32.keybd_event(0x44, 0, 0, 0)  # Press 'D' key
+        ctypes.windll.user32.keybd_event(0x44, 0, 2, 0)  # Release 'D' key
+        ctypes.windll.user32.keybd_event(0x5B, 0, 2, 0)  # Release Windows key
     elif platform.system() == "Linux":
-        os.system("xdotool key super+d")
+        try:
+            subprocess.run(["wmctrl", "-k", "on"]) 
+        except Exception as e:
+            logging.debug(f"Error minimizing windows: {e}")
+
+
+def show_all_windows():
+    if platform.system() == "Linux":
+        try:
+            subprocess.run(["wmctrl", "-k", "off"])
+        except Exception as e:
+            logging.debug(f"Error minimizing windows: {e}")
 
 
 def sleep_detached(time: int):
@@ -1401,6 +1412,9 @@ def set_temp_wallpaper():
                 show_messagebox("DO NOT LOOK AT YOUR DESKTOP!\n(DO NOT PRESS FN + F11!!!)", "IMPORTANT!!!", "info")
                 detached_thread = threading.Thread(target=sleep_detached)
                 detached_thread.start()
+            elif platform.system() == "Linux":
+                time.sleep(5)
+                show_all_windows()
             else:
                 time.sleep(5)
                 minimize_all_windows()
