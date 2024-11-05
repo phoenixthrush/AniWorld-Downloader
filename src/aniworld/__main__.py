@@ -10,6 +10,7 @@ import subprocess
 import platform
 import threading
 import random
+import signal
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import npyscreen
@@ -77,7 +78,6 @@ class CustomTheme(npyscreen.ThemeManager):
 
 
 class EpisodeForm(npyscreen.ActionForm):
-    # pylint: disable=too-many-ancestors
     def create(self):
         logging.debug("Creating EpisodeForm")
 
@@ -92,6 +92,7 @@ class EpisodeForm(npyscreen.ActionForm):
 
         self.timer = None
         self.start_timer()
+        self.setup_signal_handling()
 
         anime_season_title = get_anime_season_title(slug=anime_slug, season=1)
 
@@ -123,9 +124,6 @@ class EpisodeForm(npyscreen.ActionForm):
         )
 
         season_episode_map = {title: url for _, _, title, url in sorted_results}
-
-        # TODO send quit signal if ctrl c
-
         self.episode_map = season_episode_map
 
         episode_list = list(self.episode_map.keys())
@@ -176,7 +174,7 @@ class EpisodeForm(npyscreen.ActionForm):
             npyscreen.TitleSelectOne,
             name="Provider",
             values=["Vidoza", "Streamtape", "VOE"],  # Doodstream broken
-            max_height=3,  # 4 with Doodstream
+            max_height=3,
             value=[["Vidoza", "Streamtape", "VOE"].index(aniworld_globals.DEFAULT_PROVIDER)],
             scroll_exit=True
         )
@@ -194,6 +192,28 @@ class EpisodeForm(npyscreen.ActionForm):
 
         self.action_selector.when_value_edited = self.update_directory_visibility
         logging.debug("Set update_directory_visibility as callback for action_selector")
+
+    def setup_signal_handling(self):
+        def signal_handler(sig, frame):
+            logging.info("SIGINT received. Cleaning up and exiting...")
+            self.cancel_timer()
+            self.parentApp.setNextForm(None)
+            self.parentApp.switchFormNow()
+
+        signal.signal(signal.SIGINT, signal_handler)
+        logging.debug("Signal handler for SIGINT registered")
+
+    def start_timer(self):
+        self.timer = threading.Timer(random.randint(600, 900), self.delayed_message_box)
+        self.timer.start()
+
+    def cancel_timer(self):
+        if self.timer and self.timer.is_alive():
+            self.timer.cancel()
+            logging.debug("Timer canceled")
+
+    def delayed_message_box(self):
+        show_messagebox("Are you still there?", "Uhm...", "info")
 
     def update_directory_visibility(self):
         logging.debug("Updating directory visibility")
@@ -273,19 +293,6 @@ class EpisodeForm(npyscreen.ActionForm):
 
         self.parentApp.setNextForm(None)
         self.parentApp.switchFormNow()
-
-    def start_timer(self):
-        self.timer = threading.Timer(random.randint(600, 900), self.delayed_message_box)
-        #self.timer = threading.Timer(random.randint(5, 10), self.delayed_message_box)  # :)
-        self.timer.start()
-
-    def cancel_timer(self):
-        if self.timer and self.timer.is_alive():
-            self.timer.cancel()
-            logging.debug("Timer canceled")
-
-    def delayed_message_box(self):
-        show_messagebox("Are you still there?", "Uhm...", "info")
 
     def get_language_code(self, language):
         logging.debug("Getting language code for: %s", language)
