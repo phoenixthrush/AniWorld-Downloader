@@ -37,7 +37,7 @@ from aniworld.common import (
     get_random_anime,
     show_messagebox,
     check_internet_connection,
-    display_ascii_art
+    adventure,
 )
 
 
@@ -529,7 +529,10 @@ def main():
     logging.debug("============================================\n")
     if not check_internet_connection():
         clear_screen()
-        print(display_ascii_art(is_offline=True))
+
+        logging.disable(logging.CRITICAL)
+        adventure()
+
         sys.exit()
     try:
         args = parse_arguments()
