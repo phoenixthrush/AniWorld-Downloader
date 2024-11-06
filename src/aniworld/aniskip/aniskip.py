@@ -130,9 +130,9 @@ def aniskip(anime_title: str, episode: int) -> str:
         logging.debug("No MAL ID found.")
         return ""
 
-    chapters_file = tempfile.mktemp()
-    logging.debug("Created temporary chapters file: %s", chapters_file)
-    return build_flags(mal_id, episode, chapters_file)
+    with tempfile.NamedTemporaryFile(mode="w+", delete=False) as chapters_file:
+        logging.debug("Created temporary chapters file: %s", chapters_file.name)
+        return build_flags(mal_id, episode, chapters_file.name)
 
 
 if __name__ == "__main__":
