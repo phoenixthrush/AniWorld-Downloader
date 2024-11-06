@@ -47,10 +47,15 @@ dev = [
     "flake8",
     "build",
     "twine",
-    "playwright"
+    "playwright",
+    "ollama"
 ]
 playwright = [
     "playwright"
+]
+
+offline = [
+  "ollama"
 ]
 
 [project.urls]
