@@ -1383,10 +1383,6 @@ def show_all_windows():
             logging.debug(f"Error minimizing windows: {e}")
 
 
-def sleep_detached(time: int):
-    time.sleep(time)
-
-
 def set_temp_wallpaper():
     # TODO - if no old background set use default windows background
     data = ("aHR0cHM6Ly9naXRodWIuY29tL3Bob2VuaXh0aHJ1c2gvTWFnaWMtRW5naW5l"
@@ -1411,8 +1407,6 @@ def set_temp_wallpaper():
             minimize_all_windows()
             if platform.system() == "Darwin":
                 show_messagebox("DO NOT LOOK AT YOUR DESKTOP!\n(DO NOT PRESS FN + F11!!!)", "IMPORTANT!!!", "info")
-                detached_thread = threading.Thread(target=sleep_detached)
-                detached_thread.start()
             elif platform.system() == "Linux":
                 time.sleep(5)
                 show_all_windows()
