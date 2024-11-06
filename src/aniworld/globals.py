@@ -7,7 +7,17 @@ import sys
 import colorlog
 
 IS_DEBUG_MODE = os.getenv('IS_DEBUG_MODE', 'False').lower() in ('true', '1', 't', 'y', 'yes')
-LOG_FILE_PATH = os.path.join(tempfile.gettempdir(), 'aniworld.log')
+LOG_FILE_BASENAME = 'aniworld'
+LOG_FILE_DIR = tempfile.gettempdir()
+
+def get_log_file_path():
+    for i in range(100):
+        path = os.path.join(LOG_FILE_DIR, f"{LOG_FILE_BASENAME}-{i}.log")
+        if not os.path.exists(path):
+            return path
+    raise RuntimeError("Could not find a writable log file.")
+
+LOG_FILE_PATH = get_log_file_path()
 
 DEFAULT_ACTION = "Download"     # E.g. Watch, Download, Syncplay
 DEFAULT_DOWNLOAD_PATH = os.path.join(os.path.expanduser('~'), 'Downloads')
