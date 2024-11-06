@@ -40,7 +40,6 @@ def setup_file_handler():
         file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(funcName)s - %(message)s'))
         return file_handler
     except PermissionError:
-        print("PermissionError: File logging disabled due to lack of permissions.")
         return None
 
 
