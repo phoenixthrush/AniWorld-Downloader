@@ -7,17 +7,7 @@ import sys
 import colorlog
 
 IS_DEBUG_MODE = os.getenv('IS_DEBUG_MODE', 'False').lower() in ('true', '1', 't', 'y', 'yes')
-LOG_FILE_BASENAME = 'aniworld'
-LOG_FILE_DIR = tempfile.gettempdir()
-
-def get_log_file_path():
-    for i in range(100):
-        path = os.path.join(LOG_FILE_DIR, f"{LOG_FILE_BASENAME}-{i}.log")
-        if not os.path.exists(path):
-            return path
-    raise RuntimeError("Could not find a writable log file.")
-
-LOG_FILE_PATH = get_log_file_path()
+LOG_FILE_PATH = os.path.join(tempfile.gettempdir(), 'aniworld.log')
 
 DEFAULT_ACTION = "Download"     # E.g. Watch, Download, Syncplay
 DEFAULT_DOWNLOAD_PATH = os.path.join(os.path.expanduser('~'), 'Downloads')
@@ -40,12 +30,21 @@ log_colors = {
     'CRITICAL': 'bold_purple'
 }
 
-if os.path.exists(LOG_FILE_PATH):
-    os.remove(LOG_FILE_PATH)
-file_handler = logging.FileHandler(LOG_FILE_PATH)
-file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(funcName)s - %(message)s'))
 
+def setup_file_handler():
+    try:
+        if os.path.exists(LOG_FILE_PATH):
+            os.remove(LOG_FILE_PATH)
+        file_handler = logging.FileHandler(LOG_FILE_PATH)
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(funcName)s - %(message)s'))
+        return file_handler
+    except PermissionError:
+        print("PermissionError: File logging disabled due to lack of permissions.")
+        return None
+
+
+file_handler = setup_file_handler()
 console_handler = colorlog.StreamHandler()
 console_handler.setLevel(logging.INFO)
 console_handler.setFormatter(colorlog.ColoredFormatter(
@@ -54,9 +53,13 @@ console_handler.setFormatter(colorlog.ColoredFormatter(
     log_colors=log_colors
 ))
 
+handlers = [console_handler]
+if file_handler:
+    handlers.append(file_handler)
+
 logging.basicConfig(
     level=logging.DEBUG if IS_DEBUG_MODE else logging.INFO,
-    handlers=[file_handler, console_handler]
+    handlers=handlers
 )
 
 logging.getLogger('urllib3').setLevel(logging.WARNING)
