@@ -416,6 +416,8 @@ These packages are automatically installed when you set up AniWorld Downloader u
 
 ### Upcoming Tasks
 - [ ] Organize extractors by site
+- [ ] Syncplay support for other sites
+- [ ] Fix --only-direct-link language error
 - [ ] Sort argument help section
 - [ ] Implement an ordered list for provider fallback in globals.py.
 - [ ] Remove unnecessary dependencies, add additional installation variants (e.g., without curses dependency).
