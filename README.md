@@ -399,6 +399,7 @@ These packages are automatically installed when you set up AniWorld Downloader u
   - [x] Add Captcha bypass for headless browser fetches.
   - [x] Allow changing final output folder
   - [x] Add option to select a random anime optionally via genre
+  - [x] Add additional installation variants.
   
 - **Bug Fixes**
   - [x] Fix season episode count.
@@ -415,15 +416,21 @@ These packages are automatically installed when you set up AniWorld Downloader u
   - [x] Fix mpv auto download on Windows 10
 
 ### Upcoming Tasks
-- [ ] Syncplay support for other sites
-- [ ] Fix --only-direct-link language error
-- [ ] Sort argument help section
-- [ ] Implement an ordered list for provider fallback in globals.py.
-- [ ] Remove unnecessary dependencies, add additional installation variants (e.g., without curses dependency).
-- [ ] Fix Aniskip for seasons beyond the first.
-- [ ] Optimize performance to reduce requests and eliminate duplicate function calls.
-- [ ] Add support for Doodstream.
-- [ ] Anonymize logs by removing usernames
+- [ ] New Stable Release -> Full Testing with small bug fixes
+- [ ] Complete codebase rewrite in new v.3 branch
+  - [ ] Restructure argument handling using another file and globally accessible objects
+  - [ ] Fix --only-direct-link language error
+  - [ ] Sort argument help section
+  - [ ] Implement missing argument options
+  - [ ] Syncplay support for other sites and local playback
+  - [ ] Implement an ordered list for provider fallback in globals.py
+  - [ ] Remove unnecessary dependencies
+  - [ ] Fix Aniskip for seasons beyond the first
+  - [ ] Optimize performance to reduce requests and eliminate duplicate function calls
+  - [ ] Add generic fallback extractor
+  - [ ] Anonymize logs by removing usernames
+  - [ ] Add support for Doodstream
+  - [ ] Add support for other sites
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

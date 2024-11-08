@@ -363,6 +363,7 @@ def parse_arguments():
     episode_group = parser.add_argument_group('Episode Options')
     episode_group.add_argument('-e', '--episode', type=str, nargs='+', help='List of episode URLs')
     episode_group.add_argument('-f', '--episode-file', type=str, help='File path containing a list of episode URLs')
+    episode_group.add_argument('-lf', '--episode-local', action='store_true', help='NOT IMPLEMENTED YET - Use local episode files instead of URLs')
 
     # Action options
     action_group = parser.add_argument_group('Action Options')
@@ -372,21 +373,24 @@ def parse_arguments():
     action_group.add_argument('-L', '--language', type=str, choices=['German Dub', 'English Sub', 'German Sub'], help='Language choice')
     action_group.add_argument('-p', '--provider', type=str, choices=['Vidoza', 'Streamtape', 'VOE', 'Doodstream'], help='Provider choice')
 
-    # Additional options
-    additional_group = parser.add_argument_group('Additional Options')
-    additional_group.add_argument('-k', '--aniskip', action='store_true', help='Skip intro and outro')
-    additional_group.add_argument('-K', '--keep-watching', action='store_true', help='Continue watching')
-    additional_group.add_argument('-r', '--random-anime', type=str, nargs='?', const="all", help='Select random anime (default genre is "all", Eg.: Drama)')
-
     # Anime4K options
     anime4k_group = parser.add_argument_group('Anime4K Options')
     anime4k_group.add_argument('-A', '--anime4k', type=str, choices=['High', 'Low', 'Remove'], help=('Set Anime4K optimised mode (High Eg.: GTX 1080, RTX 2070, '
                 'RTX 3060, RX 590, Vega 56, 5700XT, 6600XT; Low Eg.: GTX 980, '
                 'GTX 1060, RX 570, or Remove).'))
+    
+    # Syncplay options
+    syncplay_group = parser.add_argument_group('Syncplay Options')
+    syncplay_group.add_argument('-sH', '--syncplay-hostname', type=str, help='NOT IMPLEMENTED YET - Set syncplay hostname')
+    syncplay_group.add_argument('-sU', '--syncplay-username', type=str, help='NOT IMPLEMENTED YET - Set syncplay username')
+    syncplay_group.add_argument('-sR', '--syncplay-room', type=str, help='NOT IMPLEMENTED YET - Set syncplay room')
+    syncplay_group.add_argument('-sP', '--syncplay-password', type=str, nargs='+', help='Set a syncplay room password')
 
     # Miscellaneous options
     misc_group = parser.add_argument_group('Miscellaneous Options')
-    misc_group.add_argument('-P', '--syncplay-password', type=str, nargs='+', help='Set a syncplay room password')
+    misc_group.add_argument('-k', '--aniskip', action='store_true', help='Skip intro and outro')
+    misc_group.add_argument('-K', '--keep-watching', action='store_true', help='Continue watching')
+    misc_group.add_argument('-r', '--random-anime', type=str, nargs='?', const="all", help='Select random anime (default genre is "all", Eg.: Drama)')
     misc_group.add_argument('-D', '--only-direct-link', action='store_true', help='Output direct link')
     misc_group.add_argument('-C', '--only-command', action='store_true', help='Output command')
     misc_group.add_argument('-x', '--proxy', type=str, help='Set HTTP Proxy - E.g. http://0.0.0.0:8080')
