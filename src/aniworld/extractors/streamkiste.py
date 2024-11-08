@@ -88,7 +88,7 @@ def fetch_direct_link(link):
 
 
 def download_video(link, title):
-    FILENAME = os.path.join("Downloads", f"{title}.mp4")
+    FILENAME = os.path.join(os.path.expanduser('~'), 'Downloads', f"{title}.mp4")
     subprocess.run(['yt-dlp', '--quiet', '--no-warnings', '--progress', '-o', FILENAME, link])
 
 
