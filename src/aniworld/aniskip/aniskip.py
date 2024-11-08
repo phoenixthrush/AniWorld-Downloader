@@ -39,13 +39,13 @@ def fetch_mal_id(anime_title: str) -> Optional[str]:
 
     filtered_choices = [choice for choice in results if 'OVA' not in choice]
     logging.debug("Filtered choices: %s", filtered_choices)
-    best_match = process.extractOne(anime_title, filtered_choices)
+    best_match = filtered_choices[0]
     logging.debug("Best match: %s", best_match)
 
-    if best_match[0]:
+    if best_match:
         for entry in mal_metadata['categories'][0]['items']:
-            if entry['name'] == best_match[0]:
-                logging.debug("Found MAL ID: %s for %s", entry['id'], best_match[0])
+            if entry['name'] == best_match:
+                logging.debug("Found MAL ID: %s for %s", entry['id'], best_match)
                 return entry['id']
     return None
 
