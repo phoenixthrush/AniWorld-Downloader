@@ -415,7 +415,6 @@ These packages are automatically installed when you set up AniWorld Downloader u
   - [x] Fix mpv auto download on Windows 10
 
 ### Upcoming Tasks
-- [ ] Organize extractors by site
 - [ ] Syncplay support for other sites
 - [ ] Fix --only-direct-link language error
 - [ ] Sort argument help section

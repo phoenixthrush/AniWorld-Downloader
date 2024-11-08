@@ -74,8 +74,6 @@ Run these commands:
 
 
 def adventure():
-    from ollama import ResponseError
-
     try:
         import ollama
     except ModuleNotFoundError:
