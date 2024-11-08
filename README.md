@@ -360,7 +360,6 @@ AniWorld Downloader requires the following Python packages:
 - `requests`
 - `beautifulsoup4`
 - `npyscreen`
-- `thefuzz`
 - `colorlog`
 - `py7zr`
 - `packaging`

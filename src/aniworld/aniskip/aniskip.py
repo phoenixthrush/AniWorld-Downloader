@@ -5,7 +5,6 @@ from typing import Dict, Optional
 import logging
 
 import requests
-from thefuzz import process
 
 import aniworld.globals as aniworld_globals
 from aniworld.common import raise_runtime_error, ftoi
