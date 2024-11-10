@@ -419,25 +419,21 @@ These packages are automatically installed when you set up AniWorld Downloader u
   - [x] Sanitise echo strings on Windows
   - [x] Add ascii art fallback on Windows 10
   - [x] Fix mpv auto download on Windows 10
+  - [x] Fix Aniskip for seasons beyond the first
 
 ### Upcoming Tasks
-- [ ] New Stable Release
-  - [ ] Full Testing
-  - [ ] Bug fixing
-- [ ] Complete codebase rewrite in new v.3 branch
   - [ ] Restructure argument handling by using globally accessible objects
-  - [ ] Fix --only-direct-link language bug
+  - [ ] Fix --only-direct-link language bug and only-command
   - [ ] Sort argument help section
   - [ ] Implement missing argument options
   - [ ] Syncplay support for other sites and local playback
   - [ ] Implement an ordered list for provider fallback in globals.py
   - [ ] Remove unnecessary dependencies
-  - [ ] Fix Aniskip for seasons beyond the first
   - [ ] Optimize performance to reduce requests and eliminate duplicate function calls
   - [ ] Add generic fallback extractor
   - [ ] Anonymize logs by removing usernames
   - [ ] Add support for Doodstream
-  - [ ] Add support for other sites
+  - [ ] Add support for other sites
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
