@@ -66,7 +66,7 @@ def fetch_ID(anime_title, season):
                 link_element = title_div.find("a")
                 if link_element:
                     link_url = link_element.get("href")
-                    logging.debug("Found Link:", link_url)
+                    logging.debug("Found Link: %s", link_url)
                     match = re.search(r'/anime/(\d+)', link_url)
                     if match:
                         anime_id = match.group(1)
@@ -187,14 +187,14 @@ def aniskip(anime_title: str, anime_slug: str, episode: int, season: int) -> str
         logging.debug("No MAL ID found.")
         return ""
 
-    logging.debug("BEAAAAAAAAAAAAAAAJNNNNNNNNNNNNNNNNNNNNNNNNNSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS %s", anime_slug)
+    logging.debug("Anime_Slug: %s", anime_slug)
     if check_episodes(ID) == get_season_episode_count(anime_slug, str(season)):
         with tempfile.NamedTemporaryFile(mode="w+", delete=False) as chapters_file:
             logging.debug("Created temporary chapters file: %s", chapters_file.name)
             return build_flags(ID, episode, chapters_file.name)
     else:
-        logging.debug("Check episode: %s", check_episodes(ID))
-        logging.debug("Check get: %s",get_season_episode_count(anime_slug, str(season)))
+        logging.debug("Check_Episode: %s", check_episodes(ID))
+        logging.debug("Check get_season_episode_count: %s",get_season_episode_count(anime_slug, str(season)))
         logging.debug("Mal ID isn't matching episode counter!")
         return ""
 
