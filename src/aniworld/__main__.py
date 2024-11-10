@@ -281,7 +281,8 @@ class EpisodeForm(npyscreen.ActionForm):
                 'aniskip_selected': aniskip_selected,
                 'lang': lang,
                 'output_directory': output_directory,
-                'anime_title': format_anime_title(self.parentApp.anime_slug)
+                'anime_title': format_anime_title(self.parentApp.anime_slug),
+                'anime_slug': self.parentApp.anime_slug
             }
 
             logging.debug("Executing with params: %s", params)
@@ -560,7 +561,7 @@ def main():
             for slug, seasons in animes.items():
                 if args.output == aniworld_globals.DEFAULT_DOWNLOAD_PATH:
                     args.output = os.path.join(args.output, slug.replace("-", " ").title())
-                execute_with_params(args, seasons, slug, language)
+                execute_with_params(args, seasons, slug, language, anime_slug=slug)
             sys.exit()
 
         anime_title = get_anime_title(args)
@@ -571,7 +572,7 @@ def main():
         logging.debug("Selected episodes: %s", selected_episodes)
 
         if args.episode:
-            execute_with_params(args, selected_episodes, anime_title, language)
+            execute_with_params(args, selected_episodes, anime_title, language, anime_slug=slug)
             logging.debug("Execution complete. Exiting.")
             sys.exit()
     except KeyboardInterrupt:
@@ -608,7 +609,7 @@ def get_selected_episodes(args, anime_title):
     return updated_list if updated_list else args.episode
 
 
-def execute_with_params(args, selected_episodes, anime_title, language):
+def execute_with_params(args, selected_episodes, anime_title, language, anime_slug):
     params = {
         'selected_episodes': selected_episodes,
         'provider_selected': args.provider,
@@ -617,6 +618,7 @@ def execute_with_params(args, selected_episodes, anime_title, language):
         'lang': language,
         'output_directory': args.output,
         'anime_title': anime_title.replace('-', ' ').title(),
+        'anime_slug': anime_slug,
         'only_direct_link': args.only_direct_link,
         'only_command': args.only_command,
         'debug': args.debug

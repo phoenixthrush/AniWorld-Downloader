@@ -1,19 +1,20 @@
 import json
 import re
 import tempfile
-from typing import Dict, Optional
+from typing import Dict
 import logging
-
+from bs4 import BeautifulSoup
 import requests
-
 import aniworld.globals as aniworld_globals
-from aniworld.common import raise_runtime_error, ftoi
+from aniworld.common import raise_runtime_error, ftoi, get_season_episode_count, fetch_url_content
 
 CHAPTER_FORMAT = "\n[CHAPTER]\nTIMEBASE=1/1000\nSTART={}\nEND={}\nTITLE={}\n"
 OPTION_FORMAT = "skip-{}_start={},skip-{}_end={}"
 
 
-def fetch_mal_id(anime_title: str) -> Optional[str]:
+def fetch_ID(anime_title, season):
+    ID = None
+
     logging.debug("Fetching MAL ID for: %s", anime_title)
 
     name = re.sub(r' \(\d+ episodes\)', '', anime_title)
@@ -29,7 +30,7 @@ def fetch_mal_id(anime_title: str) -> Optional[str]:
     logging.debug("Response status code: %d", response.status_code)
 
     if response.status_code != 200:
-        raise_runtime_error("Failed to fetch MyAnimeList data.")
+        logging.debug("Failed to fetch MyAnimeList data.")
 
     mal_metadata = response.json()
     logging.debug("MAL metadata: %s", json.dumps(mal_metadata, indent=2))
@@ -45,9 +46,66 @@ def fetch_mal_id(anime_title: str) -> Optional[str]:
         for entry in mal_metadata['categories'][0]['items']:
             if entry['name'] == best_match:
                 logging.debug("Found MAL ID: %s for %s", entry['id'], best_match)
-                return entry['id']
-    return None
+                logging.debug(entry['id'])
+                ID = entry['id']
 
+
+    while season > 1:
+        url = f"https://myanimelist.net/anime/{ID}"
+
+        response = requests.get(url)
+        response.raise_for_status()
+
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        sequel_div = soup.find("div", string=lambda text: text and "Sequel" in text and "(TV)" in text)
+
+        if sequel_div:
+            title_div = sequel_div.find_next("div", class_="title")
+            if title_div:
+                link_element = title_div.find("a")
+                if link_element:
+                    link_url = link_element.get("href")
+                    logging.debug("Found Link:", link_url)
+                    match = re.search(r'/anime/(\d+)', link_url)
+                    if match:
+                        anime_id = match.group(1)
+                        logging.debug("Anime ID: %s", anime_id)
+                        ID = anime_id
+                        season -= 1
+                    else:
+                        logging.debug("No Anime-ID found")
+                        return None
+                else:
+                    logging.debug("No Link found in 'title'-Div")
+                    return None
+            else:
+                logging.debug("No 'title'-Div found")
+                return None
+        else:
+            logging.debug("Sequel (TV) not found")
+            return None
+
+    return ID
+
+def check_episodes(ID):
+    url = f"https://myanimelist.net/anime/{ID}"
+
+
+    response = requests.get(url)
+    response.raise_for_status()
+
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    episodes_span = soup.find('span', class_='dark_text', string='Episodes:')
+
+    if episodes_span and episodes_span.parent:
+        episodes = episodes_span.parent.text.replace("Episodes:", "").strip()
+        logging.debug("Count of the episodes %s", episodes)
+        return int(episodes)
+    else:
+        logging.debug("The Number can not be found!")
+        return None
 
 def build_options(metadata: Dict, chapters_file: str) -> str:
     logging.debug("Building options with metadata: %s and chapters_file: %s",
@@ -88,12 +146,12 @@ def build_options(metadata: Dict, chapters_file: str) -> str:
     return ",".join(options)
 
 
-def build_flags(mal_id: str, episode: int, chapters_file: str) -> str:
+def build_flags(ID: str, episode: int, chapters_file: str) -> str:
     logging.debug(
         "Building flags for MAL ID: %s, episode: %d, chapters_file: %s",
-        mal_id, episode, chapters_file
+        ID, episode, chapters_file
     )
-    aniskip_api = f"https://api.aniskip.com/v1/skip-times/{mal_id}/{episode}?types=op&types=ed"
+    aniskip_api = f"https://api.aniskip.com/v1/skip-times/{ID}/{episode}?types=op&types=ed"
     logging.debug("Fetching skip times from: %s", aniskip_api)
     response = requests.get(
         aniskip_api,
@@ -121,20 +179,27 @@ def build_flags(mal_id: str, episode: int, chapters_file: str) -> str:
     return f"--chapters-file={chapters_file} --script-opts={options}"
 
 
-def aniskip(anime_title: str, episode: int) -> str:
+def aniskip(anime_title: str, anime_slug: str, episode: int, season: int) -> str:
     logging.debug("Running aniskip for anime_title: %s, episode: %d", anime_title, episode)
-    mal_id = fetch_mal_id(anime_title) if not anime_title.isdigit() else anime_title
-    logging.debug("Fetched MAL ID: %s", mal_id)
-    if not mal_id:
+    ID = fetch_ID(anime_title, season) if not anime_title.isdigit() else anime_title
+    logging.debug("Fetched MAL ID: %s", ID)
+    if not ID:
         logging.debug("No MAL ID found.")
         return ""
 
-    with tempfile.NamedTemporaryFile(mode="w+", delete=False) as chapters_file:
-        logging.debug("Created temporary chapters file: %s", chapters_file.name)
-        return build_flags(mal_id, episode, chapters_file.name)
+    logging.debug("BEAAAAAAAAAAAAAAAJNNNNNNNNNNNNNNNNNNNNNNNNNSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS %s", anime_slug)
+    if check_episodes(ID) == get_season_episode_count(anime_slug, str(season)):
+        with tempfile.NamedTemporaryFile(mode="w+", delete=False) as chapters_file:
+            logging.debug("Created temporary chapters file: %s", chapters_file.name)
+            return build_flags(ID, episode, chapters_file.name)
+    else:
+        logging.debug("Check episode: %s", check_episodes(ID))
+        logging.debug("Check get: %s",get_season_episode_count(anime_slug, str(season)))
+        logging.debug("Mal ID isn't matching episode counter!")
+        return ""
 
 
 if __name__ == "__main__":
-    logging.debug("Starting main execution")
-    print(aniskip("Kaguya-sama: Love is War", 1))
-    logging.debug("Finished main execution")
+    #print(fetch_ID("Kaguya-sama: Love is War", 2))
+    #print(aniskip("Kaguya-sama: Love is War", "kaguya-sama-love-is-war", 1, 2))
+    pass

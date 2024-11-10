@@ -32,7 +32,8 @@ from .common import (
     get_random_anime,
     get_windows_version,
     check_internet_connection,
-    show_messagebox
+    show_messagebox,
+    get_season_episode_count
 )
 
 from .ascii_art import display_ascii_art

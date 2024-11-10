@@ -105,15 +105,13 @@ def build_yt_dlp_command(link: str, output_file: str) -> List[str]:
     return command
 
 
-def process_aniskip(anime_title: str, season_number: int, episode_number: int) -> List[str]:
+def process_aniskip(anime_title: str, season_number: int, episode_number: int, anime_slug: str) -> List[str]:
     logging.debug(
         "Processing aniskip for %s, season %d, episode %d",
         anime_title, season_number, episode_number
     )
-    if season_number != 1:
-        logging.debug("Aniskip is disabled for seasons other than 1.")
-        return []
-    skip_options = aniskip(anime_title, episode_number)
+
+    skip_options = aniskip(anime_title=anime_title, anime_slug=anime_slug, episode=episode_number, season=season_number)
     skip_options_list = skip_options.split(' --')
     processed_options = [
         f"--{opt}" if not opt.startswith('--') else opt
@@ -223,6 +221,7 @@ def perform_action(params: Dict[str, Any]) -> None:
     link = params.get("link")
     mpv_title = params.get("mpv_title")
     anime_title = params.get("anime_title")
+    anime_slug = params.get("anime_slug")
     episode_number = params.get("episode_number")
     season_number = params.get("season_number")
     only_command = params.get("only_command", False)
@@ -230,8 +229,9 @@ def perform_action(params: Dict[str, Any]) -> None:
 
     logging.debug("aniskip_selected: %s", aniskip_selected)
 
+
     aniskip_options = process_aniskip_options(
-        aniskip_selected, anime_title, season_number, episode_number
+        aniskip_selected=aniskip_selected, anime_title=anime_title, season_number=season_number, episode_number=episode_number, anime_slug=anime_slug
     )
 
     if action == "Watch":
@@ -254,11 +254,12 @@ def process_aniskip_options(
     aniskip_selected: bool,
     anime_title: str,
     season_number: int,
-    episode_number: int
+    episode_number: int,
+    anime_slug: str
 ) -> List[str]:
     if aniskip_selected:
         logging.debug("Aniskip is selected, processing aniskip options")
-        aniskip_options = process_aniskip(anime_title, season_number, episode_number)
+        aniskip_options = process_aniskip(anime_title=anime_title, season_number=season_number, episode_number=episode_number, anime_slug=anime_slug)
         logging.debug("Aniskip options: %s", aniskip_options)
     else:
         logging.debug("Aniskip is not selected, skipping aniskip options")
@@ -360,6 +361,7 @@ def execute(params: Dict[str, Any]) -> None:
     lang = params['lang']
     output_directory = params['output_directory']
     anime_title = params['anime_title']
+    anime_slug = params['anime_slug']
     only_direct_link = params.get('only_direct_link', False)
     only_command = params.get('only_command', False)
     provider_selected = params['provider_selected']
@@ -376,6 +378,7 @@ def execute(params: Dict[str, Any]) -> None:
             'aniskip_selected': aniskip_selected,
             'output_directory': output_directory,
             'anime_title': anime_title,
+            "anime_slug": anime_slug,
             'only_direct_link': only_direct_link,
             'only_command': only_command
         })
@@ -412,6 +415,7 @@ def process_episode(params: Dict[str, Any]) -> None:
                     'aniskip_selected': params['aniskip_selected'],
                     'output_directory': params['output_directory'],
                     'anime_title': anime_title,
+                    "anime_slug": params['anime_slug'],
                     'episode_title': episode_title,
                     'only_direct_link': params['only_direct_link'],
                     'only_command': params['only_command']
@@ -459,6 +463,7 @@ def process_provider(params: Dict[str, Any]) -> None:
                 "link": link,
                 "mpv_title": mpv_title,
                 "anime_title": params['anime_title'],
+                "anime_slug": params['anime_slug'],
                 "episode_number": episode_number,
                 "season_number": season_number,
                 "output_directory": params['output_directory'],
