@@ -356,22 +356,23 @@ def raise_runtime_error(message: str) -> None:
 
 def get_season_episode_count(slug: str, season: str) -> int:
     series_url = f"https://aniworld.to/anime/stream/{slug}/staffel-{season}"
-    season_html = fetch_url_content(series_url)
-    if season_html is None:
-        return 0
-    season_soup = BeautifulSoup(season_html, 'html.parser')
 
-    episode_links = season_soup.find_all(
-        'a',
-        href=True,
-        title=lambda x: x and x.startswith("Staffel")
-    )
-
+    response = requests.get(series_url)
+    soup = BeautifulSoup(response.content, 'html.parser')
     episode_numbers = []
-    for link in episode_links:
-        match = re.search(r'\d+', link.get_text())
-        if match:
-            episode_numbers.append(int(match.group()))
+    counter = 1
+    while True:
+        target = f"{slug}/staffel-{season}/episode-{counter}"
+
+        matching_links = []
+        for link in soup.find_all('a', href=True):
+            if target in link['href']:
+                matching_links.append(link['href'])
+        if matching_links:
+            episode_numbers.append(counter)
+            counter += 1
+        else:
+            break
 
     return max(episode_numbers) if episode_numbers else 0
 
