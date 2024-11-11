@@ -235,7 +235,6 @@ def perform_action(params: Dict[str, Any]) -> None:
     )
 
     if action == "Watch":
-        countdown()
         handle_watch_action(
             link, mpv_title, aniskip_selected, aniskip_options, only_command
         )
@@ -244,7 +243,6 @@ def perform_action(params: Dict[str, Any]) -> None:
     elif action == "Syncplay":
         setup_autostart()
         setup_autoexit()
-        countdown()
         handle_syncplay_action(
             link, mpv_title, aniskip_options, only_command
         )
@@ -448,7 +446,7 @@ def process_provider(params: Dict[str, Any]) -> None:
             if params['only_direct_link']:
                 logging.debug("Only direct link requested: %s", link)
                 print(link)
-                continue
+                break
 
             mpv_title = (
                 f"{params['anime_title']} --- S{season_number}E{episode_number} - "

@@ -420,20 +420,18 @@ These packages are automatically installed when you set up AniWorld Downloader u
   - [x] Add ascii art fallback on Windows 10
   - [x] Fix mpv auto download on Windows 10
   - [x] Fix Aniskip for seasons beyond the first
+  - [x] Fix --only-direct-link and only-command
 
 ### Upcoming Tasks
-  - [ ] Restructure argument handling by using globally accessible objects
-  - [ ] Fix --only-direct-link language bug and only-command
-  - [ ] Sort argument help section
   - [ ] Implement missing argument options
   - [ ] Syncplay support for other sites and local playback
   - [ ] Implement an ordered list for provider fallback in globals.py
+  - [ ] Add support for other sites (anime-base.net)
   - [ ] Remove unnecessary dependencies
   - [ ] Optimize performance to reduce requests and eliminate duplicate function calls
   - [ ] Add generic fallback extractor
   - [ ] Anonymize logs by removing usernames
   - [ ] Add support for Doodstream
-  - [ ] Add support for other sites
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
