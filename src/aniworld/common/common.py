@@ -343,7 +343,6 @@ def execute_command(command: List[str], only_command: bool) -> None:
         logging.debug("Only command mode: %s", command_str)
         print(command_str)
     else:
-        countdown()
         logging.debug("Executing command: %s", command)
         try:
             subprocess.run(command, check=True)

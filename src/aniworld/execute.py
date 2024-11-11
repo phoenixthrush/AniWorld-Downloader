@@ -235,12 +235,14 @@ def perform_action(params: Dict[str, Any]) -> None:
     )
 
     if action == "Watch":
+        countdown()
         handle_watch_action(
             link, mpv_title, aniskip_selected, aniskip_options, only_command
         )
     elif action == "Download":
         handle_download_action(params)
     elif action == "Syncplay":
+        countdown()
         setup_autostart()
         setup_autoexit()
         handle_syncplay_action(
