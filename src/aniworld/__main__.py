@@ -572,7 +572,9 @@ def main():
         logging.debug("Selected episodes: %s", selected_episodes)
 
         if args.episode:
-            execute_with_params(args, selected_episodes, anime_title, language, anime_slug=slug)
+            for episode_url in args.episode:
+                slug = episode_url.split('/')[-1]
+                execute_with_params(args, selected_episodes, anime_title, language, anime_slug=slug)
             logging.debug("Execution complete. Exiting.")
             sys.exit()
     except KeyboardInterrupt:
