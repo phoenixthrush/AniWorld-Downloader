@@ -371,7 +371,7 @@ def parse_arguments():
     action_group.add_argument('-a', '--action', type=str, choices=['Watch', 'Download', 'Syncplay'], help='Action to perform')
     action_group.add_argument('-o', '--output', type=str, help='Download directory E.g. /Users/phoenixthrush/Downloads')
     action_group.add_argument('-O', '--output-directory', type=str, help='Final download directory E.g ExampleDirectory, defaults to anime name if not specified')
-    action_group.add_argument('-L', '--language', type=str, choices=['German Dub', 'English Sub', 'German Sub'], help='Language choice')
+    action_group.add_argument('-L', '--language', type=str, choices=['German Dub', 'English Sub', 'German Sub'], default=aniworld_globals.DEFAULT_LANGUAGE, help='Language choice')
     action_group.add_argument('-p', '--provider', type=str, choices=['Vidoza', 'Streamtape', 'VOE', 'Doodstream'], help='Provider choice')
 
     # Anime4K options
