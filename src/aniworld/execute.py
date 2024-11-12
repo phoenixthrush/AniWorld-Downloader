@@ -182,8 +182,7 @@ def build_syncplay_command(
     syncplay_username = os.getenv("SYNCPLAY_USERNAME")
     syncplay_room = os.getenv("SYNCPLAY_ROOM")
 
-    logging.debug("Syncplay password: %s, Syncplay hostname: %s, Syncplay username: %s, Syncplay room: %s",
-                  syncplay_password,
+    logging.debug("Syncplay hostname: %s, Syncplay username: %s, Syncplay room: %s",
                   syncplay_hostname,
                   syncplay_username,
                   syncplay_room
