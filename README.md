@@ -60,7 +60,7 @@ AniWorld Downloader is a command-line tool built to download and stream anime co
 - **Auto Play Next**: Automatically transition to the next episode for uninterrupted viewing.
 - **Flexible Providers**: Choose from Vidoza, VOE, and Streamtape, with Doodstream support coming soon.
 - **Language Options**: Switch between German Dub, English Sub, or German Sub based on your preference.
-- **Aniskip Integration**: Automatically skip intros and outros (currently available for Season 1; expanding soon).
+- **Aniskip Integration**: Automatically skip intros and outros.
 - **Syncplay for Group Watching**: Enjoy synchronized anime watching sessions with friends.
 - **Proxy Compatibility**: Set up an HTTP proxy for restricted network environments.
 
