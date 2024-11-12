@@ -236,7 +236,8 @@ def perform_action(params: Dict[str, Any]) -> None:
 
     if action == "Watch":
         if not only_command:
-            countdown()
+            if not platform.system() == "Windows":
+                countdown()
         handle_watch_action(
             link, mpv_title, aniskip_selected, aniskip_options, only_command
         )
@@ -244,7 +245,8 @@ def perform_action(params: Dict[str, Any]) -> None:
         handle_download_action(params)
     elif action == "Syncplay":
         if not only_command:
-            countdown()
+            if not platform.system() == "Windows":
+                countdown()
         setup_autostart()
         setup_autoexit()
         handle_syncplay_action(

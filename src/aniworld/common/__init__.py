@@ -33,7 +33,10 @@ from .common import (
     get_windows_version,
     check_internet_connection,
     show_messagebox,
-    get_season_episode_count
+    get_season_episode_count,
+    get_description,
+    get_description_with_ID,
+    fetch_ID
 )
 
 from .ascii_art import display_ascii_art

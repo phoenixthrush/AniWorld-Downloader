@@ -1,92 +1,15 @@
 import json
-import re
 import tempfile
 from typing import Dict
 import logging
 from bs4 import BeautifulSoup
 import requests
 import aniworld.globals as aniworld_globals
-from aniworld.common import raise_runtime_error, ftoi, get_season_episode_count, fetch_url_content
+from aniworld.common import raise_runtime_error, ftoi, get_season_episode_count, fetch_ID
 
 CHAPTER_FORMAT = "\n[CHAPTER]\nTIMEBASE=1/1000\nSTART={}\nEND={}\nTITLE={}\n"
 OPTION_FORMAT = "skip-{}_start={},skip-{}_end={}"
 
-
-def fetch_ID(anime_title, season):
-    ID = None
-
-    logging.debug("Fetching MAL ID for: %s", anime_title)
-
-    name = re.sub(r' \(\d+ episodes\)', '', anime_title)
-    logging.debug("Processed name: %s", name)
-    keyword = re.sub(r'\s+', '%20', name)
-    logging.debug("Keyword for search: %s", keyword)
-
-    response = requests.get(
-        f"https://myanimelist.net/search/prefix.json?type=anime&keyword={keyword}",
-        headers={"User-Agent": aniworld_globals.DEFAULT_USER_AGENT},
-        timeout=10
-    )
-    logging.debug("Response status code: %d", response.status_code)
-
-    if response.status_code != 200:
-        logging.debug("Failed to fetch MyAnimeList data.")
-
-    mal_metadata = response.json()
-    logging.debug("MAL metadata: %s", json.dumps(mal_metadata, indent=2))
-    results = [entry['name'] for entry in mal_metadata['categories'][0]['items']]
-    logging.debug("Results: %s", results)
-
-    filtered_choices = [choice for choice in results if 'OVA' not in choice]
-    logging.debug("Filtered choices: %s", filtered_choices)
-    best_match = filtered_choices[0]
-    logging.debug("Best match: %s", best_match)
-
-    if best_match:
-        for entry in mal_metadata['categories'][0]['items']:
-            if entry['name'] == best_match:
-                logging.debug("Found MAL ID: %s for %s", entry['id'], best_match)
-                logging.debug(entry['id'])
-                ID = entry['id']
-
-
-    while season > 1:
-        url = f"https://myanimelist.net/anime/{ID}"
-
-        response = requests.get(url)
-        response.raise_for_status()
-
-        soup = BeautifulSoup(response.text, 'html.parser')
-
-        sequel_div = soup.find("div", string=lambda text: text and "Sequel" in text and "(TV)" in text)
-
-        if sequel_div:
-            title_div = sequel_div.find_next("div", class_="title")
-            if title_div:
-                link_element = title_div.find("a")
-                if link_element:
-                    link_url = link_element.get("href")
-                    logging.debug("Found Link: %s", link_url)
-                    match = re.search(r'/anime/(\d+)', link_url)
-                    if match:
-                        anime_id = match.group(1)
-                        logging.debug("Anime ID: %s", anime_id)
-                        ID = anime_id
-                        season -= 1
-                    else:
-                        logging.debug("No Anime-ID found")
-                        return None
-                else:
-                    logging.debug("No Link found in 'title'-Div")
-                    return None
-            else:
-                logging.debug("No 'title'-Div found")
-                return None
-        else:
-            logging.debug("Sequel (TV) not found")
-            return None
-
-    return ID
 
 def check_episodes(ID):
     url = f"https://myanimelist.net/anime/{ID}"

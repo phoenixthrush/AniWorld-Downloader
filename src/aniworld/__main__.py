@@ -11,6 +11,7 @@ import platform
 import threading
 import random
 import signal
+import textwrap
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import npyscreen
@@ -39,6 +40,8 @@ from aniworld.common import (
     show_messagebox,
     check_internet_connection,
     adventure,
+    get_description,
+    get_description_with_ID
 )
 
 
@@ -190,6 +193,20 @@ class EpisodeForm(npyscreen.ActionForm):
         )
         logging.debug("Episode selector created")
 
+        self.add(npyscreen.FixedText, value="")
+
+        self.display_text = False
+
+        self.toggle_button = self.add(
+            npyscreen.ButtonPress,
+            name="Description",
+            max_height=1,
+            when_pressed_function=self.go_to_second_form,
+            scroll_exit=True
+        )
+
+
+
         self.action_selector.when_value_edited = self.update_directory_visibility
         logging.debug("Set update_directory_visibility as callback for action_selector")
 
@@ -321,6 +338,35 @@ class EpisodeForm(npyscreen.ActionForm):
         self.cancel_timer()
         self.parentApp.setNextForm(None)
 
+    def go_to_second_form(self):
+        self.parentApp.switchForm("SECOND")
+
+class SecondForm(npyscreen.ActionFormV2):
+    def create(self):
+
+        anime_slug = self.parentApp.anime_slug
+        anime_title = format_anime_title(anime_slug)
+
+        text_content1 = get_description(anime_slug)
+        text_content2 = get_description_with_ID(anime_title, 1)
+
+        wrapped_text1 = "\n".join(textwrap.wrap(text_content1, width=100))
+        wrapped_text2 = "\n".join(textwrap.wrap(text_content2, width=100))
+
+        text_content = f"{wrapped_text1}\n\n{wrapped_text2}"
+
+        self.expandable_text = self.add(
+            npyscreen.MultiLineEdit,
+            value=text_content,
+            max_height=30,
+            editable=False
+        )
+
+    def on_ok(self):
+        self.parentApp.switchForm("MAIN")
+
+    def on_cancel(self):
+        self.parentApp.switchForm("MAIN")
 
 class AnimeApp(npyscreen.NPSAppManaged):
     def __init__(self, anime_slug):
@@ -338,6 +384,7 @@ class AnimeApp(npyscreen.NPSAppManaged):
             "MAIN", EpisodeForm,
             name=name
         )
+        self.addForm("SECOND", SecondForm, name="Description")
 
 
 def parse_arguments():

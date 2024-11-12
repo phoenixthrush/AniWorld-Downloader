@@ -405,6 +405,7 @@ These packages are automatically installed when you set up AniWorld Downloader u
   - [x] Allow changing final output folder
   - [x] Add option to select a random anime optionally via genre
   - [x] Add additional installation variants.
+  - [x] Add anime description
   
 - **Bug Fixes**
   - [x] Fix season episode count.
