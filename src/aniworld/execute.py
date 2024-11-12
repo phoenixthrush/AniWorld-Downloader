@@ -175,20 +175,40 @@ def build_syncplay_command(
         link, mpv_title, aniskip_options
     )
     syncplay = "SyncplayConsole" if platform.system() == "Windows" else "syncplay"
-    syncplay_password = os.getenv("SYNCPLAY_PASSWORD")
     anime_title = mpv_title.split(" - ")[0].replace(" ", "_")
+
+    syncplay_password = os.getenv("SYNCPLAY_PASSWORD")
+    syncplay_hostname = os.getenv("SYNCPLAY_HOSTNAME")
+    syncplay_username = os.getenv("SYNCPLAY_USERNAME")
+    syncplay_room = os.getenv("SYNCPLAY_ROOM")
+
+    logging.debug("Syncplay password: %s, Syncplay hostname: %s, Syncplay username: %s, Syncplay room: %s",
+                  syncplay_password,
+                  syncplay_hostname,
+                  syncplay_username,
+                  syncplay_room
+    )
 
     if syncplay_password:
         room_name = f"aniworld-{hashlib.sha256((syncplay_password + anime_title).encode()).hexdigest()}"
     else:
         room_name = f"aniworld-{hashlib.sha256(anime_title.encode()).hexdigest()}"
 
+    if not syncplay_hostname:
+        syncplay_hostname = "syncplay.pl:8997"
+    
+    if not syncplay_username:
+        syncplay_username = getpass.getuser()
+
+    if syncplay_room:
+        room_name = syncplay_room
+
     command = [
         syncplay,
         "--no-gui",
         "--no-store",
-        "--host", "syncplay.pl:8997",
-        "--name", getpass.getuser(),
+        "--host", syncplay_hostname,
+        "--name", syncplay_username,
         "--room", room_name,
         "--player-path", shutil.which("mpv"),
     ]

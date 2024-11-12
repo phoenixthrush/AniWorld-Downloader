@@ -358,7 +358,7 @@ class SecondForm(npyscreen.ActionFormV2):
         self.expandable_text = self.add(
             npyscreen.MultiLineEdit,
             value=text_content,
-            max_height=30,
+            max_height=None,
             editable=False
         )
 
@@ -429,9 +429,9 @@ def parse_arguments():
     
     # Syncplay options
     syncplay_group = parser.add_argument_group('Syncplay Options')
-    syncplay_group.add_argument('-sH', '--syncplay-hostname', type=str, help='NOT IMPLEMENTED YET - Set syncplay hostname')
-    syncplay_group.add_argument('-sU', '--syncplay-username', type=str, help='NOT IMPLEMENTED YET - Set syncplay username')
-    syncplay_group.add_argument('-sR', '--syncplay-room', type=str, help='NOT IMPLEMENTED YET - Set syncplay room')
+    syncplay_group.add_argument('-sH', '--syncplay-hostname', type=str, help='Set syncplay hostname')
+    syncplay_group.add_argument('-sU', '--syncplay-username', type=str, help='Set syncplay username')
+    syncplay_group.add_argument('-sR', '--syncplay-room', type=str, help='Set syncplay room')
     syncplay_group.add_argument('-sP', '--syncplay-password', type=str, nargs='+', help='Set a syncplay room password')
 
     # Miscellaneous options
@@ -528,6 +528,18 @@ def parse_arguments():
     if args.syncplay_password:
         os.environ['SYNCPLAY_PASSWORD'] = args.syncplay_password[0]
         logging.debug("Syncplay password set.")
+
+    if args.syncplay_hostname:
+        os.environ['SYNCPLAY_HOSTNAME'] = args.syncplay_hostname
+        logging.debug("Syncplay hostname set.")
+
+    if args.syncplay_username:
+        os.environ['SYNCPLAY_USERNAME'] = args.syncplay_username
+        logging.debug("Syncplay username set.")
+
+    if args.syncplay_room:
+        os.environ['SYNCPLAY_ROOM'] = args.syncplay_room
+        logging.debug("Syncplay room set.")
 
     if args.output_directory:
         os.environ['OUTPUT_DIRECTORY'] = args.output_directory
