@@ -455,7 +455,7 @@ def set_terminal_size(columns: int = None, lines: int = None):
         columns, lines = aniworld_globals.DEFAULT_TERMINAL_SIZE
 
     if system_name == 'Darwin':
-        os.system(f"printf '\033[9;{lines};{columns}t'")
+        os.system(f"printf '\033[8;{lines};{columns}t'")
 
     # TODO: Windows and Linux support
 
