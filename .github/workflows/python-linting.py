@@ -2,9 +2,9 @@ name: Python Application CI
 
 on:
   push:
-    branches: [ "python-rewrite" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "python-rewrite" ]
+    branches: [ "main" ]
 
 permissions:
   contents: read
