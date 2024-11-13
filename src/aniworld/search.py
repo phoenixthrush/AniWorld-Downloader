@@ -6,6 +6,7 @@ import logging
 from bs4 import BeautifulSoup
 import os
 import webbrowser
+import html
 
 from typing import List, Dict, Optional
 
@@ -57,11 +58,12 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
 
         try:
             if os.getenv("USE_PLAYWRIGHT"):
-                html = fetch_url_content(url)
-                soup = BeautifulSoup(html, 'html.parser')
+                page_content = html.unescape(fetch_url_content(url).decode('utf-8'))
+                soup = BeautifulSoup(page_content, 'html.parser')
                 json_data = soup.find('pre').text
             else:
-                json_data = fetch_url_content(url)
+                json_data = html.unescape(fetch_url_content(url).decode('utf-8'))
+
         except AttributeError:
             continue
         try:

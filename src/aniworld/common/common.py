@@ -15,7 +15,7 @@ import random
 import socket
 import tempfile
 import base64
-import threading
+import html
 from typing import List, Optional
 from packaging.version import Version
 from importlib.metadata import version, PackageNotFoundError
@@ -1479,8 +1479,8 @@ def fetch_ID(anime_title, season):
 def get_description(anime_slug: str):
     url = f"https://aniworld.to/anime/stream/{anime_slug}"
 
-    response = requests.get(url)
-    soup = BeautifulSoup(response.content, 'html.parser')
+    page_content = fetch_url_content(url)
+    soup = BeautifulSoup(page_content, 'html.parser')
 
     description = soup.find('p', class_='seri_des')['data-full-description']
 
@@ -1491,8 +1491,8 @@ def get_description_with_ID(anime_title: str, season: int):
     ID = fetch_ID(anime_title=anime_title, season=1)
     url = f"https://myanimelist.net/anime/{ID}"
 
-    response = requests.get(url)
-    soup = BeautifulSoup(response.content, 'html.parser')
+    page_content = fetch_url_content(url)
+    soup = BeautifulSoup(page_content, 'html.parser')
     description = soup.find('meta', property='og:description')['content']
     return description
 
