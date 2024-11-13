@@ -30,7 +30,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install flake8 pylint
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install -e .
 
     - name: Lint with flake8
       run: |
