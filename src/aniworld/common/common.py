@@ -138,13 +138,8 @@ def fetch_url_content_with_playwright(url: str, proxy: Optional[str] = None, che
         'User-Agent': aniworld_globals.DEFAULT_USER_AGENT
     }
 
-    if shutil.which("playwright") is not None:
-        from playwright.sync_api import sync_playwright
-    else:
-        print("Playwright is not installed.")
-        print("Please install Playwright by running:\npip install playwright\n"
-              "playwright install")
-        sys.exit(1)
+    install_and_import("playwright")
+    from playwright.sync_api import sync_playwright
 
     with sync_playwright() as p:
         browser_options = {}
@@ -1116,26 +1111,6 @@ def install_packages(package_manager, packages):
         print(f'Error while installing: {e}')
 
 
-def check_playwright_installed():
-    try:
-        logging.debug("Checking if Playwright works...")
-
-        from playwright.sync_api import sync_playwright
-
-        with sync_playwright() as p:
-            browser = p.chromium.launch()
-            page = browser.new_page()
-            page.goto("https://github.com/")
-            browser.close()
-    except ModuleNotFoundError:
-        print("Playwright is not installed.")
-        print("Please install Playwright by running:\npip install playwright\n"
-              "playwright install")
-        sys.exit()
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        sys.exit()
-
 def open_terminal_with_command(command):
     try:
         subprocess.Popen(['gnome-terminal', '--', 'bash', '-c', f'{command}; exec bash'])
@@ -1520,6 +1495,26 @@ def get_description_with_ID(anime_title: str, season: int):
     soup = BeautifulSoup(response.content, 'html.parser')
     description = soup.find('meta', property='og:description')['content']
     return description
+
+
+def install_and_import(package):
+    try:
+        __import__(package)
+    except ImportError:
+        while True:
+            print(f'The Package "{package}" is not installed!')
+            Input = input(f'Do you want me to run “pip install {package}” for you?  (Y|N) ').upper()
+            if Input == "Y":
+                print(f"{package} is installing...")
+                subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+                break
+            elif Input == "N":
+                sys.exit()
+            else:
+                clear_screen()
+    finally:
+        globals()[package] = __import__(package)
+
 
 
 if __name__ == "__main__":

@@ -34,14 +34,13 @@ from aniworld.common import (
     self_uninstall,
     update_component,
     get_anime_season_title,
-    check_playwright_installed,
     open_terminal_with_command,
     get_random_anime,
     show_messagebox,
     check_internet_connection,
     adventure,
     get_description,
-    get_description_with_ID
+    get_description_with_ID, install_and_import
 )
 
 
@@ -548,7 +547,6 @@ def parse_arguments():
     if args.use_playwright:
         os.environ['USE_PLAYWRIGHT'] = str(args.use_playwright)
         logging.debug("Playwright set.")
-        check_playwright_installed()
 
     if not args.slug and args.random_anime:
         args.slug = get_random_anime(args.random_anime)

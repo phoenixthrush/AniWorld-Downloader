@@ -28,9 +28,9 @@ import re
 import requests
 
 from bs4 import BeautifulSoup
-from playwright.sync_api import sync_playwright
 from aniworld.extractors import voe_get_direct_link
 from aniworld import globals as aniworld_globals
+from aniworld.common import install_and_import
 
 
 def clear_screen() -> None:
@@ -44,7 +44,8 @@ def clear_screen() -> None:
 
 def fetch_direct_link(link):
     filtered_urls = []
-
+    install_and_import("playwright")
+    from playwright.sync_api import sync_playwright
     with sync_playwright() as p:
         # TODO - add firefox or chromium fallback
         browser = p.webkit.launch(headless=True)

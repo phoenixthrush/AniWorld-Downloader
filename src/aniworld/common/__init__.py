@@ -25,7 +25,6 @@ from .common import (
     get_anime_season_title,
     countdown,
     sanitize_path,
-    check_playwright_installed,
     open_terminal_with_command,
     setup_autostart,
     setup_autoexit,
@@ -36,7 +35,8 @@ from .common import (
     get_season_episode_count,
     get_description,
     get_description_with_ID,
-    fetch_ID
+    fetch_ID,
+    install_and_import
 )
 
 from .ascii_art import display_ascii_art
