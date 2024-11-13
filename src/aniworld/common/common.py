@@ -595,13 +595,25 @@ def download_dependencies(dependencies: list):
 
 def download_and_extract_dependency(dep: str, dep_path: str, appdata_path: str):
     if dep == 'mpv':
-        logging.debug("Downloading mpv...")
+        if platform.system() == "Windows":
+            logging.debug("Downloading mpv...")
+            print_progress_info("Downloading mpv...")
+        else:
+            logging.info("Downloading mpv...")
         download_mpv(dep_path, appdata_path)
     elif dep == 'syncplay':
-        logging.debug("Downloading Syncplay...")
+        if platform.system() == "Windows":
+            logging.debug("Downloading Syncplay...")
+            print_progress_info("Downloading Syncplay...")
+        else:
+            logging.info("Downloading Syncplay...")
         download_syncplay(dep_path)
     elif dep == 'yt-dlp':
-        logging.debug("Downloading yt-dlp...")
+        if platform.system() == "Windows":
+            logging.debug("Downloading yt-dlp...")
+            print_progress_info("Downloading yt-dlp...")
+        else:
+            logging.info("Downloading yt-dlp...")
         download_yt_dlp(dep_path)
 
 
@@ -999,7 +1011,7 @@ def update_component(component: str):
 
 
 def print_progress_info(msg: str):
-    command = f"""cmd /c echo "{msg.replace('"', "'")}" """
+    command = f"""cmd /c echo {msg.replace('"', "'")} """
     execute_command(command, only_command=False)
 
 
