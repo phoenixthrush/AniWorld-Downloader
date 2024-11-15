@@ -142,7 +142,7 @@ def fetch_url_content_with_playwright(
     }
 
     install_and_import("playwright")
-    from playwright.sync_api import sync_playwright
+    from playwright.sync_api import sync_playwright  # pylint: disable=import-error
 
     with sync_playwright() as p:
         browser_options = {}
