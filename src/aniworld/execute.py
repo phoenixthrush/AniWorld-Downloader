@@ -114,7 +114,12 @@ def process_aniskip(
         anime_title, season_number, episode_number
     )
 
-    skip_options = aniskip(anime_title=anime_title, anime_slug=anime_slug, episode=episode_number, season=season_number)
+    skip_options = aniskip(
+        anime_title=anime_title,
+        anime_slug=anime_slug,
+        episode=episode_number,
+        season=season_number
+    )
     skip_options_list = skip_options.split(' --')
     processed_options = [
         f"--{opt}" if not opt.startswith('--') else opt
@@ -193,7 +198,9 @@ def build_syncplay_command(
     )
 
     if syncplay_password:
-        room_name = f"aniworld-{hashlib.sha256((syncplay_password + anime_title).encode()).hexdigest()}"
+        room_name = (
+            f"aniworld-{hashlib.sha256((syncplay_password + anime_title).encode()).hexdigest()}"
+        )
     else:
         room_name = f"aniworld-{hashlib.sha256(anime_title.encode()).hexdigest()}"
 
@@ -253,7 +260,11 @@ def perform_action(params: Dict[str, Any]) -> None:
     logging.debug("aniskip_selected: %s", aniskip_selected)
 
     aniskip_options = process_aniskip_options(
-        aniskip_selected=aniskip_selected, anime_title=anime_title, season_number=season_number, episode_number=episode_number, anime_slug=anime_slug
+        aniskip_selected=aniskip_selected,
+        anime_title=anime_title,
+        season_number=season_number,
+        episode_number=episode_number,
+        anime_slug=anime_slug
     )
 
     if action == "Watch":
@@ -285,7 +296,12 @@ def process_aniskip_options(
 ) -> List[str]:
     if aniskip_selected:
         logging.debug("Aniskip is selected, processing aniskip options")
-        aniskip_options = process_aniskip(anime_title=anime_title, season_number=season_number, episode_number=episode_number, anime_slug=anime_slug)
+        aniskip_options = process_aniskip(
+            anime_title=anime_title,
+            season_number=season_number,
+            episode_number=episode_number,
+            anime_slug=anime_slug
+        )
         logging.debug("Aniskip options: %s", aniskip_options)
     else:
         logging.debug("Aniskip is not selected, skipping aniskip options")
@@ -330,7 +346,12 @@ def handle_download_action(params: Dict[str, Any]) -> None:
     else:
         output_directory = ""
 
-    file_path = os.path.join(params['output_directory'], output_directory if output_directory else "", file_name).replace(" --- ", "/", 1)
+    file_path = os.path.join(
+        params['output_directory'],
+        output_directory if output_directory else "",
+        file_name
+    ).replace(" --- ", "/", 1)
+
     if not params['only_command']:
         msg = f"Downloading to '{file_path}'"
         if not platform.system() == "Windows":
@@ -449,7 +470,10 @@ def process_episode(params: Dict[str, Any]) -> None:
                 break
             logging.info("Provider %s not available, trying next provider.", provider)
         else:
-            logging.error("Provider %s not found in available providers.", params['provider_selected'])
+            logging.error(
+                "Provider %s not found in available providers.",
+                params['provider_selected']
+            )
     except AttributeError:
         logging.warning("Episode broken.")
 

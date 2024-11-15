@@ -35,12 +35,12 @@ def setup_file_handler():
     try:
         if os.path.exists(LOG_FILE_PATH):
             os.remove(LOG_FILE_PATH)
-        file_handler = logging.FileHandler(LOG_FILE_PATH)
-        file_handler.setLevel(logging.DEBUG)
-        file_handler.setFormatter(
+        handler = logging.FileHandler(LOG_FILE_PATH)
+        handler.setLevel(logging.DEBUG)
+        handler.setFormatter(
             logging.Formatter('%(asctime)s - %(levelname)s - %(funcName)s - %(message)s')
         )
-        return file_handler
+        return handler
     except PermissionError:
         return None
 

@@ -165,20 +165,26 @@ def fetch_url_content_with_playwright(
             content = page.content()
             logging.debug(content)
 
-            if page.locator("h1#ddg-l10n-title:has-text('Checking your browser before accessing')").count() > 0:
+            if page.locator(
+                "h1#ddg-l10n-title:has-text('Checking your browser before accessing')"
+            ).count() > 0:
                 logging.debug("Detected Captcha, please solve it")
 
                 max_retries = 120
                 for i in range(max_retries):
                     page.wait_for_timeout(1000)
 
-                    if page.locator("h1#ddg-l10n-title:has-text('Checking your browser before accessing')").count() == 0:
+                    if page.locator(
+                        "h1#ddg-l10n-title:has-text('Checking your browser before accessing')"
+                    ).count() == 0:
                         logging.debug("Captcha solved")
                         break
                     else:
                         logging.debug("Captcha still present, retrying... (%s/%s)", i + 1, max_retries)
 
-                if page.locator("h1#ddg-l10n-title:has-text('Checking your browser before accessing')").count() > 0:
+                if page.locator(
+                    "h1#ddg-l10n-title:has-text('Checking your browser before accessing')"
+                ).count() > 0:
                     raise Exception("Captcha not solved within the time limit.")
 
             if response.status != 200:
@@ -355,7 +361,7 @@ def raise_runtime_error(message: str) -> None:
 def get_season_episode_count(slug: str, season: str) -> int:
     series_url = f"https://aniworld.to/anime/stream/{slug}/staffel-{season}"
 
-    response = requests.get(series_url)
+    response = requests.get(series_url, timeout=15)
     soup = BeautifulSoup(response.content, 'html.parser')
     episode_numbers = []
     counter = 1
@@ -1069,33 +1075,32 @@ def sanitize_path(path):
 
 def get_package_manager():
     try:
-        if platform.system() == "Darwin":
-            if shutil.which("brew"):
-                return 'brew'
-            else:
-                return 'unknown'
+        system = platform.system()
+        
+        if system == "Darwin":
+            return 'brew' if shutil.which("brew") else 'unknown'
+        
         if os.path.exists('/etc/os-release'):
             with open('/etc/os-release', encoding='utf-8') as f:
                 os_release_info = f.read().lower()
 
             if 'arch' in os_release_info:
                 return 'pacman'
-            elif 'ubuntu' in os_release_info or 'debian' in os_release_info:
+            if 'ubuntu' in os_release_info or 'debian' in os_release_info:
                 return 'apt'
-            elif 'fedora' in os_release_info:
+            if 'fedora' in os_release_info:
                 return 'dnf'
-            elif 'centos' in os_release_info or 'rhel' in os_release_info:
+            if 'centos' in os_release_info or 'rhel' in os_release_info:
                 return 'yum'
-            elif 'gentoo' in os_release_info:
+            if 'gentoo' in os_release_info:
                 return 'emerge'
-            elif 'opensuse' in os_release_info:
+            if 'opensuse' in os_release_info:
                 return 'zypper'
-            elif 'alpine' in os_release_info:
+            if 'alpine' in os_release_info:
                 return 'apk'
-            else:
-                return 'unknown'
-        else:
-            return 'unknown'
+        
+        return 'unknown'
+    
     except Exception as e:
         return f'Error: {e}'
 
@@ -1127,16 +1132,22 @@ def install_packages(package_manager, packages):
 
 
 def open_terminal_with_command(command):
-    try:
-        subprocess.Popen(['gnome-terminal', '--', 'bash', '-c', f'{command}; exec bash'])
-    except FileNotFoundError:
+    terminal_emulators = [
+        ('gnome-terminal', ['gnome-terminal', '--', 'bash', '-c', f'{command}; exec bash']),
+        ('xterm', ['xterm', '-hold', '-e', command]),
+        ('konsole', ['konsole', '--hold', '-e', command])
+    ]
+    
+    for terminal, cmd in terminal_emulators:
         try:
-            subprocess.Popen(['xterm', '-hold', '-e', command])
+            subprocess.Popen(cmd)
+            return
         except FileNotFoundError:
-            try:
-                subprocess.Popen(['konsole', '--hold', '-e', command])
-            except FileNotFoundError:
-                logging.error("No supported terminal emulator found. Please install gnome-terminal, xterm, or konsole.")
+            logging.debug(f"%s not found, trying the next option.", terminal)
+        except Exception as e:
+            logging.error(f"Error opening terminal with %s: %e", terminal, e)
+    
+    logging.error("No supported terminal emulator found. Please install gnome-terminal, xterm, or konsole.")
 
 
 def get_random_anime(genre: str) -> str:
@@ -1193,15 +1204,15 @@ def get_windows_version():
     version = platform.version()
     release = platform.release()
 
-    if release == "10":
-        build_number = int(re.search(r"\d+", version).group())
-
-        if build_number >= 22000:
-            return "Modern"
-        else:
-            return "Legacy"
-    else:
+    if release != "10":
         return "Other"
+
+    build_number = int(re.search(r"\d+", version).group())
+
+    if build_number >= 22000:
+        return "Modern"
+    
+    return "Legacy"
 
 
 def check_internet_connection():
@@ -1299,42 +1310,60 @@ def show_messagebox(message, title="Message", box_type="info"):
     root.withdraw()
     if box_type == "yesno":
         return messagebox.askyesno(title, message)
-    elif box_type == "warning":
+
+    if box_type == "warning":
         messagebox.showwarning(title, message)
-    elif box_type == "error":
+        return True
+
+    if box_type == "error":
         messagebox.showerror(title, message)
-    else:
-        messagebox.showinfo(title, message)
+        return True
+
+    messagebox.showinfo(title, message)
     return True
 
 
 def get_current_wallpaper():
     system = platform.system()
+    
     if system == "Windows":
         import ctypes
         buf = ctypes.create_unicode_buffer(512)
         ctypes.windll.user32.SystemParametersInfoW(0x73, len(buf), buf, 0)
         return buf.value
-    elif system == "Darwin":
+    
+    if system == "Darwin":
         result = os.popen(
-            'osascript -e \'tell application "System Events" to get the picture of the current desktop\'').read().strip()
+            'osascript -e \'tell application "System Events" to get the picture of the current desktop\''
+        ).read().strip()
         if not result:
-            result = os.popen('osascript -e \'tell application "System Events" to get the desktop picture\'').read().strip()
+            result = os.popen(
+                'osascript -e \'tell application "System Events" to get the desktop picture\''
+            ).read().strip()
         return result
-    elif system == "Linux":
+    
+    if system == "Linux":
         try:
-            result = os.popen('gsettings get org.gnome.desktop.background picture-uri').read().strip().strip("'").replace("file://", "")
+            result = os.popen(
+                'gsettings get org.gnome.desktop.background picture-uri'
+            ).read().strip().strip("'").replace("file://", "")
             return result
         except Exception as e:
             print(f"Could not get current wallpaper: {e}")
             return None
+    
     return None
 
 
 def set_wallpaper_fit(image_path):
     import winreg
     import ctypes
-    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Control Panel\\Desktop", 0, winreg.KEY_SET_VALUE)
+    key = winreg.OpenKey(
+        winreg.HKEY_CURRENT_USER,
+        "Control Panel\\Desktop",
+        0,
+        winreg.KEY_SET_VALUE
+    )
     winreg.SetValueEx(key, "WallpaperStyle", 0, winreg.REG_SZ, "6")
     winreg.SetValueEx(key, "TileWallpaper", 0, winreg.REG_SZ, "0")
     winreg.CloseKey(key)
@@ -1369,9 +1398,11 @@ def minimize_all_windows():
 def show_all_windows():
     if platform.system() == "Linux":
         try:
-            subprocess.run(["wmctrl", "-k", "off"], check=False)
-        except Exception as e:
-            logging.debug("Error minimizing windows: %s", e)
+            subprocess.run(["wmctrl", "-k", "off"], check=True)
+        except subprocess.CalledProcessError as e:
+            logging.debug("Subprocess error while minimizing windows: %s", e)
+        except FileNotFoundError as e:
+            logging.debug("wmctrl not found, ensure it's installed: %s", e)
 
 
 def set_temp_wallpaper():
@@ -1397,7 +1428,11 @@ def set_temp_wallpaper():
 
             minimize_all_windows()
             if platform.system() == "Darwin":
-                show_messagebox("DO NOT LOOK AT YOUR DESKTOP!\n(DO NOT PRESS FN + F11!!!)", "IMPORTANT!!!", "info")
+                show_messagebox(
+                    "DO NOT LOOK AT YOUR DESKTOP!\n(DO NOT PRESS FN + F11!!!)", 
+                    "IMPORTANT!!!", 
+                    "info"
+                )
             elif platform.system() == "Linux":
                 time.sleep(5)
                 show_all_windows()
@@ -1410,8 +1445,6 @@ def set_temp_wallpaper():
                 logging.debug("Reverted to original wallpaper: %s", current_wallpaper)
         except requests.RequestException as e:
             logging.debug("Failed to download the wallpaper: %s", e)
-        except Exception as e:
-            logging.debug("An error occurred: %s", e)
 
 
 def fetch_ID(anime_title, season):
@@ -1459,7 +1492,10 @@ def fetch_ID(anime_title, season):
 
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        sequel_div = soup.find("div", string=lambda text: text and "Sequel" in text and "(TV)" in text)
+        sequel_div = soup.find(
+            "div", 
+            string=lambda text: text and "Sequel" in text and "(TV)" in text
+        )
 
         if sequel_div:
             title_div = sequel_div.find_next("div", class_="title")
@@ -1517,7 +1553,9 @@ def install_and_import(package):
     except ImportError:
         while True:
             print(f'The Package "{package}" is not installed!')
-            user_input = input(f'Do you want me to run “pip install {package}” for you?  (Y|N) ').upper()
+            user_input = input(
+                f'Do you want me to run “pip install {package}” for you?  (Y|N) '
+            ).upper()
             if user_input == "Y":
                 print(f"{package} is installing...")
                 subprocess.check_call([sys.executable, "-m", "pip", "install", package])

@@ -125,12 +125,18 @@ def play():
 
         story_start = ollama.chat(
             model='llama3.2',
-            messages=conversation_history + [{'role': 'user', 'content': 'Begin the adventure with a short story.'}],
+            messages=conversation_history + [
+                {'role': 'user', 'content': 'Begin the adventure with a short story.'}
+            ],
             stream=False
         )
 
         print(f"{story_start['message']['content']}")
-        conversation_history.append({'role': 'assistant', 'content': story_start['message']['content']})
+        conversation_history.append({
+            'role': 'assistant',
+            'content': story_start['message']['content']
+        })
+
 
         while True:
             user_input = input("-> ")
@@ -148,7 +154,10 @@ def play():
             )
 
             print(f"\n{response['message']['content']}")
-            conversation_history.append({'role': 'assistant', 'content': response['message']['content']})
+            conversation_history.append({
+                'role': 'assistant',
+                'content': response['message']['content']
+            })
     except KeyboardInterrupt:
         return
 

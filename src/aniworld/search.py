@@ -1,14 +1,16 @@
-import curses
+import html
+import logging
+import os
+import webbrowser
+
+from typing import List, Dict, Optional
 from json import loads
 from json.decoder import JSONDecodeError
 from urllib.parse import quote
-import logging
-from bs4 import BeautifulSoup
-import os
-import webbrowser
-import html
 
-from typing import List, Dict, Optional
+import curses
+from bs4 import BeautifulSoup
+
 
 from aniworld.common import (
     clear_screen,
@@ -94,7 +96,7 @@ def display_menu(stdscr: curses.window, items: List[Dict[str, Optional[str]]]) -
     logging.debug("Starting display_menu function")
     current_row = 0
 
-    KONAMI_CODE = ['UP', 'UP', 'DOWN', 'DOWN', 'LEFT', 'RIGHT', 'LEFT', 'RIGHT', 'b', 'a']
+    konami_code = ['UP', 'UP', 'DOWN', 'DOWN', 'LEFT', 'RIGHT', 'LEFT', 'RIGHT', 'b', 'a']
     entered_keys = []
 
     key_map = {
@@ -121,10 +123,10 @@ def display_menu(stdscr: curses.window, items: List[Dict[str, Optional[str]]]) -
 
         if key in key_map:
             entered_keys.append(key_map[key])
-            if len(entered_keys) > len(KONAMI_CODE):
+            if len(entered_keys) > len(konami_code):
                 entered_keys.pop(0)
 
-            if entered_keys == KONAMI_CODE:
+            if entered_keys == konami_code:
                 konami_code_activated()
                 entered_keys.clear()
         else:
