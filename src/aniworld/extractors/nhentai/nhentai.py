@@ -51,7 +51,7 @@ def create_output_folder(folder_name):
 
 def download_image(image_url, output_path, i):
     try:
-        response = requests.get(image_url)
+        response = requests.get(image_url, timeout=10)
         if response.status_code == 200 and response.content.startswith(b'\xff\xd8'):
             image_path = os.path.join(output_path, f'{i}.jpg')
             with open(image_path, 'wb') as image_file:
@@ -79,7 +79,7 @@ def download_images_concurrently(base_url, output_path):
 def fetch_image_base_url(gallery_id):
     page_url = f"https://nhentai.net/g/{gallery_id}/1"
     try:
-        response = requests.get(page_url)
+        response = requests.get(page_url, timeout=10)
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, 'html.parser')
             img_tag = soup.select_one('#image-container a img')
@@ -90,20 +90,23 @@ def fetch_image_base_url(gallery_id):
                     subdomain, gallery_id = match.groups()
                     return f"https://{subdomain}.nhentai.net/galleries/{gallery_id}"
     except requests.RequestException:
-        return None
+        pass
+    return None
 
 
 def main():
     try:
         print(COLORS['clear'], end='')
-        source = get_input(f"{COLORS['pink']}Please provide the image id for any doujin image (E.g. 234781).")
+        source = get_input(f"{COLORS['pink']}"
+                           f"Please provide the image id for any doujin image (E.g. 234781).")
         folder = get_input(f"{COLORS['pink']}What should the output folder be called?")
         output_path = create_output_folder(folder)
         base_url = fetch_image_base_url(source)
         if base_url:
             download_images_concurrently(base_url, output_path)
         else:
-            print(f"{COLORS['red']}Error: Unable to fetch the base URL for images.{COLORS['reset']}")
+            print(f"{COLORS['red']}"
+                  f"Error: Unable to fetch the base URL for images.{COLORS['reset']}")
     except KeyboardInterrupt:
         pass
 

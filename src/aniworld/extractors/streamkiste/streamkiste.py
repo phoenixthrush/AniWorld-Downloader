@@ -25,6 +25,7 @@ SOFTWARE.
 import os
 import subprocess
 import re
+import platform
 import requests
 
 from bs4 import BeautifulSoup
@@ -34,8 +35,6 @@ from aniworld.common import install_and_import
 
 
 def clear_screen() -> None:
-    import platform
-    import os
     if platform.system() == "Windows":
         os.system("cls")
     else:
@@ -51,7 +50,8 @@ def fetch_direct_link(link):
         browser = p.webkit.launch(headless=True)
         page = browser.new_page()
 
-        page.on("request", lambda request: filtered_urls.append(request.url) if re.match(r"https://voe\.sx/e/.*", request.url) else None)
+        (page.on("request", lambda request: filtered_urls.append(request.url)
+if re.match(r"https://voe\.sx/e/.*", request.url) else None))
 
         page.goto(link)
 
@@ -62,7 +62,8 @@ def fetch_direct_link(link):
         title_text = title_element.inner_text().strip() if title_element else "StreamKisteTV"
 
         page.wait_for_selector("div#single-stream div#stream li.stream div#stream-links a")
-        first_stream_link = page.query_selector("div#single-stream div#stream li.stream div#stream-links a")
+        first_stream_link = page.query_selector("div#single-stream div#"
+                                                "stream li.stream div#""stream-links a")
 
         if first_stream_link:
             first_stream_link.click()
@@ -71,14 +72,15 @@ def fetch_direct_link(link):
         browser.close()
 
     try:
-        response = requests.get(filtered_urls[0], timeout=30, headers={'User-Agent': aniworld_globals.DEFAULT_USER_AGENT})
+        response = (requests.get(filtered_urls[0], timeout=30,
+headers={'User-Agent': aniworld_globals.DEFAULT_USER_AGENT}))
     except IndexError:
         # TODO
         # add fallback using another provider or
         # doing the request again with higher timeout and headless=False
 
         print("No VOE redirect link found.")
-        return
+        return None
 
     soup = BeautifulSoup(response.content, 'html.parser')
 
@@ -89,13 +91,15 @@ def fetch_direct_link(link):
 
 
 def download_video(link, title):
-    FILENAME = os.path.join(os.path.expanduser('~'), 'Downloads', f"{title}.mp4")
-    subprocess.run(['yt-dlp', '--quiet', '--no-warnings', '--progress', '-o', FILENAME, link])
+    filename = os.path.join(os.path.expanduser('~'), 'Downloads', f"{title}.mp4")
+    subprocess.run(['yt-dlp', '--quiet', '--no-warnings',
+'--progress', '-o', filename, link], check=False)
 
 
 def watch_video(link, title):
     mpv_title = title.replace(" ", "_")
-    subprocess.run(['mpv', f'--force-media-title={mpv_title}', '--fs', '--quiet', '--really-quiet', link])
+    subprocess.run(['mpv', f'--force-media-title={mpv_title}',
+'--fs', '--quiet', '--really-quiet', link], check=False)
 
 
 def streamkiste_get_direct_link(link: str):
