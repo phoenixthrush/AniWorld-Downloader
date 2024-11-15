@@ -75,10 +75,11 @@ Run these commands:
 
 def adventure():
     try:
-        import ollama
+        import ollama  # pylint: disable=import-error
     except ModuleNotFoundError:
         clear_screen()
         print(display_ascii_art())
+        print("The 'ollama' module is required to start the adventure. Please install it and try again.")
         return
 
     clear_screen()
@@ -96,7 +97,12 @@ def adventure():
 
 
 def play():
-    import ollama
+    try:
+        import ollama  # pylint: disable=import-error
+    except ModuleNotFoundError:
+        print("The 'ollama' module is not installed. Please install it to play the game.")
+        return
+
     try:
         instruction = """
             Use simple English so that non-native speakers can understand what's happening, and always ask what "you (the user)" want to do.

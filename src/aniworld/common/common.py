@@ -1356,8 +1356,12 @@ def get_current_wallpaper():
 
 
 def set_wallpaper_fit(image_path):
-    import winreg
-    import ctypes
+    try:
+        import winreg  # pylint: disable=import-error
+        import ctypes  # pylint: disable=import-error
+    except ModuleNotFoundError:
+        raise ImportError("Required modules (winreg, ctypes) not found. Ensure you're on Windows.")
+
     key = winreg.OpenKey(
         winreg.HKEY_CURRENT_USER,
         "Control Panel\\Desktop",
@@ -1367,6 +1371,7 @@ def set_wallpaper_fit(image_path):
     winreg.SetValueEx(key, "WallpaperStyle", 0, winreg.REG_SZ, "6")
     winreg.SetValueEx(key, "TileWallpaper", 0, winreg.REG_SZ, "0")
     winreg.CloseKey(key)
+
     ctypes.windll.user32.SystemParametersInfoW(20, 0, image_path, 3)
 
 
