@@ -5,19 +5,25 @@ import logging
 from bs4 import BeautifulSoup
 import requests
 import aniworld.globals as aniworld_globals
-from aniworld.common import raise_runtime_error, ftoi, get_season_episode_count, fetch_ID
+from aniworld.common import (
+raise_runtime_error,
+ftoi,
+get_season_episode_count,
+fetch_anime_id,
+fetch_url_content
+)
+
 
 CHAPTER_FORMAT = "\n[CHAPTER]\nTIMEBASE=1/1000\nSTART={}\nEND={}\nTITLE={}\n"
 OPTION_FORMAT = "skip-{}_start={},skip-{}_end={}"
 
 
-def check_episodes(ID):
-    url = f"https://myanimelist.net/anime/{ID}"
+def check_episodes(anime_id):
+    url = f"https://myanimelist.net/anime/{anime_id}"
 
-    response = requests.get(url)
-    response.raise_for_status()
+    page_content = fetch_url_content(url)
 
-    soup = BeautifulSoup(response.text, 'html.parser')
+    soup = BeautifulSoup(page_content, 'html.parser')
 
     episodes_span = soup.find('span', class_='dark_text', string='Episodes:')
 
@@ -25,9 +31,9 @@ def check_episodes(ID):
         episodes = episodes_span.parent.text.replace("Episodes:", "").strip()
         logging.debug("Count of the episodes %s", episodes)
         return int(episodes)
-    else:
-        logging.debug("The Number can not be found!")
-        return None
+
+    logging.debug("The Number can not be found!")
+    return None
 
 
 def build_options(metadata: Dict, chapters_file: str) -> str:
@@ -69,12 +75,12 @@ def build_options(metadata: Dict, chapters_file: str) -> str:
     return ",".join(options)
 
 
-def build_flags(ID: str, episode: int, chapters_file: str) -> str:
+def build_flags(anime_id: str, episode: int, chapters_file: str) -> str:
     logging.debug(
         "Building flags for MAL ID: %s, episode: %d, chapters_file: %s",
-        ID, episode, chapters_file
+        anime_id, episode, chapters_file
     )
-    aniskip_api = f"https://api.aniskip.com/v1/skip-times/{ID}/{episode}?types=op&types=ed"
+    aniskip_api = f"https://api.aniskip.com/v1/skip-times/{anime_id}/{episode}?types=op&types=ed"
     logging.debug("Fetching skip times from: %s", aniskip_api)
     response = requests.get(
         aniskip_api,
@@ -104,25 +110,26 @@ def build_flags(ID: str, episode: int, chapters_file: str) -> str:
 
 def aniskip(anime_title: str, anime_slug: str, episode: int, season: int) -> str:
     logging.debug("Running aniskip for anime_title: %s, episode: %d", anime_title, episode)
-    ID = fetch_ID(anime_title, season) if not anime_title.isdigit() else anime_title
-    logging.debug("Fetched MAL ID: %s", ID)
-    if not ID:
+    anime_id = fetch_anime_id(anime_title, season) if not anime_title.isdigit() else anime_title
+    logging.debug("Fetched MAL ID: %s", anime_id)
+    if not anime_id:
         logging.debug("No MAL ID found.")
         return ""
 
     logging.debug("Anime_Slug: %s", anime_slug)
-    if check_episodes(ID) == get_season_episode_count(anime_slug, str(season)):
+    if check_episodes(anime_id) == get_season_episode_count(anime_slug, str(season)):
         with tempfile.NamedTemporaryFile(mode="w+", delete=False) as chapters_file:
             logging.debug("Created temporary chapters file: %s", chapters_file.name)
-            return build_flags(ID, episode, chapters_file.name)
+            return build_flags(anime_id, episode, chapters_file.name)
     else:
-        logging.debug("Check_Episode: %s", check_episodes(ID))
-        logging.debug("Check get_season_episode_count: %s", get_season_episode_count(anime_slug, str(season)))
+        logging.debug("Check_Episode: %s", check_episodes(anime_id))
+        logging.debug("Check get_season_episode_count: %s",
+                      get_season_episode_count(anime_slug, str(season)))
         logging.debug("Mal ID isn't matching episode counter!")
         return ""
 
 
 if __name__ == "__main__":
-    # print(fetch_ID("Kaguya-sama: Love is War", 2))
-    # print(aniskip("Kaguya-sama: Love is War", "kaguya-sama-love-is-war", 1, 2))
+    #print(fetch_anime_id("Kaguya-sama: Love is War", 2))
+    #print(aniskip("Kaguya-sama: Love is War", "kaguya-sama-love-is-war", 1, 2))
     pass

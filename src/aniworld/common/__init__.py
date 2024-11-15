@@ -34,8 +34,8 @@ from .common import (
     show_messagebox,
     get_season_episode_count,
     get_description,
-    get_description_with_ID,
-    fetch_ID,
+    get_description_with_id,
+    fetch_anime_id,
     install_and_import
 )
 

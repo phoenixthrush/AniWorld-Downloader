@@ -1076,10 +1076,10 @@ def sanitize_path(path):
 def get_package_manager():
     try:
         system = platform.system()
-        
+
         if system == "Darwin":
             return 'brew' if shutil.which("brew") else 'unknown'
-        
+
         if os.path.exists('/etc/os-release'):
             with open('/etc/os-release', encoding='utf-8') as f:
                 os_release_info = f.read().lower()
@@ -1098,9 +1098,9 @@ def get_package_manager():
                 return 'zypper'
             if 'alpine' in os_release_info:
                 return 'apk'
-        
+
         return 'unknown'
-    
+
     except Exception as e:
         return f'Error: {e}'
 
@@ -1137,7 +1137,7 @@ def open_terminal_with_command(command):
         ('xterm', ['xterm', '-hold', '-e', command]),
         ('konsole', ['konsole', '--hold', '-e', command])
     ]
-    
+
     for terminal, cmd in terminal_emulators:
         try:
             subprocess.Popen(cmd)
@@ -1146,7 +1146,7 @@ def open_terminal_with_command(command):
             logging.debug(f"%s not found, trying the next option.", terminal)
         except Exception as e:
             logging.error(f"Error opening terminal with %s: %e", terminal, e)
-    
+
     logging.error("No supported terminal emulator found. Please install gnome-terminal, xterm, or konsole.")
 
 
@@ -1211,7 +1211,7 @@ def get_windows_version():
 
     if build_number >= 22000:
         return "Modern"
-    
+
     return "Legacy"
 
 
@@ -1325,13 +1325,13 @@ def show_messagebox(message, title="Message", box_type="info"):
 
 def get_current_wallpaper():
     system = platform.system()
-    
+
     if system == "Windows":
         import ctypes
         buf = ctypes.create_unicode_buffer(512)
         ctypes.windll.user32.SystemParametersInfoW(0x73, len(buf), buf, 0)
         return buf.value
-    
+
     if system == "Darwin":
         result = os.popen(
             'osascript -e \'tell application "System Events" to get the picture of the current desktop\''
@@ -1341,7 +1341,7 @@ def get_current_wallpaper():
                 'osascript -e \'tell application "System Events" to get the desktop picture\''
             ).read().strip()
         return result
-    
+
     if system == "Linux":
         try:
             result = os.popen(
@@ -1351,7 +1351,7 @@ def get_current_wallpaper():
         except Exception as e:
             print(f"Could not get current wallpaper: {e}")
             return None
-    
+
     return None
 
 
@@ -1447,8 +1447,8 @@ def set_temp_wallpaper():
             logging.debug("Failed to download the wallpaper: %s", e)
 
 
-def fetch_ID(anime_title, season):
-    ID = None
+def fetch_anime_id(anime_title, season):
+    anime_id = None
 
     logging.debug("Fetching MAL ID for: %s", anime_title)
 
@@ -1482,15 +1482,14 @@ def fetch_ID(anime_title, season):
             if entry['name'] == best_match:
                 logging.debug("Found MAL ID: %s for %s", entry['id'], best_match)
                 logging.debug(entry['id'])
-                ID = entry['id']
+                anime_id = entry['id']
 
     while season > 1:
-        url = f"https://myanimelist.net/anime/{ID}"
+        url = f"https://myanimelist.net/anime/{anime_id}"
 
-        response = requests.get(url)
-        response.raise_for_status()
+        page_content = fetch_url_content(url)
 
-        soup = BeautifulSoup(response.text, 'html.parser')
+        soup = BeautifulSoup(page_content, 'html.parser')
 
         sequel_div = soup.find(
             "div", 
@@ -1508,7 +1507,6 @@ def fetch_ID(anime_title, season):
                     if match:
                         anime_id = match.group(1)
                         logging.debug("Anime ID: %s", anime_id)
-                        ID = anime_id
                         season -= 1
                     else:
                         logging.debug("No Anime-ID found")
@@ -1523,7 +1521,7 @@ def fetch_ID(anime_title, season):
             logging.debug("Sequel (TV) not found")
             return None
 
-    return ID
+    return anime_id
 
 
 def get_description(anime_slug: str):
@@ -1537,9 +1535,9 @@ def get_description(anime_slug: str):
     return description
 
 
-def get_description_with_ID(anime_title: str, season: int = 1):
-    id = fetch_ID(anime_title=anime_title, season=season)
-    url = f"https://myanimelist.net/anime/{id}"
+def get_description_with_id(anime_title: str, season: int = 1):
+    anime_id = fetch_anime_id(anime_title=anime_title, season=season)
+    url = f"https://myanimelist.net/anime/{anime_id}"
 
     page_content = fetch_url_content(url)
     soup = BeautifulSoup(page_content, 'html.parser')

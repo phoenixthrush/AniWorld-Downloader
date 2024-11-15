@@ -40,7 +40,7 @@ from aniworld.common import (
     check_internet_connection,
     adventure,
     get_description,
-    get_description_with_ID
+    get_description_with_id
 )
 
 
@@ -346,7 +346,7 @@ class SecondForm(npyscreen.ActionFormV2):
         anime_title = format_anime_title(anime_slug)
 
         text_content1 = get_description(anime_slug)
-        text_content2 = get_description_with_ID(anime_title, 1)
+        text_content2 = get_description_with_id(anime_title, 1)
 
         wrapped_text1 = "\n".join(textwrap.wrap(text_content1, width=100))
         wrapped_text2 = "\n".join(textwrap.wrap(text_content2, width=100))
