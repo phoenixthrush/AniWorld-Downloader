@@ -39,4 +39,5 @@ jobs:
 
     - name: Analyzing the code with pylint
       run: |
+        pylint --errors-only $(git ls-files '*.py')
         pylint $(git ls-files '*.py')
