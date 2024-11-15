@@ -204,8 +204,6 @@ class EpisodeForm(npyscreen.ActionForm):
             scroll_exit=True
         )
 
-
-
         self.action_selector.when_value_edited = self.update_directory_visibility
         logging.debug("Set update_directory_visibility as callback for action_selector")
 
@@ -340,6 +338,7 @@ class EpisodeForm(npyscreen.ActionForm):
     def go_to_second_form(self):
         self.parentApp.switchForm("SECOND")
 
+
 class SecondForm(npyscreen.ActionFormV2):
     def create(self):
 
@@ -366,6 +365,7 @@ class SecondForm(npyscreen.ActionFormV2):
 
     def on_cancel(self):
         self.parentApp.switchForm("MAIN")
+
 
 class AnimeApp(npyscreen.NPSAppManaged):
     def __init__(self, anime_slug):
@@ -423,9 +423,9 @@ def parse_arguments():
     # Anime4K options
     anime4k_group = parser.add_argument_group('Anime4K Options')
     anime4k_group.add_argument('-A', '--anime4k', type=str, choices=['High', 'Low', 'Remove'], help=('Set Anime4K optimised mode (High Eg.: GTX 1080, RTX 2070, '
-                'RTX 3060, RX 590, Vega 56, 5700XT, 6600XT; Low Eg.: GTX 980, '
-                'GTX 1060, RX 570, or Remove).'))
-    
+        'RTX 3060, RX 590, Vega 56, 5700XT, 6600XT; Low Eg.: GTX 980, '
+        'GTX 1060, RX 570, or Remove).'))
+
     # Syncplay options
     syncplay_group = parser.add_argument_group('Syncplay Options')
     syncplay_group.add_argument('-sH', '--syncplay-hostname', type=str, help='Set syncplay hostname')

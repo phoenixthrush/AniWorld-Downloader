@@ -14,7 +14,6 @@ OPTION_FORMAT = "skip-{}_start={},skip-{}_end={}"
 def check_episodes(ID):
     url = f"https://myanimelist.net/anime/{ID}"
 
-
     response = requests.get(url)
     response.raise_for_status()
 
@@ -29,6 +28,7 @@ def check_episodes(ID):
     else:
         logging.debug("The Number can not be found!")
         return None
+
 
 def build_options(metadata: Dict, chapters_file: str) -> str:
     logging.debug("Building options with metadata: %s and chapters_file: %s",
@@ -117,12 +117,12 @@ def aniskip(anime_title: str, anime_slug: str, episode: int, season: int) -> str
             return build_flags(ID, episode, chapters_file.name)
     else:
         logging.debug("Check_Episode: %s", check_episodes(ID))
-        logging.debug("Check get_season_episode_count: %s",get_season_episode_count(anime_slug, str(season)))
+        logging.debug("Check get_season_episode_count: %s", get_season_episode_count(anime_slug, str(season)))
         logging.debug("Mal ID isn't matching episode counter!")
         return ""
 
 
 if __name__ == "__main__":
-    #print(fetch_ID("Kaguya-sama: Love is War", 2))
-    #print(aniskip("Kaguya-sama: Love is War", "kaguya-sama-love-is-war", 1, 2))
+    # print(fetch_ID("Kaguya-sama: Love is War", 2))
+    # print(aniskip("Kaguya-sama: Love is War", "kaguya-sama-love-is-war", 1, 2))
     pass

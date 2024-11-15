@@ -39,8 +39,10 @@ from aniworld.aniskip import aniskip
 def providers(soup: BeautifulSoup) -> Dict[str, Dict[int, str]]:
     logging.debug("Extracting provider data from soup")
     try:
-        provider_options = soup.find(class_='hosterSiteVideo').find('ul', class_='row').find_all('li')
-    
+        provider_options = soup.find(class_='hosterSiteVideo') \
+            .find('ul', class_='row') \
+            .find_all('li')
+
         extracted_data = {}
         for provider in provider_options:
             lang_key = int(provider.get('data-lang-key'))
@@ -100,12 +102,13 @@ def build_yt_dlp_command(link: str, output_file: str) -> List[str]:
         "--progress"
     ]
 
-
     logging.debug("Built yt-dlp command: %s", command)
     return command
 
 
-def process_aniskip(anime_title: str, season_number: int, episode_number: int, anime_slug: str) -> List[str]:
+def process_aniskip(
+    anime_title: str, season_number: int, episode_number: int, anime_slug: str
+) -> List[str]:
     logging.debug(
         "Processing aniskip for %s, season %d, episode %d",
         anime_title, season_number, episode_number
@@ -182,10 +185,11 @@ def build_syncplay_command(
     syncplay_username = os.getenv("SYNCPLAY_USERNAME")
     syncplay_room = os.getenv("SYNCPLAY_ROOM")
 
-    logging.debug("Syncplay hostname: %s, Syncplay username: %s, Syncplay room: %s",
-                  syncplay_hostname,
-                  syncplay_username,
-                  syncplay_room
+    logging.debug(
+        "Syncplay hostname: %s, Syncplay username: %s, Syncplay room: %s",
+        syncplay_hostname,
+        syncplay_username,
+        syncplay_room
     )
 
     if syncplay_password:
@@ -195,7 +199,7 @@ def build_syncplay_command(
 
     if not syncplay_hostname:
         syncplay_hostname = "syncplay.pl:8997"
-    
+
     if not syncplay_username:
         syncplay_username = getpass.getuser()
 
@@ -247,7 +251,6 @@ def perform_action(params: Dict[str, Any]) -> None:
     aniskip_selected = bool(params.get("aniskip_selected", False))
 
     logging.debug("aniskip_selected: %s", aniskip_selected)
-
 
     aniskip_options = process_aniskip_options(
         aniskip_selected=aniskip_selected, anime_title=anime_title, season_number=season_number, episode_number=episode_number, anime_slug=anime_slug

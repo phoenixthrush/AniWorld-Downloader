@@ -9,10 +9,10 @@ import colorlog
 IS_DEBUG_MODE = os.getenv('IS_DEBUG_MODE', 'False').lower() in ('true', '1', 't', 'y', 'yes')
 LOG_FILE_PATH = os.path.join(tempfile.gettempdir(), 'aniworld.log')
 
-DEFAULT_ACTION = "Download"     # E.g. Watch, Download, Syncplay
+DEFAULT_ACTION = "Download"      # E.g. Watch, Download, Syncplay
 DEFAULT_DOWNLOAD_PATH = os.path.join(os.path.expanduser('~'), 'Downloads')
-DEFAULT_LANGUAGE = "German Sub" # German Dub, English Sub, German Sub
-DEFAULT_PROVIDER = "VOE"        # Vidoza, Streamtape, VOE, Doodstream
+DEFAULT_LANGUAGE = "German Sub"  # German Dub, English Sub, German Sub
+DEFAULT_PROVIDER = "VOE"         # Vidoza, Streamtape, VOE, Doodstream
 DEFAULT_PROVIDER_WATCH = "Vidoza"
 DEFAULT_ANISKIP = False
 DEFAULT_KEEP_WATCHING = False
@@ -37,7 +37,9 @@ def setup_file_handler():
             os.remove(LOG_FILE_PATH)
         file_handler = logging.FileHandler(LOG_FILE_PATH)
         file_handler.setLevel(logging.DEBUG)
-        file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(funcName)s - %(message)s'))
+        file_handler.setFormatter(
+            logging.Formatter('%(asctime)s - %(levelname)s - %(funcName)s - %(message)s')
+        )
         return file_handler
     except PermissionError:
         return None
@@ -124,10 +126,12 @@ USER_AGENTS = [
 
 DEFAULT_USER_AGENT = random.choice(USER_AGENTS)
 
+
 class ExitOnError(logging.Handler):
     def emit(self, record):
         if record.levelno >= logging.ERROR:
             sys.exit(1)
+
 
 exit_on_error_handler = ExitOnError()
 logging.getLogger().addHandler(exit_on_error_handler)

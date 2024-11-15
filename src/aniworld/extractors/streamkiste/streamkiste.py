@@ -34,12 +34,12 @@ from aniworld.common import install_and_import
 
 
 def clear_screen() -> None:
-        import platform
-        import os
-        if platform.system() == "Windows":
-            os.system("cls")
-        else:
-            os.system("clear")
+    import platform
+    import os
+    if platform.system() == "Windows":
+        os.system("cls")
+    else:
+        os.system("clear")
 
 
 def fetch_direct_link(link):

@@ -15,10 +15,9 @@ import random
 import socket
 import tempfile
 import base64
-import html
 from typing import List, Optional
-from packaging.version import Version
 from importlib.metadata import version, PackageNotFoundError
+from packaging.version import Version
 
 import requests
 import py7zr
@@ -77,7 +76,9 @@ def fetch_url_content(url: str, proxy: Optional[str] = None, check: bool = True)
     return fetch_url_content_without_playwright(url, proxy, check)
 
 
-def fetch_url_content_without_playwright(url: str, proxy: Optional[str] = None, check: bool = True) -> Optional[bytes]:
+def fetch_url_content_without_playwright(
+    url: str, proxy: Optional[str] = None, check: bool = True
+) -> Optional[bytes]:
     headers = {
         'User-Agent': aniworld_globals.DEFAULT_USER_AGENT
     }
@@ -130,7 +131,9 @@ def fetch_url_content_without_playwright(url: str, proxy: Optional[str] = None, 
         return fetch_url_content_with_playwright(url, proxy, check)
 
 
-def fetch_url_content_with_playwright(url: str, proxy: Optional[str] = None, check: bool = True) -> Optional[bytes]:
+def fetch_url_content_with_playwright(
+    url: str, proxy: Optional[str] = None, check: bool = True
+) -> Optional[bytes]:
     if "aniworld.to/redirect/" in url:
         return fetch_url_content_without_playwright(url, proxy, check)
 
@@ -173,7 +176,7 @@ def fetch_url_content_with_playwright(url: str, proxy: Optional[str] = None, che
                         logging.debug("Captcha solved")
                         break
                     else:
-                        logging.debug(f"Captcha still present, retrying... ({i+1}/{max_retries})")
+                        logging.debug("Captcha still present, retrying... (%s/%s)", i + 1, max_retries)
 
                 if page.locator("h1#ddg-l10n-title:has-text('Checking your browser before accessing')").count() > 0:
                     raise Exception("Captcha not solved within the time limit.")
@@ -1157,20 +1160,20 @@ def get_random_anime(genre: str) -> str:
     }
 
     response = requests.post(url, headers=headers, data=data)
-    logging.debug(f"Response Status Code: {response.status_code}")
-    logging.debug(f"Response Text: {response.text}")
+    logging.debug("Response Status Code: %s", response.status_code)
+    logging.debug("Response Text: %s", response.text)
 
     try:
         anime_list = json.loads(response.text)
-        logging.debug(f"Anime List: {anime_list}")
+        logging.debug("Anime List: %s", anime_list)
     except json.JSONDecodeError as e:
-        logging.error(f"JSON Decode Error: {e}")
+        logging.error("JSON Decode Error: %s", e)
         return
 
     try:
         random_anime = random.choice(anime_list)
-        logging.debug(f"Selected Anime: {random_anime}")
-    except IndexError as e:
+        logging.debug("Selected Anime: %s", random_anime)
+    except IndexError:
         logging.warning("Error: No anime found in the list using this genre: %s.", genre)
         return
     except TypeError:
@@ -1180,8 +1183,8 @@ def get_random_anime(genre: str) -> str:
     name = random_anime['name']
     link = random_anime['link']
 
-    logging.debug(f"Random Anime: {name}")
-    logging.debug(f"Link: https://aniworld.to/{link}")
+    logging.debug("Random Anime: %s", name)
+    logging.debug("Link: https://aniworld.to/%s", link)
 
     return link
 
@@ -1198,8 +1201,8 @@ def get_windows_version():
         else:
             return "Legacy"
     else:
-        return f"Other"
-    
+        return "Other"
+
 
 def check_internet_connection():
     # return False  # debug
@@ -1229,7 +1232,7 @@ def check_internet_connection():
 def show_messagebox(message, title="Message", box_type="info"):
     # box_type -> info, yesno, warning, error
     system = platform.system()
-    
+
     if system == "Windows":
         import ctypes
         msg_box_type = {
@@ -1238,7 +1241,7 @@ def show_messagebox(message, title="Message", box_type="info"):
             "warning": 0x30,
             "error": 0x10,
         }.get(box_type, 0x40)
-        
+
         response = ctypes.windll.user32.MessageBoxW(0, message, title, msg_box_type)
         if box_type == "yesno":
             return response == 6
@@ -1251,44 +1254,44 @@ def show_messagebox(message, title="Message", box_type="info"):
             "warning": f'display dialog "{message}" with title "{title}" buttons "OK" with icon caution',
             "error": f'display dialog "{message}" with title "{title}" buttons "OK" with icon stop',
         }.get(box_type, f'display dialog "{message}" with title "{title}" buttons "OK"')
-        
+
         try:
-            result = subprocess.run(["osascript", "-e", script], text=True, capture_output=True)
+            result = subprocess.run(["osascript", "-e", script], text=True, capture_output=True, check=False)
             if box_type == "yesno":
                 return "Yes" in result.stdout
             return True
         except Exception as e:
-            logging.debug(f"Error showing messagebox on macOS: {e}")
+            logging.debug("Error showing messagebox on macOS: %s", e)
             return False
 
     elif system == "Linux":
         try:
-            if subprocess.run(["which", "zenity"], capture_output=True, text=True).returncode == 0:
+            if subprocess.run(["which", "zenity"], capture_output=True, text=True, check=False).returncode == 0:
                 cmd = {
                     "info": ["zenity", "--info", "--text", message, "--title", title],
                     "yesno": ["zenity", "--question", "--text", message, "--title", title],
                     "warning": ["zenity", "--warning", "--text", message, "--title", title],
                     "error": ["zenity", "--error", "--text", message, "--title", title],
                 }.get(box_type, ["zenity", "--info", "--text", message, "--title", title])
-                
-                result = subprocess.run(cmd)
+
+                result = subprocess.run(cmd, check=False)
                 return result.returncode == 0 if box_type == "yesno" else True
-            
-            elif subprocess.run(["which", "kdialog"], capture_output=True, text=True).returncode == 0:
+
+            elif subprocess.run(["which", "kdialog"], capture_output=True, text=True, check=False).returncode == 0:
                 cmd = {
                     "info": ["kdialog", "--msgbox", message, "--title", title],
                     "yesno": ["kdialog", "--yesno", message, "--title", title],
                     "warning": ["kdialog", "--sorry", message, "--title", title],
                     "error": ["kdialog", "--error", message, "--title", title],
                 }.get(box_type, ["kdialog", "--msgbox", message, "--title", title])
-                
-                result = subprocess.run(cmd)
+
+                result = subprocess.run(cmd, check=False)
                 return result.returncode == 0 if box_type == "yesno" else True
-            
+
         except Exception as e:
-            logging.debug(f"Error showing messagebox on Linux: {e}")
+            logging.debug("Error showing messagebox on Linux: %s", e)
             return False
-    
+
     import tkinter as tk
     from tkinter import messagebox
 
@@ -1358,17 +1361,17 @@ def minimize_all_windows():
         ctypes.windll.user32.keybd_event(0x5B, 0, 2, 0)  # Release Windows key
     elif platform.system() == "Linux":
         try:
-            subprocess.run(["wmctrl", "-k", "on"]) 
+            subprocess.run(["wmctrl", "-k", "on"], check=False)
         except Exception as e:
-            logging.debug(f"Error minimizing windows: {e}")
+            logging.debug("Error minimizing windows: %s", e)
 
 
 def show_all_windows():
     if platform.system() == "Linux":
         try:
-            subprocess.run(["wmctrl", "-k", "off"])
+            subprocess.run(["wmctrl", "-k", "off"], check=False)
         except Exception as e:
-            logging.debug(f"Error minimizing windows: {e}")
+            logging.debug("Error minimizing windows: %s", e)
 
 
 def set_temp_wallpaper():
@@ -1377,7 +1380,7 @@ def set_temp_wallpaper():
             "L2Jsb2IvbWFzdGVyL2xpYnJhcnkvZG9ub3RkZWxldGUucG5nP3Jhdz10cnVl")
 
     current_wallpaper = get_current_wallpaper()
-    logging.debug(f"Current wallpaper: {current_wallpaper}")
+    logging.debug("Current wallpaper: %s", current_wallpaper)
 
     with tempfile.TemporaryDirectory() as temp_dir:
         file_path = os.path.join(temp_dir, 'wallpaper.png')
@@ -1390,7 +1393,7 @@ def set_temp_wallpaper():
                 f.write(response.content)
 
             set_wallpaper(file_path)
-            logging.debug(f"New wallpaper set: {file_path}")
+            logging.debug("New wallpaper set: %s", file_path)
 
             minimize_all_windows()
             if platform.system() == "Darwin":
@@ -1404,11 +1407,11 @@ def set_temp_wallpaper():
 
             if current_wallpaper:
                 set_wallpaper(current_wallpaper)
-                logging.debug(f"Reverted to original wallpaper: {current_wallpaper}")
+                logging.debug("Reverted to original wallpaper: %s", current_wallpaper)
         except requests.RequestException as e:
-            logging.debug(f"Failed to download the wallpaper: {e}")
+            logging.debug("Failed to download the wallpaper: %s", e)
         except Exception as e:
-            logging.debug(f"An error occurred: {e}")
+            logging.debug("An error occurred: %s", e)
 
 
 def fetch_ID(anime_title, season):
@@ -1447,7 +1450,6 @@ def fetch_ID(anime_title, season):
                 logging.debug("Found MAL ID: %s for %s", entry['id'], best_match)
                 logging.debug(entry['id'])
                 ID = entry['id']
-
 
     while season > 1:
         url = f"https://myanimelist.net/anime/{ID}"
@@ -1499,9 +1501,9 @@ def get_description(anime_slug: str):
     return description
 
 
-def get_description_with_ID(anime_title: str, season: int):
-    ID = fetch_ID(anime_title=anime_title, season=1)
-    url = f"https://myanimelist.net/anime/{ID}"
+def get_description_with_ID(anime_title: str, season: int = 1):
+    id = fetch_ID(anime_title=anime_title, season=season)
+    url = f"https://myanimelist.net/anime/{id}"
 
     page_content = fetch_url_content(url)
     soup = BeautifulSoup(page_content, 'html.parser')
@@ -1515,18 +1517,17 @@ def install_and_import(package):
     except ImportError:
         while True:
             print(f'The Package "{package}" is not installed!')
-            Input = input(f'Do you want me to run “pip install {package}” for you?  (Y|N) ').upper()
-            if Input == "Y":
+            user_input = input(f'Do you want me to run “pip install {package}” for you?  (Y|N) ').upper()
+            if user_input == "Y":
                 print(f"{package} is installing...")
                 subprocess.check_call([sys.executable, "-m", "pip", "install", package])
                 break
-            elif Input == "N":
+            elif user_input == "N":
                 sys.exit()
             else:
                 clear_screen()
     finally:
         globals()[package] = __import__(package)
-
 
 
 if __name__ == "__main__":

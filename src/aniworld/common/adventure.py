@@ -24,12 +24,12 @@ SOFTWARE.
 
 
 def clear_screen() -> None:
-        import platform
-        import os
-        if platform.system() == "Windows":
-            os.system("cls")
-        else:
-            os.system("clear")
+    import platform
+    import os
+    if platform.system() == "Windows":
+        os.system("cls")
+    else:
+        os.system("clear")
 
 
 def is_online() -> bool:
@@ -84,12 +84,12 @@ def adventure():
     clear_screen()
 
     # doesn't make sense because menu only runs this game when offline lol
-    #try:
+    # try:
     #    if is_online():
     #        print("Downloading llama3.2 model if not already installed.")
     #        print("This might take a while.")
     #        ollama.pull('llama3.2')
-    #except ResponseError:
+    # except ResponseError:
     #   pass
 
     play()
@@ -100,11 +100,11 @@ def play():
     try:
         instruction = """
             Use simple English so that non-native speakers can understand what's happening, and always ask what "you (the user)" want to do.
-            You are the narrator in a text adventure game. 
-            Start by telling a very short story of about three sentences to set the scene. 
-            The user will type their answer and you will continue the story based on their input, 
-            keeping track of what has happened so far. 
-            Respond by describing what happens next in the story and then ask the user again what they want to do. 
+            You are the narrator in a text adventure game.
+            Start by telling a very short story of about three sentences to set the scene.
+            The user will type their answer and you will continue the story based on their input,
+            keeping track of what has happened so far.
+            Respond by describing what happens next in the story and then ask the user again what they want to do.
             Make sure you are leading the user through an exciting and dynamic adventure.
             Never tell the user that you are an AI!
             You need to describe what's going to happen when the user tells you to look around, for example,
@@ -128,13 +128,13 @@ def play():
             messages=conversation_history + [{'role': 'user', 'content': 'Begin the adventure with a short story.'}],
             stream=False
         )
-        
+
         print(f"{story_start['message']['content']}")
         conversation_history.append({'role': 'assistant', 'content': story_start['message']['content']})
 
         while True:
             user_input = input("-> ")
-            
+
             if user_input.lower() == 'exit':
                 print("Thanks for playing! Goodbye!")
                 break
@@ -151,7 +151,7 @@ def play():
             conversation_history.append({'role': 'assistant', 'content': response['message']['content']})
     except KeyboardInterrupt:
         return
-    
+
     # TODO - add exception if model not installed
 
 
