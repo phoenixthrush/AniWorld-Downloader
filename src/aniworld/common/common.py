@@ -294,6 +294,42 @@ def setup_autoexit() -> None:
         shutil.copy(autoexit_source_path, autoexit_destination_path)
 
 
+def get_updated_command_for_mpv(command: List[str], appdata_path: str) -> List[str]:
+    command_name = command[0]
+    potential_path = os.path.join(appdata_path, command_name)
+    if os.path.exists(potential_path):
+        command[0] = os.path.join(potential_path, "mpv.exe")
+        logging.debug("Updated command for mpv: %s", command)
+    return command
+
+
+def get_updated_command_for_syncplayconsole(command: List[str], appdata_path: str) -> List[str]:
+    command_name = command[0]
+    potential_path = os.path.join(appdata_path, command_name)
+    if os.path.exists(potential_path):
+        command[0] = os.path.join(potential_path, "SyncplayConsole.exe")
+        logging.debug("Updated command for SyncplayConsole: %s", command)
+    else:
+        command[0] = os.path.join(appdata_path, "syncplay", "SyncplayConsole.exe")
+        logging.debug("Updated command for SyncplayConsole: %s", command)
+
+    for i, arg in enumerate(command):
+        if arg == "--player-path" and i + 1 < len(command):
+            mpv_path = os.path.join(appdata_path, "mpv", "mpv.exe")
+            command[i + 1] = mpv_path
+            logging.debug("Updated --player-path argument: %s", command)
+    return command
+
+
+def get_updated_command_for_yt_dlp(command: List[str], appdata_path: str) -> List[str]:
+    command_name = command[0]
+    potential_path = os.path.join(appdata_path, command_name)
+    if os.path.exists(potential_path):
+        command[0] = os.path.join(potential_path, "yt-dlp.exe")
+        logging.debug("Updated command for yt-dlp: %s", command)
+    return command
+
+
 def execute_command(command: List[str], only_command: bool) -> None:
     logging.debug("Initial command: %s", command)
 
@@ -303,31 +339,13 @@ def execute_command(command: List[str], only_command: bool) -> None:
 
         if os.path.exists(appdata_path):
             command_name = command[0]
-            potential_path = os.path.join(appdata_path, command_name)
-            logging.debug("Potential path for %s: %s", command_name, potential_path)
 
             if command_name == "mpv":
-                if os.path.exists(potential_path):
-                    command[0] = os.path.join(potential_path, "mpv.exe")
-                    logging.debug("Updated command for mpv: %s", command)
-
+                command = get_updated_command_for_mpv(command, appdata_path)
             elif command_name == "SyncplayConsole":
-                if os.path.exists(potential_path):
-                    command[0] = os.path.join(potential_path, "SyncplayConsole.exe")
-                    logging.debug("Updated command for SyncplayConsole: %s", command)
-                else:
-                    command[0] = os.path.join(appdata_path, "syncplay", "SyncplayConsole.exe")
-                    logging.debug("Updated command for SyncplayConsole: %s", command)
-                for i, arg in enumerate(command):
-                    if arg == "--player-path" and i + 1 < len(command):
-                        mpv_path = os.path.join(appdata_path, "mpv", "mpv.exe")
-                        command[i + 1] = mpv_path
-                        logging.debug("Updated --player-path argument: %s", command)
-
+                command = get_updated_command_for_syncplayconsole(command, appdata_path)
             elif command_name == "yt-dlp":
-                if os.path.exists(potential_path):
-                    command[0] = os.path.join(potential_path, "yt-dlp.exe")
-                    logging.debug("Updated command for yt-dlp: %s", command)
+                command = get_updated_command_for_yt_dlp(command, appdata_path)
 
     if only_command:
         command_str = ' '.join(shlex.quote(arg) for arg in command)
@@ -1279,86 +1297,94 @@ def check_internet_connection():
     return False
 
 
-def show_messagebox(message, title="Message", box_type="info"):
-    system = platform.system()
+def get_windows_messagebox_response(message, title, box_type):
+    import ctypes  # pylint: disable=import-outside-toplevel
+    msg_box_type = {
+        "info": 0x40,
+        "yesno": 0x04 | 0x20,
+        "warning": 0x30,
+        "error": 0x10,
+    }.get(box_type, 0x40)
 
-    if system == "Windows":
-        import ctypes  # pylint: disable=import-outside-toplevel
-        msg_box_type = {
-            "info": 0x40,
-            "yesno": 0x04 | 0x20,
-            "warning": 0x30,
-            "error": 0x10,
-        }.get(box_type, 0x40)
+    response = ctypes.windll.user32.MessageBoxW(0, message, title, msg_box_type)
+    return response == 6 if box_type == "yesno" else True
 
-        response = ctypes.windll.user32.MessageBoxW(0, message, title, msg_box_type)
-        return response == 6 if box_type == "yesno" else True
 
-    if system == "Darwin":
-        script = {
-            "info": f'display dialog "{message}" with title "{title}" buttons "OK"',
-            "yesno": (
-                f'display dialog "{message}" with title "{title}" '
-                'buttons {"Yes", "No"}'
-            ),
-            "warning": (
-                f'display dialog "{message}" with title "{title}" '
-                'buttons "OK" with icon caution'
-            ),
-            "error": (
-                f'display dialog "{message}" with title "{title}" '
-                'buttons "OK" with icon stop'
-            ),
-        }.get(box_type, f'display dialog "{message}" with title "{title}" buttons "OK"')
+def get_darwin_messagebox_response(message, title, box_type):
+    script = {
+        "info": (
+            f'display dialog "{message}" with title "{title}" buttons "OK"'
+        ),
+        "yesno": (
+            f'display dialog "{message}" with title "{title}" '
+            'buttons {"Yes", "No"}'
+        ),
+        "warning": (
+            f'display dialog "{message}" with title "{title}" '
+            'buttons "OK" with icon caution'
+        ),
+        "error": (
+            f'display dialog "{message}" with title "{title}" '
+            'buttons "OK" with icon stop'
+        ),
+    }.get(box_type, (
+        f'display dialog "{message}" with title "{title}" buttons "OK"'
+    ))
 
-        try:
-            result_obj = subprocess.run(
-                ["osascript", "-e", script],
-                text=True,
-                capture_output=True,
-                check=False
-            )
-            return "Yes" in result_obj.stdout if box_type == "yesno" else True
-        except subprocess.SubprocessError as e:
-            logging.debug("Error showing messagebox on macOS: %s", e)
-            return False
+    try:
+        result_obj = subprocess.run(
+            ["osascript", "-e", script],
+            text=True,
+            capture_output=True,
+            check=False
+        )
+        return "Yes" in result_obj.stdout if box_type == "yesno" else True
+    except subprocess.SubprocessError as e:
+        logging.debug("Error showing messagebox on macOS: %s", e)
+        return False
 
-    if system == "Linux":
-        try:
-            dialog_program = "zenity" if subprocess.run(
-                ["which", "zenity"],
-                capture_output=True,
-                text=True,
-                check=False
-            ).returncode == 0 else "kdialog"
 
-            cmd = {
-                "zenity": {
-                    "info": ["zenity", "--info", "--text", message, "--title", title],
-                    "yesno": ["zenity", "--question", "--text", message, "--title", title],
-                    "warning": ["zenity", "--warning", "--text", message, "--title", title],
-                    "error": ["zenity", "--error", "--text", message, "--title", title],
-                },
-                "kdialog": {
-                    "info": ["kdialog", "--msgbox", message, "--title", title],
-                    "yesno": ["kdialog", "--yesno", message, "--title", title],
-                    "warning": ["kdialog", "--sorry", message, "--title", title],
-                    "error": ["kdialog", "--error", message, "--title", title],
-                }
-            }
+def get_linux_messagebox_response(message, title, box_type):
+    dialog_program = "zenity" if subprocess.run(
+        ["which", "zenity"], capture_output=True, text=True, check=False
+    ).returncode == 0 else "kdialog"
 
-            cmd = cmd[dialog_program].get(
-                box_type,
-                ["zenity", "--info", "--text", message, "--title", title]
-            )
+    cmd = {
+        "zenity": {
+            "info": ["zenity", "--info", "--text", message, "--title", title],
+            "yesno": ["zenity", "--question", "--text", message, "--title", title],
+            "warning": ["zenity", "--warning", "--text", message, "--title", title],
+            "error": ["zenity", "--error", "--text", message, "--title", title],
+        },
+        "kdialog": {
+            "info": ["kdialog", "--msgbox", message, "--title", title],
+            "yesno": ["kdialog", "--yesno", message, "--title", title],
+            "warning": ["kdialog", "--sorry", message, "--title", title],
+            "error": ["kdialog", "--error", message, "--title", title],
+        }
+    }
 
-            result_obj = subprocess.run(cmd, check=False)
-            return (result_obj.returncode == 0) if box_type == "yesno" else True
+    cmd = cmd[dialog_program].get(
+        box_type,
+        [
+            "zenity",
+            "--info",
+            "--text",
+            message,
+            "--title",
+            title
+        ]
+    )
 
-        except subprocess.SubprocessError as e:
-            logging.debug("Error showing messagebox on Linux: %s", e)
-            return False
+    try:
+        result_obj = subprocess.run(cmd, check=False)
+        return (result_obj.returncode == 0) if box_type == "yesno" else True
+    except subprocess.SubprocessError as e:
+        logging.debug("Error showing messagebox on Linux: %s", e)
+        return False
 
+
+def get_tkinter_messagebox_response(message, title, box_type):
     import tkinter as tk  # pylint: disable=import-outside-toplevel
     from tkinter import messagebox  # pylint: disable=import-outside-toplevel
     root = tk.Tk()
@@ -1368,12 +1394,27 @@ def show_messagebox(message, title="Message", box_type="info"):
         return messagebox.askyesno(title, message)
     if box_type == "warning":
         messagebox.showwarning(title, message)
-    if box_type == "error":
+    elif box_type == "error":
         messagebox.showerror(title, message)
     else:
         messagebox.showinfo(title, message)
-
     return True
+
+
+def show_messagebox(message, title="Message", box_type="info"):
+    system = platform.system()
+
+    if system == "Windows":
+        return get_windows_messagebox_response(message, title, box_type)
+
+    if system == "Darwin":
+        return get_darwin_messagebox_response(message, title, box_type)
+
+    if system == "Linux":
+        return get_linux_messagebox_response(message, title, box_type)
+
+    # Fallback for unsupported systems
+    return get_tkinter_messagebox_response(message, title, box_type)
 
 
 def get_current_wallpaper():
