@@ -1,7 +1,7 @@
 <a id="readme-top"></a>
 # AniWorld Downloader
 
-AniWorld Downloader is a command-line tool built to download and stream anime content from [aniworld.to](https://aniworld.to). With it, you can grab single episodes, download entire seasons, and organize files into neatly structured folders. It’s cross-platform, so it works on Windows, macOS, and Linux for a smooth experience across all major OSes.
+AniWorld Downloader is a command-line tool built to download and stream anime content from [aniworld.to](https://aniworld.to). With it, you can grab single episodes, download entire seasons, and organize files into neatly structured folders. It's cross-platform, so it works on Windows, macOS, and Linux for a smooth experience across all major OSes.
 
 ![Downloads](https://img.shields.io/pypi/dm/aniworld?label=Downloads&color=blue)
 ![License](https://img.shields.io/pypi/l/aniworld?label=License&color=blue)

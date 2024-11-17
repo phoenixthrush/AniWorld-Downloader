@@ -135,53 +135,42 @@ def fetch_url_content_without_playwright(
 def fetch_url_content_with_playwright(
     url: str, proxy: Optional[str] = None, check: bool = True
 ) -> Optional[bytes]:
+
     if "aniworld.to/redirect/" in url:
         return fetch_url_content_without_playwright(url, proxy, check)
 
-    headers = {
-        'User-Agent': aniworld_globals.DEFAULT_USER_AGENT
-    }
+    headers = {'User-Agent': aniworld_globals.DEFAULT_USER_AGENT}
 
     install_and_import("playwright")
     from playwright.sync_api import sync_playwright  # pylint: disable=import-error, import-outside-toplevel
 
     with sync_playwright() as p:
-        browser_options = {}
-        if proxy:
-            browser_options['proxy'] = {
-                'server': proxy
-            }
-
-        headless = not aniworld_globals.IS_DEBUG_MODE
-        headless = os.getenv("HEADLESS", headless)
-
+        options = {'proxy': {'server': proxy}} if proxy else {}
+        headless = os.getenv("HEADLESS", not aniworld_globals.IS_DEBUG_MODE)
         browser = p.chromium.launch(headless=headless)
-        context = browser.new_context(**browser_options)
+
+        context = browser.new_context(**options)
         page = context.new_page()
         page.set_extra_http_headers(headers)
 
         try:
             response = page.goto(url, timeout=10000)
-
             content = page.content()
             logging.debug(content)
 
             if page.locator(
                 "h1#ddg-l10n-title:has-text('Checking your browser before accessing')"
             ).count() > 0:
-                logging.debug("Detected Captcha, please solve it")
+                logging.debug("Captcha detected, attempting to solve.")
 
-                max_retries = 120
-                for i in range(max_retries):
+                for attempt in range(120):
                     page.wait_for_timeout(1000)
-
                     if page.locator(
                         "h1#ddg-l10n-title:has-text('Checking your browser before accessing')"
                     ).count() == 0:
-                        logging.debug("Captcha solved")
+                        logging.debug("Captcha solved.")
                         break
-
-                    logging.debug("Captcha still present, retrying... (%s/%s)", i + 1, max_retries)
+                    logging.debug("Captcha still present, retry %s/120", attempt + 1)
 
                 if page.locator(
                     "h1#ddg-l10n-title:has-text('Checking your browser before accessing')"
@@ -192,10 +181,7 @@ def fetch_url_content_with_playwright(
                 raise HTTPError(f"Failed to fetch page: {response.status}")
 
             page.wait_for_timeout(3000)
-            content = page.content()
-            logging.debug(content)
-
-            return content
+            return page.content()
 
         except (TimeoutError, HTTPError) as error:
             if check:
@@ -981,7 +967,7 @@ def get_uninstall_paths():
 
 
 def execute_detached_command_windows(command):
-    subprocess.Popen(
+    subprocess.Popen(  # pylint: disable=consider-using-with
         f'timeout 3 >nul & {" ".join(command)}',
         shell=True,
         creationflags=subprocess.CREATE_NEW_CONSOLE
@@ -1193,7 +1179,7 @@ def open_terminal_with_command(command):
 
     for terminal, cmd in terminal_emulators:
         try:
-            subprocess.Popen(cmd)
+            subprocess.Popen(cmd)  # pylint: disable=consider-using-with
             return
         except FileNotFoundError:
             logging.debug("%s not found, trying the next option.", terminal)
@@ -1235,17 +1221,14 @@ def get_random_anime(genre: str) -> str:
         logging.debug("Anime List: %s", anime_list)
     except json.JSONDecodeError as e:
         logging.error("JSON Decode Error: %s", e)
-        return
+        return None
 
     try:
         random_anime = random.choice(anime_list)
         logging.debug("Selected Anime: %s", random_anime)
-    except IndexError:
-        logging.warning("Error: No anime found in the list using this genre: %s.", genre)
-        return
-    except TypeError:
-        logging.warning("Error: No anime found in the list using this genre: %s.", genre)
-        return
+    except (IndexError, TypeError):
+        logging.warning("No anime found in the list using this genre: %s.", genre)
+        return None
 
     name = random_anime['name']
     link = random_anime['link']
@@ -1297,7 +1280,6 @@ def check_internet_connection():
 
 
 def show_messagebox(message, title="Message", box_type="info"):
-    # box_type -> info, yesno, warning, error
     system = platform.system()
 
     if system == "Windows":
@@ -1310,19 +1292,14 @@ def show_messagebox(message, title="Message", box_type="info"):
         }.get(box_type, 0x40)
 
         response = ctypes.windll.user32.MessageBoxW(0, message, title, msg_box_type)
-        if box_type == "yesno":
-            return response == 6
-        return True
+        return response == 6 if box_type == "yesno" else True
 
     if system == "Darwin":
         script = {
-            "info": (
-                f'display dialog "{message}" with title "{title}" '
-                'buttons "OK"'
-            ),
+            "info": f'display dialog "{message}" with title "{title}" buttons "OK"',
             "yesno": (
                 f'display dialog "{message}" with title "{title}" '
-                'buttons {{"Yes", "No"}}'
+                'buttons {"Yes", "No"}'
             ),
             "warning": (
                 f'display dialog "{message}" with title "{title}" '
@@ -1332,63 +1309,51 @@ def show_messagebox(message, title="Message", box_type="info"):
                 f'display dialog "{message}" with title "{title}" '
                 'buttons "OK" with icon stop'
             ),
-        }.get(
-            box_type,
-            (
-                f'display dialog "{message}" with title "{title}" '
-                'buttons "OK"'
-            )
-        )
+        }.get(box_type, f'display dialog "{message}" with title "{title}" buttons "OK"')
 
         try:
-            result = subprocess.run(
+            result_obj = subprocess.run(
                 ["osascript", "-e", script],
                 text=True,
                 capture_output=True,
                 check=False
             )
-
-            if box_type == "yesno":
-                return "Yes" in result.stdout
-            return True
+            return "Yes" in result_obj.stdout if box_type == "yesno" else True
         except subprocess.SubprocessError as e:
             logging.debug("Error showing messagebox on macOS: %s", e)
             return False
 
-    elif system == "Linux":
+    if system == "Linux":
         try:
-            if subprocess.run(
+            dialog_program = "zenity" if subprocess.run(
                 ["which", "zenity"],
                 capture_output=True,
                 text=True,
                 check=False
-            ).returncode == 0:
+            ).returncode == 0 else "kdialog"
 
-                cmd = {
+            cmd = {
+                "zenity": {
                     "info": ["zenity", "--info", "--text", message, "--title", title],
                     "yesno": ["zenity", "--question", "--text", message, "--title", title],
                     "warning": ["zenity", "--warning", "--text", message, "--title", title],
                     "error": ["zenity", "--error", "--text", message, "--title", title],
-                }.get(box_type, ["zenity", "--info", "--text", message, "--title", title])
-
-                result = subprocess.run(cmd, check=False)
-                return result.returncode == 0 if box_type == "yesno" else True
-
-            if subprocess.run(
-                ["which", "kdialog"],
-                capture_output=True,
-                text=True,
-                check=False
-            ).returncode == 0:
-                cmd = {
+                },
+                "kdialog": {
                     "info": ["kdialog", "--msgbox", message, "--title", title],
                     "yesno": ["kdialog", "--yesno", message, "--title", title],
                     "warning": ["kdialog", "--sorry", message, "--title", title],
                     "error": ["kdialog", "--error", message, "--title", title],
-                }.get(box_type, ["kdialog", "--msgbox", message, "--title", title])
+                }
+            }
 
-                result = subprocess.run(cmd, check=False)
-                return result.returncode == 0 if box_type == "yesno" else True
+            cmd = cmd[dialog_program].get(
+                box_type,
+                ["zenity", "--info", "--text", message, "--title", title]
+            )
+
+            result_obj = subprocess.run(cmd, check=False)
+            return (result_obj.returncode == 0) if box_type == "yesno" else True
 
         except subprocess.SubprocessError as e:
             logging.debug("Error showing messagebox on Linux: %s", e)
@@ -1396,21 +1361,18 @@ def show_messagebox(message, title="Message", box_type="info"):
 
     import tkinter as tk  # pylint: disable=import-outside-toplevel
     from tkinter import messagebox  # pylint: disable=import-outside-toplevel
-
     root = tk.Tk()
     root.withdraw()
+
     if box_type == "yesno":
         return messagebox.askyesno(title, message)
-
     if box_type == "warning":
         messagebox.showwarning(title, message)
-        return True
-
     if box_type == "error":
         messagebox.showerror(title, message)
-        return True
+    else:
+        messagebox.showinfo(title, message)
 
-    messagebox.showinfo(title, message)
     return True
 
 
@@ -1457,7 +1419,6 @@ def set_wallpaper_fit(image_path):
             "Required modules (winreg, ctypes) not found. "
             "Ensure you're on Windows."
         ) from e
-
 
     key = winreg.OpenKey(
         winreg.HKEY_CURRENT_USER,
@@ -1558,48 +1519,29 @@ def set_temp_wallpaper():
 
 
 def fetch_anime_id(anime_title, season):
-    anime_id = None
+    def clean_anime_title(title):
+        name = re.sub(r' \(\d+ episodes\)', '', title)
+        return re.sub(r'\s+', '%20', name)
 
-    logging.debug("Fetching MAL ID for: %s", anime_title)
+    def fetch_mal_data(keyword):
+        response = requests.get(
+            f"https://myanimelist.net/search/prefix.json?type=anime&keyword={keyword}",
+            headers={"User-Agent": aniworld_globals.DEFAULT_USER_AGENT},
+            timeout=10
+        )
+        return response.json() if response.status_code == 200 else None
 
-    name = re.sub(r' \(\d+ episodes\)', '', anime_title)
-    logging.debug("Processed name: %s", name)
-    keyword = re.sub(r'\s+', '%20', name)
-    logging.debug("Keyword for search: %s", keyword)
+    def find_best_match(mal_data):
+        results = [
+            entry for entry in mal_data['categories'][0]['items']
+            if 'OVA' not in entry['name']
+        ]
 
-    response = requests.get(
-        f"https://myanimelist.net/search/prefix.json?type=anime&keyword={keyword}",
-        headers={"User-Agent": aniworld_globals.DEFAULT_USER_AGENT},
-        timeout=10
-    )
-    logging.debug("Response status code: %d", response.status_code)
+        return results[0] if results else None
 
-    if response.status_code != 200:
-        logging.debug("Failed to fetch MyAnimeList data.")
-
-    mal_metadata = response.json()
-    logging.debug("MAL metadata: %s", json.dumps(mal_metadata, indent=2))
-    results = [entry['name'] for entry in mal_metadata['categories'][0]['items']]
-    logging.debug("Results: %s", results)
-
-    filtered_choices = [choice for choice in results if 'OVA' not in choice]
-    logging.debug("Filtered choices: %s", filtered_choices)
-    best_match = filtered_choices[0]
-    logging.debug("Best match: %s", best_match)
-
-    if best_match:
-        for entry in mal_metadata['categories'][0]['items']:
-            if entry['name'] == best_match:
-                logging.debug("Found MAL ID: %s for %s", entry['id'], best_match)
-                logging.debug(entry['id'])
-                anime_id = entry['id']
-
-    while season > 1:
+    def fetch_next_season_id(anime_id):
         url = f"https://myanimelist.net/anime/{anime_id}"
-
-        page_content = fetch_url_content(url)
-
-        soup = BeautifulSoup(page_content, 'html.parser')
+        soup = BeautifulSoup(fetch_url_content(url), 'html.parser')
 
         sequel_div = soup.find(
             "div",
@@ -1608,28 +1550,33 @@ def fetch_anime_id(anime_title, season):
 
         if sequel_div:
             title_div = sequel_div.find_next("div", class_="title")
-            if title_div:
-                link_element = title_div.find("a")
-                if link_element:
-                    link_url = link_element.get("href")
-                    logging.debug("Found Link: %s", link_url)
-                    match = re.search(r'/anime/(\d+)', link_url)
-                    if match:
-                        anime_id = match.group(1)
-                        logging.debug("Anime ID: %s", anime_id)
-                        season -= 1
-                    else:
-                        logging.debug("No Anime-ID found")
-                        return None
-                else:
-                    logging.debug("No Link found in 'title'-Div")
-                    return None
-            else:
-                logging.debug("No 'title'-Div found")
-                return None
-        else:
+            link_element = title_div.find("a") if title_div else None
+
+            if link_element:
+                match = re.search(r'/anime/(\d+)', link_element.get("href"))
+                return match.group(1) if match else None
+
+        return None
+
+    logging.debug("Fetching MAL ID for: %s", anime_title)
+    anime_id = None
+    keyword = clean_anime_title(anime_title)
+
+    mal_metadata = fetch_mal_data(keyword)
+    if not mal_metadata:
+        logging.debug("Failed to fetch MyAnimeList data.")
+        return None
+
+    best_match = find_best_match(mal_metadata)
+    if best_match:
+        anime_id = best_match['id']
+
+    while season > 1 and anime_id:
+        anime_id = fetch_next_season_id(anime_id)
+        if not anime_id:
             logging.debug("Sequel (TV) not found")
             return None
+        season -= 1
 
     return anime_id
 

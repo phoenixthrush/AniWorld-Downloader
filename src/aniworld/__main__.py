@@ -57,25 +57,25 @@ def format_anime_title(anime_slug):
 
 class CustomTheme(npyscreen.ThemeManager):
     default_colors = {
-        'DEFAULT'     : 'WHITE_BLACK',
-        'FORMDEFAULT' : 'MAGENTA_BLACK',  # Form border
-        'NO_EDIT'     : 'BLUE_BLACK',
-        'STANDOUT'    : 'CYAN_BLACK',
-        'CURSOR'      : 'WHITE_BLACK',    # Text (focused)
+        'DEFAULT': 'WHITE_BLACK',
+        'FORMDEFAULT': 'MAGENTA_BLACK',  # Form border
+        'NO_EDIT': 'BLUE_BLACK',
+        'STANDOUT': 'CYAN_BLACK',
+        'CURSOR': 'WHITE_BLACK',  # Text (focused)
         'CURSOR_INVERSE': 'BLACK_WHITE',
-        'LABEL'       : 'CYAN_BLACK',     # Form labels
-        'LABELBOLD'   : 'CYAN_BLACK',     # Form labels (focused)
-        'CONTROL'     : 'GREEN_BLACK',    # Items in form
-        'IMPORTANT'   : 'GREEN_BLACK',
-        'SAFE'        : 'GREEN_BLACK',
-        'WARNING'     : 'YELLOW_BLACK',
-        'DANGER'      : 'RED_BLACK',
-        'CRITICAL'    : 'BLACK_RED',
-        'GOOD'        : 'GREEN_BLACK',
-        'GOODHL'      : 'GREEN_BLACK',
-        'VERYGOOD'    : 'BLACK_GREEN',
-        'CAUTION'     : 'YELLOW_BLACK',
-        'CAUTIONHL'   : 'BLACK_YELLOW',
+        'LABEL': 'CYAN_BLACK',  # Form labels
+        'LABELBOLD': 'CYAN_BLACK',  # Form labels (focused)
+        'CONTROL': 'GREEN_BLACK',  # Items in form
+        'IMPORTANT': 'GREEN_BLACK',
+        'SAFE': 'GREEN_BLACK',
+        'WARNING': 'YELLOW_BLACK',
+        'DANGER': 'RED_BLACK',
+        'CRITICAL': 'BLACK_RED',
+        'GOOD': 'GREEN_BLACK',
+        'GOODHL': 'GREEN_BLACK',
+        'VERYGOOD': 'BLACK_GREEN',
+        'CAUTION': 'YELLOW_BLACK',
+        'CAUTIONHL': 'BLACK_YELLOW',
     }
 
 
@@ -632,7 +632,7 @@ def parse_arguments():
             try:
                 command = ('start cmd /c "powershell -NoExit -c Get-Content '
                            '-Wait \\"$env:TEMP\\aniworld.log\\""')
-                subprocess.Popen(command, shell=True)
+                subprocess.Popen(command, shell=True)  # pylint: disable=consider-using-with
                 logging.debug("Started tailing the log file in a new Terminal window.")
             except subprocess.CalledProcessError as e:
                 logging.error("Failed to start tailing the log file: %s", e)
