@@ -1,9 +1,7 @@
 import random
 import time
 import platform
-
-from aniworld.common import get_windows_version
-
+import re
 
 LUCKY_STAR = R"""
     ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠳⢬⣳⣄⣠⠤⠤⠶⠶⠒⠋⠀⠀⠀⠀⠹⡀⠀⠀⠀⠀⠈⠉⠛⠲⢦⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -803,6 +801,21 @@ GIRL3 = R"""
     ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣾⣿⣿⣛⣛⢿⣇⣠⡾⠿⠠⠦⠐⠛⠛⢛⠇⠀⠀⡷⢁⡾⠉⠀⣹⠦⣼⡆⠀⠀⠀⠀⠹⡀⠀⠀
     ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡠⠗⠛⠉⠁⠀⢀⣉⡉⣉⣁⡶⠀⠀⢀⣀⢠⡎⠀⠀⣰⣻⣿⣷⡔⢋⡽⠤⢿⣇⠀⠀⠀⠀⠀⢃⠀⠀
 """
+
+
+def get_windows_version():
+    platform_version = platform.version()
+    release = platform.release()
+
+    if release != "10":
+        return "Other"
+
+    build_number = int(re.search(r"\d+", platform_version).group())
+
+    if build_number >= 22000:
+        return "Modern"
+
+    return "Legacy"
 
 
 def display_ascii_art() -> str:

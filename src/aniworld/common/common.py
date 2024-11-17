@@ -1257,21 +1257,6 @@ def get_random_anime(genre: str) -> str:
     return link
 
 
-def get_windows_version():
-    platform_version = platform.version()
-    release = platform.release()
-
-    if release != "10":
-        return "Other"
-
-    build_number = int(re.search(r"\d+", platform_version).group())
-
-    if build_number >= 22000:
-        return "Modern"
-
-    return "Legacy"
-
-
 def check_internet_connection():
     # return False  # debug
     # offline mini game coming soon!
