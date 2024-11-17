@@ -22,10 +22,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import platform
+import os
+import socket
+
 
 def clear_screen() -> None:
-    import platform
-    import os
     if platform.system() == "Windows":
         os.system("cls")
     else:
@@ -33,12 +35,11 @@ def clear_screen() -> None:
 
 
 def is_online() -> bool:
-    import socket
     try:
         socket.create_connection(("1.1.1.1", 53), timeout=5)
         return True
     except OSError:
-        False
+        return False
 
 
 def display_ascii_art():
@@ -79,7 +80,8 @@ def adventure():
     except ModuleNotFoundError:
         clear_screen()
         print(display_ascii_art())
-        print("The 'ollama' module is required to start the adventure. Please install it and try again.")
+        print("The 'ollama' module is required to start the adventure. "
+              "Please install it and try again.")
         return
 
     clear_screen()

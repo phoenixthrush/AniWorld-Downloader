@@ -179,8 +179,8 @@ def fetch_url_content_with_playwright(
                     ).count() == 0:
                         logging.debug("Captcha solved")
                         break
-                    else:
-                        logging.debug("Captcha still present, retrying... (%s/%s)", i + 1, max_retries)
+
+                    logging.debug("Captcha still present, retrying... (%s/%s)", i + 1, max_retries)
 
                 if page.locator(
                     "h1#ddg-l10n-title:has-text('Checking your browser before accessing')"
@@ -1076,30 +1076,31 @@ def sanitize_path(path):
 def get_package_manager():
     try:
         system = platform.system()
+        package_manager = 'unknown'
 
         if system == "Darwin":
-            return 'brew' if shutil.which("brew") else 'unknown'
+            package_manager = 'brew' if shutil.which("brew") else 'unknown'
 
         if os.path.exists('/etc/os-release'):
             with open('/etc/os-release', encoding='utf-8') as f:
                 os_release_info = f.read().lower()
 
             if 'arch' in os_release_info:
-                return 'pacman'
+                package_manager = 'pacman'
             if 'ubuntu' in os_release_info or 'debian' in os_release_info:
-                return 'apt'
+                package_manager = 'apt'
             if 'fedora' in os_release_info:
-                return 'dnf'
+                package_manager = 'dnf'
             if 'centos' in os_release_info or 'rhel' in os_release_info:
-                return 'yum'
+                package_manager = 'yum'
             if 'gentoo' in os_release_info:
-                return 'emerge'
+                package_manager = 'emerge'
             if 'opensuse' in os_release_info:
-                return 'zypper'
+                package_manager = 'zypper'
             if 'alpine' in os_release_info:
-                return 'apk'
+                package_manager = 'apk'
 
-        return 'unknown'
+        return package_manager
 
     except Exception as e:
         return f'Error: {e}'
@@ -1143,9 +1144,9 @@ def open_terminal_with_command(command):
             subprocess.Popen(cmd)
             return
         except FileNotFoundError:
-            logging.debug(f"%s not found, trying the next option.", terminal)
+            logging.debug("%s not found, trying the next option.", terminal)
         except Exception as e:
-            logging.error(f"Error opening terminal with %s: %e", terminal, e)
+            logging.error("Error opening terminal with %s: %e", terminal, e)
 
     logging.error("No supported terminal emulator found. Please install gnome-terminal, xterm, or konsole.")
 
@@ -1170,7 +1171,7 @@ def get_random_anime(genre: str) -> str:
         'genres[]': genre
     }
 
-    response = requests.post(url, headers=headers, data=data)
+    response = requests.post(url, headers=headers, data=data, timeout=15)
     logging.debug("Response Status Code: %s", response.status_code)
     logging.debug("Response Text: %s", response.text)
 
@@ -1201,13 +1202,13 @@ def get_random_anime(genre: str) -> str:
 
 
 def get_windows_version():
-    version = platform.version()
+    platform_version = platform.version()
     release = platform.release()
 
     if release != "10":
         return "Other"
 
-    build_number = int(re.search(r"\d+", version).group())
+    build_number = int(re.search(r"\d+", platform_version).group())
 
     if build_number >= 22000:
         return "Modern"
@@ -1258,7 +1259,7 @@ def show_messagebox(message, title="Message", box_type="info"):
             return response == 6
         return True
 
-    elif system == "Darwin":
+    if system == "Darwin":
         script = {
             "info": f'display dialog "{message}" with title "{title}" buttons "OK"',
             "yesno": f'display dialog "{message}" with title "{title}" buttons {{"Yes", "No"}}',
@@ -1288,7 +1289,7 @@ def show_messagebox(message, title="Message", box_type="info"):
                 result = subprocess.run(cmd, check=False)
                 return result.returncode == 0 if box_type == "yesno" else True
 
-            elif subprocess.run(["which", "kdialog"], capture_output=True, text=True, check=False).returncode == 0:
+            if subprocess.run(["which", "kdialog"], capture_output=True, text=True, check=False).returncode == 0:
                 cmd = {
                     "info": ["kdialog", "--msgbox", message, "--title", title],
                     "yesno": ["kdialog", "--yesno", message, "--title", title],
@@ -1359,8 +1360,8 @@ def set_wallpaper_fit(image_path):
     try:
         import winreg  # pylint: disable=import-error
         import ctypes  # pylint: disable=import-error
-    except ModuleNotFoundError:
-        raise ImportError("Required modules (winreg, ctypes) not found. Ensure you're on Windows.")
+    except ModuleNotFoundError as e:
+        raise ImportError("Required modules (winreg, ctypes) not found. Ensure you're on Windows.") from e
 
     key = winreg.OpenKey(
         winreg.HKEY_CURRENT_USER,
@@ -1422,7 +1423,7 @@ def set_temp_wallpaper():
         file_path = os.path.join(temp_dir, 'wallpaper.png')
 
         try:
-            response = requests.get(base64.b64decode(data))
+            response = requests.get(base64.b64decode(data), timeout=15)
             response.raise_for_status()
 
             with open(file_path, 'wb') as f:
@@ -1563,7 +1564,7 @@ def install_and_import(package):
                 print(f"{package} is installing...")
                 subprocess.check_call([sys.executable, "-m", "pip", "install", package])
                 break
-            elif user_input == "N":
+            if user_input == "N":
                 sys.exit()
             else:
                 clear_screen()
