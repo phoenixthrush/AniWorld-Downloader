@@ -76,7 +76,7 @@ Run these commands:
 
 def adventure():
     try:
-        import ollama  # pylint: disable=import-error
+        import ollama  # pylint: disable=import-error, import-outside-toplevel
     except ModuleNotFoundError:
         print("The 'ollama' module is not installed. Please install it to play the game.")
         return

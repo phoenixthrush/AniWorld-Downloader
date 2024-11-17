@@ -44,7 +44,7 @@ def clear_screen() -> None:
 def fetch_direct_link(link):
     filtered_urls = []
     install_and_import("playwright")
-    from playwright.sync_api import sync_playwright  # pylint: disable=import-error
+    from playwright.sync_api import sync_playwright  # pylint: disable=import-error, import-outside-toplevel
     with sync_playwright() as p:
         # TODO - add firefox or chromium fallback
         browser = p.webkit.launch(headless=True)

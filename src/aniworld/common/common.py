@@ -142,7 +142,7 @@ def fetch_url_content_with_playwright(
     }
 
     install_and_import("playwright")
-    from playwright.sync_api import sync_playwright  # pylint: disable=import-error
+    from playwright.sync_api import sync_playwright  # pylint: disable=import-error, import-outside-toplevel
 
     with sync_playwright() as p:
         browser_options = {}
@@ -1246,7 +1246,7 @@ def show_messagebox(message, title="Message", box_type="info"):
     system = platform.system()
 
     if system == "Windows":
-        import ctypes
+        import ctypes  # pylint: disable=import-outside-toplevel
         msg_box_type = {
             "info": 0x40,
             "yesno": 0x04 | 0x20,
@@ -1304,8 +1304,8 @@ def show_messagebox(message, title="Message", box_type="info"):
             logging.debug("Error showing messagebox on Linux: %s", e)
             return False
 
-    import tkinter as tk
-    from tkinter import messagebox
+    import tkinter as tk  # pylint: disable=import-outside-toplevel
+    from tkinter import messagebox  # pylint: disable=import-outside-toplevel
 
     root = tk.Tk()
     root.withdraw()
@@ -1328,7 +1328,7 @@ def get_current_wallpaper():
     system = platform.system()
 
     if system == "Windows":
-        import ctypes
+        import ctypes  # pylint: disable=import-outside-toplevel
         buf = ctypes.create_unicode_buffer(512)
         ctypes.windll.user32.SystemParametersInfoW(0x73, len(buf), buf, 0)
         return buf.value
@@ -1358,8 +1358,8 @@ def get_current_wallpaper():
 
 def set_wallpaper_fit(image_path):
     try:
-        import winreg  # pylint: disable=import-error
-        import ctypes  # pylint: disable=import-error
+        import winreg  # pylint: disable=import-error, import-outside-toplevel
+        import ctypes  # pylint: disable=import-error, import-outside-toplevel
     except ModuleNotFoundError as e:
         raise ImportError("Required modules (winreg, ctypes) not found. Ensure you're on Windows.") from e
 
@@ -1389,7 +1389,7 @@ def set_wallpaper(image_path):
 
 def minimize_all_windows():
     if platform.system() == "Windows":
-        import ctypes
+        import ctypes  # pylint: disable=import-outside-toplevel
         ctypes.windll.user32.keybd_event(0x5B, 0, 0, 0)  # Press Windows key
         ctypes.windll.user32.keybd_event(0x44, 0, 0, 0)  # Press 'D' key
         ctypes.windll.user32.keybd_event(0x44, 0, 2, 0)  # Release 'D' key
