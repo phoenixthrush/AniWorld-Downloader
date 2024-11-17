@@ -741,7 +741,7 @@ def check_avx2_support() -> bool:
             logging.debug("wmic is in path.")
             cpu_info = subprocess.run(
                 ['wmic', 'cpu', 'get',
-                'Caption, Architecture, DataWidth, Manufacturer, ProcessorType, Status'],
+                 'Caption, Architecture, DataWidth, Manufacturer, ProcessorType, Status'],
                 capture_output=True, text=True, check=False
             )
             logging.debug("CPU Info: %s", cpu_info.stdout.decode('utf-8', errors='replace'))
@@ -1435,8 +1435,8 @@ def set_temp_wallpaper():
             minimize_all_windows()
             if platform.system() == "Darwin":
                 show_messagebox(
-                    "DO NOT LOOK AT YOUR DESKTOP!\n(DO NOT PRESS FN + F11!!!)", 
-                    "IMPORTANT!!!", 
+                    "DO NOT LOOK AT YOUR DESKTOP!\n(DO NOT PRESS FN + F11!!!)",
+                    "IMPORTANT!!!",
                     "info"
                 )
             elif platform.system() == "Linux":
@@ -1498,7 +1498,7 @@ def fetch_anime_id(anime_title, season):
         soup = BeautifulSoup(page_content, 'html.parser')
 
         sequel_div = soup.find(
-            "div", 
+            "div",
             string=lambda text: text and "Sequel" in text and "(TV)" in text
         )
 

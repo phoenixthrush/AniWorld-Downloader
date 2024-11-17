@@ -4,6 +4,7 @@ from aniworld.common import fetch_url_content
 
 URL = "https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1"
 
+
 def measure_fetch_time(fetch_function, url):
     start_time = time.time()
     try:
@@ -12,6 +13,7 @@ def measure_fetch_time(fetch_function, url):
         return None, f"General error: {str(e)}"
     duration = time.time() - start_time
     return content, duration
+
 
 content_fetch, fetch_duration = measure_fetch_time(fetch_url_content, URL)
 content_requests, requests_duration = measure_fetch_time(

@@ -121,7 +121,6 @@ def adventure():
             'content': story_start['message']['content']
         })
 
-
         while True:
             user_input = input("-> ")
 

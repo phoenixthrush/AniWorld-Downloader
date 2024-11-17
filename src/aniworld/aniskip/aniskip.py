@@ -1,17 +1,20 @@
 import json
+import logging
 import tempfile
 from typing import Dict
-import logging
-from bs4 import BeautifulSoup
+
 import requests
-import aniworld.globals as aniworld_globals
+from bs4 import BeautifulSoup
+
 from aniworld.common import (
-raise_runtime_error,
-ftoi,
-get_season_episode_count,
-fetch_anime_id,
-fetch_url_content
+    fetch_anime_id,
+    fetch_url_content,
+    ftoi,
+    get_season_episode_count,
+    raise_runtime_error
 )
+
+from aniworld import globals as aniworld_globals
 
 
 CHAPTER_FORMAT = "\n[CHAPTER]\nTIMEBASE=1/1000\nSTART={}\nEND={}\nTITLE={}\n"
@@ -130,6 +133,6 @@ def aniskip(anime_title: str, anime_slug: str, episode: int, season: int) -> str
 
 
 if __name__ == "__main__":
-    #print(fetch_anime_id("Kaguya-sama: Love is War", 2))
-    #print(aniskip("Kaguya-sama: Love is War", "kaguya-sama-love-is-war", 1, 2))
+    # print(fetch_anime_id("Kaguya-sama: Love is War", 2))
+    # print(aniskip("Kaguya-sama: Love is War", "kaguya-sama-love-is-war", 1, 2))
     pass

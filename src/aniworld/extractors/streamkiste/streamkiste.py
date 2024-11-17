@@ -43,15 +43,17 @@ def clear_screen() -> None:
 
 def fetch_direct_link(link):
     filtered_urls = []
+
     install_and_import("playwright")
     from playwright.sync_api import sync_playwright  # pylint: disable=import-error, import-outside-toplevel
+
     with sync_playwright() as p:
         # TODO - add firefox or chromium fallback
         browser = p.webkit.launch(headless=True)
         page = browser.new_page()
 
-        (page.on("request", lambda request: filtered_urls.append(request.url)
-if re.match(r"https://voe\.sx/e/.*", request.url) else None))
+        page.on("request", lambda request: filtered_urls.append(request.url)
+                if re.match(r"https://voe\.sx/e/.*", request.url) else None)
 
         page.goto(link)
 
@@ -72,8 +74,11 @@ if re.match(r"https://voe\.sx/e/.*", request.url) else None))
         browser.close()
 
     try:
-        response = (requests.get(filtered_urls[0], timeout=30,
-headers={'User-Agent': aniworld_globals.DEFAULT_USER_AGENT}))
+        response = requests.get(
+            filtered_urls[0],
+            timeout=30,
+            headers={'User-Agent': aniworld_globals.DEFAULT_USER_AGENT}
+        )
     except IndexError:
         # TODO
         # add fallback using another provider or
@@ -93,13 +98,13 @@ headers={'User-Agent': aniworld_globals.DEFAULT_USER_AGENT}))
 def download_video(link, title):
     filename = os.path.join(os.path.expanduser('~'), 'Downloads', f"{title}.mp4")
     subprocess.run(['yt-dlp', '--quiet', '--no-warnings',
-'--progress', '-o', filename, link], check=False)
+                    '--progress', '-o', filename, link], check=False)
 
 
 def watch_video(link, title):
     mpv_title = title.replace(" ", "_")
     subprocess.run(['mpv', f'--force-media-title={mpv_title}',
-'--fs', '--quiet', '--really-quiet', link], check=False)
+                    '--fs', '--quiet', '--really-quiet', link], check=False)
 
 
 def streamkiste_get_direct_link(link: str):
