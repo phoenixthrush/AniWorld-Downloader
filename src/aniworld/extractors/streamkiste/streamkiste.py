@@ -106,7 +106,7 @@ def streamkiste_get_direct_link(link: str):
     return fetch_direct_link(link)
 
 
-def main():
+def streamkiste():
     try:
         clear_screen()
         link = input("Enter the StreamKisteTV link: ")
@@ -128,4 +128,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    streamkiste()

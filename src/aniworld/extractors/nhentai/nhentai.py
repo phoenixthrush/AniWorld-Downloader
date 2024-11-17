@@ -94,7 +94,7 @@ def fetch_image_base_url(gallery_id):
     return None
 
 
-def main():
+def nhentai():
     try:
         print(COLORS['clear'], end='')
         source = get_input(f"{COLORS['pink']}"
@@ -112,4 +112,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    nhentai()

@@ -78,30 +78,6 @@ def adventure():
     try:
         import ollama  # pylint: disable=import-error
     except ModuleNotFoundError:
-        clear_screen()
-        print(display_ascii_art())
-        print("The 'ollama' module is required to start the adventure. "
-              "Please install it and try again.")
-        return
-
-    clear_screen()
-
-    # doesn't make sense because menu only runs this game when offline lol
-    # try:
-    #    if is_online():
-    #        print("Downloading llama3.2 model if not already installed.")
-    #        print("This might take a while.")
-    #        ollama.pull('llama3.2')
-    # except ResponseError:
-    #   pass
-
-    play()
-
-
-def play():
-    try:
-        import ollama  # pylint: disable=import-error
-    except ModuleNotFoundError:
         print("The 'ollama' module is not installed. Please install it to play the game.")
         return
 

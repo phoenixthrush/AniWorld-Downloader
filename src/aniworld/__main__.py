@@ -575,15 +575,17 @@ def parse_arguments():
             args.provider = aniworld_globals.DEFAULT_PROVIDER_WATCH
 
     if args.version:
+        update_status = " (Update Available)" if is_version_outdated() else ""
+        divider = "-------------------" if is_version_outdated() else ""
         banner = fR"""
- ____________________________________{"___________________" if is_version_outdated() else ""}
-< Installed aniworld{get_version()} via {check_package_installation()}{" (Update Available)" if is_version_outdated() else ""}. >
- ------------------------------------{"-------------------" if is_version_outdated() else ""}
-        \   ^__^
-         \  (oo)\_______
-            (__)\       )\/\
-                ||----w |
-                ||     ||
+     ____________________________________{divider}
+    < Installed aniworld {get_version()} via {check_package_installation()}{update_status}. >
+     ------------------------------------{divider}
+            \\   ^__^
+             \\  (oo)\\_______
+                (__)\\       )\\/\\
+                    ||----w |
+                    ||     ||
         """
 
         print(banner)
@@ -623,7 +625,8 @@ def parse_arguments():
                     logging.error("Failed to start tailing the log file: %s", e)
         elif platform.system() == "Windows":
             try:
-                command = 'start cmd /c "powershell -NoExit -c Get-Content -Wait \\"$env:TEMP\\aniworld.log\\""'
+                command = ('start cmd /c "powershell -NoExit -c Get-Content '
+                           '-Wait \\"$env:TEMP\\aniworld.log\\""')
                 subprocess.Popen(command, shell=True)
                 logging.debug("Started tailing the log file in a new Terminal window.")
             except subprocess.CalledProcessError as e:
