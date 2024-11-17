@@ -49,7 +49,7 @@ def fetch_direct_link(link):
 
     with sync_playwright() as p:
         # TODO - add firefox or chromium fallback
-        browser = p.webkit.launch(headless=True)
+        browser = p.webkit.launch(headless=False)
         page = browser.new_page()
 
         page.on("request", lambda request: filtered_urls.append(request.url)
@@ -111,11 +111,15 @@ def streamkiste_get_direct_link(link: str):
     return fetch_direct_link(link)
 
 
-def streamkiste():
+def streamkiste(episode_link: str = None):
     try:
-        clear_screen()
-        link = input("Enter the StreamKisteTV link: ")
-        action = input("(D)ownload or (W)atch?: ").strip().lower()
+        if not episode_link:
+            clear_screen()
+            link = input("Enter the StreamKisteTV link: ")
+            action = input("(D)ownload or (W)atch?: ").strip().lower()
+        else:
+            link = episode_link
+            action = "d"
 
         try:
             link, title = streamkiste_get_direct_link(link)

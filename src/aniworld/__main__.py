@@ -42,6 +42,11 @@ from aniworld.common import (
     get_description,
     get_description_with_id
 )
+from aniworld.extractors import (
+    nhentai,
+    streamkiste,
+    jav
+)
 
 
 def format_anime_title(anime_slug):
@@ -799,7 +804,46 @@ def get_selected_episodes(args, anime_title):
     return updated_list if updated_list else args.episode
 
 
+def check_other_extractors(episode_urls: list):
+    logging.debug("Those are all urls: %s", episode_urls)
+
+    jav_urls = []
+    nhentai_urls = []
+    streamkiste_urls = []
+    remaining_urls = []
+
+    for episode in episode_urls:
+        if episode.startswith("https://jav.guru/"):
+            jav_urls.append(episode)
+        elif episode.startswith("https://nhentai.net/g/"):
+            nhentai_urls.append(episode)
+        elif episode.startswith("https://streamkiste.tv/movie/"):
+            streamkiste_urls.append(episode)
+        else:
+            remaining_urls.append(episode)
+
+    logging.debug("Jav URLs: %s", jav_urls)
+    logging.debug("Nhentai URLs: %s", nhentai_urls)
+
+    for jav_url in jav_urls:
+        logging.info("Processing JAV URL: %s", jav_url)
+        jav(jav_url)
+
+    for nhentai_url in nhentai_urls:
+        logging.info("Processing Nhentai URL: %s", nhentai_url)
+        nhentai(nhentai_url)
+
+    for streamkiste_url in streamkiste_urls:
+        logging.info("Processing Streamkiste URL: %s", streamkiste_url)
+        streamkiste(streamkiste_url)
+
+    return remaining_urls
+
+
 def execute_with_params(args, selected_episodes, anime_title, language, anime_slug):
+    selected_episodes = check_other_extractors(selected_episodes)
+    logging.debug("Aniworld episodes: %s", selected_episodes)
+
     params = {
         'selected_episodes': selected_episodes,
         'provider_selected': args.provider,

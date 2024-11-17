@@ -94,14 +94,25 @@ def fetch_image_base_url(gallery_id):
     return None
 
 
-def nhentai():
+def nhentai(link: str = None):
     try:
-        print(COLORS['clear'], end='')
-        source = get_input(f"{COLORS['pink']}"
-                           f"Please provide the image id for any doujin image (E.g. 234781).")
-        folder = get_input(f"{COLORS['pink']}What should the output folder be called?")
+        if not link:
+            print(COLORS['clear'], end='')
+            source = get_input(
+                f"{COLORS['pink']}Please provide the image id for any doujin image (E.g. 234781)."
+            )
+            folder = get_input(
+                f"{COLORS['pink']}What should the output folder be called?"
+            )
+        else:
+            nhentai_id = re.search(r'\d+', link).group()
+
+            source = nhentai_id
+            folder = nhentai_id
+
         output_path = create_output_folder(folder)
         base_url = fetch_image_base_url(source)
+
         if base_url:
             download_images_concurrently(base_url, output_path)
         else:
