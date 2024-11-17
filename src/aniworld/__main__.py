@@ -79,6 +79,7 @@ class CustomTheme(npyscreen.ThemeManager):
     }
 
 
+# pylint: disable=too-many-ancestors, too-many-instance-attributes
 class EpisodeForm(npyscreen.ActionForm):
     def create(self):
         logging.debug("Creating EpisodeForm")
@@ -342,9 +343,9 @@ class EpisodeForm(npyscreen.ActionForm):
         self.parentApp.switchForm("SECOND")
 
 
+# pylint: disable=R0901
 class SecondForm(npyscreen.ActionFormV2):
     def create(self):
-
         anime_slug = self.parentApp.anime_slug
         anime_title = format_anime_title(anime_slug)
 
@@ -389,6 +390,7 @@ class AnimeApp(npyscreen.NPSAppManaged):
         self.addForm("SECOND", SecondForm, name="Description")
 
 
+# pylint: disable=R0912, R0915
 def parse_arguments():
     logging.debug("Parsing command line arguments")
 
