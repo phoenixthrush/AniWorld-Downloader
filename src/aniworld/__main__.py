@@ -80,11 +80,6 @@ class CustomTheme(npyscreen.ThemeManager):
 
 
 class EpisodeForm(npyscreen.ActionForm):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.timer = None
-        self.setup_signal_handling()
-
     def create(self):
         logging.debug("Creating EpisodeForm")
 
@@ -223,7 +218,10 @@ class EpisodeForm(npyscreen.ActionForm):
         logging.debug("Signal handler for SIGINT registered")
 
     def start_timer(self):
-        self.timer = threading.Timer(random.randint(600, 900), self.delayed_message_box)
+        self.timer = threading.Timer(  # pylint: disable=attribute-defined-outside-init
+            random.randint(600, 900),
+            self.delayed_message_box
+        )
         self.timer.start()
 
     def cancel_timer(self):
