@@ -80,6 +80,11 @@ class CustomTheme(npyscreen.ThemeManager):
 
 
 class EpisodeForm(npyscreen.ActionForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.timer = None
+        self.setup_signal_handling()
+
     def create(self):
         logging.debug("Creating EpisodeForm")
 
