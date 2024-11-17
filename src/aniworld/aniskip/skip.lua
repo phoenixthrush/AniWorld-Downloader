@@ -13,11 +13,11 @@ local function skip()
         return
     end
 
-    if current_time >= options.op_start and current_time < options.op_end then
+    if current_time >= options.op_start and current_time < (options.op_start + 1) then
         mp.set_property_number("time-pos", options.op_end)
     end
 
-    if current_time >= options.ed_start and current_time < options.ed_end then
+    if current_time >= options.ed_start and current_time < (options.ed_start + 1) then
         mp.set_property_number("time-pos", options.ed_end)
     end
 end

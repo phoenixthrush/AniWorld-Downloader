@@ -247,7 +247,19 @@ def setup_aniskip() -> None:
     skip_source_path = os.path.join(script_directory, 'aniskip', 'skip.lua')
     skip_destination_path = os.path.join(mpv_scripts_directory, 'skip.lua')
 
-    if not os.path.exists(skip_destination_path):
+    if os.path.exists(skip_destination_path):
+        with open(skip_source_path, 'r', encoding="utf-8") as source_file:
+            source_content = source_file.read()
+
+        with open(skip_destination_path, 'r', encoding="utf-8") as destination_file:
+            destination_content = destination_file.read()
+
+        if source_content != destination_content:
+            logging.debug("Content differs, overwriting skip.lua")
+            shutil.copy(skip_source_path, skip_destination_path)
+        else:
+            logging.debug("skip.lua already exists and is identical, no overwrite needed")
+    else:
         logging.debug("Copying skip.lua to %s", mpv_scripts_directory)
         shutil.copy(skip_source_path, skip_destination_path)
 
