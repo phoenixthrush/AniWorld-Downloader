@@ -27,24 +27,37 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
     not_found = "Die gewünschte Serie wurde nicht gefunden oder ist im Moment deaktiviert."
 
     if slug:
-        url = f"https://aniworld.to/anime/stream/{slug}"
-        logging.debug("Fetching using slug: %s", url)
-        response = fetch_url_content(url)
-        logging.debug("Response: %s", response)
-        if response and not_found not in response.decode():
-            logging.debug("Found matching slug: %s", slug)
-            return slug
+        return fetch_by_slug(slug, not_found)
 
     if link:
-        try:
-            logging.debug("Fetching using link: %s", link)
-            response = fetch_url_content(link, check=False)
-            if response and not_found not in response.decode():
-                logging.debug("Found matching slug: %s", link.split('/')[-1])
-                return link.split('/')[-1]
-        except ValueError:
-            logging.debug("ValueError encountered while fetching link")
+        return fetch_by_link(link, not_found)
 
+    return search_by_query(query)
+
+
+def fetch_by_slug(slug: str, not_found: str) -> str:
+    url = f"https://aniworld.to/anime/stream/{slug}"
+    logging.debug("Fetching using slug: %s", url)
+    response = fetch_url_content(url)
+    if response and not_found not in response.decode():
+        logging.debug("Found matching slug: %s", slug)
+        return slug
+    return None
+
+
+def fetch_by_link(link: str, not_found: str) -> str:
+    try:
+        logging.debug("Fetching using link: %s", link)
+        response = fetch_url_content(link, check=False)
+        if response and not_found not in response.decode():
+            logging.debug("Found matching slug: %s", link.split('/')[-1])
+            return link.split('/')[-1]
+    except ValueError:
+        logging.debug("ValueError encountered while fetching link")
+    return None
+
+
+def search_by_query(query: str) -> str:
     while True:
         clear_screen()
         if not query:
@@ -58,38 +71,37 @@ def search_anime(slug: str = None, link: str = None, query: str = None) -> str:
         url = f"https://aniworld.to/ajax/seriesSearch?keyword={quote(query)}"
         logging.debug("Fetching Anime List with query: %s", query)
 
-        try:
-            if os.getenv("USE_PLAYWRIGHT"):
-                page_content = html.unescape(fetch_url_content(url).decode('utf-8'))
-                soup = BeautifulSoup(page_content, 'html.parser')
-                json_data = soup.find('pre').text
-            else:
-                json_data = html.unescape(fetch_url_content(url).decode('utf-8'))
+        json_data = fetch_anime_json(url)
 
-        except AttributeError:
-            continue
-        try:
-            if isinstance(json_data, str):
-                decoded_data = loads(json_data)
-            else:
-                decoded_data = loads(json_data.decode())
-        except JSONDecodeError:
-            continue
-        logging.debug("Anime JSON List: %s", decoded_data)
-
-        if not isinstance(decoded_data, list) or not decoded_data:
-            logging.debug("No series found. Prompting user to try again.")
+        if not json_data:
             print("No series found. Try again...")
             query = None
             continue
 
-        if len(decoded_data) == 1:
-            logging.debug("Only one anime found: %s", decoded_data[0])
-            return decoded_data[0].get('link', 'No Link Found')
+        if len(json_data) == 1:
+            logging.debug("Only one anime found: %s", json_data[0])
+            return json_data[0].get('link', 'No Link Found')
 
-        selected_slug = curses.wrapper(display_menu, decoded_data)
+        selected_slug = curses.wrapper(display_menu, json_data)
         logging.debug("Found matching slug: %s", selected_slug)
         return selected_slug
+
+
+def fetch_anime_json(url: str):
+    try:
+        if os.getenv("USE_PLAYWRIGHT"):
+            page_content = html.unescape(fetch_url_content(url).decode('utf-8'))
+            soup = BeautifulSoup(page_content, 'html.parser')
+            json_data = soup.find('pre').text
+        else:
+            json_data = html.unescape(fetch_url_content(url).decode('utf-8'))
+
+        decoded_data = loads(json_data)
+        if isinstance(decoded_data, list) and decoded_data:
+            return decoded_data
+    except (AttributeError, JSONDecodeError):
+        logging.debug("Error fetching or decoding the anime data.")
+    return None
 
 
 def display_menu(stdscr: curses.window, items: List[Dict[str, Optional[str]]]) -> Optional[str]:
