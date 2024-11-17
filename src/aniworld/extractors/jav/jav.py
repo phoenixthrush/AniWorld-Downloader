@@ -61,7 +61,7 @@ def capture_response(response, m3u8_counts):
 
 
 def fetch_m3u8_urls(url, browser_type):
-    from playwright.sync_api import sync_playwright, Error  # pylint: disable=import-outside-toplevel
+    from playwright.sync_api import sync_playwright, Error  # pylint: disable=import-outside-toplevel, import-error
     m3u8_counts = {}
     referrer_data = {"referrer": None}
 
