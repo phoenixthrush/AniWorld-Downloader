@@ -117,8 +117,8 @@ class EpisodeForm(npyscreen.ActionForm):
                     result = future.result(timeout=5)  # Timeout for future result
                     results.append(result)
                     logging.debug("Processed result: %s", result)
-                except Exception as e:
-                    logging.error("Error processing %s: %s", future_to_url[future], e)
+                except TimeoutError as e:
+                    logging.error("Timeout processing %s: %s", future_to_url[future], e)
 
         sorted_results = sorted(
             results,

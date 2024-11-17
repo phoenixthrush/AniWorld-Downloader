@@ -1,27 +1,28 @@
+import base64
 import glob
 import json
 import logging
 import os
+import pathlib
 import platform
+import random
 import re
 import shlex
 import shutil
+import socket
 import subprocess
 import sys
-import zipfile
-import pathlib
-import time
-import random
-import socket
 import tempfile
-import base64
-from typing import List, Optional
+import time
+import zipfile
 from importlib.metadata import version, PackageNotFoundError
-from packaging.version import Version
+from typing import List, Optional
 
 import requests
 import py7zr
 from bs4 import BeautifulSoup
+from requests.exceptions import HTTPError
+from packaging.version import Version
 
 import aniworld.globals as aniworld_globals
 
@@ -185,10 +186,10 @@ def fetch_url_content_with_playwright(
                 if page.locator(
                     "h1#ddg-l10n-title:has-text('Checking your browser before accessing')"
                 ).count() > 0:
-                    raise Exception("Captcha not solved within the time limit.")
+                    raise TimeoutError("Captcha not solved within the time limit.")
 
             if response.status != 200:
-                raise Exception(f"Failed to fetch page: {response.status}")
+                raise HTTPError(f"Failed to fetch page: {response.status}")
 
             page.wait_for_timeout(3000)
             content = page.content()
@@ -196,7 +197,7 @@ def fetch_url_content_with_playwright(
 
             return content
 
-        except Exception as error:
+        except (TimeoutError, HTTPError) as error:
             if check:
                 logging.critical("Request to %s failed: %s", url, error)
                 sys.exit(1)
@@ -635,7 +636,7 @@ def download_mpv(dep_path: str, appdata_path: str):
             logging.debug("AVX2 is supported.")
         else:
             logging.debug("AVX2 is not supported.")
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught  # TODO explicitly specify
         logging.debug("Exception while checking for avx2, defaulting support to False.")
         avx2_supported = False
     pattern = r'mpv-x86_64-\d{8}-git-[a-f0-9]{7}\.7z'
@@ -958,7 +959,16 @@ def remove_files(paths):
 
 
 def get_uninstall_paths():
-    base_path = os.getenv('APPDATA') if platform.system() == "Windows" else os.path.expanduser("~/.config/mpv")
+    base_path = (
+        os.getenv('APPDATA') if platform.system() == "Windows"
+        else os.path.expanduser("~/.config/mpv")
+    )
+
+    config_dir = (
+        os.path.expanduser("~/.aniworld") if platform.system() != "Windows"
+        else os.path.join(os.getenv('APPDATA'), "aniworld")
+    )
+
     return [
         os.path.join(base_path, "scripts", "autoexit.lua"),
         os.path.join(base_path, "scripts", "autostart.lua"),
@@ -966,12 +976,16 @@ def get_uninstall_paths():
         os.path.join(base_path, "input.conf"),
         os.path.join(base_path, "mpv.conf"),
         os.path.join(base_path, "shaders"),
-        os.path.join(os.path.expanduser("~/.aniworld") if platform.system() != "Windows" else os.path.join(os.getenv('APPDATA'), "aniworld")),
+        config_dir,
     ]
 
 
 def execute_detached_command_windows(command):
-    subprocess.Popen(f'timeout 3 >nul & {" ".join(command)}', shell=True, creationflags=subprocess.CREATE_NEW_CONSOLE)
+    subprocess.Popen(
+        f'timeout 3 >nul & {" ".join(command)}',
+        shell=True,
+        creationflags=subprocess.CREATE_NEW_CONSOLE
+    )
 
 
 def uninstall_aniworld():
@@ -997,7 +1011,12 @@ def self_uninstall():
 
 
 def get_component_paths():
-    base_path = os.path.join(os.getenv('APPDATA'), "aniworld") if platform.system() == "Windows" else os.path.expanduser("~/.aniworld")
+    base_path = (
+        os.path.join(os.getenv('APPDATA'), "aniworld")
+        if platform.system() == "Windows"
+        else os.path.expanduser("~/.aniworld")
+    )
+
     return {
         "mpv": os.path.join(base_path, "mpv"),
         "yt-dlp": os.path.join(base_path, "yt-dlp"),
@@ -1102,33 +1121,66 @@ def get_package_manager():
 
         return package_manager
 
-    except Exception as e:
+    except FileNotFoundError as e:
+        return f'Error: {e}'
+    except PermissionError as e:
         return f'Error: {e}'
 
 
 def install_packages(package_manager, packages):
     try:
         if package_manager == 'pacman':
-            subprocess.run(['pkexec', 'pacman', '-S', '--noconfirm'] + packages, stdout=subprocess.DEVNULL, check=False)
+            subprocess.run(
+                ['pkexec', 'pacman', '-S', '--noconfirm'] + packages,
+                stdout=subprocess.DEVNULL,
+                check=False
+            )
         elif package_manager == 'apt':
-            subprocess.run(['pkexec', 'apt-get', 'install', '-y'] + packages, stdout=subprocess.DEVNULL, check=False)
+            subprocess.run(
+                ['pkexec', 'apt-get', 'install', '-y'] + packages,
+                stdout=subprocess.DEVNULL,
+                check=False
+            )
         elif package_manager == 'dnf':
-            subprocess.run(['pkexec', 'dnf', 'install', '-y'] + packages, stdout=subprocess.DEVNULL, check=False)
+            subprocess.run(
+                ['pkexec', 'dnf', 'install', '-y'] + packages,
+                stdout=subprocess.DEVNULL,
+                check=False
+            )
         elif package_manager == 'yum':
-            subprocess.run(['pkexec', 'yum', 'install', '-y'] + packages, stdout=subprocess.DEVNULL, check=False)
+            subprocess.run(
+                ['pkexec', 'yum', 'install', '-y'] + packages,
+                stdout=subprocess.DEVNULL,
+                check=False
+            )
         elif package_manager == 'emerge':
-            subprocess.run(['pkexec', 'emerge'] + packages, stdout=subprocess.DEVNULL, check=False)
+            subprocess.run(
+                ['pkexec', 'emerge'] + packages,
+                stdout=subprocess.DEVNULL,
+                check=False
+            )
         elif package_manager == 'zypper':
-            subprocess.run(['pkexec', 'zypper', 'install', '-y'] + packages, stdout=subprocess.DEVNULL, check=False)
+            subprocess.run(
+                ['pkexec', 'zypper', 'install', '-y'] + packages,
+                stdout=subprocess.DEVNULL,
+                check=False
+            )
         elif package_manager == 'apk':
-            subprocess.run(['pkexec', 'apk', 'add'] + packages, stdout=subprocess.DEVNULL, check=False)
+            subprocess.run(
+                ['pkexec', 'apk', 'add'] + packages,
+                stdout=subprocess.DEVNULL,
+                check=False
+            )
         elif package_manager == 'brew':
-            msg = f'Please update "{packages[0]}" manually as it is not currently supported yet on MacOS!'
+            msg = (
+                f'Please update "{packages[0]}" manually as it is not currently '
+                'supported yet on MacOS!'
+            )
             logging.debug(msg)
             print(msg)
         else:
             print(f'Package manager "{package_manager}" not supported or unknown.')
-    except Exception as e:
+    except subprocess.SubprocessError as e:
         print(f'Error while installing: {e}')
 
 
@@ -1145,10 +1197,13 @@ def open_terminal_with_command(command):
             return
         except FileNotFoundError:
             logging.debug("%s not found, trying the next option.", terminal)
-        except Exception as e:
+        except subprocess.SubprocessError as e:
             logging.error("Error opening terminal with %s: %e", terminal, e)
 
-    logging.error("No supported terminal emulator found. Please install gnome-terminal, xterm, or konsole.")
+    logging.error(
+        "No supported terminal emulator found. "
+        "Please install gnome-terminal, xterm, or konsole."
+    )
 
 
 def get_random_anime(genre: str) -> str:
@@ -1261,24 +1316,54 @@ def show_messagebox(message, title="Message", box_type="info"):
 
     if system == "Darwin":
         script = {
-            "info": f'display dialog "{message}" with title "{title}" buttons "OK"',
-            "yesno": f'display dialog "{message}" with title "{title}" buttons {{"Yes", "No"}}',
-            "warning": f'display dialog "{message}" with title "{title}" buttons "OK" with icon caution',
-            "error": f'display dialog "{message}" with title "{title}" buttons "OK" with icon stop',
-        }.get(box_type, f'display dialog "{message}" with title "{title}" buttons "OK"')
+            "info": (
+                f'display dialog "{message}" with title "{title}" '
+                'buttons "OK"'
+            ),
+            "yesno": (
+                f'display dialog "{message}" with title "{title}" '
+                'buttons {{"Yes", "No"}}'
+            ),
+            "warning": (
+                f'display dialog "{message}" with title "{title}" '
+                'buttons "OK" with icon caution'
+            ),
+            "error": (
+                f'display dialog "{message}" with title "{title}" '
+                'buttons "OK" with icon stop'
+            ),
+        }.get(
+            box_type,
+            (
+                f'display dialog "{message}" with title "{title}" '
+                'buttons "OK"'
+            )
+        )
 
         try:
-            result = subprocess.run(["osascript", "-e", script], text=True, capture_output=True, check=False)
+            result = subprocess.run(
+                ["osascript", "-e", script],
+                text=True,
+                capture_output=True,
+                check=False
+            )
+
             if box_type == "yesno":
                 return "Yes" in result.stdout
             return True
-        except Exception as e:
+        except subprocess.SubprocessError as e:
             logging.debug("Error showing messagebox on macOS: %s", e)
             return False
 
     elif system == "Linux":
         try:
-            if subprocess.run(["which", "zenity"], capture_output=True, text=True, check=False).returncode == 0:
+            if subprocess.run(
+                ["which", "zenity"],
+                capture_output=True,
+                text=True,
+                check=False
+            ).returncode == 0:
+
                 cmd = {
                     "info": ["zenity", "--info", "--text", message, "--title", title],
                     "yesno": ["zenity", "--question", "--text", message, "--title", title],
@@ -1289,7 +1374,12 @@ def show_messagebox(message, title="Message", box_type="info"):
                 result = subprocess.run(cmd, check=False)
                 return result.returncode == 0 if box_type == "yesno" else True
 
-            if subprocess.run(["which", "kdialog"], capture_output=True, text=True, check=False).returncode == 0:
+            if subprocess.run(
+                ["which", "kdialog"],
+                capture_output=True,
+                text=True,
+                check=False
+            ).returncode == 0:
                 cmd = {
                     "info": ["kdialog", "--msgbox", message, "--title", title],
                     "yesno": ["kdialog", "--yesno", message, "--title", title],
@@ -1300,7 +1390,7 @@ def show_messagebox(message, title="Message", box_type="info"):
                 result = subprocess.run(cmd, check=False)
                 return result.returncode == 0 if box_type == "yesno" else True
 
-        except Exception as e:
+        except subprocess.SubprocessError as e:
             logging.debug("Error showing messagebox on Linux: %s", e)
             return False
 
@@ -1335,8 +1425,10 @@ def get_current_wallpaper():
 
     if system == "Darwin":
         result = os.popen(
-            'osascript -e \'tell application "System Events" to get the picture of the current desktop\''
+            'osascript -e \'tell application "System Events" to '
+            'get the picture of the current desktop\''
         ).read().strip()
+
         if not result:
             result = os.popen(
                 'osascript -e \'tell application "System Events" to get the desktop picture\''
@@ -1349,7 +1441,7 @@ def get_current_wallpaper():
                 'gsettings get org.gnome.desktop.background picture-uri'
             ).read().strip().strip("'").replace("file://", "")
             return result
-        except Exception as e:
+        except OSError as e:
             print(f"Could not get current wallpaper: {e}")
             return None
 
@@ -1361,7 +1453,11 @@ def set_wallpaper_fit(image_path):
         import winreg  # pylint: disable=import-error, import-outside-toplevel
         import ctypes  # pylint: disable=import-error, import-outside-toplevel
     except ModuleNotFoundError as e:
-        raise ImportError("Required modules (winreg, ctypes) not found. Ensure you're on Windows.") from e
+        raise ImportError(
+            "Required modules (winreg, ctypes) not found. "
+            "Ensure you're on Windows."
+        ) from e
+
 
     key = winreg.OpenKey(
         winreg.HKEY_CURRENT_USER,
@@ -1382,9 +1478,17 @@ def set_wallpaper(image_path):
         set_wallpaper_fit(image_path)
     elif system == "Darwin":
         os.system(
-            f'osascript -e \'tell application "System Events" to set picture of every desktop to "{image_path}"\'')
+            f'osascript -e \'tell application "System Events" to '
+            f'set picture of every desktop to "{image_path}"\''
+        )
     elif system == "Linux":
-        subprocess.call(["gsettings", "set", "org.gnome.desktop.background", "picture-uri", f"file://{image_path}"])
+        subprocess.call([
+            "gsettings",
+            "set",
+            "org.gnome.desktop.background",
+            "picture-uri",
+            f"file://{image_path}"
+        ])
 
 
 def minimize_all_windows():
@@ -1397,7 +1501,7 @@ def minimize_all_windows():
     elif platform.system() == "Linux":
         try:
             subprocess.run(["wmctrl", "-k", "on"], check=False)
-        except Exception as e:
+        except subprocess.SubprocessError as e:
             logging.debug("Error minimizing windows: %s", e)
 
 
