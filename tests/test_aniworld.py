@@ -16,7 +16,6 @@ class Args:
             'output': kwargs.get('output', aniworld_globals.DEFAULT_DOWNLOAD_PATH),
             'language': kwargs.get('language', aniworld_globals.DEFAULT_LANGUAGE),
             'provider': kwargs.get('provider', aniworld_globals.DEFAULT_PROVIDER),
-            'aniskip': kwargs.get('aniskip', False),
             'keep_watching': kwargs.get('keep_watching', False),
             'only_direct_link': kwargs.get('only_direct_link', False),
             'only_command': kwargs.get('only_command', False),
@@ -43,7 +42,6 @@ def test_main(args):
         'language': '--language',
         'provider': '--provider',
         'proxy': '--proxy',
-        'aniskip': '--aniskip',
         'keep_watching': '--keep-watching',
         'only_direct_link': '--only-direct-link',
         'only_command': '--only-command',
@@ -117,15 +115,13 @@ def test_functions():
         r"'--force-media-title=Demon Slayer: Kimetsu no Yaiba - S1E1 - Grausamkeit / Cruelty'"
     )
 
-    # TODO aniskip is not applied
     run_test(
         "Syncplay",
         Args(
             only_command=True,
             episode=episode,
             action='Syncplay',
-            provider='Streamtape',
-            aniskip=True
+            provider='Streamtape'
         ),
         r"https://[^\s]*streamtape\.com/get_video[^\s]*",
         r"syncplay --no-gui --no-store --host syncplay.pl:8997 --name phoenixthrush "
