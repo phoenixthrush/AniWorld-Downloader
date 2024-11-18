@@ -214,11 +214,13 @@ class EpisodeForm(npyscreen.ActionForm):
         logging.debug("Set update_directory_visibility as callback for action_selector")
 
     def setup_signal_handling(self):
-        def signal_handler():
-            logging.info("SIGINT received. Cleaning up and exiting...")
+        def signal_handler(_signal_number, _frame):
+            try:
+                self.parentApp.switchForm(None)
+            except AttributeError:
+                pass
             self.cancel_timer()
-            self.parentApp.setNextForm(None)
-            self.parentApp.switchFormNow()
+            sys.exit()
 
         signal.signal(signal.SIGINT, signal_handler)
         logging.debug("Signal handler for SIGINT registered")
