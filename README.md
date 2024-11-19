@@ -482,6 +482,7 @@ Feel free to contribute! Any help is appreciated, and I’d be happy to merge in
 - **[yt-dlp](https://github.com/yt-dlp/yt-dlp.git)**: Tool for downloading videos.
 - **[Syncplay](https://github.com/Syncplay/syncplay.git)**: Service for synchronized playback with friends.
 - **[Anime4K](https://github.com/bloc97/Anime4K)**: A high-quality real-time upscaler for anime video.
+- **[htv](https://github.com/rxqv/htv)**: Backend implementation for hanime playback and downloading.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

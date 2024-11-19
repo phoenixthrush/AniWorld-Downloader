@@ -45,7 +45,8 @@ from aniworld.common import (
 from aniworld.extractors import (
     nhentai,
     streamkiste,
-    jav
+    jav,
+    hanime
 )
 
 
@@ -812,6 +813,7 @@ def check_other_extractors(episode_urls: list):
     jav_urls = []
     nhentai_urls = []
     streamkiste_urls = []
+    hanime_urls = []
     remaining_urls = []
 
     for episode in episode_urls:
@@ -821,11 +823,15 @@ def check_other_extractors(episode_urls: list):
             nhentai_urls.append(episode)
         elif episode.startswith("https://streamkiste.tv/movie/"):
             streamkiste_urls.append(episode)
+        elif episode.startswith("https://hanime.tv/videos/hentai/"):
+            hanime_urls.append(episode)
         else:
             remaining_urls.append(episode)
 
     logging.debug("Jav URLs: %s", jav_urls)
     logging.debug("Nhentai URLs: %s", nhentai_urls)
+    logging.debug("Hanime URLs: %s", hanime_urls)
+    logging.debug("Streamkiste URLs: %s", streamkiste_urls)
 
     for jav_url in jav_urls:
         logging.info("Processing JAV URL: %s", jav_url)
@@ -834,6 +840,10 @@ def check_other_extractors(episode_urls: list):
     for nhentai_url in nhentai_urls:
         logging.info("Processing Nhentai URL: %s", nhentai_url)
         nhentai(nhentai_url)
+
+    for hanime_url in hanime_urls:
+        logging.info("Processing hanime URL: %s", hanime_url)
+        hanime(hanime_url)
 
     for streamkiste_url in streamkiste_urls:
         logging.info("Processing Streamkiste URL: %s", streamkiste_url)
