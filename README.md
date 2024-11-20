@@ -18,7 +18,7 @@ AniWorld Downloader is a command-line tool built to download and stream anime co
 ### Getting Started
 - [Installation](#installation)
   - [Latest Release](#installing-aniworld-downloader)
-  - [Dev Version (Unstable)](#development-version-unstable)
+  - [Dev Version (Unstable)](#development-version-unstable--requires-git)
 - [Uninstallation](#uninstallation)
 
 ### Usage Guide
@@ -48,6 +48,9 @@ AniWorld Downloader is a command-line tool built to download and stream anime co
 - [Contributing](#contributing)
 - [Credits](#credits)
 - [License](#license)
+
+### Legal Disclaimer
+- [Legal Disclaimer](#legal-disclaimer)
 
 ### Project Insights
 - [Star History](#star-history)
@@ -429,13 +432,10 @@ These packages are automatically installed when you set up AniWorld Downloader u
   - [x] Fix --only-direct-link and only-command
 
 ### Upcoming Tasks
-  - [ ] Syncplay support for other sites and local playback
+  - [ ] Syncplay support for local playback
   - [ ] Implement an ordered list for provider fallback in globals.py
-  - [ ] Add support for other sites (anime-base.net)
-  - [ ] Remove unnecessary dependencies
-  - [ ] Optimize performance to reduce requests and eliminate duplicate function calls
-  - [ ] Add generic fallback extractor
   - [ ] Anonymize logs by removing usernames
+  - [ ] Complete backend rewrite using OOP
   - [ ] Add support for Doodstream
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -526,6 +526,16 @@ While I do respond to emails, opening a GitHub issue is preferable, even for ins
 If you enjoy AniWorld Downloader and want to support the project, please consider starring the repository on GitHub. It’s a small gesture that means a lot and motivates me to keep improving the project.
 
 Thank you for your support and feedback!
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Legal Disclaimer
+
+Aniworld-Downloader is intended only for accessing publicly available content and does not support or encourage piracy or copyright infringement. As the program's creator, I am not liable for, nor associated with, any external links or the content they lead to.
+
+All content accessed through this program is freely available online, and the program does not host or distribute copyrighted material. The program has no control over the nature, content, or availability of the linked websites.
+
+If you have concerns or objections about the content accessed via this program, please address them to the relevant website owners, administrators, or hosting providers. Thank you.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
