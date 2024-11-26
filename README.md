@@ -98,6 +98,12 @@ AniWorld Downloader is a command-line tool built to download and stream anime co
 <details>
   <summary>Python Installation Tutorial (Windows only)</summary>
   <img src="https://github.com/phoenixthrush/AniWorld-Downloader/blob/main/.github/Python_Add_to_Path_Tutorial.png?raw=true" alt="Python Installation Tutorial">
+
+**Note:** If you've restarted the terminal and `aniworld` isn't being recognized, you have two options:
+- Add `aniworld` to your PATH so it can be found globally.
+- Run `python -m aniworld`, which should work without adding it to the PATH.
+  
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 </details>
 
 ### Installing AniWorld Downloader
