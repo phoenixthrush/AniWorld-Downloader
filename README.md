@@ -13,6 +13,7 @@ AniWorld Downloader is a command-line tool built to download and stream anime co
 
 ### Overview
 - [Features](#features)
+- [Supported Sites and Extractors](#supported-sites-and-extractors)
 - [TODO](#todo-list)
 
 ### Getting Started
@@ -56,6 +57,8 @@ AniWorld Downloader is a command-line tool built to download and stream anime co
 - [Star History](#star-history)
 </details>
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## Features
 
 - **Episode Downloads**: Easily download single episodes or entire seasons in one go.
@@ -66,6 +69,22 @@ AniWorld Downloader is a command-line tool built to download and stream anime co
 - **Aniskip Integration**: Automatically skip intros and outros.
 - **Syncplay for Group Watching**: Enjoy synchronized anime watching sessions with friends.
 - **Proxy Compatibility**: Set up an HTTP proxy for restricted network environments.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Supported Sites and Extractors
+
+| Site               | Supported Providers                  | Status                                                                                   |
+|--------------------|--------------------------------------|------------------------------------------------------------------------------------------|
+| **aniworld.to**    | VOE, Vidoza, Streamtape | ✔️ VOE, Vidoza, Streamtape <br> ➖ DoodStream, SpeedFiles (in progress) <br> ❌ Luluvdo, Vidmoly, Filemoon |
+| **streamkiste.tv** | Native extractor | ✔️ |
+| **hanime.tv**      | Native extractor | ✔️ |
+| **nhentai.net**    | Native extractor | ✔️ |
+| **jav.guru**       | Native extractor | ✔️ |
+
+> **Note:** Streamtape has been removed by aniworld.to and from the menu, but it still works and can be accessed using `--provider`.  
+> **Note:** The menu currently only supports aniworld.to. To access other sites, you need to specify `--episode`.  
+> **Note:** Native extractor sites require the optional dependency **playwright**. To install, run `pip install playwright` and then `playwright install` to complete the setup.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
