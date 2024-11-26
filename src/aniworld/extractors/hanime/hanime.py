@@ -389,7 +389,7 @@ def hanime(url: str = None):
                 "blacklist": args.blacklist,
                 "brands": args.company,
                 "tags": args.tags,
-                "page": args.page - 1,
+                # "page": args.page - 1,
                 "tags_mode": args.broad_tag_match,
                 "order_by": SORT_OPTS_MAP[sort_by],
                 "ordering": SORT_ORDER_MAP[sort_order]
