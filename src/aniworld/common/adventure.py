@@ -83,7 +83,8 @@ def adventure():
 
     try:
         instruction = """
-            Use simple English so that non-native speakers can understand what's happening, and always ask what "you (the user)" want to do.
+            Use simple English so that non-native speakers can understand what's happening,
+            and always ask what "you (the user)" want to do.
             You are the narrator in a text adventure game.
             Start by telling a very short story of about three sentences to set the scene.
             The user will type their answer and you will continue the story based on their input,
@@ -97,7 +98,8 @@ def adventure():
             You need to think about a storyline that does end after some time.
             Also add highlights like monster fights with options as running away or fighting.
             If the player tries todo non logical things like going to a desert while being at the ocean it shouldn't work.
-            Also if he tries to use any items that are not logically near you don't allow it, you can't equip a sword without buying it somewhere first.
+            Also if he tries to use any items that are not logically near you don't allow it,
+            you can't equip a sword without buying it somewhere first.
             You can't buy things while fighting.
             Make the fights longer than one prompt, do multiple fight scenes.
         """

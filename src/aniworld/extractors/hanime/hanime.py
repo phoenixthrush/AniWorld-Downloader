@@ -95,7 +95,7 @@ def parse_hanime_url(url):
 
 def download(video, res=1080, verbose=False, folder=False):
     true_res = list(video.at_resolution(res).keys())[0].split("-")[1]
-    _source = list(video.at_resolution(res).values())[0]
+    _ = list(video.at_resolution(res).values())[0]  # source
 
     if folder:
         out = f"{video.metadata.franchise_slug}/{video.slug}-{true_res}p.mp4"
@@ -232,8 +232,10 @@ def output(video, args, franchise=False):
     try:
         if args.franchise and franchise:
             if not args.url:
-                print(f"Downloading {
-                      video.metadata.franchise_title} franchise...")
+                print(
+                    f"Downloading {video.metadata.franchise_title} "
+                    "franchise...\n"
+                )
 
             for slug in video.metadata.franchise_videos:
                 fran_vid = Video.from_slug(slug)
@@ -296,11 +298,24 @@ def hanime(url: str = None):
     parser.add_argument(
         "--page", "-p", help="Page # of search results", default=1, type=int)
     parser.add_argument(
-        "--sort-by", "-s", help="Sorting method for search results ([u]pload, [v]iews, [l]ikes, [r]elease, [t]itle)", default="title")
+        "--sort-by", "-s",
+        help=(
+            "Sorting method for search results "
+            "([u]pload, [v]iews, [l]ikes, [r]elease, [t]itle)"
+        ),
+        default="title"
+    )
     parser.add_argument(
         "--sort-order", "-w", help="Order of sorting ([a]scending or [d]escending)", default="ascending")
-    parser.add_argument("--roll-search", "-R",
-                        help="Roll all search pages into one long page, useful for large-volume downloads", action="store_true", default=False)
+    parser.add_argument(
+        "--roll-search", "-R",
+        help=(
+            "Roll all search pages into one long page, "
+            "useful for large-volume downloads"
+        ),
+        action="store_true",
+        default=False
+    )
     parser.add_argument(
         "--resolution", "-r", help="Resolution of download, default 1080", default=1080, type=int)
     parser.add_argument("--index", "-i", help="Index of search results to download",
