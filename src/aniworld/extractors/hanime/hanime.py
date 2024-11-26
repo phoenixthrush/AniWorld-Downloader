@@ -379,12 +379,10 @@ def hanime(url: str = None):
             sort_order = args.sort_order
 
             if sort_by not in SORT_OPTS_MAP:
-                print(f'Unknown sort method "{
-                      args.sort_by}", using sort by title')
+                print(f'Unknown sort method "{args.sort_by}", using sort by title')
                 sort_by = "title"
             if sort_order not in SORT_ORDER_MAP:
-                print(f'Unknown sort order "{
-                      args.sort_order}", using ascending order')
+                print(f'Unknown sort order "{args.sort_order}", using ascending order')
                 sort_order = "ascending"
 
             search_kwargs = {
