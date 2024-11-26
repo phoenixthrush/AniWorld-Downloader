@@ -88,12 +88,17 @@ def build_flags(anime_id: str, episode: int, chapters_file: str) -> str:
     response = requests.get(
         aniskip_api,
         headers={"User-Agent": aniworld_globals.DEFAULT_USER_AGENT},
-        timeout=10
+        timeout=15
     )
     logging.debug("Response status code: %d", response.status_code)
 
+
+    if response.status_code == 500:
+        logging.info("Aniskip API is currently not working!")
+        return ""
     if response.status_code != 200:
         raise_runtime_error("Failed to fetch AniSkip data.")
+
 
     metadata = response.json()
     logging.debug("AniSkip response: %s", json.dumps(metadata, indent=2))
