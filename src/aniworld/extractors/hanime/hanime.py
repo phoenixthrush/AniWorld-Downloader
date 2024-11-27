@@ -129,6 +129,7 @@ def get_random(seed):
     return results
 
 
+# pylint: disable=too-many-arguments, too-many-positional-arguments)
 def search(
     query,
     blacklist=None,
@@ -192,12 +193,27 @@ def roll_search(
     if tags is None:
         tags = []
 
-    num_pages, results = search(query, blacklist=blacklist, brands=brands,
-                                order_by=order_by, ordering=ordering, tags=tags, tags_mode=tags_mode)
+    num_pages, results = search(
+        query,
+        blacklist=blacklist,
+        brands=brands,
+        order_by=order_by,
+        ordering=ordering,
+        tags=tags,
+        tags_mode=tags_mode
+    )
 
     for p in range(num_pages):
-        results += search(query, blacklist=blacklist, brands=brands, order_by=order_by,
-                          ordering=ordering, page=p, tags=tags, tags_mode=tags_mode)[1]
+        results += search(
+            query,
+            blacklist=blacklist,
+            brands=brands,
+            order_by=order_by,
+            ordering=ordering,
+            page=p,
+            tags=tags,
+            tags_mode=tags_mode
+        )[1]
 
     return results
 
@@ -266,10 +282,11 @@ def output(video, args, franchise=False):
                 print(f"Description:\n{video.metadata.description}\n")
         else:
             verbose_download(video, args.resolution, args.verbose, args.folder)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Download of {video.title} failed with error \"{e}\"")
 
 
+# pylint: disable=too-many-locals, too-many-branches, too-many-statements
 def hanime(url: str = None):
     if url:
         slug = parse_hanime_url(url)
@@ -289,8 +306,13 @@ def hanime(url: str = None):
     parser.add_argument("video", nargs="*", help="Video URL or search term")
     parser.add_argument("--tags", "-t", help="Tags to search for",
                         action="store", nargs="+", default=[])
-    parser.add_argument("--broad-tag-match", help="Match videos including any tags specified by --tags",
-                        action="store_const", const="OR", default="AND")
+    parser.add_argument(
+        "--broad-tag-match",
+        help="Match videos including any tags specified by --tags",
+        action="store_const",
+        const="OR",
+        default="AND",
+    )
     parser.add_argument("--blacklist", "-b", help="Blacklisted tags",
                         action="store", nargs="+", default=[])
     parser.add_argument("--company", "-c", help="Companies/brands to filter by",
@@ -306,7 +328,10 @@ def hanime(url: str = None):
         default="title"
     )
     parser.add_argument(
-        "--sort-order", "-w", help="Order of sorting ([a]scending or [d]escending)", default="ascending")
+        "--sort-order", "-w",
+        help="Order of sorting ([a]scending or [d]escending)",
+        default="ascending",
+    )
     parser.add_argument(
         "--roll-search", "-R",
         help=(
@@ -317,21 +342,56 @@ def hanime(url: str = None):
         default=False
     )
     parser.add_argument(
-        "--resolution", "-r", help="Resolution of download, default 1080", default=1080, type=int)
-    parser.add_argument("--index", "-i", help="Index of search results to download",
-                        action="store", nargs="+", type=int, default=[])
-    parser.add_argument("--all", "-a", help="Download all search results in page",
-                        action="store_true", default=False)
-    parser.add_argument("--folder", "-F", help="Create folders by franchise when downloading",
-                        action="store_true", default=False)
-    parser.add_argument("--franchise", "-f", help="Download the video and all other videos in its franchise",
-                        action="store_true", default=False)
-    parser.add_argument("--url", "-u", help="Show urls of the source video, do not download",
-                        action="store_true", default=False)
-    parser.add_argument("--metadata", "-m", help="Show metadata of the source video, do not download",
-                        action="store_true", default=False)
-    parser.add_argument("--verbose", "-v", help="Enable verbose logging for video download",
-                        action="store_true", default=False)
+        "--resolution", "-r",
+        help="Resolution of download, default 1080",
+        default=1080,
+        type=int,
+    )
+    parser.add_argument(
+        "--index", "-i",
+        help="Index of search results to download",
+        action="store",
+        nargs="+",
+        type=int,
+        default=[],
+    )
+    parser.add_argument(
+        "--all", "-a",
+        help="Download all search results in page",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "--folder", "-F",
+        help="Create folders by franchise when downloading",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "--franchise", "-f",
+        help="Download the video and all other videos in its franchise",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "--url", "-u",
+        help="Show URLs of the source video, do not download",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "--metadata", "-m",
+        help="Show metadata of the source video, do not download",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "--verbose", "-v",
+        help="Enable verbose logging for video download",
+        action="store_true",
+        default=False,
+    )
+
     args = parser.parse_args()
 
     slugs = list(map(parse_hanime_url, args.video))
@@ -407,7 +467,10 @@ def hanime(url: str = None):
                 print(f"{index + 1}\t{result.title}")
 
             print(
-                "\nSpecify results to download with --index/-i, or download all results shown with --all/-a")
+                "\nSpecify results to download with --index/-i, "
+                "or download all results shown with --all/-a"
+            )
+
         else:
             if len(results) == 0:
                 print(f'No results for "{query}"')
