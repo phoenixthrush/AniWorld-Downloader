@@ -182,9 +182,9 @@ class EpisodeForm(npyscreen.ActionForm):
         self.provider_selector = self.add(
             npyscreen.TitleSelectOne,
             name="Provider",
-            values=["Vidoza", "Streamtape", "VOE"],  # Doodstream broken
-            max_height=3,
-            value=[["Vidoza", "Streamtape", "VOE"].index(aniworld_globals.DEFAULT_PROVIDER)],
+            values=["Vidoza", "VOE"],
+            max_height=2,  # count of values
+            value=[["Vidoza", "VOE"].index(aniworld_globals.DEFAULT_PROVIDER)],
             scroll_exit=True
         )
         logging.debug("Provider selector created")
