@@ -121,9 +121,9 @@ def test_functions():
             only_command=True,
             episode=episode,
             action='Syncplay',
-            provider='Streamtape'
+            provider='Vidoza'
         ),
-        r"https://[^\s]*streamtape\.com/get_video[^\s]*",
+        r"https://[^\s]*v\.mp4[^\s]*",
         r"syncplay --no-gui --no-store --host syncplay.pl:8997 --name phoenixthrush "
         r"--room Demon_Slayer:_Kimetsu_no_Yaiba_-_S1E1_-_Grausamkeit_/_Cruelty "
         r"--player-path /opt/homebrew/bin/mpv 'https://[^\s]*streamtape\.com/get_video[^\s]*' "
