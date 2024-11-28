@@ -1,26 +1,19 @@
 [project]
 name = "aniworld"
-version = "2.3.1"
+version = "3.0.0"
 authors = [
   { name="Phoenixthrush UwU", email="contact@phoenixthrush.com" },
 ]
 maintainers = [
   { name="Phoenixthrush UwU", email="contact@phoenixthrush.com" }
 ]
-description = "Cross-platform command-line tool to download and stream anime from aniworld.to"
-keywords = ["anime", "aniworld", "anime-downloader", "aniworld-downloader",
-            "scraping", "mpv","syncplay", "yt-dlp", "voe", "streamtape", "vidoza"]
+description = "AniWorld Downloader is a command-line tool for downloading and streaming anime, series and movies, compatible with Windows, macOS, and Linux."
+keywords = ["anime", "aniworld", "anime-downloader", "aniworld-downloader"]
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
     'requests',
     'bs4',
-    'npyscreen',
-    'colorlog',
-    'py7zr',
-    'packaging',
-    'yt-dlp',
-    'windows-curses; platform_system == "Windows"'
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -38,23 +31,6 @@ classifiers = [
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS",
-]
-
-[project.optional-dependencies]
-dev = [
-    "pylint",
-    "flake8",
-    "build",
-    "twine",
-    "playwright",
-    "ollama"
-]
-playwright = [
-    "playwright"
-]
-
-offline = [
-  "ollama"
 ]
 
 [project.urls]
