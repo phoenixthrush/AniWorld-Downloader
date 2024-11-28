@@ -6,6 +6,8 @@ import requests
 import requests.models
 from bs4 import BeautifulSoup
 
+from aniworld import search_anime
+
 
 REQUEST_TIMEOUT = 15
 
@@ -223,6 +225,9 @@ class Anime:
     def auto_fill_details(self) -> None:
         self.description = get_season_description_from_html(html=self.episode_list[0].html)
 
+    def __iter__(self):
+        return iter(self.episode_list)
+
     def __str__(self) -> str:
         return (
             f"Anime(action={self.action}, "
@@ -323,20 +328,32 @@ class Episode:
 
 
 def main() -> None:
-    episode = Episode(
-        link="https://aniworld.to/anime/stream/kaguya-sama-love-is-war/staffel-2/episode-3"
-    )
-    episode2 = Episode(
-        slug="alya-sometimes-hides-her-feelings-in-russian",
-        season=1,
-        episode=2
-    )
+    try:
+        slug = search_anime()
 
-    anime = Anime(episode_list=[episode, episode2])
+        episode = Episode(
+            slug=slug,
+            season=1,
+            episode=1
+        )
 
-    print(anime)
-    print(anime.episode_list[0])
-    print(anime.episode_list[1])
+        episode2 = Episode(
+            link="https://aniworld.to/anime/stream/kaguya-sama-love-is-war/staffel-1/episode-3"
+        )
+
+        episode3 = Episode(
+            slug="alya-sometimes-hides-her-feelings-in-russian",
+            season=1,
+            episode=2
+        )
+
+        anime_list = Anime(episode_list=[episode, episode2, episode3])
+
+        for anime in anime_list:
+            print(anime.title)
+
+    except KeyboardInterrupt:
+        pass
 
 
 if __name__ == "__main__":
