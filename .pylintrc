@@ -1,4 +1,7 @@
 [MAIN]
 disable=too-many-arguments,
         too-many-positional-arguments,
-        too-many-instance-attributes
+        too-many-instance-attributes,
+        missing-module-docstring,
+        missing-function-docstring,
+        missing-class-docstring
