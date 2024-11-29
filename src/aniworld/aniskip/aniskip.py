@@ -27,7 +27,10 @@ def get_mal_id_from_title(title: str, season: int) -> int:
         raise ValueError("Error fetching data from MyAnimeList.")
 
     mal_metadata = response.json()
-    results = [entry['name'] for entry in mal_metadata['categories'][0]['items']]
+    results = [
+        entry for entry in mal_metadata['categories'][0]['items']
+        if 'OVA' not in entry['name']
+    ]
     logging.debug("Search results: %s", results)
 
     if not results:
@@ -38,7 +41,12 @@ def get_mal_id_from_title(title: str, season: int) -> int:
     logging.debug("Best match: %s", best_match)
 
     for entry in mal_metadata['categories'][0]['items']:
-        if entry['name'] == best_match:
+        if entry['name'] == best_match['name']:
+            anime_id = entry['id']
+            logging.debug("Found MAL ID:", anime_id, "for", best_match['name'])
+
+    for entry in mal_metadata['categories'][0]['items']:
+        if entry['name'] == best_match['name']:
             anime_id = entry['id']
             logging.debug("Found MAL ID: %s for %s", anime_id, best_match)
 
