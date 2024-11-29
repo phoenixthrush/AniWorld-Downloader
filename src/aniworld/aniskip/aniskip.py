@@ -90,3 +90,7 @@ def get_mal_id_from_title(title: str, season: int) -> int:
     error_msg = "No match found!"
     logging.error(error_msg)
     raise ValueError(error_msg)
+
+
+if __name__ == '__main__':
+    print(get_mal_id_from_title("Redo of Healer", season=1))

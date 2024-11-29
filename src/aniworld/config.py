@@ -1,5 +1,8 @@
 import random
 import pathlib
+import shutil
+import platform
+import os
 
 DEFAULT_ACTION = "Download"      # E.g. Watch, Download, Syncplay
 DEFAULT_DOWNLOAD_PATH = pathlib.Path.home() / "Downloads"
@@ -13,7 +16,6 @@ DEFAULT_ONLY_COMMAND = False
 DEFAULT_PROXY = None
 DEFAULT_USE_PLAYWRIGHT = False
 DEFAULT_TERMINAL_SIZE = (90, 30)
-
 DEFAULT_REQUEST_TIMEOUT = 15
 
 USER_AGENTS = [
@@ -48,6 +50,33 @@ USER_AGENTS = [
 ]
 
 RANDOM_USER_AGENT = random.choice(USER_AGENTS)
+DEFAULT_APPDATA_PATH = os.path.join(os.getenv("APPDATA") or os.path.expanduser("~"), ".aniworld")
+
+
+def find_program(program_name: str, fallback_path: str) -> str:
+    program_path = shutil.which(program_name)
+
+    if program_path:
+        return program_path
+
+    if platform.system() == "Windows" and program_name.lower() == "syncplayconsole":
+        fallback_program_path = os.path.join(fallback_path, "syncplay")
+    else:
+        fallback_program_path = os.path.join(fallback_path, program_name.lower())
+
+    if os.path.isfile(fallback_program_path):
+        return fallback_program_path
+
+    return None
+
+
+MPV_PATH = find_program("mpv", DEFAULT_APPDATA_PATH)
+
+SYNCPLAY_PATH = find_program("syncplay", DEFAULT_APPDATA_PATH)
+if platform.system() == "Windows" and not SYNCPLAY_PATH:
+    SYNCPLAY_PATH = find_program("SyncplayConsole", DEFAULT_APPDATA_PATH)
+
+YTDLP_PATH = find_program("yt-dlp", DEFAULT_APPDATA_PATH)
 
 if __name__ == '__main__':
-    print(RANDOM_USER_AGENT)
+    pass
