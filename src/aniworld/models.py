@@ -254,7 +254,8 @@ class Episode:
 
     def __str__(self) -> str:
         return (
-            f"Episode(title={self.title}, season={self.season}, episode={self.episode}, "
+            f"Episode(title_german={self.title_german}, title_english={
+                self.title_english}, season={self.season}, episode={self.episode}, "
             f"slug={self.slug}, link={self.link}, mal_id={self.mal_id}, "
             f"provider={self.provider}, language={self.language}, html={self.html})"
         )
