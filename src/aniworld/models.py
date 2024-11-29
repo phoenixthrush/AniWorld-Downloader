@@ -10,7 +10,7 @@ from aniworld.aniskip import get_mal_id_from_title
 REQUEST_TIMEOUT = 15
 
 
-def get_episode_title_from_html(html: requests.models.Response) -> str:
+def get_anime_title_from_html(html: requests.models.Response) -> str:
     episode_soup = BeautifulSoup(html.content, 'html.parser')
     series_title_div = episode_soup.find('div', class_='series-title')
 
@@ -20,6 +20,24 @@ def get_episode_title_from_html(html: requests.models.Response) -> str:
         return None
 
     return episode_title
+
+
+def get_episode_title_from_html(html: requests.models.Response) -> tuple:
+    """
+    0: German Title
+    1: English Title
+    """
+    episode_soup = BeautifulSoup(html.content, 'html.parser')
+    episode_german_title_div = episode_soup.find('span', class_='episodeGermanTitle')
+    episode_english_title_div = episode_soup.find('small', class_='episodeEnglishTitle')
+
+    if episode_german_title_div:
+        german_title = episode_german_title_div.text
+
+    if episode_english_title_div:
+        english_title = episode_english_title_div.text
+
+    return [german_title, english_title]
 
 
 def get_season_from_link(link: str) -> int:
@@ -108,8 +126,21 @@ def get_season_description_from_html(html: requests.models.Response):
 
 
 class Anime:
+    """
+    Attributes:
+        title: str = None,
+        action: str = "Watch",
+        aniskip: bool = False,
+        only_command: bool = False,
+        only_direct_link: bool = False,
+        output_directory: str = pathlib.Path.home() / "Downloads",
+        episode_list: list = None,
+        description: str = None
+    """
+
     def __init__(
         self,
+        title: str = None,
         action: str = "Watch",
         aniskip: bool = False,
         only_command: bool = False,
@@ -121,6 +152,7 @@ class Anime:
         if not episode_list:
             raise ValueError("Provide 'episode_list'.")
 
+        self.title: str = title
         self.action: str = action
         self.aniskip: bool = aniskip
         self.only_command: bool = only_command
@@ -132,6 +164,7 @@ class Anime:
         self.auto_fill_details()
 
     def auto_fill_details(self) -> None:
+        self.title = get_anime_title_from_html(html=self.episode_list[0].html)
         self.description = get_season_description_from_html(html=self.episode_list[0].html)
 
     def __iter__(self):
@@ -150,9 +183,24 @@ class Anime:
 
 
 class Episode:
+    """
+    Attributes:
+        title_german (str): The German title of the episode. Default is None.
+        title_english (str): The English title of the episode. Default is None.
+        season (int): The season number of the episode. Default is None.
+        episode (int): The episode number. Default is None.
+        slug (str): A slug for the episode, typically used in URLs. Default is None.
+        link (str): The link to the episode. Default is None.
+        mal_id (int): The MAL (MyAnimeList) ID associated with the episode. Default is None.
+        provider (dict): A dictionary of providers for the episode. Default is None.
+        language (list): A list of languages the episode is available in. Default is None.
+        html (requests.models.Response): The HTML response containing episode details. Default is None.
+    """
+
     def __init__(
         self,
-        title: str = None,
+        title_german: str = None,
+        title_english: str = None,
         season: int = None,
         episode: int = None,
         slug: str = None,
@@ -161,25 +209,26 @@ class Episode:
         # redirect_link: str = None,
         # embeded_link: str = None,
         # direct_link: str = None,
-        provider: str = None,
-        language: str = None,
+        provider: dict = None,
+        language: list = None,
         html: requests.models.Response = None
     ) -> None:
         if not link and not (slug and season and episode):
             raise ValueError("Provide either 'link' or ('slug', 'season', and 'episode').")
 
-        self.title = title
-        self.season = season
-        self.episode = episode
-        self.slug = slug
-        self.link = link
-        self.mal_id = mal_id
+        self.title_german: str = title_german
+        self.title_english: str = title_english
+        self.season: int = season
+        self.episode: int = episode
+        self.slug: str = slug
+        self.link: str = link
+        self.mal_id: int = mal_id
         # self.redirect_link = redirect_link
         # self.embeded_link = embeded_link
         # self.direct_link = direct_link
-        self.provider = provider
-        self.language = language
-        self.html = html
+        self.provider: dict = provider
+        self.language: list = language
+        self.html: requests.models.Response = html
 
         self.auto_fill_details()
 
@@ -197,10 +246,12 @@ class Episode:
 
         self.html = requests.get(self.link, timeout=REQUEST_TIMEOUT)
 
-        self.title = self.title or get_episode_title_from_html(html=self.html)
+        title_german, title_english = get_episode_title_from_html(html=self.html)
+        self.title_german = title_german
+        self.title_english = title_english
         self.language = get_available_language_from_html(html=self.html)
         self.provider = get_provider_from_html(html=self.html)
-        self.mal_id = get_mal_id_from_title(title=self.title, season=self.season)
+        self.mal_id = get_mal_id_from_title(title=self.title_german, season=self.season)
 
     def __str__(self) -> str:
         return (

@@ -1,8 +1,8 @@
 from aniworld.models import Anime
 
 
-def execute(anime: Anime):
-    if anime.action != "Watch" or anime.action != "Download" or anime.action != "Syncplay":
-        raise ValueError("Please specify a valid action ('Watch', 'Download', 'Syncplay').")
-
-    print(anime.title)
+def execute(anime_list: list[Anime]):
+    for anime in anime_list:
+        print(anime.title)
+        for episode in anime:
+            print(episode.title_english)

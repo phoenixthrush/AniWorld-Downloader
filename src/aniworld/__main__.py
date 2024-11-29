@@ -1,5 +1,6 @@
-from aniworld.search import search_anime
 from aniworld.models import Anime, Episode
+from aniworld.search import search_anime
+from aniworld.execute import execute
 
 
 REQUEST_TIMEOUT = 15
@@ -9,26 +10,43 @@ def main() -> None:
     try:
         slug = search_anime()
 
-        episode = Episode(
+        user_episode = Episode(
             slug=slug,
             season=1,
             episode=1
         )
 
-        episode2 = Episode(
+        user_episode_2 = Episode(
+            slug=slug,
+            season=1,
+            episode=2
+        )
+
+        kaguya_episode = Episode(
             link="https://aniworld.to/anime/stream/kaguya-sama-love-is-war/staffel-1/episode-3"
         )
 
-        episode3 = Episode(
+        kaguya_episode2 = Episode(
+            link="https://aniworld.to/anime/stream/kaguya-sama-love-is-war/staffel-1/episode-3"
+        )
+
+        kaguya_episode3 = Episode(
+            link="https://aniworld.to/anime/stream/kaguya-sama-love-is-war/staffel-1/episode-3"
+        )
+
+        alya_episode = Episode(
             slug="alya-sometimes-hides-her-feelings-in-russian",
             season=1,
             episode=2
         )
 
-        anime_list = Anime(episode_list=[episode, episode2, episode3])
-
-        for anime in anime_list:
-            print(anime.title)
+        execute(
+            anime_list=[
+                Anime(episode_list=[user_episode, user_episode_2], ),
+                Anime(episode_list=[kaguya_episode, kaguya_episode2, kaguya_episode3]),
+                Anime(episode_list=[alya_episode])
+            ]
+        )
 
     except KeyboardInterrupt:
         pass
