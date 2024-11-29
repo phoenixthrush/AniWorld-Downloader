@@ -93,4 +93,4 @@ def get_mal_id_from_title(title: str, season: int) -> int:
 
 
 if __name__ == '__main__':
-    print(get_mal_id_from_title("Redo of Healer", season=1))
+    print(get_mal_id_from_title("Kaguya-sama: Love is War", season=1))

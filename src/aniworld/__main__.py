@@ -22,15 +22,15 @@ def main() -> None:
         )
 
         kaguya_episode = Episode(
-            link="https://aniworld.to/anime/stream/kaguya-sama-love-is-war/staffel-1/episode-3"
+            link="https://aniworld.to/anime/stream/kissxsis/staffel-1/episode-3"
         )
 
         kaguya_episode2 = Episode(
-            link="https://aniworld.to/anime/stream/kaguya-sama-love-is-war/staffel-1/episode-3"
+            link="https://aniworld.to/anime/stream/kissxsis/staffel-1/episode-3"
         )
 
         kaguya_episode3 = Episode(
-            link="https://aniworld.to/anime/stream/kaguya-sama-love-is-war/staffel-1/episode-3"
+            link="https://aniworld.to/anime/stream/kissxsis/staffel-1/episode-3"
         )
 
         alya_episode = Episode(

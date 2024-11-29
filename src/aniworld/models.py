@@ -248,9 +248,12 @@ class Episode:
         title_german, title_english = get_episode_title_from_html(html=self.html)
         self.title_german = title_german
         self.title_english = title_english
+
         self.language = get_available_language_from_html(html=self.html)
         self.provider = get_provider_from_html(html=self.html)
-        self.mal_id = get_mal_id_from_title(title=self.title_german, season=self.season)
+
+        anime_title = get_anime_title_from_html(html=self.html)
+        self.mal_id = get_mal_id_from_title(title=anime_title, season=self.season)
 
     def __str__(self) -> str:
         return (
