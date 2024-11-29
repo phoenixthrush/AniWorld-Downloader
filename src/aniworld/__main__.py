@@ -31,7 +31,7 @@ def main() -> None:
 
             anime_list.append(Anime(
                 **({"action": arguments.action} if arguments.action else {}),
-                episode_list=default_episodes
+                episode_list=default_episodes, aniskip=True
             ))
 
         execute(anime_list=anime_list)

@@ -1,3 +1,4 @@
+from aniworld.aniskip import aniskip
 from aniworld.models import Anime
 from aniworld.config import MPV_PATH
 
@@ -17,5 +18,8 @@ def watch(anime: Anime):
             "--really-quiet",
             f"--force-media-title={episode.title_german}"
         ]
+        if anime.aniskip:
+            build_flags = aniskip(anime.title, episode.episode, episode.season)
+            command.append(build_flags)
 
         print(command)
