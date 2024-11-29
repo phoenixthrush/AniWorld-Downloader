@@ -7,7 +7,7 @@ REDIRECT_PATTERN = re.compile(r"window\.location\.href\s*=\s*'(https://[^/]+/e/\
 NODE_DETAILS_PATTERN = re.compile(r'let nodeDetails = prompt\("Node",\s*"(https://[^"]+)"\);')
 
 
-def get_direct_link_from_voe(embeded_voe_link: str):  # TODO - fix voe direct link
+def get_direct_link_from_voe(embeded_voe_link: str) -> str:  # TODO - fix voe direct link
     response = requests.get(
         embeded_voe_link,
         headers={'User-Agent': RANDOM_USER_AGENT},
