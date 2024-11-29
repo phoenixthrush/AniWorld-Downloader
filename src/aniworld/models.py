@@ -16,7 +16,7 @@ def get_anime_title_from_html(html: requests.models.Response) -> str:
     if series_title_div:
         episode_title = series_title_div.find('h1').find('span').text  # Kaguya-sama: Love is War
     else:
-        return None
+        return ""
 
     return episode_title
 
@@ -30,13 +30,16 @@ def get_episode_title_from_html(html: requests.models.Response) -> tuple:
     episode_german_title_div = episode_soup.find('span', class_='episodeGermanTitle')
     episode_english_title_div = episode_soup.find('small', class_='episodeEnglishTitle')
 
+    german_title = ""
+    english_title = ""
+
     if episode_german_title_div:
         german_title = episode_german_title_div.text
 
     if episode_english_title_div:
         english_title = episode_english_title_div.text
 
-    return [german_title, english_title]
+    return german_title, english_title
 
 
 def get_season_from_link(link: str) -> int:
@@ -114,10 +117,18 @@ def get_provider_from_html(html: requests.models.Response) -> dict:
 
 # INTERNAL EPISODE FUNCTIONS
 
-def get_season_description_from_html(html: requests.models.Response):
+def get_aniworld_description_from_html(html: requests.models.Response):
     soup = BeautifulSoup(html.content, 'html.parser')
     seri_des_div = soup.find('p', class_='seri_des')
     description = seri_des_div['data-full-description']
+
+    return description
+
+def get_myanimelist_description_from_html(title : str):
+    anime_id = get_mal_id_from_title(title, 1)
+    response = requests.get(f"https://myanimelist.net/anime/{anime_id}", timeout=DEFAULT_REQUEST_TIMEOUT)
+    soup = BeautifulSoup(response.content, 'html.parser')
+    description = soup.find('meta', property='og:description')['content']
 
     return description
 
@@ -134,7 +145,8 @@ class Anime:
         only_direct_link: bool = False,
         output_directory: str = pathlib.Path.home() / "Downloads",
         episode_list: list = None,
-        description: str = None
+        description_german: str = None,
+        description_english: str = None
     """
 
     def __init__(
@@ -146,7 +158,8 @@ class Anime:
         only_direct_link: bool = False,
         output_directory: str = pathlib.Path.home() / "Downloads",
         episode_list: list = None,
-        description: str = None
+        description_german: str = None,
+        description_english: str =None
     ) -> None:
         if not episode_list:
             raise ValueError("Provide 'episode_list'.")
@@ -158,13 +171,16 @@ class Anime:
         self.only_direct_link: bool = only_direct_link
         self.output_directory: str = output_directory
         self.episode_list: list = episode_list
-        self.description: str = description
+        self.description_german: str = description_german
+        self.description_english: str = description_english
 
         self.auto_fill_details()
 
     def auto_fill_details(self) -> None:
         self.title = get_anime_title_from_html(html=self.episode_list[0].html)
-        self.description = get_season_description_from_html(html=self.episode_list[0].html)
+        self.description_german = get_aniworld_description_from_html(html=self.episode_list[0].html)
+        self.description_english = get_myanimelist_description_from_html(title=self.title)
+
 
     def __iter__(self):
         return iter(self.episode_list)
@@ -177,7 +193,8 @@ class Anime:
             f"only_direct_link={self.only_direct_link}, "
             f"output_directory={self.output_directory}, "
             f"episode_list={self.episode_list}, "
-            f"description={self.description})"
+            f"description_german={self.description_german}), "
+            f"description_english={self.description_english})"
         )
 
 
@@ -277,7 +294,8 @@ class Episode:
 
         return (
             f"Episode(\n"
-            f"\ttitle=\"{self.title}\",\n"
+            f"\ttitle_german=\"{self.title_german}\",\n"
+            f"\ttitle_english=\"{self.title_english}\",\n"
             f"\tseason={self.season},\n"
             f"\tepisode={self.episode},\n"
             f"\tslug=\"{self.slug}\",\n"

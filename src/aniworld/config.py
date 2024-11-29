@@ -18,6 +18,7 @@ DEFAULT_USE_PLAYWRIGHT = False
 DEFAULT_TERMINAL_SIZE = (90, 30)
 DEFAULT_REQUEST_TIMEOUT = 15
 
+# pylint: disable=line-too-long
 USER_AGENTS = [
     # Windows
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
@@ -64,10 +65,8 @@ def find_program(program_name: str, fallback_path: str) -> str:
     else:
         fallback_program_path = os.path.join(fallback_path, program_name.lower())
 
-    if os.path.isfile(fallback_program_path):
-        return fallback_program_path
-
-    return None
+    #if os.path.isfile(fallback_program_path):
+    return fallback_program_path
 
 
 MPV_PATH = find_program("mpv", DEFAULT_APPDATA_PATH)
