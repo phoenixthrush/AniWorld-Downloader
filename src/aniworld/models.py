@@ -6,8 +6,7 @@ import requests.models
 from bs4 import BeautifulSoup
 
 from aniworld.aniskip import get_mal_id_from_title
-
-REQUEST_TIMEOUT = 15
+from aniworld.config import DEFAULT_REQUEST_TIMEOUT
 
 
 def get_anime_title_from_html(html: requests.models.Response) -> str:
@@ -244,7 +243,7 @@ class Episode:
             self.season = self.season or get_season_from_link(link=self.link)
             self.episode = self.episode or get_episode_from_link(link=self.link)
 
-        self.html = requests.get(self.link, timeout=REQUEST_TIMEOUT)
+        self.html = requests.get(self.link, timeout=DEFAULT_REQUEST_TIMEOUT)
 
         title_german, title_english = get_episode_title_from_html(html=self.html)
         self.title_german = title_german

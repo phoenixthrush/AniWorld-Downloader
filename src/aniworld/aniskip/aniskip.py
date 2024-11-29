@@ -4,7 +4,7 @@ import logging
 import requests
 from bs4 import BeautifulSoup
 
-REQUEST_TIMEOUT = 15
+from aniworld.config import DEFAULT_REQUEST_TIMEOUT
 
 
 def get_mal_id_from_title(title: str, season: int) -> int:
@@ -18,7 +18,7 @@ def get_mal_id_from_title(title: str, season: int) -> int:
 
     response = requests.get(
         f"https://myanimelist.net/search/prefix.json?type=anime&keyword={keyword}",
-        timeout=REQUEST_TIMEOUT
+        timeout=DEFAULT_REQUEST_TIMEOUT
     )
     logging.debug("Response status code: %d", response.status_code)
 
@@ -49,7 +49,7 @@ def get_mal_id_from_title(title: str, season: int) -> int:
                 url = f"https://myanimelist.net/anime/{anime_id}"
                 logging.debug("Fetching URL: %s", url)
 
-                response = requests.get(url, timeout=REQUEST_TIMEOUT)
+                response = requests.get(url, timeout=DEFAULT_REQUEST_TIMEOUT)
                 response.raise_for_status()
 
                 soup = BeautifulSoup(response.text, 'html.parser')

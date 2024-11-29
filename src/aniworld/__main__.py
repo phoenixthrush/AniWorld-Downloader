@@ -3,9 +3,6 @@ from aniworld.search import search_anime
 from aniworld.execute import execute
 
 
-REQUEST_TIMEOUT = 15
-
-
 def main() -> None:
     try:
         slug = search_anime()
