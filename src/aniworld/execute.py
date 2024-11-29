@@ -5,4 +5,4 @@ def execute(anime_list: list[Anime]):
     for anime in anime_list:
         print(anime.title)
         for episode in anime:
-            print(episode.title_english)
+            print(f"{anime.action}ing {episode.title_german}...")
