@@ -43,11 +43,6 @@ def get_mal_id_from_title(title: str, season: int) -> int:
     for entry in mal_metadata['categories'][0]['items']:
         if entry['name'] == best_match['name']:
             anime_id = entry['id']
-            logging.debug("Found MAL ID:", anime_id, "for", best_match['name'])
-
-    for entry in mal_metadata['categories'][0]['items']:
-        if entry['name'] == best_match['name']:
-            anime_id = entry['id']
             logging.debug("Found MAL ID: %s for %s", anime_id, best_match)
 
             while season > 1:
