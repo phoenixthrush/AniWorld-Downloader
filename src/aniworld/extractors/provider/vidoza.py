@@ -3,6 +3,7 @@ import requests
 
 from bs4 import BeautifulSoup
 
+from aniworld.common import get_embeded_link, get_redirect_link_from_provider
 from aniworld.config import DEFAULT_REQUEST_TIMEOUT, RANDOM_USER_AGENT
 
 
@@ -25,6 +26,13 @@ def get_direct_link_from_vidoza(embeded_vidoza_link: str) -> str:
 
 
 if __name__ == '__main__':
-    print(get_direct_link_from_vidoza(
-        embeded_vidoza_link="")
-    )
+    EPISODE_LINK = "https://aniworld.to/anime/stream/solo-leveling/staffel-1/episode-9"
+    LANG = 1
+    redirect_link = get_redirect_link_from_provider(EPISODE_LINK, "VOE", LANG)
+    embeded_link = get_embeded_link(redirect_link)
+    direct_link = get_direct_link_from_vidoza(embeded_link)
+    print(
+        redirect_link,"\n",
+        embeded_link,"\n",
+        direct_link,"\n"
+)
