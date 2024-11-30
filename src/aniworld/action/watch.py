@@ -5,7 +5,6 @@ from aniworld.config import MPV_PATH
 
 def watch(anime: Anime):
     # TODO - check for mpv
-    # TODO - add aniskip
     for episode in anime:
         command = [
             MPV_PATH,
