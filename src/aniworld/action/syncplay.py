@@ -20,7 +20,7 @@ def syncplay(anime: Anime):
             "--name", syncplay_username,
             "--room", room_name,
             "--player-path", MPV_PATH,
-            #episode.direct_link,
+            "this-is-direct-link",
             "--",
             "--profile=fast",
             "--hwdec=auto-safe",
@@ -28,5 +28,7 @@ def syncplay(anime: Anime):
             "--video-sync=display-resample",
             f"--force-media-title={episode.title_german}"
         ]
+        #if episode.provider == "Vidmoly":
+            #command.append('--referrer="https://vidmoly.to"')
 
         print(command)

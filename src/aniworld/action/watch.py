@@ -20,5 +20,7 @@ def watch(anime: Anime):
         if anime.aniskip:
             build_flags = aniskip(anime.title, episode.episode, episode.season)
             command.append(build_flags)
+        #if episode.provider == "Vidmoly":
+            #command.insert(1, '--referrer="https://vidmoly.to"')
 
         print(command)

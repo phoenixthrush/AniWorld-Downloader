@@ -25,4 +25,4 @@ def get_direct_link_from_vidoza(embeded_vidoza_link: str) -> str:
 
 
 if __name__ == '__main__':
-    get_direct_link_from_vidoza(embeded_vidoza_link="")
+    print(get_direct_link_from_vidoza(embeded_vidoza_link=""))

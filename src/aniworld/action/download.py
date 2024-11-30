@@ -11,8 +11,10 @@ def download(anime: Anime):
             "-o", output_file,
             "--quiet",
             "--no-warnings",
-            #episode.direct_link,
+            "this-is-direct-link",
             "--progress"
         ]
+        #if episode.provider == "Vidmoly":
+           #command.insert(9, '--add-header Referer: "https://vidmoly.to"')
 
         print(command)

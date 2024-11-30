@@ -37,4 +37,4 @@ def get_direct_link_from_voe(embeded_voe_link: str) -> str:  # TODO - fix voe di
 
 
 if __name__ == '__main__':
-    get_direct_link_from_voe(embeded_voe_link="")
+    print(get_direct_link_from_voe(embeded_voe_link=""))
