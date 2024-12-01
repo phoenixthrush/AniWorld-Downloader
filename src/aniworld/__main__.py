@@ -18,6 +18,7 @@ def main() -> None:
                 )
                 anime_list.append(Anime(
                     **({"action": arguments.action} if arguments.action else {}),
+                    **({"provider": arguments.provider} if arguments.provider else {}),
                     episode_list=[episode]
                 ))
         else:
@@ -31,6 +32,7 @@ def main() -> None:
 
             anime_list.append(Anime(
                 **({"action": arguments.action} if arguments.action else {}),
+                **({"provider": arguments.provider} if arguments.provider else {}),
                 episode_list=default_episodes, aniskip=True
             ))
 

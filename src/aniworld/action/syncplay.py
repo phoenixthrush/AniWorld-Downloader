@@ -28,7 +28,9 @@ def syncplay(anime: Anime):
             "--video-sync=display-resample",
             f"--force-media-title={episode.title_german}"
         ]
-        #if episode.provider == "Vidmoly":
-            #command.append('--referrer="https://vidmoly.to"')
+
+        if anime.provider == "Vidmoly":
+            command.append('--add-header')
+            command.append('Referer: "https://vidmoly.to"')
 
         print(command)

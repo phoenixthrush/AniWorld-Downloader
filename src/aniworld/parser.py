@@ -94,7 +94,7 @@ def parse_arguments() -> argparse.Namespace:
     action_opts.add_argument(
         '-p', '--provider',
         type=str,
-        choices=['Vidoza', 'Streamtape', 'VOE', 'Doodstream'],
+        choices=['Vidoza', 'Streamtape', 'VOE', 'Vidmoly'],
         help='Specify the preferred provider.'
     )
 

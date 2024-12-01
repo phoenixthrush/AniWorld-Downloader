@@ -14,7 +14,9 @@ def download(anime: Anime):
             "this-is-direct-link",
             "--progress"
         ]
-        #if episode.provider == "Vidmoly":
-           #command.insert(9, '--add-header Referer: "https://vidmoly.to"')
+
+        if anime.provider == "Vidmoly":
+            command.append('--add-header')
+            command.append('Referer: "https://vidmoly.to"')
 
         print(command)

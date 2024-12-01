@@ -124,7 +124,8 @@ def get_aniworld_description_from_html(html: requests.models.Response):
 
     return description
 
-def get_myanimelist_description_from_html(title : str):
+
+def get_myanimelist_description_from_html(title: str):
     anime_id = get_mal_id_from_title(title, 1)
     response = requests.get(f"https://myanimelist.net/anime/{anime_id}", timeout=DEFAULT_REQUEST_TIMEOUT)
     soup = BeautifulSoup(response.content, 'html.parser')
@@ -140,6 +141,21 @@ class Anime:
     Attributes:
         title: str = None,
         action: str = "Watch",
+        provider: str = None
+        aniskip: bool = False,
+        only_command: bool = False,
+        only_direct_link: bool = False,
+        output_directory: str = pathlib.Path.home() / "Downloads",
+        episode_list: list = None,
+        description_german: str = None,
+        description_english: str = None,
+    """
+
+    def __init__(
+        self,
+        title: str = None,
+        action: str = "Watch",
+        provider: str = None,
         aniskip: bool = False,
         only_command: bool = False,
         only_direct_link: bool = False,
@@ -147,25 +163,13 @@ class Anime:
         episode_list: list = None,
         description_german: str = None,
         description_english: str = None
-    """
-
-    def __init__(
-        self,
-        title: str = None,
-        action: str = "Watch",
-        aniskip: bool = False,
-        only_command: bool = False,
-        only_direct_link: bool = False,
-        output_directory: str = pathlib.Path.home() / "Downloads",
-        episode_list: list = None,
-        description_german: str = None,
-        description_english: str =None
     ) -> None:
         if not episode_list:
             raise ValueError("Provide 'episode_list'.")
 
         self.title: str = title
         self.action: str = action
+        self.provider: str = provider
         self.aniskip: bool = aniskip
         self.only_command: bool = only_command
         self.only_direct_link: bool = only_direct_link
@@ -181,13 +185,13 @@ class Anime:
         self.description_german = get_aniworld_description_from_html(html=self.episode_list[0].html)
         self.description_english = get_myanimelist_description_from_html(title=self.title)
 
-
     def __iter__(self):
         return iter(self.episode_list)
 
     def __str__(self) -> str:
         return (
             f"Anime(action={self.action}, "
+            f"provider={self.provider}, "
             f"aniskip={self.aniskip}, "
             f"only_command={self.only_command}, "
             f"only_direct_link={self.only_direct_link}, "
