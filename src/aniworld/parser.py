@@ -51,7 +51,7 @@ def parse_arguments() -> argparse.Namespace:
     # Episode options
     episode_opts = parser.add_argument_group('Episode Options')
     episode_opts.add_argument(
-        '-e', '--episodes',
+        '-e', '--episode',
         type=str,
         nargs='+',
         help='Specify one or more episode URLs.'

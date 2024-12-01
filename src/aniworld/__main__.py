@@ -9,8 +9,8 @@ def main() -> None:
         arguments = parse_arguments()
         anime_list = []
 
-        if arguments.episodes:
-            for episode_link in arguments.episodes:
+        if arguments.episode:
+            for episode_link in arguments.episode:
                 episode = Episode(
                     slug=episode_link.split("/")[-3],
                     season=get_season_from_link(link=episode_link),
