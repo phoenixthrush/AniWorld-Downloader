@@ -6,7 +6,8 @@ import requests.models
 from bs4 import BeautifulSoup
 
 from aniworld.aniskip import get_mal_id_from_title
-from aniworld.config import DEFAULT_REQUEST_TIMEOUT
+from aniworld.config import DEFAULT_REQUEST_TIMEOUT, DEFAULT_ACTION
+import sys  # TODO debug
 
 
 def get_anime_title_from_html(html: requests.models.Response) -> str:
@@ -22,22 +23,12 @@ def get_anime_title_from_html(html: requests.models.Response) -> str:
 
 
 def get_episode_title_from_html(html: requests.models.Response) -> tuple:
-    """
-    0: German Title
-    1: English Title
-    """
     episode_soup = BeautifulSoup(html.content, 'html.parser')
     episode_german_title_div = episode_soup.find('span', class_='episodeGermanTitle')
     episode_english_title_div = episode_soup.find('small', class_='episodeEnglishTitle')
 
-    german_title = ""
-    english_title = ""
-
-    if episode_german_title_div:
-        german_title = episode_german_title_div.text
-
-    if episode_english_title_div:
-        english_title = episode_english_title_div.text
+    german_title = episode_german_title_div.text if episode_german_title_div else ""
+    english_title = episode_english_title_div.text if episode_english_title_div else ""
 
     return german_title, english_title
 
@@ -112,10 +103,6 @@ def get_provider_from_html(html: requests.models.Response) -> dict:
 
     return providers
 
-# END OF INTERNAL EPISODE FUNCTIONS
-
-
-# INTERNAL EPISODE FUNCTIONS
 
 def get_aniworld_description_from_html(html: requests.models.Response):
     soup = BeautifulSoup(html.content, 'html.parser')
@@ -132,8 +119,6 @@ def get_myanimelist_description_from_html(title: str):
     description = soup.find('meta', property='og:description')['content']
 
     return description
-
-# END OF INTERNAL EPISODE FUNCTIONS
 
 
 class Anime:
@@ -154,8 +139,9 @@ class Anime:
     def __init__(
         self,
         title: str = None,
-        action: str = "Watch",
+        action: str = DEFAULT_ACTION,
         provider: str = None,
+        language: int = None,
         aniskip: bool = False,
         only_command: bool = False,
         only_direct_link: bool = False,
@@ -170,6 +156,7 @@ class Anime:
         self.title: str = title
         self.action: str = action
         self.provider: str = provider
+        self.language: str = language
         self.aniskip: bool = aniskip
         self.only_command: bool = only_command
         self.only_direct_link: bool = only_direct_link
@@ -190,14 +177,10 @@ class Anime:
 
     def __str__(self) -> str:
         return (
-            f"Anime(action={self.action}, "
-            f"provider={self.provider}, "
-            f"aniskip={self.aniskip}, "
-            f"only_command={self.only_command}, "
-            f"only_direct_link={self.only_direct_link}, "
-            f"output_directory={self.output_directory}, "
-            f"episode_list={self.episode_list}, "
-            f"description_german={self.description_german}), "
+            f"Anime(action={self.action}, provider={self.provider}, "
+            f"aniskip={self.aniskip}, only_command={self.only_command}, "
+            f"only_direct_link={self.only_direct_link}, output_directory={self.output_directory}, "
+            f"episode_list={self.episode_list}, description_german={self.description_german}, "
             f"description_english={self.description_english})"
         )
 
@@ -226,12 +209,12 @@ class Episode:
         slug: str = None,
         link: str = None,
         mal_id: int = None,
-        # redirect_link: str = None,
-        # embeded_link: str = None,
-        # direct_link: str = None,
-        provider: dict = None,
-        language: list = None,
-        html: requests.models.Response = None
+        redirect_link: str = None,
+        provider: dict = None,  # available providers
+        language: list = None,  # available languages
+        selected_provider: str = None,  # selected provider from Anime class
+        selected_language: str = None,  # selected language from Anime class
+        html: requests.models.Response = None,
     ) -> None:
         if not link and not (slug and season and episode):
             raise ValueError("Provide either 'link' or ('slug', 'season', and 'episode').")
@@ -243,11 +226,13 @@ class Episode:
         self.slug: str = slug
         self.link: str = link
         self.mal_id: int = mal_id
-        # self.redirect_link = redirect_link
+        self.redirect_link = redirect_link
         # self.embeded_link = embeded_link
         # self.direct_link = direct_link
         self.provider: dict = provider
         self.language: list = language
+        self.selected_provider = selected_provider
+        self.selected_language: int = selected_language
         self.html: requests.models.Response = html
 
         self.auto_fill_details()
@@ -276,12 +261,23 @@ class Episode:
         anime_title = get_anime_title_from_html(html=self.html)
         self.mal_id = get_mal_id_from_title(title=anime_title, season=self.season)
 
+        if self.selected_provider and self.selected_language:
+            redirect_links = self.provider.get(self.selected_provider)
+
+            for item in redirect_links:
+                print(item)
+                if int(item['language']) == self.selected_language:
+                    self.redirect_link = item['redirect_link']  # TODO fix
+
+            print(self.redirect_link)
+            sys.exit()  # TODO remove
+
     def __str__(self) -> str:
         return (
-            f"Episode(title_german={self.title_german}, title_english={
-                self.title_english}, season={self.season}, episode={self.episode}, "
-            f"slug={self.slug}, link={self.link}, mal_id={self.mal_id}, "
-            f"provider={self.provider}, language={self.language}, html={self.html})"
+            f"Episode(title_german={self.title_german}, title_english={self.title_english}, "
+            f"season={self.season}, episode={self.episode}, slug={self.slug}, "
+            f"link={self.link}, mal_id={self.mal_id}, redirect_link={self.redirect_link}, provider={self.provider}, "
+            f"language={self.language}, html={self.html})"
         )
 
     def to_pretty_string(self) -> str:

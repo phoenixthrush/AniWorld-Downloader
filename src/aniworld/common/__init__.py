@@ -1,1 +1,1 @@
-from .common import clear_screen, get_embeded_link, get_redirect_link_from_provider
+from .common import clear_screen, get_embeded_link
