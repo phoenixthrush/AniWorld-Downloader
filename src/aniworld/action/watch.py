@@ -8,7 +8,7 @@ def watch(anime: Anime):
     for episode in anime:
         command = [
             MPV_PATH,
-            "this-is-direct-link",
+            episode.direct_link,
             "--fs",
             "--profile=fast",
             "--hwdec=auto-safe",

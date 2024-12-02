@@ -9,6 +9,12 @@ from bs4 import BeautifulSoup
 from aniworld.aniskip import get_mal_id_from_title
 from aniworld.config import DEFAULT_REQUEST_TIMEOUT, DEFAULT_ACTION
 
+from aniworld.extractors import (
+    get_direct_link_from_vidmoly,
+    get_direct_link_from_vidoza,
+    get_direct_link_from_voe
+)
+
 
 def get_anime_title_from_html(html: requests.models.Response) -> str:
     episode_soup = BeautifulSoup(html.content, 'html.parser')
@@ -141,6 +147,8 @@ class Episode:
         link: str = None,
         mal_id: int = None,
         redirect_link: str = None,
+        embeded_link: str = None,
+        direct_link: str = None,
         provider: dict = None,  # available providers
         language: list = None,  # available languages
         html: requests.models.Response = None,
@@ -157,8 +165,8 @@ class Episode:
         self.link: str = link
         self.mal_id: int = mal_id
         self.redirect_link = redirect_link
-        # self.embeded_link = embeded_link
-        # self.direct_link = direct_link
+        self.embeded_link = embeded_link
+        self.direct_link = direct_link
         self.provider: dict = provider
         self.language: list = language
         self.html: requests.models.Response = html
@@ -243,6 +251,15 @@ class Episode:
 
         return providers
 
+    def _get_direct_link_from_provider(self) -> str:
+        print(self.embeded_link)  # DEBUG
+        if self.arguments.provider == "Vidmoly":
+            return get_direct_link_from_vidmoly(embeded_vidmoly_link=self.embeded_link)
+        if self.arguments.provider == "Vidoza":
+            return get_direct_link_from_vidoza(embeded_vidoza_link=self.embeded_link)
+        if self.arguments.provider == "VOE":
+            return get_direct_link_from_voe(embeded_voe_link=self.embeded_link)
+
     def auto_fill_details(self) -> None:
         if self.slug and self.season and self.episode:
             self.link = (
@@ -276,6 +293,15 @@ class Episode:
                     self.redirect_link = item['redirect_link']  # TODO fix
 
             print(self.redirect_link)
+
+        # self.embeded_link = requests.get(self.redirect_link, timeout=DEFAULT_REQUEST_TIMEOUT, allow_redirects=True).url
+        self.embeded_link = requests.get(
+            "https://aniworld.to/redirect/2835852",
+            timeout=DEFAULT_REQUEST_TIMEOUT,
+            allow_redirects=True
+        ).url  # TODO - this is debug
+
+        self.direct_link = self._get_direct_link_from_provider()  # TODO - fix
 
     def __str__(self) -> str:
         return (
