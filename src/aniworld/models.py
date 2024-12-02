@@ -215,6 +215,7 @@ class Episode:
         selected_provider: str = None,  # selected provider from Anime class
         selected_language: str = None,  # selected language from Anime class
         html: requests.models.Response = None,
+        arguments=None
     ) -> None:
         if not link and not (slug and season and episode):
             raise ValueError("Provide either 'link' or ('slug', 'season', and 'episode').")
@@ -234,6 +235,7 @@ class Episode:
         self.selected_provider = selected_provider
         self.selected_language: int = selected_language
         self.html: requests.models.Response = html
+        self.arguments = arguments
 
         self.auto_fill_details()
 
