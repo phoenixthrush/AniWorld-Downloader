@@ -1,3 +1,4 @@
+import argparse
 import pathlib
 import re
 
@@ -48,7 +49,8 @@ class Anime:
         output_directory: str = pathlib.Path.home() / "Downloads",
         episode_list: list = None,
         description_german: str = None,
-        description_english: str = None
+        description_english: str = None,
+        arguments: argparse.Namespace = None
     ) -> None:
         if not episode_list:
             raise ValueError("Provide 'episode_list'.")
@@ -64,6 +66,7 @@ class Anime:
         self.episode_list: list = episode_list
         self.description_german: str = description_german
         self.description_english: str = description_english
+        self.arguments = arguments
 
         self.auto_fill_details()
 
@@ -86,6 +89,19 @@ class Anime:
         self.title = get_anime_title_from_html(html=self.episode_list[0].html)
         # self.description_german = self._get_aniworld_description_from_html()  # TODO - fix
         self.description_english = self._get_myanimelist_description_from_html()
+
+        if self.arguments.action:
+            self.action = self.arguments.action
+        else:
+            self.action = "Download"
+
+        if self.arguments.provider:
+            self.provider = self.arguments.provider
+        else:
+            if self.action == "Download":
+                self.provider = "VOE"
+            else:
+                self.provider = "Vidmoly"
 
     def __iter__(self):
         return iter(self.episode_list)
@@ -127,10 +143,8 @@ class Episode:
         redirect_link: str = None,
         provider: dict = None,  # available providers
         language: list = None,  # available languages
-        selected_provider: str = None,  # selected provider from Anime class
-        selected_language: str = None,  # selected language from Anime class
         html: requests.models.Response = None,
-        arguments=None
+        arguments: argparse.Namespace = None
     ) -> None:
         if not link and not (slug and season and episode):
             raise ValueError("Provide either 'link' or ('slug', 'season', and 'episode').")
@@ -147,8 +161,6 @@ class Episode:
         # self.direct_link = direct_link
         self.provider: dict = provider
         self.language: list = language
-        self.selected_provider = selected_provider
-        self.selected_language: int = selected_language
         self.html: requests.models.Response = html
         self.arguments = arguments
 
@@ -255,12 +267,12 @@ class Episode:
         anime_title = get_anime_title_from_html(html=self.html)
         self.mal_id = get_mal_id_from_title(title=anime_title, season=self.season)
 
-        if self.selected_provider and self.selected_language:
-            redirect_links = self.provider.get(self.selected_provider)
+        if self.arguments.provider and self.arguments.language:
+            redirect_links = self.provider.get(self.arguments.provider)
 
             for item in redirect_links:
                 print(item)
-                if int(item['language']) == self.selected_language:
+                if int(item['language']) == self.provider.language:
                     self.redirect_link = item['redirect_link']  # TODO fix
 
             print(self.redirect_link)

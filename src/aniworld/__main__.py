@@ -13,7 +13,8 @@ def main() -> None:
             Anime(
                 episode_list=[Episode(link=link, arguments=arguments)]
                 if arguments.episode
-                else [Episode(slug=search_anime(), arguments=arguments)]
+                else [Episode(slug=search_anime(), season=1, episode=1, arguments=arguments)],
+                arguments=arguments
             )
             for link in (arguments.episode or [None])
         )
