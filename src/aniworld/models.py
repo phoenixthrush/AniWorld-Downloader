@@ -296,10 +296,10 @@ class Episode:
 
         # self.embeded_link = requests.get(self.redirect_link, timeout=DEFAULT_REQUEST_TIMEOUT, allow_redirects=True).url
         self.embeded_link = requests.get(
-            "https://aniworld.to/redirect/2835852",
+            "https://aniworld.to/redirect/2835852",  # TODO - this is hardcoded
             timeout=DEFAULT_REQUEST_TIMEOUT,
             allow_redirects=True
-        ).url  # TODO - this is debug
+        ).url
 
         self.direct_link = self._get_direct_link_from_provider()  # TODO - fix
 
