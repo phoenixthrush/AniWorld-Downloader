@@ -65,7 +65,7 @@ def find_program(program_name: str, fallback_path: str) -> str:
     else:
         fallback_program_path = os.path.join(fallback_path, program_name.lower())
 
-    #if os.path.isfile(fallback_program_path):
+    # if os.path.isfile(fallback_program_path):
     return fallback_program_path
 
 

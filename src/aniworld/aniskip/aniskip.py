@@ -199,13 +199,13 @@ def aniskip(title: str, episode: int, season: int) -> str:
         logging.debug("No MAL ID found.")
         return ""
 
-    if check_episodes(anime_id): #== episode_count: # TODO Add episode count of season
+    if check_episodes(anime_id):  # == episode_count: # TODO Add episode count of season
         with tempfile.NamedTemporaryFile(mode="w+", delete=False) as chapters_file:
             logging.debug("Created temporary chapters file: %s", chapters_file.name)
             return build_flags(anime_id, episode, chapters_file.name)
     else:
         logging.debug("Check_Episode: %s", check_episodes(anime_id))
-        logging.debug("Check get_season_episode_count: %s",123)
+        logging.debug("Check get_season_episode_count: %s", 123)
         logging.debug("Mal ID isn't matching episode counter!")
         return ""
 
