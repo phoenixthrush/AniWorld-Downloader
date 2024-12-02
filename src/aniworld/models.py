@@ -71,7 +71,7 @@ class Anime:
         self.auto_fill_details()
 
     def _get_aniworld_description_from_html(self):
-        soup = BeautifulSoup(self.episode_list[0].html, 'html.parser')
+        soup = BeautifulSoup(self.episode_list[0].html.content, 'html.parser')
         seri_des_div = soup.find('p', class_='seri_des')
         description = seri_des_div['data-full-description']
 
@@ -87,7 +87,7 @@ class Anime:
 
     def auto_fill_details(self) -> None:
         self.title = get_anime_title_from_html(html=self.episode_list[0].html)
-        # self.description_german = self._get_aniworld_description_from_html()  # TODO - fix
+        self.description_german = self._get_aniworld_description_from_html()
         self.description_english = self._get_myanimelist_description_from_html()
 
         if self.arguments.action:
