@@ -6,8 +6,11 @@ from urllib.parse import quote
 import requests
 import curses
 
+from aniworld.ascii_art import display_ascii_art
+
 
 def search_anime(keyword: str = None) -> str:
+    print(display_ascii_art())
     if not keyword:
         keyword = input("Search for a series: ").strip()
         if keyword.strip().lower() == "boku no piko":
