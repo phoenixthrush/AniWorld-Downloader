@@ -28,4 +28,6 @@ def get_direct_link_from_vidmoly(embeded_vidmoly_link: str):
 
 
 if __name__ == '__main__':
-    print(get_direct_link_from_vidmoly(embeded_vidmoly_link=""))
+    link = input("Enter Vidmoly Link: ")
+    print('Note: --referer "https://vidmoly.to"')
+    print(get_direct_link_from_vidmoly(embeded_vidmoly_link=link))

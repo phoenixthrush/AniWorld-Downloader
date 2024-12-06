@@ -38,4 +38,5 @@ def get_direct_link_from_voe(embeded_voe_link: str) -> str:  # TODO - fix voe di
 
 
 if __name__ == '__main__':
-    print(get_direct_link_from_voe(embeded_voe_link=""))
+    link = input("Enter VOE Link: ")
+    print(get_direct_link_from_voe(embeded_voe_link=link))
