@@ -14,6 +14,7 @@ from aniworld.extractors import (
     streamtape_get_direct_link,
     vidoza_get_direct_link,
     voe_get_direct_link,
+    vidmoly_get_direct_link
 )
 
 
@@ -399,7 +400,8 @@ def execute(params: Dict[str, Any]) -> None:
         "Vidoza": vidoza_get_direct_link,
         "VOE": voe_get_direct_link,
         "Doodstream": doodstream_get_direct_link,
-        "Streamtape": streamtape_get_direct_link
+        "Streamtape": streamtape_get_direct_link,
+        "Vidmoly": vidmoly_get_direct_link
     }
 
     selected_episodes = params['selected_episodes']
