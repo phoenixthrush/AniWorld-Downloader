@@ -421,15 +421,28 @@ def get_season_episodes(season_url):
 
 
 def get_movies_episode_count(slug: str) -> int:
-    movie_url = f"https://aniworld.to/anime/stream/{slug}/filme/film-1"
+    movie_url = f"https://aniworld.to/anime/stream/{slug}/filme"
     season_html = fetch_url_content(movie_url)
     if season_html is None:
         return 0
-    season_soup = BeautifulSoup(season_html, 'html.parser')
+    soup = BeautifulSoup(season_html, 'html.parser')
 
-    episode_links = season_soup.find_all('a', href=re.compile(r'/filme/film-\d+'))
-    episode_numbers = [int(re.search(r'\d+', link['href']).group()) for link in episode_links]
-    return max(episode_numbers, default=0)
+    movie_numbers = []
+    counter = 1
+    while True:
+        target = f"{slug}/filme/film-{counter}"
+
+        matching_links = []
+        for link in soup.find_all('a', href=True):
+            if target in link['href']:
+                matching_links.append(link['href'])
+        if matching_links:
+            movie_numbers.append(counter)
+            counter += 1
+        else:
+            break
+
+    return max(movie_numbers) if movie_numbers else 0
 
 
 def get_season_data(anime_slug: str):
@@ -487,7 +500,7 @@ def get_season_and_episode_numbers(episode_url: str) -> tuple:
         matches = re.findall(r'\d+', episode_url)
         season_episode = int(matches[-2]), int(matches[-1])
     elif "filme" in episode_url:
-        movie_number = re.findall(r'\d+', episode_url)
+        movie_number = re.findall(r'film-(\d+)', episode_url)
         season_episode = 0, int(movie_number[0]) if movie_number else 1
     else:
         logging.error("URL format not recognized: %s", episode_url)
