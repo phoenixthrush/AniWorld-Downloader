@@ -1112,7 +1112,7 @@ def countdown():
 
 
 def sanitize_path(path):
-    invalid_chars = r'\/:*?"<>|'
+    invalid_chars = r'\/:*?"<>|&'
 
     translation_table = str.maketrans('', '', invalid_chars)
 
