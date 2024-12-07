@@ -1,5 +1,6 @@
 import platform
 import getpass
+import subprocess
 
 from aniworld.models import Anime
 from aniworld.config import MPV_PATH
@@ -14,23 +15,24 @@ def syncplay(anime: Anime):
 
         command = [
             executable,
+            f'"{episode.direct_link}"',
             "--no-gui",
             "--no-store",
-            "--host", syncplay_hostname,
-            "--name", syncplay_username,
-            "--room", room_name,
-            "--player-path", MPV_PATH,
-            "this-is-direct-link",
+            "--host", f'"{syncplay_hostname}"',
+            "--name", f'"{syncplay_username}"',
+            "--room", f'"{room_name}"',
+            "--player-path", f'"{MPV_PATH}"',
             "--",
             "--profile=fast",
             "--hwdec=auto-safe",
             "--fs",
             "--video-sync=display-resample",
-            f"--force-media-title={episode.title_german}"
+            f'--force-media-title="{episode.title_german}"'
         ]
 
         if anime.provider == "Vidmoly":
             command.append('--add-header')
             command.append('Referer: "https://vidmoly.to"')
 
-        print(command)
+        # subprocess.run(command, check=False)
+        print(' '.join(command))
