@@ -327,12 +327,12 @@ class Episode:
         self.redirect_link = self.provider[self.arguments.provider][self._get_key_from_language(self.arguments.language)]
         self.embeded_link = requests.get(self.redirect_link, timeout=DEFAULT_REQUEST_TIMEOUT).url
 
-        print(self.redirect_link)
-        print(self.embeded_link)
+        # print(self.redirect_link)
+        # print(self.embeded_link)
 
         # TODO - Fix Vidmoly Timeout
         self.direct_link = self._get_direct_link_from_provider()
-        print(self.direct_link)
+        # print(self.direct_link)
 
         # TESTING
         # self.embeded_link = requests.get(

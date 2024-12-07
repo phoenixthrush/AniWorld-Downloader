@@ -1,3 +1,5 @@
+import subprocess
+
 from aniworld.aniskip import aniskip
 from aniworld.models import Anime
 from aniworld.config import MPV_PATH
@@ -26,4 +28,4 @@ def watch(anime: Anime):
             build_flags = aniskip(anime.title, episode.episode, episode.season)
             command.append(build_flags)
 
-        print(command)
+        subprocess.run(command, check=False)
