@@ -1,17 +1,22 @@
+import os
+import subprocess
+
 from aniworld.models import Anime
+from aniworld.config import DEFAULT_DOWNLOAD_PATH
 
 
 def download(anime: Anime):
     for episode in anime:
-        output_file = f"{anime.title} S{episode.season}E{episode.episode}"
+        output_file = f"S{episode.season}E{episode.episode}"
+        output_path = os.path.join(DEFAULT_DOWNLOAD_PATH, anime.title, output_file)
         command = [
             "yt-dlp",
+            episode.direct_link,
             "--fragment-retries", "infinite",
             "--concurrent-fragments", "4",
-            "-o", output_file,
+            "-o", output_path,
             "--quiet",
             "--no-warnings",
-            "this-is-direct-link",
             "--progress"
         ]
 
@@ -19,4 +24,4 @@ def download(anime: Anime):
             command.append('--add-header')
             command.append('Referer: "https://vidmoly.to"')
 
-        print(command)
+        subprocess.run(command, check=False)
