@@ -7,7 +7,13 @@ import requests.models
 from bs4 import BeautifulSoup
 
 from aniworld.aniskip import get_mal_id_from_title
-from aniworld.config import DEFAULT_REQUEST_TIMEOUT, DEFAULT_ACTION
+from aniworld.config import (
+    DEFAULT_REQUEST_TIMEOUT,
+    DEFAULT_ACTION,
+    DEFAULT_LANGUAGE,
+    DEFAULT_PROVIDER,
+    DEFAULT_PROVIDER_WATCH
+)
 
 from aniworld.extractors import (
     get_direct_link_from_vidmoly,
@@ -99,15 +105,15 @@ class Anime:
         if self.arguments.action:
             self.action = self.arguments.action
         else:
-            self.action = "Download"
+            self.action = DEFAULT_ACTION
 
         if self.arguments.provider:
             self.provider = self.arguments.provider
         else:
             if self.action == "Download":
-                self.provider = "VOE"
+                self.provider = DEFAULT_PROVIDER
             else:
-                self.provider = "Vidmoly"
+                self.provider = DEFAULT_PROVIDER_WATCH
 
     def __iter__(self):
         return iter(self.episode_list)
@@ -226,6 +232,21 @@ class Episode:
         return language  # e.g. [1, 2, 3]
 
     def _get_provider_from_html(self) -> dict:
+        """
+            Parses the HTML content to extract streaming providers, their language keys, and redirect links.
+            Returns a dictionary with provider names as keys and language key-to-redirect URL mappings as values.
+
+            Example:
+            {
+                'VOE': {1: 'https://aniworld.to/redirect/1766412', 2: 'https://aniworld.to/redirect/1766405'},
+                'Doodstream': {1: 'https://aniworld.to/redirect/1987922', 2: 'https://aniworld.to/redirect/2700342'},
+                ...
+            }
+
+            Access redirect link with:
+            print(self.provider["VOE"][2])
+        """
+
         soup = BeautifulSoup(self.html.content, 'html.parser')
         providers = {}
 
@@ -243,22 +264,29 @@ class Episode:
 
             if provider_name and redirect_link and lang_key:
                 if provider_name not in providers:
-                    providers[provider_name] = []
-                providers[provider_name].append({
-                    'redirect_link': f"https://aniworld.to{redirect_link}",
-                    'language': lang_key
-                })
+                    providers[provider_name] = {}
+                providers[provider_name][lang_key] = f"https://aniworld.to{redirect_link}"
 
         return providers
 
+    def _get_key_from_language(self, language: str) -> int:
+        lang_mapping = {
+            "German Dub": 1,
+            "English Sub": 2,
+            "German Sub": 3
+        }
+
+        return lang_mapping.get(language, "Unknown Language")
+
     def _get_direct_link_from_provider(self) -> str:
-        print(self.embeded_link)  # DEBUG
         if self.arguments.provider == "Vidmoly":
             return get_direct_link_from_vidmoly(embeded_vidmoly_link=self.embeded_link)
         if self.arguments.provider == "Vidoza":
             return get_direct_link_from_vidoza(embeded_vidoza_link=self.embeded_link)
         if self.arguments.provider == "VOE":
             return get_direct_link_from_voe(embeded_voe_link=self.embeded_link)
+
+        raise ValueError("No valid provider selected.")
 
     def auto_fill_details(self) -> None:
         if self.slug and self.season and self.episode:
@@ -272,6 +300,18 @@ class Episode:
             self.season = self.season or self._get_season_from_link()
             self.episode = self.episode or self._get_episode_from_link()
 
+        if not self.arguments.language:
+            self.arguments.language = DEFAULT_LANGUAGE
+
+        if not self.arguments.action:
+            self.arguments.action = DEFAULT_ACTION
+
+        if not self.arguments.provider:
+            if self.arguments.action == "Download":
+                self.arguments.provider = DEFAULT_PROVIDER
+            else:
+                self.arguments.provider = DEFAULT_PROVIDER_WATCH
+
         self.html = requests.get(self.link, timeout=DEFAULT_REQUEST_TIMEOUT)
 
         title_german, title_english = self._get_episode_title_from_html()
@@ -284,24 +324,21 @@ class Episode:
         anime_title = get_anime_title_from_html(html=self.html)
         self.mal_id = get_mal_id_from_title(title=anime_title, season=self.season)
 
-        if self.arguments.provider and self.arguments.language:
-            redirect_links = self.provider.get(self.arguments.provider)
+        self.redirect_link = self.provider[self.arguments.provider][self._get_key_from_language(self.arguments.language)]
+        self.embeded_link = requests.get(self.redirect_link, timeout=DEFAULT_REQUEST_TIMEOUT).url
 
-            for item in redirect_links:
-                print(item)
-                if int(item['language']) == self.provider.language:
-                    self.redirect_link = item['redirect_link']  # TODO fix
+        print(self.redirect_link)
+        print(self.embeded_link)
 
-            print(self.redirect_link)
+        # TODO - Fix Vidmoly Timeout
+        self.direct_link = self._get_direct_link_from_provider()
+        print(self.direct_link)
 
-        # self.embeded_link = requests.get(self.redirect_link, timeout=DEFAULT_REQUEST_TIMEOUT, allow_redirects=True).url
-        self.embeded_link = requests.get(
-            "https://aniworld.to/redirect/2835852",  # TODO - this is hardcoded
-            timeout=DEFAULT_REQUEST_TIMEOUT,
-            allow_redirects=True
-        ).url
-
-        self.direct_link = self._get_direct_link_from_provider()  # TODO - fix
+        # TESTING
+        # self.embeded_link = requests.get(
+        #    "https://aniworld.to/redirect/2835852",  # TODO - this is hardcoded
+        #    timeout=DEFAULT_REQUEST_TIMEOUT,
+        # ).url
 
     def __str__(self) -> str:
         return (
