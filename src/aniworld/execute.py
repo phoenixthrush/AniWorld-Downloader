@@ -91,7 +91,7 @@ def build_command(
     return command
 
 
-def build_yt_dlp_command(link: str, output_file: str) -> List[str]:
+def build_yt_dlp_command(link: str, output_file: str, selected_provider: str) -> List[str]:
     logging.debug("Building yt-dlp command with link: %s, output_file: %s", link, output_file)
     command = [
         "yt-dlp",
@@ -103,9 +103,16 @@ def build_yt_dlp_command(link: str, output_file: str) -> List[str]:
         link,
         "--progress"
     ]
-    provider = ""
-    if provider == "direct-link": # TODO Doodstream referrer
-        command.append("--http-header-fields=Referer: https://dood.li/")
+
+    doodstream_referer = "https://dood.li/"
+    vidmoly_referer = "https://vidmoly.to/"
+
+    if selected_provider == "Doodstream":
+        command.append("--add-header")
+        command.append(f"Referer: {doodstream_referer}")
+    elif selected_provider == "Vidmoly":
+        command.append("--add-header")
+        command.append(f"Referer: {vidmoly_referer}")
 
     logging.debug("Built yt-dlp command: %s", command)
     return command
@@ -364,7 +371,7 @@ def handle_download_action(params: Dict[str, Any]) -> None:
             print(msg)
         else:
             print_progress_info(msg)
-    command = build_yt_dlp_command(params['link'], file_path)
+    command = build_yt_dlp_command(params['link'], file_path, params['provider'])
     logging.debug("Executing command: %s", command)
     try:
         execute_command(command, params['only_command'])
@@ -525,7 +532,8 @@ def process_provider(params: Dict[str, Any]) -> None:
                 "season_number": season_number,
                 "output_directory": params['output_directory'],
                 "only_command": params['only_command'],
-                "aniskip_selected": params['aniskip_selected']
+                "aniskip_selected": params['aniskip_selected'],
+                "provider": params['provider']
             }
 
             logging.debug("Performing action with params: %s", episode_params)
