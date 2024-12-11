@@ -59,6 +59,12 @@ AniWorld Downloader is a command-line tool built to download and stream anime co
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+## :construction: Aniworld-Downloader is Currently Being Rewritten
+
+Aniworld-Downloader is currently being rewritten on the `next` branch to be even faster, with the code made much more readable by using OOP principles. This rewrite will take some time until it reaches the same stage as the main branch. However, I will continue supporting the main branch and fix any bugs that may occur. If you want, you can check it out [here](https://github.com/phoenixthrush/AniWorld-Downloader/tree/next).
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## Features
 
 - **Episode Downloads**: Easily download single episodes or entire seasons in one go.
