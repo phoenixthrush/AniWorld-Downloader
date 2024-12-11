@@ -100,11 +100,12 @@ def build_yt_dlp_command(link: str, output_file: str) -> List[str]:
         "-o", output_file,
         "--quiet",
         "--no-warnings",
-        "--add-header", "Referer: https://dood.li/",
         link,
-        "--progress",
-        "--http-header-fields=Referer: https://dood.li/"
+        "--progress"
     ]
+    provider = ""
+    if provider == "direct-link": # TODO Doodstream referrer
+        command.append("--http-header-fields=Referer: https://dood.li/")
 
     logging.debug("Built yt-dlp command: %s", command)
     return command
