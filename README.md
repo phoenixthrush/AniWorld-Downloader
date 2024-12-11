@@ -525,6 +525,7 @@ Contributions to AniWorld Downloader are welcome! Your input helps improve the p
   ![wakatime](https://wakatime.com/badge/user/79a1926c-65a1-4f1c-baf3-368712ebbf97/project/5f191c34-1ee2-4850-95c3-8d85d516c449.svg)
 
   Thank you [Tmaster055](https://github.com/Tmaster055) for fixing Aniskip by fetching the correct MAL ID!
+  Thank you [fundyjo](https://github.com/fundyjo) for the Doodstream extractor!
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
