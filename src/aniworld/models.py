@@ -18,7 +18,8 @@ from aniworld.config import (
 from aniworld.extractors import (
     get_direct_link_from_vidmoly,
     get_direct_link_from_vidoza,
-    get_direct_link_from_voe
+    get_direct_link_from_voe,
+    get_direct_link_from_doodstream
 )
 
 
@@ -285,6 +286,8 @@ class Episode:
             return get_direct_link_from_vidoza(embeded_vidoza_link=self.embeded_link)
         if self.arguments.provider == "VOE":
             return get_direct_link_from_voe(embeded_voe_link=self.embeded_link)
+        if self.arguments.provider == "Doodstream":
+            return get_direct_link_from_doodstream(embeded_doodstream_link=self.embeded_link)
 
         raise ValueError("No valid provider selected.")
 

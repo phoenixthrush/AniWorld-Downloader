@@ -21,8 +21,10 @@ def watch(anime: Anime):
         ]
 
         if anime.provider == "Vidmoly":
-            command.append('--add-header')
-            command.append('Referer: "https://vidmoly.to"')
+            command.append('--http-header-fields="Referer: https://vidmoly.to"')
+
+        if anime.provider == "Doodstream":
+            command.append('--http-header-fields="Referer: https://dood.li/"')
 
         if anime.aniskip:
             build_flags = aniskip(anime.title, episode.episode, episode.season)

@@ -19,20 +19,25 @@ def syncplay(anime: Anime):
             "--no-gui",
             "--no-store",
             "--host", f'"{syncplay_hostname}"',
-            "--name", f'"{syncplay_username}"',
             "--room", f'"{room_name}"',
-            "--player-path", f'"{MPV_PATH}"',
-            "--",
-            "--profile=fast",
-            "--hwdec=auto-safe",
-            "--fs",
-            "--video-sync=display-resample",
-            f'--force-media-title="{episode.title_german}"'
+            "--name", f'"{syncplay_username}"',
+            "--player-path", f'"{MPV_PATH}"'
+            # "--",
+            # "--fs"
+            # "--profile=fast",
+            # "--hwdec=auto-safe",
+            # "--fs",
+            # "--video-sync=display-resample",
+            # f'--force-media-title="{episode.title_german}"'
         ]
 
         if anime.provider == "Vidmoly":
             command.append('--add-header')
             command.append('Referer: "https://vidmoly.to"')
 
-        # subprocess.run(command, check=False)
+        if anime.provider == "Doodstream":
+            command.append('--add-header')
+            command.append('Referer: "https://dood.li/"')
+
+        subprocess.run(command, check=False)
         print(' '.join(command))
