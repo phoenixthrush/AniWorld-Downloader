@@ -52,4 +52,4 @@ def doodstream_get_direct_link(soup):
 
 if __name__ == '__main__':
     link = input("Enter Doodstream Link: ")
-    print(get_direct_link_from_doodstream(embeded_doodstream_link=link))
+    print(doodstream_get_direct_link(embeded_doodstream_link=link))
