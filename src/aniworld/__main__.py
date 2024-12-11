@@ -182,9 +182,9 @@ class EpisodeForm(npyscreen.ActionForm):
         self.provider_selector = self.add(
             npyscreen.TitleSelectOne,
             name="Provider",
-            values=["VOE", "Vidmoly"],
+            values=["VOE", "Vidmoly", "Doodstream"],
             max_height=2,  # count of values
-            value=[["VOE", "Vidmoly"].index(aniworld_globals.DEFAULT_PROVIDER)],
+            value=[["VOE", "Vidmoly", "Doodstream"].index(aniworld_globals.DEFAULT_PROVIDER)],
             scroll_exit=True
         )
         logging.debug("Provider selector created")
@@ -331,7 +331,7 @@ class EpisodeForm(npyscreen.ActionForm):
 
     def validate_provider(self, provider_selected):
         logging.debug("Validating provider: %s", provider_selected)
-        valid_providers = ["Vidoza", "Streamtape", "VOE"]
+        valid_providers = ["Vidoza", "Streamtape", "VOE", "Doodstream"]
         while provider_selected[0] not in valid_providers:
             logging.debug("Invalid provider selected, falling back to Vidoza")
             npyscreen.notify_confirm(
@@ -498,7 +498,7 @@ def parse_arguments():
     action_group.add_argument(
         '-p', '--provider',
         type=str,
-        choices=['Vidoza', 'Streamtape', 'VOE', 'Doodstream', 'Vidmoly'],
+        choices=['Vidoza', 'Streamtape', 'VOE', 'Doodstream', 'Vidmoly', 'Doodstream'],
         help='Provider choice'
     )
 

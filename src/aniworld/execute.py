@@ -76,6 +76,7 @@ def build_command(
         "--profile=fast",
         "--hwdec=auto-safe",
         "--video-sync=display-resample",
+        "--http-header-fields=Referer: https://dood.li/",
         f"--force-media-title={mpv_title}"
     ]
 
@@ -99,8 +100,10 @@ def build_yt_dlp_command(link: str, output_file: str) -> List[str]:
         "-o", output_file,
         "--quiet",
         "--no-warnings",
+        "--add-header", "Referer: https://dood.li/",
         link,
-        "--progress"
+        "--progress",
+        "--http-header-fields=Referer: https://dood.li/"
     ]
 
     logging.debug("Built yt-dlp command: %s", command)
@@ -235,7 +238,8 @@ def build_syncplay_command(
         "--hwdec=auto-safe",
         "--fs",
         "--video-sync=display-resample",
-        f"--force-media-title={mpv_title}"
+        f"--force-media-title={mpv_title}",
+        "--http-header-fields=Referer: https://dood.li/"
     ])
     if aniskip_options:
         logging.debug("Aniskip options provided, setting up aniskip")
