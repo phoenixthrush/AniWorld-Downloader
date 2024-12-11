@@ -1,5 +1,12 @@
 import argparse
 
+from aniworld.config import (
+    DEFAULT_ACTION,
+    DEFAULT_PROVIDER_DOWNLOAD,
+    DEFAULT_PROVIDER_WATCH,
+    DEFAULT_LANGUAGE
+)
+
 
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -73,6 +80,7 @@ def parse_arguments() -> argparse.Namespace:
         '-a', '--action',
         type=str,
         choices=['Watch', 'Download', 'Syncplay'],
+        default=DEFAULT_ACTION,
         help='Specify the action to perform.'
     )
     action_opts.add_argument(
@@ -89,6 +97,7 @@ def parse_arguments() -> argparse.Namespace:
         '-L', '--language',
         type=str,
         choices=['German Dub', 'English Sub', 'German Sub'],
+        default=DEFAULT_LANGUAGE,
         help='Specify the language for playback or download.'
     )
     action_opts.add_argument(
@@ -170,5 +179,13 @@ def parse_arguments() -> argparse.Namespace:
         action='store_true',
         help='Use Playwright for bypassing with a headless browser.'
     )
+
+    args = parser.parse_args()
+
+    if args.provider is None:
+        if args.action == "Download":
+            args.provider = DEFAULT_PROVIDER_DOWNLOAD
+        else:
+            args.provider = DEFAULT_PROVIDER_WATCH
 
     return parser.parse_args()

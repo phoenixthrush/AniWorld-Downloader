@@ -7,8 +7,8 @@ import os
 DEFAULT_ACTION = "Download"      # E.g. Watch, Download, Syncplay
 DEFAULT_DOWNLOAD_PATH = pathlib.Path.home() / "Downloads"
 DEFAULT_LANGUAGE = "German Sub"  # German Dub, English Sub, German Sub
-DEFAULT_PROVIDER = "VOE"         # Vidoza, Streamtape, VOE, Doodstream
-DEFAULT_PROVIDER_WATCH = "VOE"
+DEFAULT_PROVIDER_DOWNLOAD = "VOE"         # Vidoza, Streamtape, VOE, Doodstream
+DEFAULT_PROVIDER_WATCH = "Doodstream"
 DEFAULT_ANISKIP = False
 DEFAULT_KEEP_WATCHING = False
 DEFAULT_ONLY_DIRECT_LINK = False
@@ -16,7 +16,7 @@ DEFAULT_ONLY_COMMAND = False
 DEFAULT_PROXY = None
 DEFAULT_USE_PLAYWRIGHT = False
 DEFAULT_TERMINAL_SIZE = (90, 30)
-DEFAULT_REQUEST_TIMEOUT = 20
+DEFAULT_REQUEST_TIMEOUT = 30
 
 # pylint: disable=line-too-long
 USER_AGENTS = [

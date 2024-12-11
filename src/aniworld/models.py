@@ -11,7 +11,7 @@ from aniworld.config import (
     DEFAULT_REQUEST_TIMEOUT,
     DEFAULT_ACTION,
     DEFAULT_LANGUAGE,
-    DEFAULT_PROVIDER,
+    DEFAULT_PROVIDER_DOWNLOAD,
     DEFAULT_PROVIDER_WATCH
 )
 
@@ -102,19 +102,6 @@ class Anime:
         self.title = get_anime_title_from_html(html=self.episode_list[0].html)
         self.description_german = self._get_aniworld_description_from_html()
         self.description_english = self._get_myanimelist_description_from_html()
-
-        if self.arguments.action:
-            self.action = self.arguments.action
-        else:
-            self.action = DEFAULT_ACTION
-
-        if self.arguments.provider:
-            self.provider = self.arguments.provider
-        else:
-            if self.action == "Download":
-                self.provider = DEFAULT_PROVIDER
-            else:
-                self.provider = DEFAULT_PROVIDER_WATCH
 
     def __iter__(self):
         return iter(self.episode_list)
@@ -277,7 +264,12 @@ class Episode:
             "German Sub": 3
         }
 
-        return lang_mapping.get(language, "Unknown Language")
+        language_key = lang_mapping.get(language, "Unknown Language")
+
+        if language_key == None:
+            raise ValueError("Language not valid.")
+
+        return language_key
 
     def _get_direct_link_from_provider(self) -> str:
         if self.arguments.provider == "Vidmoly":
@@ -303,18 +295,6 @@ class Episode:
             self.season = self.season or self._get_season_from_link()
             self.episode = self.episode or self._get_episode_from_link()
 
-        if not self.arguments.language:
-            self.arguments.language = DEFAULT_LANGUAGE
-
-        if not self.arguments.action:
-            self.arguments.action = DEFAULT_ACTION
-
-        if not self.arguments.provider:
-            if self.arguments.action == "Download":
-                self.arguments.provider = DEFAULT_PROVIDER
-            else:
-                self.arguments.provider = DEFAULT_PROVIDER_WATCH
-
         self.html = requests.get(self.link, timeout=DEFAULT_REQUEST_TIMEOUT)
 
         title_german, title_english = self._get_episode_title_from_html()
@@ -326,6 +306,9 @@ class Episode:
 
         anime_title = get_anime_title_from_html(html=self.html)
         self.mal_id = get_mal_id_from_title(title=anime_title, season=self.season)
+
+        # TODO - fix "KeyError None" crash
+        # print(self.provider[self.arguments.provider])
 
         self.redirect_link = self.provider[self.arguments.provider][self._get_key_from_language(self.arguments.language)]
         self.embeded_link = requests.get(self.redirect_link, timeout=DEFAULT_REQUEST_TIMEOUT).url
