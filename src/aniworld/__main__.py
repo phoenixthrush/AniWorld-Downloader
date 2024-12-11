@@ -183,7 +183,7 @@ class EpisodeForm(npyscreen.ActionForm):
             npyscreen.TitleSelectOne,
             name="Provider",
             values=["VOE", "Vidmoly", "Doodstream"],
-            max_height=2,  # count of values
+            max_height=3,  # count of values
             value=[["VOE", "Vidmoly", "Doodstream"].index(aniworld_globals.DEFAULT_PROVIDER)],
             scroll_exit=True
         )
