@@ -364,19 +364,15 @@ def handle_download_action(params: Dict[str, Any]) -> None:
         return language
 
     file_name = (
-        f"{sanitize_anime_title} - S{params['season_number']}E{params['episode_number']}"
+        f"{sanitize_anime_title}/{sanitize_anime_title} - S{params['season_number']}E{params['episode_number']}"
         if params['season_number']
-        else f"{sanitize_anime_title} - Movie {params['episode_number']}"
+        else f"{sanitize_anime_title}/{sanitize_anime_title} - Movie {params['episode_number']}"
     )
 
     output_directory = os.getenv("OUTPUT_DIRECTORY") or params['output_directory']
 
-    anime_title = file_name.split(" --- ")[0].split(" - S")[0]  # TODO - do this differently lol
-
-    # TODO - fix on menu
     file_path = os.path.join(
         output_directory,
-        anime_title,
         f"{file_name} ({get_language_from_key(int(params['language']))}).mp4"
     )
 
