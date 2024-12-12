@@ -348,10 +348,29 @@ def handle_download_action(params: Dict[str, Any]) -> None:
     logging.debug("Action is Download")
     check_dependencies(["yt-dlp"])
     sanitize_anime_title = sanitize_path(params['anime_title'])
+
+    def get_language_from_key(key: int) -> str:
+        key_mapping = {
+            1: "German Dub",
+            2: "English Sub",
+            3: "German Sub"
+        }
+
+        language = key_mapping.get(key, "Unknown Key")
+
+        if language == "Unknown Key":
+            raise ValueError("Key not valid.")
+
+        return language
+
+    print(params['language'])
+
     file_name = (
-        f"{sanitize_anime_title} - S{params['season_number']}E{params['episode_number']}.mp4"
+        f"{sanitize_anime_title} - S{params['season_number']}E{params['episode_number']} - "
+        f"{get_language_from_key(int(params['language']))}.mp4"
         if params['season_number']
-        else f"{sanitize_anime_title} - Movie {params['episode_number']}.mp4"
+        else f"{sanitize_anime_title} - Movie {params['episode_number']} - "
+        f"{get_language_from_key(int(params['language']))}.mp4"
     )
 
     if os.getenv("OUTPUT_DIRECTORY"):
@@ -533,7 +552,8 @@ def process_provider(params: Dict[str, Any]) -> None:
                 "output_directory": params['output_directory'],
                 "only_command": params['only_command'],
                 "aniskip_selected": params['aniskip_selected'],
-                "provider": params['provider']
+                "provider": params['provider'],
+                "language": params['lang']
             }
 
             logging.debug("Performing action with params: %s", episode_params)
