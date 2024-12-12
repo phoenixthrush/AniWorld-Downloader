@@ -28,7 +28,7 @@ def voe_get_direct_link(soup):
             redirect_content = response.read()
         redirect_content_str = redirect_content.decode('utf-8')
     except (HTTPError, URLError, TimeoutError) as e:
-        logging.error(f"Failed to fetch URL {redirect_url}: {e}")
+        logging.error("Failed to fetch URL %s: %s", redirect_url, e)
         return None
 
     hls_match = EXTRACT_VEO_HLS_PATTERN.search(redirect_content_str)

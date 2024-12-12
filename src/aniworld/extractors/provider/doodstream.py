@@ -37,7 +37,7 @@ def doodstream_get_direct_link(soup):
     if not token:
         raise ValueError('Token not found.')
 
-    md5_response = requests.get(full_md5_url, headers=headers)
+    md5_response = requests.get(full_md5_url, headers=headers, timeout=30)
     md5_response.raise_for_status()
     video_base_url = md5_response.text.strip()
 
@@ -48,8 +48,3 @@ def doodstream_get_direct_link(soup):
     # print(direct_link)
 
     return direct_link
-
-
-if __name__ == '__main__':
-    link = input("Enter Doodstream Link: ")
-    print(doodstream_get_direct_link(embeded_doodstream_link=link))

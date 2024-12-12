@@ -1,7 +1,5 @@
 import re
 
-from aniworld import globals as aniworld_globals
-
 
 def vidmoly_get_direct_link(soup):
     scripts = soup.find_all('script')
