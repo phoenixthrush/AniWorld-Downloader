@@ -363,13 +363,19 @@ def handle_download_action(params: Dict[str, Any]) -> None:
 
         return language
 
+    output_directory = os.getenv("OUTPUT_DIRECTORY") or params['output_directory']
+
+    if sanitize_anime_title in output_directory:
+        anime_folder = f"{sanitize_anime_title}"
+    else:
+        anime_folder = f"{sanitize_anime_title}/{sanitize_anime_title}"
+
     file_name = (
-        f"{sanitize_anime_title}/{sanitize_anime_title} - S{params['season_number']}E{params['episode_number']}"
+        f"{anime_folder} - S{params['season_number']}E{params['episode_number']}"
         if params['season_number']
-        else f"{sanitize_anime_title}/{sanitize_anime_title} - Movie {params['episode_number']}"
+        else f"{anime_folder} - Movie {params['episode_number']}"
     )
 
-    output_directory = os.getenv("OUTPUT_DIRECTORY") or params['output_directory']
 
     file_path = os.path.join(
         output_directory,
