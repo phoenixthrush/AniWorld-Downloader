@@ -49,6 +49,8 @@ from aniworld.extractors import (
     hanime
 )
 
+from aniworld.globals import DEFAULT_DOWNLOAD_PATH
+
 
 def format_anime_title(anime_slug):
     logging.debug("Formatting anime title for slug: %s", anime_slug)
@@ -491,7 +493,8 @@ def parse_arguments():
     action_group.add_argument(
         '-o', '--output',
         type=str,
-        help='Download directory E.g. /Users/phoenixthrush/Downloads'
+        help='Download directory E.g. /Users/phoenixthrush/Downloads',
+        default=DEFAULT_DOWNLOAD_PATH
     )
     action_group.add_argument(
         '-O', '--output-directory',
