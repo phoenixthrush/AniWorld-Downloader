@@ -363,14 +363,12 @@ def handle_download_action(params: Dict[str, Any]) -> None:
 
         return language
 
-    print(params['language'])
-
     file_name = (
-        f"{sanitize_anime_title} - S{params['season_number']}E{params['episode_number']} - "
-        f"{get_language_from_key(int(params['language']))}.mp4"
+        f"{sanitize_anime_title} - S{params['season_number']}E{params['episode_number']} - ("
+        f"{get_language_from_key(int(params['language']))}).mp4"
         if params['season_number']
-        else f"{sanitize_anime_title} - Movie {params['episode_number']} - "
-        f"{get_language_from_key(int(params['language']))}.mp4"
+        else f"{sanitize_anime_title} - Movie {params['episode_number']} - ("
+        f"{get_language_from_key(int(params['language']))}).mp4"
     )
 
     if os.getenv("OUTPUT_DIRECTORY"):

@@ -479,8 +479,6 @@ Aniworld-Downloader currently supports three providers:
 - **Vidoza**
 - **Streamtape**
 
-**Doodstream** is not supported due to constant backend updates that block download attempts. While I initially had support for it, Doodstream's backend changes rendered my previous method obsolete.
-
 #### Download and Viewing Recommendations
 In older versions, the default provider for both downloading and watching with syncplay and mpv was Vidoza. However, since Vidoza and Streamtape throttle download speeds, I recommend using **VOE** for downloads, as it can fully utilize your bandwidth.
 
