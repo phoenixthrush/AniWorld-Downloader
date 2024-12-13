@@ -59,7 +59,7 @@ def providers(soup: BeautifulSoup) -> Dict[str, Dict[int, str]]:
 
 
 def build_command(
-    link: str, mpv_title: str, player: str, aniskip_selected: bool,
+    link: str, mpv_title: str, player: str, aniskip_selected: bool, selected_provider: str,
     aniskip_options: Optional[List[str]] = None
 ) -> List[str]:
     logging.debug(
@@ -76,9 +76,16 @@ def build_command(
         "--profile=fast",
         "--hwdec=auto-safe",
         "--video-sync=display-resample",
-        "--http-header-fields=Referer: https://dood.li/",
         f"--force-media-title={mpv_title}"
     ]
+
+    doodstream_referer = "https://dood.li/"
+    vidmoly_referer = "https://vidmoly.to/"
+
+    if selected_provider == "Doodstream":
+        command.append(f"--http-header-fields=Referer: {doodstream_referer}")
+    elif selected_provider == "Vidmoly":
+        command.append(f"--http-header-fields=Referer: {vidmoly_referer}")
 
     if aniskip_selected:
         logging.debug("Aniskip selected, setting up aniskip")
@@ -188,7 +195,7 @@ def fetch_direct_link(provider_function, request_url: str) -> str:
 
 
 def build_syncplay_command(
-    link: str, mpv_title: str, aniskip_options: Optional[List[str]] = None
+    link: str, mpv_title: str, selected_provider : str, aniskip_options: Optional[List[str]] = None
 ) -> List[str]:
     logging.debug(
         "Building syncplay command with link: %s, title: %s, aniskip_options: %s",
@@ -246,9 +253,17 @@ def build_syncplay_command(
         "--hwdec=auto-safe",
         "--fs",
         "--video-sync=display-resample",
-        f"--force-media-title={mpv_title}",
-        "--http-header-fields=Referer: https://dood.li/"
+        f"--force-media-title={mpv_title}"
     ])
+
+    doodstream_referer = "https://dood.li/"
+    vidmoly_referer = "https://vidmoly.to/"
+
+    if selected_provider == "Doodstream":
+        command.append(f"--http-header-fields=Referer: {doodstream_referer}")
+    elif selected_provider == "Vidmoly":
+        command.append(f"--http-header-fields=Referer: {vidmoly_referer}")
+
     if aniskip_options:
         logging.debug("Aniskip options provided, setting up aniskip")
         setup_aniskip()
@@ -268,6 +283,7 @@ def perform_action(params: Dict[str, Any]) -> None:
     episode_number = params.get("episode_number")
     season_number = params.get("season_number")
     only_command = params.get("only_command", False)
+    provider = params.get("provider")
     aniskip_selected = bool(params.get("aniskip_selected", False))
 
     logging.debug("aniskip_selected: %s", aniskip_selected)
@@ -285,7 +301,7 @@ def perform_action(params: Dict[str, Any]) -> None:
             if not platform.system() == "Windows":
                 countdown()
         handle_watch_action(
-            link, mpv_title, aniskip_selected, aniskip_options, only_command
+            link, mpv_title, aniskip_selected, aniskip_options, only_command, provider
         )
     elif action == "Download":
         handle_download_action(params)
@@ -296,7 +312,7 @@ def perform_action(params: Dict[str, Any]) -> None:
         setup_autostart()
         setup_autoexit()
         handle_syncplay_action(
-            link, mpv_title, aniskip_options, only_command
+            link, mpv_title, aniskip_options, only_command, provider
         )
 
 
@@ -327,7 +343,8 @@ def handle_watch_action(
     mpv_title: str,
     aniskip_selected: bool,
     aniskip_options: List[str],
-    only_command: bool
+    only_command: bool,
+    selected_provider: str
 ) -> None:
     logging.debug("Action is Watch")
     mpv_title = mpv_title.replace(" --- ", " - ", 1)
@@ -338,7 +355,7 @@ def handle_watch_action(
             print(msg)
         else:
             print_progress_info(msg)
-    command = build_command(link, mpv_title, "mpv", aniskip_selected, aniskip_options)
+    command = build_command(link, mpv_title, "mpv", aniskip_selected, selected_provider, aniskip_options)
     logging.debug("Executing command: %s", command)
     execute_command(command, only_command)
     logging.debug("MPV has finished.\nBye bye!")
@@ -402,7 +419,8 @@ def handle_syncplay_action(
     link: str,
     mpv_title: str,
     aniskip_options: List[str],
-    only_command: bool
+    only_command: bool,
+    selected_provider : str
 ) -> None:
     logging.debug("Action is Syncplay")
     mpv_title = mpv_title.replace(" --- ", " - ", 1)
@@ -413,7 +431,7 @@ def handle_syncplay_action(
             print(msg)
         else:
             print_progress_info(msg)
-    command = build_syncplay_command(link, mpv_title, aniskip_options)
+    command = build_syncplay_command(link, mpv_title,selected_provider, aniskip_options)
     logging.debug("Executing command: %s", command)
     execute_command(command, only_command)
     logging.debug("Syncplay has finished.\nBye bye!")
