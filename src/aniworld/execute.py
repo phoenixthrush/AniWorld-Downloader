@@ -14,7 +14,8 @@ from aniworld.extractors import (
     streamtape_get_direct_link,
     vidoza_get_direct_link,
     voe_get_direct_link,
-    vidmoly_get_direct_link
+    vidmoly_get_direct_link,
+    speedfiles_get_direct_link
 )
 
 
@@ -58,7 +59,7 @@ def providers(soup: BeautifulSoup) -> Dict[str, Dict[int, str]]:
         return None
 
 
-def build_command( # pylint: disable=too-many-arguments, too-many-positional-arguments
+def build_command(  # pylint: disable=too-many-arguments, too-many-positional-arguments
     link: str, mpv_title: str, player: str, aniskip_selected: bool, selected_provider: str,
     aniskip_options: Optional[List[str]] = None
 ) -> List[str]:
@@ -195,7 +196,7 @@ def fetch_direct_link(provider_function, request_url: str) -> str:
 
 
 def build_syncplay_command(
-    link: str, mpv_title: str, selected_provider : str, aniskip_options: Optional[List[str]] = None
+    link: str, mpv_title: str, selected_provider: str, aniskip_options: Optional[List[str]] = None
 ) -> List[str]:
     logging.debug(
         "Building syncplay command with link: %s, title: %s, aniskip_options: %s",
@@ -338,7 +339,7 @@ def process_aniskip_options(
     return aniskip_options
 
 
-def handle_watch_action( # pylint: disable=too-many-arguments, too-many-positional-arguments
+def handle_watch_action(  # pylint: disable=too-many-arguments, too-many-positional-arguments
     link: str,
     mpv_title: str,
     aniskip_selected: bool,
@@ -389,7 +390,6 @@ def handle_download_action(params: Dict[str, Any]) -> None:
         else f"{sanitize_anime_title} - Movie {params['episode_number']}"
     )
 
-
     file_path = os.path.join(
         output_directory,
         sanitize_anime_title,
@@ -421,7 +421,7 @@ def handle_syncplay_action(
     mpv_title: str,
     aniskip_options: List[str],
     only_command: bool,
-    selected_provider : str
+    selected_provider: str
 ) -> None:
     logging.debug("Action is Syncplay")
     mpv_title = mpv_title.replace(" --- ", " - ", 1)
@@ -432,7 +432,7 @@ def handle_syncplay_action(
             print(msg)
         else:
             print_progress_info(msg)
-    command = build_syncplay_command(link, mpv_title,selected_provider, aniskip_options)
+    command = build_syncplay_command(link, mpv_title, selected_provider, aniskip_options)
     logging.debug("Executing command: %s", command)
     execute_command(command, only_command)
     logging.debug("Syncplay has finished.\nBye bye!")
@@ -445,7 +445,8 @@ def execute(params: Dict[str, Any]) -> None:
         "VOE": voe_get_direct_link,
         "Doodstream": doodstream_get_direct_link,
         "Streamtape": streamtape_get_direct_link,
-        "Vidmoly": vidmoly_get_direct_link
+        "Vidmoly": vidmoly_get_direct_link,
+        "Speedfiles": speedfiles_get_direct_link
     }
 
     selected_episodes = params['selected_episodes']
