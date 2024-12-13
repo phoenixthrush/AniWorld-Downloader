@@ -309,8 +309,7 @@ class EpisodeForm(npyscreen.ActionForm):
         npyscreen.notify_confirm(f"Selected episodes:\n{selected_str}", title="Selection")
 
         if not self.directory_field.hidden:
-            anime_title = format_anime_title(self.parentApp.anime_slug)
-            output_directory = os.path.join(output_directory, anime_title)
+            output_directory = os.path.join(output_directory)
             os.makedirs(output_directory, exist_ok=True)
             logging.debug("Output directory created: %s", output_directory)
 
