@@ -17,6 +17,7 @@ DEFAULT_PROXY = None
 DEFAULT_USE_PLAYWRIGHT = False
 DEFAULT_TERMINAL_SIZE = (90, 30)
 DEFAULT_REQUEST_TIMEOUT = 30
+PLATFORM_SYSTEM = platform.system()
 
 # pylint: disable=line-too-long
 USER_AGENTS = [

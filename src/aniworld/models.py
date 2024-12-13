@@ -9,10 +9,7 @@ from bs4 import BeautifulSoup
 from aniworld.aniskip import get_mal_id_from_title
 from aniworld.config import (
     DEFAULT_REQUEST_TIMEOUT,
-    DEFAULT_ACTION,
-    DEFAULT_LANGUAGE,
-    DEFAULT_PROVIDER_DOWNLOAD,
-    DEFAULT_PROVIDER_WATCH
+    DEFAULT_ACTION
 )
 
 from aniworld.extractors import (
@@ -272,6 +269,9 @@ class Episode:
         return language_key
 
     def _get_direct_link_from_provider(self) -> str:
+        if not self.arguments:
+            return get_direct_link_from_voe(embeded_voe_link=self.embeded_link)
+
         if self.arguments.provider == "Vidmoly":
             return get_direct_link_from_vidmoly(embeded_vidmoly_link=self.embeded_link)
         if self.arguments.provider == "Vidoza":
@@ -310,7 +310,8 @@ class Episode:
         # TODO - fix "KeyError None" crash
         # print(self.provider[self.arguments.provider])
 
-        self.redirect_link = self.provider[self.arguments.provider][self._get_key_from_language(self.arguments.language)]
+        # self.redirect_link = self.provider[self.arguments.provider][self._get_key_from_language(self.arguments.language)]
+        self.redirect_link = self.provider["VOE"][3]
         self.embeded_link = requests.get(self.redirect_link, timeout=DEFAULT_REQUEST_TIMEOUT).url
 
         # print(self.redirect_link)
