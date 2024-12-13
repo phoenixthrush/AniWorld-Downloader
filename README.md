@@ -515,6 +515,11 @@ Contributions to AniWorld Downloader are welcome! Your input helps improve the p
 - Submitting pull requests
 
 ### Contributors
+
+<a href="https://github.com/phoenixthrush/Aniworld-Downloader/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=phoenixthrush/Aniworld-Downloader" />
+</a>
+
 - **Lulu** (since Sep 14, 2024)  
   ![wakatime](https://wakatime.com/badge/user/ebc8f6ad-7a1c-4f3a-ad43-cc402feab5fc/project/408bbea7-23d0-4d6c-846d-79628e6b136c.svg)
 
