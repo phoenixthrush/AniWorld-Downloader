@@ -41,7 +41,6 @@ AniWorld Downloader is a command-line tool built to download and stream anime co
 
 ### FAQs and Support
 - [FAQ](#faq)
-  - [Providers](#providers)
   - [s.to & bs.to Support](#sto--bsto-support)
 - [Support](#support)
 
@@ -82,13 +81,13 @@ Aniworld-Downloader is currently being rewritten on the `next` branch to be even
 
 | Site               | Supported Providers                  | Status                                                                                   |
 |--------------------|--------------------------------------|------------------------------------------------------------------------------------------|
-| **aniworld.to**    | VOE, Vidoza, Streamtape | ✔️ VOE, Vidoza, Streamtape <br> ➖ DoodStream, SpeedFiles (in progress) <br> ❌ Luluvdo, Vidmoly, Filemoon |
+| **aniworld.to**    | VOE, Vidmoly, Doodstream, Vidoza, Streamtape | ➖ SpeedFiles, Luluvdo (in progress) <br> ❌ Filemoon |
 | **streamkiste.tv** | Native extractor | ✔️ |
 | **hanime.tv**      | Native extractor | ✔️ |
 | **nhentai.net**    | Native extractor | ✔️ |
 | **jav.guru**       | Native extractor | ✔️ |
 
-> **Note:** Streamtape has been removed by aniworld.to and from the menu, but it still works and can be accessed using `--provider`.  
+> **Note:** Streamtape has been removed by aniworld.to and from the menu, but it still works and can be accessed using `--provider`.
 > **Note:** The menu currently only supports aniworld.to. To access other sites, you need to specify `--episode`.  
 > **Note:** Native extractor sites require the optional dependency **playwright**. To install, run `pip install playwright` and then `playwright install` to complete the setup.
 
@@ -472,12 +471,6 @@ These packages are automatically installed when you set up AniWorld Downloader u
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## FAQ
-
-### Providers
-Aniworld-Downloader currently supports three providers:
-- **VOE**
-- **Vidoza**
-- **Streamtape**
 
 #### Download and Viewing Recommendations
 In older versions, the default provider for both downloading and watching with syncplay and mpv was Vidoza. However, since Vidoza and Streamtape throttle download speeds, I recommend using **VOE** for downloads, as it can fully utilize your bandwidth.
