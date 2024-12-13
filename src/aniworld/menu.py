@@ -2,6 +2,8 @@ import os
 
 import npyscreen
 
+from aniworld.models import Anime
+
 
 class CustomTheme(npyscreen.ThemeManager):
     default_colors = {
@@ -31,6 +33,7 @@ IS_NEWEST_VERSION = True
 VERSION = "v.3.0.0"
 
 available_providers = ["VOE", "Doodstream", "Vidmoly", "Vidoza"]
+
 available_episodes = [
     "DAN DA DAN - Season 1 - Episode 1",
     "DAN DA DAN - Season 1 - Episode 2",
@@ -41,6 +44,7 @@ available_episodes = [
     "DAN DA DAN - Season 1 - Episode 7",
     "DAN DA DAN - Season 1 - Episode 8"
 ]
+
 available_languages = [
     "German Sub",
     "English Dub",
@@ -96,9 +100,13 @@ class SelectionMenu(npyscreen.NPSApp):
         F.edit()
 
 
-if __name__ == "__main__":
+def menu(slug: str, anime: Anime):
     try:
         App = SelectionMenu()
         App.run()
     except KeyboardInterrupt:
         pass
+
+
+if __name__ == "__main__":
+    menu()

@@ -132,8 +132,8 @@ class Episode:
         self,
         title_german: str = None,
         title_english: str = None,
-        season: int = None,
-        episode: int = None,
+        season: int = 1,
+        episode: int = 1,
         slug: str = None,
         link: str = None,
         mal_id: int = None,
@@ -145,8 +145,8 @@ class Episode:
         html: requests.models.Response = None,
         arguments: argparse.Namespace = None
     ) -> None:
-        if not link and not (slug and season and episode):
-            raise ValueError("Provide either 'link' or ('slug', 'season', and 'episode').")
+        if not link and not slug:
+            raise ValueError("Provide either 'link' or 'slug'.")
 
         self.title_german: str = title_german
         self.title_english: str = title_english
