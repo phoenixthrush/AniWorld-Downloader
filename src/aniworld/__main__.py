@@ -487,6 +487,7 @@ def parse_arguments():
         '-a', '--action',
         type=str,
         choices=['Watch', 'Download', 'Syncplay'],
+        default=aniworld_globals.DEFAULT_ACTION,
         help='Action to perform'
     )
     action_group.add_argument(
