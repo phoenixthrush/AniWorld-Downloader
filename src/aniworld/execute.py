@@ -58,7 +58,7 @@ def providers(soup: BeautifulSoup) -> Dict[str, Dict[int, str]]:
         return None
 
 
-def build_command(
+def build_command( # pylint: disable=too-many-arguments, too-many-positional-arguments
     link: str, mpv_title: str, player: str, aniskip_selected: bool, selected_provider: str,
     aniskip_options: Optional[List[str]] = None
 ) -> List[str]:
@@ -338,7 +338,7 @@ def process_aniskip_options(
     return aniskip_options
 
 
-def handle_watch_action(
+def handle_watch_action( # pylint: disable=too-many-arguments, too-many-positional-arguments
     link: str,
     mpv_title: str,
     aniskip_selected: bool,
@@ -355,7 +355,8 @@ def handle_watch_action(
             print(msg)
         else:
             print_progress_info(msg)
-    command = build_command(link, mpv_title, "mpv", aniskip_selected, selected_provider, aniskip_options)
+    command = build_command(
+        link, mpv_title, "mpv", aniskip_selected, selected_provider, aniskip_options)
     logging.debug("Executing command: %s", command)
     execute_command(command, only_command)
     logging.debug("MPV has finished.\nBye bye!")
