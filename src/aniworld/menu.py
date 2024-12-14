@@ -40,6 +40,13 @@ class SelectionMenu(npyscreen.NPSApp):
         self.slug = slug
         self.ep = Episode(slug=slug, arguments=arguments)
         self.selected_episodes = []
+        self.episode_dict = None
+        self.action_selection = None
+        self.aniskip_selection = None
+        self.folder_selection = None
+        self.language_selection = None
+        self.provider_selection = None
+        self.episode_selection = None
 
     def main(self):
         available_languages = self.ep.language_name
@@ -126,9 +133,9 @@ class SelectionMenu(npyscreen.NPSApp):
 
 def menu(arguments, slug):
     try:
-        App = SelectionMenu(arguments=arguments, slug=slug)
-        App.run()
-        selected_episodes = App.get_selected_episodes()
+        app = SelectionMenu(arguments=arguments, slug=slug)
+        app.run()
+        selected_episodes = app.get_selected_episodes()
     except KeyboardInterrupt:
         selected_episodes = []
 

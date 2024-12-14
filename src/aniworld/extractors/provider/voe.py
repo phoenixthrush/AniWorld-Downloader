@@ -34,7 +34,7 @@ def get_direct_link_from_voe(embeded_voe_link: str) -> str:
             redirect_content = response.read()
         redirect_content_str = redirect_content.decode('utf-8')
     except (HTTPError, URLError, TimeoutError) as e:
-        raise ValueError(f"Failed to fetch URL {redirect_url}: {e}")
+        raise ValueError(f"Failed to fetch URL {redirect_url}: {e}") from e
 
     hls_match = EXTRACT_VEO_HLS_PATTERN.search(redirect_content_str)
     if not hls_match:

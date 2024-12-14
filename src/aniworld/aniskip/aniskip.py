@@ -18,7 +18,10 @@ def ftoi(value: float) -> str:
 
 
 def check_episodes(anime_id):
-    response = requests.get(f"https://myanimelist.net/anime/{anime_id}", timeout=DEFAULT_REQUEST_TIMEOUT)
+    response = requests.get(
+        f"https://myanimelist.net/anime/{anime_id}",
+        timeout=DEFAULT_REQUEST_TIMEOUT
+    )
     soup = BeautifulSoup(response.content, 'html.parser')
     episodes_span = soup.find('span', class_='dark_text', string='Episodes:')
 
@@ -77,7 +80,10 @@ def get_mal_id_from_title(title: str, season: int) -> int:
                 response.raise_for_status()
 
                 soup = BeautifulSoup(response.text, 'html.parser')
-                sequel_div = soup.find("div", string=lambda text: text and "Sequel" in text and "(TV)" in text)
+                sequel_div = soup.find(
+                    "div",
+                    string=lambda text: text and "Sequel" in text and "(TV)" in text
+                )
 
                 if not sequel_div:
                     error_msg = "Sequel (TV) not found"

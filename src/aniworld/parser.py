@@ -10,7 +10,8 @@ from aniworld.config import (
 
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Parse command-line arguments for anime streaming, downloading, and playback management."
+        description="Parse command-line arguments for anime streaming, "
+                    "downloading, and playback management."
     )
 
     # General options

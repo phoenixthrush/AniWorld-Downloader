@@ -4,7 +4,7 @@ import time
 
 import requests
 
-from aniworld.config import RANDOM_USER_AGENT
+from aniworld.config import RANDOM_USER_AGENT, DEFAULT_REQUEST_TIMEOUT
 
 
 def get_direct_link_from_doodstream(embeded_doodstream_link):
@@ -21,7 +21,11 @@ def get_direct_link_from_doodstream(embeded_doodstream_link):
         characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
         return ''.join(random.choice(characters) for _ in range(length))
 
-    response = requests.get(embeded_doodstream_link, headers=headers)
+    response = requests.get(
+        embeded_doodstream_link,
+        headers=headers,
+        timeout=DEFAULT_REQUEST_TIMEOUT
+    )
     response.raise_for_status()
     content = response.text
 
@@ -37,7 +41,7 @@ def get_direct_link_from_doodstream(embeded_doodstream_link):
     if not token:
         raise ValueError('Token not found.')
 
-    md5_response = requests.get(full_md5_url, headers=headers)
+    md5_response = requests.get(full_md5_url, headers=headers, timeout=DEFAULT_REQUEST_TIMEOUT)
     md5_response.raise_for_status()
     video_base_url = md5_response.text.strip()
 

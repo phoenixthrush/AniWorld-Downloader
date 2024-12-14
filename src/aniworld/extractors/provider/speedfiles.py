@@ -7,9 +7,9 @@ from aniworld.config import DEFAULT_REQUEST_TIMEOUT, RANDOM_USER_AGENT
 SPEEDFILES_PATTERN = re.compile(r'var _0x5opu234 = "(?P<encoded_data>.*?)";')
 
 
-def get_direct_link_from_speedfiles(url):
+def get_direct_link_from_speedfiles(embeded_speedfiles_link):
     response = requests.get(
-        url,
+        embeded_speedfiles_link,
         timeout=DEFAULT_REQUEST_TIMEOUT,
         headers={'User-Agent': RANDOM_USER_AGENT}
     )
@@ -31,5 +31,5 @@ def get_direct_link_from_speedfiles(url):
 
 
 if __name__ == '__main__':
-    url = input("Enter Speedfiles Link: ")
-    print(get_direct_link_from_speedfiles(url))
+    embeded_speedfiles_link = input("Enter Speedfiles Link: ")
+    print(get_direct_link_from_speedfiles(embeded_speedfiles_link=embeded_speedfiles_link))

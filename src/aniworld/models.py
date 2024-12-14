@@ -294,7 +294,7 @@ class Episode:
 
         language_key = lang_mapping.get(language, "Unknown Language")
 
-        if language_key == None:
+        if language_key is None:
             raise ValueError("Language not valid.")
 
         return language_key
