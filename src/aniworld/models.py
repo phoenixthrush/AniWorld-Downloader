@@ -167,6 +167,7 @@ class Episode:
         language: list = None,  # available languages
         language_name: list = None,
         season_episode_count: dict = None,
+        movie_episode_count: int = None,
         html: requests.models.Response = None,
         arguments: argparse.Namespace = None
     ) -> None:
@@ -189,6 +190,7 @@ class Episode:
         self.language: list = language
         self.language_name: list = language_name
         self.season_episode_count: dict = season_episode_count
+        self.movie_episode_count: int = movie_episode_count
         self.html: requests.models.Response = html
         self.arguments = arguments
 
@@ -350,6 +352,28 @@ class Episode:
 
         return episode_counts
 
+    def _get_movie_episode_count(self) -> int:
+        movie_page_url = f"https://aniworld.to/anime/stream/{self.slug}/filme"
+        response = requests.get(movie_page_url, timeout=DEFAULT_REQUEST_TIMEOUT)
+
+        parsed_html = BeautifulSoup(response.content, 'html.parser')
+        movie_indices = []
+
+        movie_index = 1
+        while True:
+            expected_subpath = f"{self.slug}/filme/film-{movie_index}"
+
+            matching_links = [link['href'] for link in parsed_html.find_all(
+                'a', href=True) if expected_subpath in link['href']]
+
+            if matching_links:
+                movie_indices.append(movie_index)
+                movie_index += 1
+            else:
+                break
+
+        return max(movie_indices) if movie_indices else 0
+
     def auto_fill_details(self) -> None:
         if self.slug and self.season and self.episode:
             self.link = (
@@ -369,6 +393,7 @@ class Episode:
         self.provider = self._get_provider_from_html()
         self.provider_name = list(self.provider.keys())
         self.season_episode_count = self._get_season_episode_count()
+        self.movie_episode_count = self._get_movie_episode_count()
         self.anime_title = get_anime_title_from_html(html=self.html)
         self.mal_id = get_mal_id_from_title(title=self.anime_title, season=self.season)
 

@@ -44,16 +44,23 @@ class SelectionMenu(npyscreen.NPSApp):
     def main(self):
         available_languages = self.ep.language_name
         season_episode_count = self.ep.season_episode_count
+        movie_episode_count = self.ep.movie_episode_count
         available_providers = self.ep.provider_name
 
         supported_providers = [provider for provider in available_providers if provider in SUPPORTED_PROVIDERS]
 
         self.episode_dict = {}
+
         for season, episodes in season_episode_count.items():
             for episode in range(1, episodes + 1):
                 link_formatted = f"{self.ep.anime_title} - Season {season} - Episode {episode}"
                 link = f"https://aniworld.to/anime/stream/{self.slug}/staffel-{season}/episode-{episode}"
                 self.episode_dict[link] = link_formatted
+
+        for episode in range(1, movie_episode_count + 1):
+            movie_link_formatted = f"{self.ep.anime_title} - Movie {episode}"
+            movie_link = f"https://aniworld.to/anime/stream/{self.slug}/filme/film-{episode}"
+            self.episode_dict[movie_link] = movie_link_formatted
 
         available_episodes = list(self.episode_dict.values())
 
@@ -62,7 +69,7 @@ class SelectionMenu(npyscreen.NPSApp):
         max_episode_height = max(3, terminal_height - total_reserved_height)
 
         npyscreen.setTheme(CustomTheme)
-        F = npyscreen.Form(name=f"Welcome to Aniworld-Downloader {VERSION}")
+        F = npyscreen.Form(name=f"Welcome to AniWorld-Downloader {VERSION}")
 
         self.action_selection = F.add(npyscreen.TitleSelectOne, max_height=3, value=[1], name="Action",
                                       values=["Watch", "Download", "Syncplay"], scroll_exit=True)
