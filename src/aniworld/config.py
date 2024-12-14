@@ -3,6 +3,20 @@ import pathlib
 import shutil
 import platform
 import os
+from importlib.metadata import version, PackageNotFoundError
+
+
+def get_version():
+    try:
+        __version__ = version("aniworld")
+    except PackageNotFoundError:
+        __version__ = "0.0.0"
+
+    return f"v.{__version__}"
+
+
+VERSION = get_version()
+
 
 DEFAULT_ACTION = "Download"      # E.g. Watch, Download, Syncplay
 DEFAULT_DOWNLOAD_PATH = pathlib.Path.home() / "Downloads"

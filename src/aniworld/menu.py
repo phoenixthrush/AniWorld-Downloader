@@ -3,10 +3,10 @@ import os
 import npyscreen
 
 from aniworld.models import Episode
+from aniworld.config import VERSION
 
 
 IS_NEWEST_VERSION = True
-VERSION = "v.3.0.0"
 
 SUPPORTED_PROVIDERS = [
     "VOE", "Doodstream", "Luluvdo", "Vidmoly", "Vidoza", "Speedfiles", "Streamtape"
