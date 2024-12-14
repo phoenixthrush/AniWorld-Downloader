@@ -1,7 +1,7 @@
 import os
 import npyscreen
 from aniworld.models import Episode
-from aniworld.config import VERSION
+from aniworld.config import VERSION, DEFAULT_DOWNLOAD_PATH
 
 
 IS_NEWEST_VERSION = True
@@ -79,7 +79,7 @@ class SelectionMenu(npyscreen.NPSApp):
                                        rely=self.action_selection.rely + self.action_selection.height + 1)
 
         self.folder_selection = F.add(npyscreen.TitleFilenameCombo, max_height=2, name="Save Location",
-                                      rely=self.action_selection.rely + self.action_selection.height + 1)
+                                      rely=self.action_selection.rely + self.action_selection.height + 1, value=DEFAULT_DOWNLOAD_PATH)
 
         self.language_selection = F.add(npyscreen.TitleSelectOne, max_height=len(available_languages), value=[1], name="Language",
                                         values=available_languages, scroll_exit=True,
