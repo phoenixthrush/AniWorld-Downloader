@@ -7,3 +7,13 @@ AniWorld Downloader is a command-line tool for downloading and streaming anime, 
 ![License](https://img.shields.io/pypi/l/aniworld?label=License&color=blue)
 
 ![AniWorld Downloader - Demo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/next/.github/assets/demo.png?raw=true)
+
+### Installation (Requires Git)
+
+- To install the latest version from GitHub, run:
+
+```shell
+pip install --upgrade git+https://github.com/phoenixthrush/AniWorld-Downloader.git@next#egg=aniworld
+```
+
+- To update, simply rerun the above command. These builds may be unstable, so it’s good to check regularly.
