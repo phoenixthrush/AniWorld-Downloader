@@ -9,7 +9,7 @@ def main() -> None:
         arguments = parse_arguments()
 
         slug = search_anime()
-        menu(slug=slug, anime=Anime(episode_list=[Episode(slug=slug)], arguments=arguments))
+        menu(arguments=arguments, slug=slug)
 
         """
         anime_list = []
@@ -29,6 +29,5 @@ def main() -> None:
     except KeyboardInterrupt:
         pass
 
-
-if __name__ == "__main__":
-    main()
+        if __name__ == "__main__":
+            main()

@@ -2,7 +2,7 @@ import os
 
 import npyscreen
 
-from aniworld.models import Anime
+from aniworld.models import Anime, Episode
 
 
 class CustomTheme(npyscreen.ThemeManager):
@@ -32,7 +32,6 @@ class CustomTheme(npyscreen.ThemeManager):
 IS_NEWEST_VERSION = True
 VERSION = "v.3.0.0"
 
-available_providers = ["VOE", "Doodstream", "Vidmoly", "Vidoza"]
 
 available_episodes = [
     "DAN DA DAN - Season 1 - Episode 1",
@@ -45,15 +44,17 @@ available_episodes = [
     "DAN DA DAN - Season 1 - Episode 8"
 ]
 
-available_languages = [
-    "German Sub",
-    "English Dub",
-    "German Dub"
-]
+# available_providers = ["VOE", "Doodstream", "Vidmoly", "Vidoza"]
+
+ep = Episode(slug="loner-life-in-another-world")
+print(ep.episode)
 
 
 class SelectionMenu(npyscreen.NPSApp):
     def main(self):
+        available_languages = ep.language_name
+        available_providers = ep.provider_name
+
         terminal_height = os.get_terminal_size().lines
         total_reserved_height = 3 + 2 + 2 + len(available_languages) + len(available_providers) + 5
         max_episode_height = max(3, terminal_height - total_reserved_height)
@@ -100,7 +101,7 @@ class SelectionMenu(npyscreen.NPSApp):
         F.edit()
 
 
-def menu(slug: str, anime: Anime):
+def menu(arguments, slug):
     try:
         App = SelectionMenu()
         App.run()

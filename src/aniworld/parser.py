@@ -182,6 +182,9 @@ def parse_arguments() -> argparse.Namespace:
 
     args = parser.parse_args()
 
+    if args.action is None:
+        args.action = "Download"
+
     if args.provider is None:
         if args.action == "Download":
             args.provider = DEFAULT_PROVIDER_DOWNLOAD

@@ -141,7 +141,10 @@ class Episode:
         embeded_link: str = None,
         direct_link: str = None,
         provider: dict = None,  # available providers
+        provider_name: list = None,
         language: list = None,  # available languages
+        language_name: list = None,
+        season_episode_count: dict = None,
         html: requests.models.Response = None,
         arguments: argparse.Namespace = None
     ) -> None:
@@ -159,7 +162,10 @@ class Episode:
         self.embeded_link = embeded_link
         self.direct_link = direct_link
         self.provider: dict = provider
+        self.provider_name: list = provider_name
         self.language: list = language
+        self.language_name: list = language_name
+        self.season_episode_count: dict = season_episode_count
         self.html: requests.models.Response = html
         self.arguments = arguments
 
@@ -268,6 +274,20 @@ class Episode:
 
         return language_key
 
+    def _get_languages_from_keys(self, keys: list[int]) -> list[str]:
+        key_mapping = {
+            1: "German Dub",
+            2: "English Sub",
+            3: "German Sub"
+        }
+
+        languages = [key_mapping.get(key, None) for key in keys]
+
+        if None in languages:
+            raise ValueError("One or more keys are not valid.")
+
+        return languages
+
     def _get_direct_link_from_provider(self) -> str:
         if not self.arguments:
             return get_direct_link_from_voe(embeded_voe_link=self.embeded_link)
@@ -302,7 +322,9 @@ class Episode:
         self.title_english = title_english
 
         self.language = self._get_available_language_from_html()
+        self.language_name = self._get_languages_from_keys(self.language)
         self.provider = self._get_provider_from_html()
+        self.provider_name = list(self.provider.keys())
 
         anime_title = get_anime_title_from_html(html=self.html)
         self.mal_id = get_mal_id_from_title(title=anime_title, season=self.season)
@@ -311,6 +333,7 @@ class Episode:
         # print(self.provider[self.arguments.provider])
 
         # self.redirect_link = self.provider[self.arguments.provider][self._get_key_from_language(self.arguments.language)]
+
         self.redirect_link = self.provider["VOE"][3]
         self.embeded_link = requests.get(self.redirect_link, timeout=DEFAULT_REQUEST_TIMEOUT).url
 
