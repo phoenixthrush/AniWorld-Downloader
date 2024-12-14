@@ -6,7 +6,7 @@ from aniworld.config import VERSION
 
 IS_NEWEST_VERSION = True
 SUPPORTED_PROVIDERS = [
-    "VOE", "Doodstream", "Luluvdo", "Vidmoly", "Vidoza", "Speedfiles", "Streamtape"
+    "VOE", "Doodstream", "Luluvdo", "Vidmoly", "Vidoza", "SpeedFiles", "Streamtape"
 ]  # Not supported: "Filemoon"
 
 
