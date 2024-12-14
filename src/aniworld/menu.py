@@ -2,7 +2,7 @@ import os
 
 import npyscreen
 
-from aniworld.models import Anime, Episode
+from aniworld.models import Episode
 
 
 class CustomTheme(npyscreen.ThemeManager):
@@ -32,31 +32,28 @@ class CustomTheme(npyscreen.ThemeManager):
 IS_NEWEST_VERSION = True
 VERSION = "v.3.0.0"
 
+SUPPORTED_PROVIDERS = [
+    "VOE", "Doodstream", "Luluvdo", "Vidmoly", "Vidoza", "Speedfiles", "Streamtape"
+]  # "Filemoon"
 
-available_episodes = [
-    "DAN DA DAN - Season 1 - Episode 1",
-    "DAN DA DAN - Season 1 - Episode 2",
-    "DAN DA DAN - Season 1 - Episode 3",
-    "DAN DA DAN - Season 1 - Episode 4",
-    "DAN DA DAN - Season 1 - Episode 5",
-    "DAN DA DAN - Season 1 - Episode 6",
-    "DAN DA DAN - Season 1 - Episode 7",
-    "DAN DA DAN - Season 1 - Episode 8"
-]
-
-# available_providers = ["VOE", "Doodstream", "Vidmoly", "Vidoza"]
-
-ep = Episode(slug="loner-life-in-another-world")
-print(ep.episode)
+ep = Episode(slug="classroom-of-the-elite")
 
 
 class SelectionMenu(npyscreen.NPSApp):
     def main(self):
         available_languages = ep.language_name
         available_providers = ep.provider_name
+        supported_providers = [provider for provider in available_providers if provider in SUPPORTED_PROVIDERS]
+
+        season_episode_count = ep.season_episode_count  # {1: 12, 2: 13, 3: 13}
+        available_episodes = []
+
+        for season, episodes in season_episode_count.items():
+            for episode in range(1, episodes + 1):
+                available_episodes.append(f"{ep.anime_title} - Season {season} - Episode {episode}")
 
         terminal_height = os.get_terminal_size().lines
-        total_reserved_height = 3 + 2 + 2 + len(available_languages) + len(available_providers) + 5
+        total_reserved_height = 3 + 2 + 2 + len(available_languages) + len(supported_providers) + 5
         max_episode_height = max(3, terminal_height - total_reserved_height)
 
         npyscreen.setTheme(CustomTheme)
@@ -76,8 +73,8 @@ class SelectionMenu(npyscreen.NPSApp):
                                    values=available_languages, scroll_exit=True,
                                    rely=aniskip_selection.rely + aniskip_selection.height)
 
-        provider_selection = F.add(npyscreen.TitleSelectOne, max_height=len(available_providers), value=[1], name="Provider",
-                                   values=available_providers, scroll_exit=True,
+        provider_selection = F.add(npyscreen.TitleSelectOne, max_height=len(supported_providers), value=[1], name="Provider",
+                                   values=supported_providers, scroll_exit=True,
                                    rely=language_selection.rely + language_selection.height + 1)
 
         episode_selection = F.add(npyscreen.TitleMultiSelect, max_height=max_episode_height, name="Episode",

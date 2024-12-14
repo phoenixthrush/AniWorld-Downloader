@@ -130,6 +130,7 @@ class Episode:
 
     def __init__(
         self,
+        anime_title: str = None,
         title_german: str = None,
         title_english: str = None,
         season: int = 1,
@@ -151,6 +152,7 @@ class Episode:
         if not link and not slug:
             raise ValueError("Provide either 'link' or 'slug'.")
 
+        self.anime_title: str = anime_title
         self.title_german: str = title_german
         self.title_english: str = title_english
         self.season: int = season
@@ -303,6 +305,28 @@ class Episode:
 
         raise ValueError("No valid provider selected.")
 
+    def _get_season_episode_count(self) -> dict:
+        base_url = f"https://aniworld.to/anime/stream/{self.slug}/"
+        response = requests.get(base_url, timeout=15)
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        season_meta = soup.find('meta', itemprop='numberOfSeasons')
+        number_of_seasons = int(season_meta['content']) if season_meta else 0
+
+        episode_counts = {}
+
+        for season in range(1, number_of_seasons + 1):
+            season_url = f"{base_url}staffel-{season}"
+            response = requests.get(season_url, timeout=15)
+            soup = BeautifulSoup(response.content, 'html.parser')
+
+            episode_links = soup.find_all('a', href=True)
+            unique_links = set(link['href'] for link in episode_links if f"staffel-{season}/episode-" in link['href'])
+
+            episode_counts[season] = len(unique_links)
+
+        return episode_counts
+
     def auto_fill_details(self) -> None:
         if self.slug and self.season and self.episode:
             self.link = (
@@ -325,9 +349,10 @@ class Episode:
         self.language_name = self._get_languages_from_keys(self.language)
         self.provider = self._get_provider_from_html()
         self.provider_name = list(self.provider.keys())
+        self.season_episode_count = self._get_season_episode_count()
 
-        anime_title = get_anime_title_from_html(html=self.html)
-        self.mal_id = get_mal_id_from_title(title=anime_title, season=self.season)
+        self.anime_title = get_anime_title_from_html(html=self.html)
+        self.mal_id = get_mal_id_from_title(title=self.anime_title, season=self.season)
 
         # TODO - fix "KeyError None" crash
         # print(self.provider[self.arguments.provider])
