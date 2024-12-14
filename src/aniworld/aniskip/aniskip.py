@@ -51,7 +51,8 @@ def get_mal_id_from_title(title: str, season: int) -> int:
 
     if response.status_code != 200:
         logging.error("Failed to fetch MyAnimeList data. HTTP Status: %d", response.status_code)
-        raise ValueError("Error fetching data from MyAnimeList.")
+        # raise ValueError("Error fetching data from MyAnimeList.")
+        return 0
 
     mal_metadata = response.json()
     results = [

@@ -1,6 +1,6 @@
 import os
 import npyscreen
-from aniworld.models import Episode
+from aniworld.models import Anime, Episode
 from aniworld.config import VERSION, DEFAULT_DOWNLOAD_PATH
 
 
@@ -127,19 +127,22 @@ class SelectionMenu(npyscreen.NPSApp):
 
         self.selected_episodes = selected_links
 
-    def get_selected_episodes(self):
-        return self.selected_episodes
+    def get_selected_values(self):
+        return Anime(
+            title=self.ep.anime_title,
+            episode_list=[Episode(episode=ep, slug=self.slug) for ep in self.selected_episodes]
+        )
 
 
 def menu(arguments, slug):
     try:
         app = SelectionMenu(arguments=arguments, slug=slug)
         app.run()
-        selected_episodes = app.get_selected_episodes()
-    except KeyboardInterrupt:
-        selected_episodes = []
+        anime = app.get_selected_values()
 
-    return selected_episodes
+        return anime
+    except KeyboardInterrupt:
+        pass
 
 
 if __name__ == "__main__":
