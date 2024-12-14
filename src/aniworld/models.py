@@ -291,7 +291,7 @@ class Episode:
         return languages
 
     def _get_direct_link_from_provider(self) -> str:
-        if not self.arguments:
+        if not self.arguments.provider:
             return get_direct_link_from_voe(embeded_voe_link=self.embeded_link)
 
         if self.arguments.provider == "Vidmoly":

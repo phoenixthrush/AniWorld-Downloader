@@ -5,6 +5,14 @@ import npyscreen
 from aniworld.models import Episode
 
 
+IS_NEWEST_VERSION = True
+VERSION = "v.3.0.0"
+
+SUPPORTED_PROVIDERS = [
+    "VOE", "Doodstream", "Luluvdo", "Vidmoly", "Vidoza", "Speedfiles", "Streamtape"
+]  # Not supported: "Filemoon"
+
+
 class CustomTheme(npyscreen.ThemeManager):
     default_colors = {
         'DEFAULT': 'WHITE_BLACK',
@@ -29,28 +37,23 @@ class CustomTheme(npyscreen.ThemeManager):
     }
 
 
-IS_NEWEST_VERSION = True
-VERSION = "v.3.0.0"
-
-SUPPORTED_PROVIDERS = [
-    "VOE", "Doodstream", "Luluvdo", "Vidmoly", "Vidoza", "Speedfiles", "Streamtape"
-]  # "Filemoon"
-
-ep = Episode(slug="classroom-of-the-elite")
-
-
 class SelectionMenu(npyscreen.NPSApp):
-    def main(self):
-        available_languages = ep.language_name
-        available_providers = ep.provider_name
-        supported_providers = [provider for provider in available_providers if provider in SUPPORTED_PROVIDERS]
+    def __init__(self, slug, arguments):
+        super().__init__()
+        self.slug = slug
+        self.ep = Episode(slug=slug, arguments=arguments)
 
-        season_episode_count = ep.season_episode_count  # {1: 12, 2: 13, 3: 13}
+    def main(self):
+        available_languages = self.ep.language_name
+        season_episode_count = self.ep.season_episode_count  # {1: 12, 2: 13, 3: 13}
+        available_providers = self.ep.provider_name
+
+        supported_providers = [provider for provider in available_providers if provider in SUPPORTED_PROVIDERS]
         available_episodes = []
 
         for season, episodes in season_episode_count.items():
             for episode in range(1, episodes + 1):
-                available_episodes.append(f"{ep.anime_title} - Season {season} - Episode {episode}")
+                available_episodes.append(f"{self.ep.anime_title} - Season {season} - Episode {episode}")
 
         terminal_height = os.get_terminal_size().lines
         total_reserved_height = 3 + 2 + 2 + len(available_languages) + len(supported_providers) + 5
@@ -100,7 +103,7 @@ class SelectionMenu(npyscreen.NPSApp):
 
 def menu(arguments, slug):
     try:
-        App = SelectionMenu()
+        App = SelectionMenu(arguments=arguments, slug=slug)
         App.run()
     except KeyboardInterrupt:
         pass
