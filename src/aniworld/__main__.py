@@ -516,7 +516,8 @@ def parse_arguments():
     action_group.add_argument(
         '-p', '--provider',
         type=str,
-        choices=['Vidoza', 'Streamtape', 'VOE', 'Doodstream', 'Vidmoly', 'Doodstream', "SpeedFiles"],
+        choices=['Vidoza', 'Streamtape', 'VOE',
+                 'Doodstream', 'Vidmoly', 'Doodstream', "SpeedFiles"],
         help='Provider choice'
     )
 

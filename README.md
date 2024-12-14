@@ -79,13 +79,13 @@ Aniworld-Downloader is currently being rewritten on the `next` branch to be even
 
 ## Supported Sites and Extractors
 
-| Site               | Supported Providers                  | Status                                                                                   |
-|--------------------|--------------------------------------|------------------------------------------------------------------------------------------|
-| **aniworld.to**    | VOE, Vidmoly, Doodstream, Vidoza, Streamtape | ➖ SpeedFiles, Luluvdo (in progress) <br> ❌ Filemoon |
-| **streamkiste.tv** | Native extractor | ✔️ |
-| **hanime.tv**      | Native extractor | ✔️ |
-| **nhentai.net**    | Native extractor | ✔️ |
-| **jav.guru**       | Native extractor | ✔️ |
+| Site               | Supported Providers                            | Status                                                                                  |
+|--------------------|------------------------------------------------|-----------------------------------------------------------------------------------------|
+| **aniworld.to**    | VOE, Vidmoly, Doodstream, Vidoza,<br/> Streamtape, SpeedFiles | ➖ Luluvdo (in progress) <br> ❌ Filemoon |
+| **streamkiste.tv** | Native extractor                               | ✔️ |
+| **hanime.tv**      | Native extractor                               | ✔️ |
+| **nhentai.net**    | Native extractor                               | ✔️ |
+| **jav.guru**       | Native extractor                               | ✔️ |
 
 > **Note:** Streamtape has been removed by aniworld.to and from the menu, but it still works and can be accessed using `--provider`.
 > **Note:** The menu currently only supports aniworld.to. To access other sites, you need to specify `--episode`.  
