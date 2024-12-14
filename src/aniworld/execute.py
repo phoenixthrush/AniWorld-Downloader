@@ -446,7 +446,7 @@ def execute(params: Dict[str, Any]) -> None:
         "Doodstream": doodstream_get_direct_link,
         "Streamtape": streamtape_get_direct_link,
         "Vidmoly": vidmoly_get_direct_link,
-        "Speedfiles": speedfiles_get_direct_link
+        "SpeedFiles": speedfiles_get_direct_link
     }
 
     selected_episodes = params['selected_episodes']
