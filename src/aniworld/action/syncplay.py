@@ -31,13 +31,13 @@ def syncplay(anime: Anime):
             # f'--force-media-title="{episode.title_german}"'
         ]
 
-        if anime.provider == "Vidmoly":
-            command.append('--add-header')
-            command.append('Referer: "https://vidmoly.to"')
+        headers = {
+            "Vidmoly": 'Referer: "https://vidmoly.to"',
+            "Doodstream": 'Referer: "https://dood.li/"'
+        }
 
-        if anime.provider == "Doodstream":
-            command.append('--add-header')
-            command.append('Referer: "https://dood.li/"')
+        if anime.provider in headers:
+            command.extend(['--add-header', headers[anime.provider]])
 
         subprocess.run(command, check=False)
         print(' '.join(command))
