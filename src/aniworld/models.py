@@ -1,6 +1,7 @@
 import argparse
 import pathlib
 import re
+import json
 
 import requests
 import requests.models
@@ -35,16 +36,18 @@ def get_anime_title_from_html(html: requests.models.Response) -> str:
 class Anime:
     """
     Attributes:
-        title: str = None,
-        action: str = "Watch",
-        provider: str = None
-        aniskip: bool = False,
-        only_command: bool = False,
-        only_direct_link: bool = False,
-        output_directory: str = pathlib.Path.home() / "Downloads",
-        episode_list: list = None,
-        description_german: str = None,
-        description_english: str = None,
+        title (str): None
+        action (str): "Watch"
+        provider (str): None
+        language (int): None
+        aniskip (bool): False
+        only_command (bool): False
+        only_direct_link (bool): False
+        output_directory (str): pathlib.Path.home() / "Downloads"
+        episode_list (list): None
+        description_german (str): None
+        description_english (str): None
+        arguments (argparse.Namespace): None
     """
 
     def __init__(
@@ -103,29 +106,46 @@ class Anime:
     def __iter__(self):
         return iter(self.episode_list)
 
+    def to_json(self) -> str:
+        data = {
+            "title": self.title,
+            "action": self.action,
+            "provider": self.provider,
+            "aniskip": self.aniskip,
+            "only_command": self.only_command,
+            "only_direct_link": self.only_direct_link,
+            "output_directory": str(self.output_directory),
+            "episode_list": self.episode_list,
+            "description_german": self.description_german,
+            "description_english": self.description_english,
+        }
+        return json.dumps(data, indent=4)
+
     def __str__(self) -> str:
-        return (
-            f"Anime(action={self.action}, provider={self.provider}, "
-            f"aniskip={self.aniskip}, only_command={self.only_command}, "
-            f"only_direct_link={self.only_direct_link}, output_directory={self.output_directory}, "
-            f"episode_list={self.episode_list}, description_german={self.description_german}, "
-            f"description_english={self.description_english})"
-        )
+        return self.to_json()
 
 
 class Episode:
     """
     Attributes:
-        title_german (str): The German title of the episode. Default is None.
-        title_english (str): The English title of the episode. Default is None.
-        season (int): The season number of the episode. Default is None.
-        episode (int): The episode number. Default is None.
-        slug (str): A slug for the episode, typically used in URLs. Default is None.
-        link (str): The link to the episode. Default is None.
-        mal_id (int): The MAL (MyAnimeList) ID associated with the episode. Default is None.
-        provider (dict): A dictionary of providers for the episode. Default is None.
-        language (list): A list of languages the episode is available in. Default is None.
-        html (requests.models.Response): The HTML response containing episode details. Default is None.
+        anime_title (str): None
+        title_german (str): None
+        title_english (str): None
+        season (int): 1
+        episode (int): 1
+        slug (str): None
+        link (str): None
+        mal_id (int): None
+        redirect_link (str): None
+        embeded_link (str): None
+        direct_link (str): None
+        provider (dict): None
+        provider_name (list): None
+        language (list): None
+        language_name (list): None
+        season_episode_count (dict): None
+        html (requests.models.Response): None
+        arguments (argparse.Namespace): None
     """
 
     def __init__(
@@ -340,72 +360,48 @@ class Episode:
             self.episode = self.episode or self._get_episode_from_link()
 
         self.html = requests.get(self.link, timeout=DEFAULT_REQUEST_TIMEOUT)
-
-        title_german, title_english = self._get_episode_title_from_html()
-        self.title_german = title_german
-        self.title_english = title_english
-
+        self.title_german, self.title_english = self._get_episode_title_from_html()
         self.language = self._get_available_language_from_html()
         self.language_name = self._get_languages_from_keys(self.language)
         self.provider = self._get_provider_from_html()
         self.provider_name = list(self.provider.keys())
         self.season_episode_count = self._get_season_episode_count()
-
         self.anime_title = get_anime_title_from_html(html=self.html)
         self.mal_id = get_mal_id_from_title(title=self.anime_title, season=self.season)
 
         # TODO - fix "KeyError None" crash
         # print(self.provider[self.arguments.provider])
 
-        # self.redirect_link = self.provider[self.arguments.provider][self._get_key_from_language(self.arguments.language)]
-
+        # TODO - self.redirect_link = self.provider[self.arguments.provider][self._get_key_from_language(self.arguments.language)]
         self.redirect_link = self.provider["VOE"][3]
         self.embeded_link = requests.get(self.redirect_link, timeout=DEFAULT_REQUEST_TIMEOUT).url
-
-        # print(self.redirect_link)
-        # print(self.embeded_link)
 
         # TODO - Fix Vidmoly Timeout
         self.direct_link = self._get_direct_link_from_provider()
         # print(self.direct_link)
 
-        # TESTING
-        # self.embeded_link = requests.get(
-        #    "https://aniworld.to/redirect/2835852",  # TODO - this is hardcoded
-        #    timeout=DEFAULT_REQUEST_TIMEOUT,
-        # ).url
+    def to_json(self) -> str:
+        data = {
+            "anime_title": self.anime_title,
+            "title_german": self.title_german,
+            "title_english": self.title_english,
+            "season": self.season,
+            "episode": self.episode,
+            "slug": self.slug,
+            "link": self.link,
+            "mal_id": self.mal_id,
+            "redirect_link": self.redirect_link,
+            "embeded_link": self.embeded_link,
+            "direct_link": self.direct_link,
+            "provider": self.provider,
+            "provider_name": self.provider_name,
+            "language": self.language,
+            "language_name": self.language_name,
+            "season_episode_count": self.season_episode_count,
+            "html": str(self.html),
+            "arguments": self.arguments
+        }
+        return json.dumps(data, indent=4)
 
     def __str__(self) -> str:
-        return (
-            f"Episode(title_german={self.title_german}, title_english={self.title_english}, "
-            f"season={self.season}, episode={self.episode}, slug={self.slug}, "
-            f"link={self.link}, mal_id={self.mal_id}, redirect_link={self.redirect_link}, provider={self.provider}, "
-            f"language={self.language}, html={self.html})"
-        )
-
-    def to_pretty_string(self) -> str:
-        provider_str = "{\n"
-        for provider, entries in self.provider.items():
-            provider_str += f"\t\t'{provider}': [\n"
-            for entry in entries:
-                provider_str += (
-                    f"\t\t\t{{'redirect_link': '{entry['redirect_link']}', "
-                    f"'language': {entry['language']}}},\n"
-                )
-            provider_str += "\t\t],\n"
-        provider_str += "\t}"
-
-        return (
-            f"Episode(\n"
-            f"\ttitle_german=\"{self.title_german}\",\n"
-            f"\ttitle_english=\"{self.title_english}\",\n"
-            f"\tseason={self.season},\n"
-            f"\tepisode={self.episode},\n"
-            f"\tslug=\"{self.slug}\",\n"
-            f"\tlink=\"{self.link}\",\n"
-            f"\tmal_id={self.mal_id},\n"
-            f"\tprovider={provider_str},\n"
-            f"\tlanguage={self.language},\n"
-            f"\thtml={self.html}\n"
-            f")"
-        )
+        return self.to_json()
