@@ -9,7 +9,7 @@ def main() -> None:
         arguments = parse_arguments()
 
         slug = search_anime()
-        menu(arguments=arguments, slug=slug)
+        print(menu(arguments=arguments, slug=slug))
 
         """
         anime_list = []

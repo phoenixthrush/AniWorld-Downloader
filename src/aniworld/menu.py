@@ -1,13 +1,10 @@
 import os
-
 import npyscreen
-
 from aniworld.models import Episode
 from aniworld.config import VERSION
 
 
 IS_NEWEST_VERSION = True
-
 SUPPORTED_PROVIDERS = [
     "VOE", "Doodstream", "Luluvdo", "Vidmoly", "Vidoza", "Speedfiles", "Streamtape"
 ]  # Not supported: "Filemoon"
@@ -42,18 +39,23 @@ class SelectionMenu(npyscreen.NPSApp):
         super().__init__()
         self.slug = slug
         self.ep = Episode(slug=slug, arguments=arguments)
+        self.selected_episodes = []
 
     def main(self):
         available_languages = self.ep.language_name
-        season_episode_count = self.ep.season_episode_count  # {1: 12, 2: 13, 3: 13}
+        season_episode_count = self.ep.season_episode_count
         available_providers = self.ep.provider_name
 
         supported_providers = [provider for provider in available_providers if provider in SUPPORTED_PROVIDERS]
-        available_episodes = []
 
+        self.episode_dict = {}
         for season, episodes in season_episode_count.items():
             for episode in range(1, episodes + 1):
-                available_episodes.append(f"{self.ep.anime_title} - Season {season} - Episode {episode}")
+                link_formatted = f"{self.ep.anime_title} - Season {season} - Episode {episode}"
+                link = f"https://aniworld.to/anime/stream/{self.slug}/staffel-{season}/episode-{episode}"
+                self.episode_dict[link] = link_formatted
+
+        available_episodes = list(self.episode_dict.values())
 
         terminal_height = os.get_terminal_size().lines
         total_reserved_height = 3 + 2 + 2 + len(available_languages) + len(supported_providers) + 5
@@ -62,52 +64,70 @@ class SelectionMenu(npyscreen.NPSApp):
         npyscreen.setTheme(CustomTheme)
         F = npyscreen.Form(name=f"Welcome to Aniworld-Downloader {VERSION}")
 
-        action_selection = F.add(npyscreen.TitleSelectOne, max_height=3, value=[1], name="Action",
-                                 values=["Watch", "Download", "Syncplay"], scroll_exit=True)
+        self.action_selection = F.add(npyscreen.TitleSelectOne, max_height=3, value=[1], name="Action",
+                                      values=["Watch", "Download", "Syncplay"], scroll_exit=True)
 
-        aniskip_selection = F.add(npyscreen.TitleMultiSelect, max_height=2, value=[1], name="Aniskip",
-                                  values=["Enabled"], scroll_exit=True,
-                                  rely=action_selection.rely + action_selection.height + 1)
+        self.aniskip_selection = F.add(npyscreen.TitleMultiSelect, max_height=2, value=[1], name="Aniskip",
+                                       values=["Enabled"], scroll_exit=True,
+                                       rely=self.action_selection.rely + self.action_selection.height + 1)
 
-        folder_selection = F.add(npyscreen.TitleFilenameCombo, max_height=2, name="Save Location",
-                                 rely=action_selection.rely + action_selection.height + 1)
+        self.folder_selection = F.add(npyscreen.TitleFilenameCombo, max_height=2, name="Save Location",
+                                      rely=self.action_selection.rely + self.action_selection.height + 1)
 
-        language_selection = F.add(npyscreen.TitleSelectOne, max_height=len(available_languages), value=[1], name="Language",
-                                   values=available_languages, scroll_exit=True,
-                                   rely=aniskip_selection.rely + aniskip_selection.height)
+        self.language_selection = F.add(npyscreen.TitleSelectOne, max_height=len(available_languages), value=[1], name="Language",
+                                        values=available_languages, scroll_exit=True,
+                                        rely=self.aniskip_selection.rely + self.aniskip_selection.height)
 
-        provider_selection = F.add(npyscreen.TitleSelectOne, max_height=len(supported_providers), value=[1], name="Provider",
-                                   values=supported_providers, scroll_exit=True,
-                                   rely=language_selection.rely + language_selection.height + 1)
+        self.provider_selection = F.add(npyscreen.TitleSelectOne, max_height=len(supported_providers), value=[1], name="Provider",
+                                        values=supported_providers, scroll_exit=True,
+                                        rely=self.language_selection.rely + self.language_selection.height + 1)
 
-        episode_selection = F.add(npyscreen.TitleMultiSelect, max_height=max_episode_height, name="Episode",
-                                  values=available_episodes, scroll_exit=True,
-                                  rely=provider_selection.rely + provider_selection.height + 1)
+        self.episode_selection = F.add(npyscreen.TitleMultiSelect, max_height=max_episode_height, name="Episode",
+                                       values=available_episodes, scroll_exit=True,
+                                       rely=self.provider_selection.rely + self.provider_selection.height + 1)
 
         def update_visibility():
-            selected_action = action_selection.get_selected_objects()[0]
+            selected_action = self.action_selection.get_selected_objects()[0]
             if selected_action in ["Watch", "Syncplay"]:
-                folder_selection.hidden = True
-                aniskip_selection.hidden = False
+                self.folder_selection.hidden = True
+                self.aniskip_selection.hidden = False
             else:
-                folder_selection.hidden = False
-                aniskip_selection.hidden = True
+                self.folder_selection.hidden = False
+                self.aniskip_selection.hidden = True
             F.display()
 
-        action_selection.when_value_edited = update_visibility
+        self.action_selection.when_value_edited = update_visibility
 
         update_visibility()
 
+        self.episode_selection.when_value_edited = self.on_ok
+
         F.edit()
+
+    def on_ok(self):
+        selected_link_formatted = self.episode_selection.get_selected_objects() or []
+
+        selected_links = [
+            link for link, name in self.episode_dict.items() if name in selected_link_formatted
+        ]
+
+        self.selected_episodes = selected_links
+
+    def get_selected_episodes(self):
+        return self.selected_episodes
 
 
 def menu(arguments, slug):
     try:
         App = SelectionMenu(arguments=arguments, slug=slug)
         App.run()
+        selected_episodes = App.get_selected_episodes()
     except KeyboardInterrupt:
-        pass
+        selected_episodes = []
+
+    return selected_episodes
 
 
 if __name__ == "__main__":
-    menu()
+    selected_episodes = menu(slug="dan-da-dan", arguments=None)
+    print("Selected Episodes:", selected_episodes)
