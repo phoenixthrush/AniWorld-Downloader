@@ -10,6 +10,9 @@ from bs4 import BeautifulSoup
 from aniworld.aniskip import get_mal_id_from_title
 from aniworld.config import (
     DEFAULT_REQUEST_TIMEOUT,
+    DEFAULT_LANGUAGE,
+    DEFAULT_PROVIDER_DOWNLOAD,
+    DEFAULT_PROVIDER_WATCH,
     DEFAULT_ACTION
 )
 
@@ -397,11 +400,29 @@ class Episode:
         self.anime_title = get_anime_title_from_html(html=self.html)
         self.mal_id = get_mal_id_from_title(title=self.anime_title, season=self.season)
 
-        # TODO - fix "KeyError None" crash
-        # print(self.provider[self.arguments.provider])
+        if not self.arguments:
+            selected_provider = DEFAULT_PROVIDER_DOWNLOAD
+            selected_language = DEFAULT_LANGUAGE
+        else:
+            selected_language = self.arguments.language
 
-        # TODO - self.redirect_link = self.provider[self.arguments.provider][self._get_key_from_language(self.arguments.language)]
-        self.redirect_link = self.provider["VOE"][3]
+            if self.arguments.provider:
+                selected_provider = self.arguments.provider
+            else:
+                if self.arguments.action == "Download":
+                    selected_provider = DEFAULT_PROVIDER_DOWNLOAD
+                else:
+                    selected_provider = DEFAULT_PROVIDER_WATCH
+
+        # print(selected_provider)
+        # print(selected_language)
+
+        # TODO - fix "KeyError None" crash
+        if not selected_provider in self.provider_name:
+            raise ValueError(f"Invalid provider: {selected_provider}. Available providers: {list(self.provider_name)}")
+
+        self.redirect_link = self.provider[selected_provider][self._get_key_from_language(selected_language)]
+        # self.redirect_link = self.provider["VOE"][3]
         self.embeded_link = requests.get(self.redirect_link, timeout=DEFAULT_REQUEST_TIMEOUT).url
 
         # TODO - Fix Vidmoly Timeout

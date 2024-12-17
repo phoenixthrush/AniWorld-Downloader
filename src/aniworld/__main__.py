@@ -11,7 +11,8 @@ def main() -> None:
 
         if not arguments.episode:
             slug = search_anime()
-            print(menu(arguments=arguments, slug=slug))
+            anime = menu(arguments=arguments, slug=slug)
+            print(anime)
         else:
             anime_list = [
                 Anime(

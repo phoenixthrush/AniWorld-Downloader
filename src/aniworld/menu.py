@@ -121,16 +121,21 @@ class SelectionMenu(npyscreen.NPSApp):
     def on_ok(self):
         selected_link_formatted = self.episode_selection.get_selected_objects() or []
 
-        selected_links = [
-            link for link, name in self.episode_dict.items() if name in selected_link_formatted
+        self.selected_episodes = [
+            {"link": link, "name": name}
+            for link, name in self.episode_dict.items() if name in selected_link_formatted
         ]
-
-        self.selected_episodes = selected_links
 
     def get_selected_values(self):
         return Anime(
             title=self.ep.anime_title,
-            episode_list=[Episode(episode=ep, slug=self.slug) for ep in self.selected_episodes]
+            episode_list=[
+                Episode(
+                    episode=episode["name"],
+                    slug=self.slug,
+                    link=episode["link"]
+                ) for episode in self.selected_episodes
+            ]
         )
 
 
