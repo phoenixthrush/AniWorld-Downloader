@@ -38,26 +38,11 @@ def get_anime_title_from_html(html: requests.models.Response) -> str:
 
 
 class Anime:
-    """
-    Attributes:
-        title (str): None
-        action (str): "Watch"
-        provider (str): None
-        language (int): None
-        aniskip (bool): False
-        only_command (bool): False
-        only_direct_link (bool): False
-        output_directory (str): pathlib.Path.home() / "Downloads"
-        episode_list (list): None
-        description_german (str): None
-        description_english (str): None
-        arguments (argparse.Namespace): None
-    """
-
     def __init__(
         self,
         title: str = None,
-        action: str = DEFAULT_ACTION,
+        slug: str = None,
+        action: str = "Watch",
         provider: str = None,
         language: int = None,
         aniskip: bool = False,
@@ -66,13 +51,13 @@ class Anime:
         output_directory: str = pathlib.Path.home() / "Downloads",
         episode_list: list = None,
         description_german: str = None,
-        description_english: str = None,
-        arguments: argparse.Namespace = None
+        description_english: str = None
     ) -> None:
         if not episode_list:
             raise ValueError("Provide 'episode_list'.")
 
         self.title: str = title
+        self.slug: str = slug
         self.action: str = action
         self.provider: str = provider
         self.language: str = language
@@ -83,7 +68,6 @@ class Anime:
         self.episode_list: list = episode_list
         self.description_german: str = description_german
         self.description_english: str = description_english
-        self.arguments = arguments
 
         self.auto_fill_details()
 
@@ -91,7 +75,6 @@ class Anime:
         soup = BeautifulSoup(self.episode_list[0].html.content, 'html.parser')
         seri_des_div = soup.find('p', class_='seri_des')
         description = seri_des_div['data-full-description']
-
         return description
 
     def _get_myanimelist_description_from_html(self):
@@ -99,7 +82,6 @@ class Anime:
         response = requests.get(f"https://myanimelist.net/anime/{anime_id}", timeout=DEFAULT_REQUEST_TIMEOUT)
         soup = BeautifulSoup(response.content, 'html.parser')
         description = soup.find('meta', property='og:description')['content']
-
         return description
 
     def auto_fill_details(self) -> None:
@@ -110,11 +92,15 @@ class Anime:
     def __iter__(self):
         return iter(self.episode_list)
 
+    def __getitem__(self, index: int):
+        return self.episode_list[index]
+
     def to_json(self) -> str:
         data = {
             "title": self.title,
             "action": self.action,
             "provider": self.provider,
+            "language": self.language,
             "aniskip": self.aniskip,
             "only_command": self.only_command,
             "only_direct_link": self.only_direct_link,
@@ -123,7 +109,8 @@ class Anime:
             "description_german": self.description_german,
             "description_english": self.description_english,
         }
-        return json.dumps(data, indent=4)
+        # return json.dumps(data, indent=4)
+        return str(data)
 
     def __str__(self) -> str:
         return self.to_json()
@@ -172,7 +159,8 @@ class Episode:
         season_episode_count: dict = None,
         movie_episode_count: int = None,
         html: requests.models.Response = None,
-        arguments: argparse.Namespace = None
+        _selected_provider: str = None,
+        _selected_language: int = None
     ) -> None:
         if not link and not slug:
             raise ValueError("Provide either 'link' or 'slug'.")
@@ -195,7 +183,8 @@ class Episode:
         self.season_episode_count: dict = season_episode_count
         self.movie_episode_count: int = movie_episode_count
         self.html: requests.models.Response = html
-        self.arguments = arguments
+        self._selected_provider: str = _selected_provider
+        self._selected_language: int = _selected_language
 
         self.auto_fill_details()
 
@@ -317,18 +306,17 @@ class Episode:
         return languages
 
     def _get_direct_link_from_provider(self) -> str:
-        if not self.arguments.provider:
+        if not self._selected_provider:
             return get_direct_link_from_voe(embeded_voe_link=self.embeded_link)
-
-        if self.arguments.provider == "Vidmoly":
+        if self._selected_provider == "Vidmoly":
             return get_direct_link_from_vidmoly(embeded_vidmoly_link=self.embeded_link)
-        if self.arguments.provider == "Vidoza":
+        if self._selected_provider == "Vidoza":
             return get_direct_link_from_vidoza(embeded_vidoza_link=self.embeded_link)
-        if self.arguments.provider == "VOE":
+        if self._selected_provider == "VOE":
             return get_direct_link_from_voe(embeded_voe_link=self.embeded_link)
-        if self.arguments.provider == "Doodstream":
+        if self._selected_provider == "Doodstream":
             return get_direct_link_from_doodstream(embeded_doodstream_link=self.embeded_link)
-        if self.arguments.provider == "SpeedFiles":
+        if self._selected_provider == "SpeedFiles":
             return get_direct_link_from_speedfiles(embeded_speedfiles_link=self.embeded_link)
 
         raise ValueError("No valid provider selected.")
@@ -377,6 +365,24 @@ class Episode:
 
         return max(movie_indices) if movie_indices else 0
 
+    def get_redirect_link(self):
+        self.redirect_link = self.provider[self._selected_provider][self._get_key_from_language(self._selected_language)]
+        return self.redirect_link
+
+    def get_embeded_link(self):
+        if not self.redirect_link:
+            self.get_redirect_link()
+
+        self.embeded_link = requests.get(self.redirect_link, timeout=DEFAULT_REQUEST_TIMEOUT).url
+        return self.embeded_link
+
+    def get_direct_link(self):
+        if not self.embeded_link:
+            self.get_embeded_link()
+
+        self.direct_link = self._get_direct_link_from_provider()
+        return self.direct_link
+
     def auto_fill_details(self) -> None:
         if self.slug and self.season and self.episode:
             self.link = (
@@ -400,6 +406,7 @@ class Episode:
         self.anime_title = get_anime_title_from_html(html=self.html)
         self.mal_id = get_mal_id_from_title(title=self.anime_title, season=self.season)
 
+        """
         if not self.arguments:
             selected_provider = DEFAULT_PROVIDER_DOWNLOAD
             selected_language = DEFAULT_LANGUAGE
@@ -413,20 +420,24 @@ class Episode:
                     selected_provider = DEFAULT_PROVIDER_DOWNLOAD
                 else:
                     selected_provider = DEFAULT_PROVIDER_WATCH
+        """
 
         # print(selected_provider)
         # print(selected_language)
 
         # TODO - fix "KeyError None" crash
-        if not selected_provider in self.provider_name:
-            raise ValueError(f"Invalid provider: {selected_provider}. Available providers: {list(self.provider_name)}")
+        # if not selected_provider in self.provider_name:
+        #    raise ValueError(f"Invalid provider: {selected_provider}. Available providers: {list(self.provider_name)}")
 
-        self.redirect_link = self.provider[selected_provider][self._get_key_from_language(selected_language)]
+        # Those three depend on the Anime Class and should be asigned
+        # from self._selected_provider and self._selected_language
+
+        # TODO - self.redirect_link = self.provider[self._selected_provider][self._get_key_from_language(self._selected_language)]
         # self.redirect_link = self.provider["VOE"][3]
-        self.embeded_link = requests.get(self.redirect_link, timeout=DEFAULT_REQUEST_TIMEOUT).url
+        # TODO - self.embeded_link = requests.get(self.redirect_link, timeout=DEFAULT_REQUEST_TIMEOUT).url
 
         # TODO - Fix Vidmoly Timeout
-        self.direct_link = self._get_direct_link_from_provider()
+        # TODO - self.direct_link = self._get_direct_link_from_provider()
         # print(self.direct_link)
 
     def to_json(self) -> str:
@@ -447,8 +458,7 @@ class Episode:
             "language": self.language,
             "language_name": self.language_name,
             "season_episode_count": self.season_episode_count,
-            "html": str(self.html),
-            "arguments": self.arguments
+            "html": str(self.html)
         }
         return json.dumps(data, indent=4)
 

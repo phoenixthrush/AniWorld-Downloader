@@ -35,38 +35,29 @@ class CustomTheme(npyscreen.ThemeManager):
 
 
 class SelectionMenu(npyscreen.NPSApp):
-    def __init__(self, slug, arguments):
+    def __init__(self, slug):
         super().__init__()
-        self.slug = slug
-        self.ep = Episode(slug=slug, arguments=arguments)
+        self.anime = Anime(slug=slug, episode_list=[Episode(slug=slug)])
         self.selected_episodes = []
-        self.episode_dict = None
-        self.action_selection = None
-        self.aniskip_selection = None
-        self.folder_selection = None
-        self.language_selection = None
-        self.provider_selection = None
-        self.episode_selection = None
+        self.episode_dict = {}
 
     def main(self):
-        available_languages = self.ep.language_name
-        season_episode_count = self.ep.season_episode_count
-        movie_episode_count = self.ep.movie_episode_count
-        available_providers = self.ep.provider_name
+        available_languages = self.anime[0].language_name
+        season_episode_count = self.anime[0].season_episode_count
+        movie_episode_count = self.anime[0].movie_episode_count
+        available_providers = self.anime[0].provider_name
 
         supported_providers = [provider for provider in available_providers if provider in SUPPORTED_PROVIDERS]
 
-        self.episode_dict = {}
-
         for season, episodes in season_episode_count.items():
             for episode in range(1, episodes + 1):
-                link_formatted = f"{self.ep.anime_title} - Season {season} - Episode {episode}"
-                link = f"https://aniworld.to/anime/stream/{self.slug}/staffel-{season}/episode-{episode}"
+                link_formatted = f"{self.anime.title} - Season {season} - Episode {episode}"
+                link = f"https://aniworld.to/anime/stream/{self.anime.slug}/staffel-{season}/episode-{episode}"
                 self.episode_dict[link] = link_formatted
 
         for episode in range(1, movie_episode_count + 1):
-            movie_link_formatted = f"{self.ep.anime_title} - Movie {episode}"
-            movie_link = f"https://aniworld.to/anime/stream/{self.slug}/filme/film-{episode}"
+            movie_link_formatted = f"{self.anime.title} - Movie {episode}"
+            movie_link = f"https://aniworld.to/anime/stream/{self.anime.slug}/filme/film-{episode}"
             self.episode_dict[movie_link] = movie_link_formatted
 
         available_episodes = list(self.episode_dict.values())
@@ -128,20 +119,25 @@ class SelectionMenu(npyscreen.NPSApp):
 
     def get_selected_values(self):
         return Anime(
-            title=self.ep.anime_title,
+            title=self.anime.title,
             episode_list=[
                 Episode(
                     episode=episode["name"],
-                    slug=self.slug,
-                    link=episode["link"]
+                    slug=self.anime.slug,
+                    link=episode["link"],
+                    # _selected_provider=self.anime.provider,
+                    # _selected_language=self.anime.language
+                    _selected_provider="VOE",
+                    _selected_language="German Sub"
                 ) for episode in self.selected_episodes
             ]
         )
+        # return self.selected_episodes
 
 
 def menu(arguments, slug):
     try:
-        app = SelectionMenu(arguments=arguments, slug=slug)
+        app = SelectionMenu(slug=slug)
         app.run()
         anime = app.get_selected_values()
 

@@ -29,5 +29,5 @@ def download(anime: Anime):
         if anime.provider in headers:
             command.extend(['--add-header', headers[anime.provider]])
 
-        subprocess.run(command, check=False)
+        # subprocess.run(command, check=False)
         print(' '.join(command))
