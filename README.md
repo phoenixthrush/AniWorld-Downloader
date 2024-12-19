@@ -17,3 +17,12 @@ pip install --upgrade git+https://github.com/phoenixthrush/AniWorld-Downloader.g
 ```
 
 - To update, simply rerun the above command. These builds may be unstable, so it’s good to check regularly.
+
+### Roadmap
+
+- [ ] Add automatic mpv, syncplay pull
+- [ ] Add Anime4K support
+- [ ] Add syncplay room options
+- [ ] Add episode file support
+- [ ] Add proxy support
+- [ ] Add playwright support

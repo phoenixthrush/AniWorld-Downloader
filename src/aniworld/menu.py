@@ -1,13 +1,14 @@
 import os
 import npyscreen
 from aniworld.models import Anime, Episode
-from aniworld.config import VERSION, DEFAULT_DOWNLOAD_PATH
-
-
-IS_NEWEST_VERSION = True
-SUPPORTED_PROVIDERS = [
-    "VOE", "Doodstream", "Luluvdo", "Vidmoly", "Vidoza", "SpeedFiles", "Streamtape"
-]  # Not supported: "Filemoon"
+from aniworld.config import (
+    VERSION,
+    DEFAULT_DOWNLOAD_PATH,
+    SUPPORTED_PROVIDERS,
+    DEFAULT_PROVIDER_DOWNLOAD,
+    DEFAULT_PROVIDER_WATCH,
+    DEFAULT_ACTION
+)
 
 
 class CustomTheme(npyscreen.ThemeManager):
@@ -66,6 +67,16 @@ class SelectionMenu(npyscreen.NPSApp):
         total_reserved_height = 3 + 2 + 2 + len(available_languages) + len(supported_providers) + 5
         max_episode_height = max(3, terminal_height - total_reserved_height)
 
+        if DEFAULT_ACTION == "Download":
+            default_provider = DEFAULT_PROVIDER_DOWNLOAD
+        else:
+            default_provider = DEFAULT_PROVIDER_WATCH
+
+        if default_provider in supported_providers:
+            DEFAULT_PROVIDER_INDEX = supported_providers.index(default_provider)
+        else:
+            DEFAULT_PROVIDER_INDEX = 1
+
         npyscreen.setTheme(CustomTheme)
         F = npyscreen.Form(name=f"Welcome to AniWorld-Downloader {VERSION}")
 
@@ -83,7 +94,7 @@ class SelectionMenu(npyscreen.NPSApp):
                                         values=available_languages, scroll_exit=True,
                                         rely=self.aniskip_selection.rely + self.aniskip_selection.height)
 
-        self.provider_selection = F.add(npyscreen.TitleSelectOne, max_height=len(supported_providers), value=[1], name="Provider",
+        self.provider_selection = F.add(npyscreen.TitleSelectOne, max_height=len(supported_providers), value=[DEFAULT_PROVIDER_INDEX], name="Provider",
                                         values=supported_providers, scroll_exit=True,
                                         rely=self.language_selection.rely + self.language_selection.height + 1)
 
@@ -96,9 +107,15 @@ class SelectionMenu(npyscreen.NPSApp):
             if selected_action in ["Watch", "Syncplay"]:
                 self.folder_selection.hidden = True
                 self.aniskip_selection.hidden = False
+
+                if self.provider_selection.value != [supported_providers.index(DEFAULT_PROVIDER_WATCH)]:
+                    self.provider_selection.value = [supported_providers.index(DEFAULT_PROVIDER_WATCH)]
             else:
                 self.folder_selection.hidden = False
                 self.aniskip_selection.hidden = True
+
+                if self.provider_selection.value != [supported_providers.index(DEFAULT_PROVIDER_DOWNLOAD)]:
+                    self.provider_selection.value = [supported_providers.index(DEFAULT_PROVIDER_DOWNLOAD)]
             F.display()
 
         self.action_selection.when_value_edited = update_visibility
@@ -170,7 +187,8 @@ class SelectionMenu(npyscreen.NPSApp):
                 Episode(
                     slug=self.anime.slug,
                     link=link,
-                    _selected_language=selected_language
+                    _selected_language=selected_language,
+                    _selected_provider=selected_provider
                 ) for link in self.selected_episodes
             ],
             action=selected_action,

@@ -27,9 +27,8 @@ def download(anime: Anime):
             "Doodstream": 'Referer: "https://dood.li/"'
         }
 
-        # anime.provider works alr tested but still fetches direct_link using VOE
         if anime.provider in headers:
             command.extend(['--add-header', headers[anime.provider]])
 
         subprocess.run(command, check=False)
-        print(' '.join(str(item) if item is not None else '' for item in command))
+        # print(' '.join(str(item) if item is not None else '' for item in command))

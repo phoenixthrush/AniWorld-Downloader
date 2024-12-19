@@ -331,8 +331,9 @@ class Episode:
         return languages
 
     def _get_direct_link_from_provider(self) -> str:
-        if not self._selected_provider:
-            return get_direct_link_from_voe(embeded_voe_link=self.embeded_link)
+        # if not self._selected_provider:
+        #    raise ValueError(self._selected_provider)
+        #    # return get_direct_link_from_voe(embeded_voe_link=self.embeded_link)
         if self._selected_provider == "Vidmoly":
             return get_direct_link_from_vidmoly(embeded_vidmoly_link=self.embeded_link)
         if self._selected_provider == "Vidoza":

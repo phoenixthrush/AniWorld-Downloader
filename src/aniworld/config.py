@@ -24,11 +24,17 @@ def get_version():
 
 VERSION = get_version()
 
+IS_NEWEST_VERSION = True
 
-DEFAULT_ACTION = "Download"      # E.g. Watch, Download, Syncplay
+SUPPORTED_PROVIDERS = [
+    "VOE", "Doodstream", "Luluvdo", "Vidmoly", "Vidoza", "SpeedFiles", "Streamtape"
+]  # Not supported: "Filemoon"
+
+
+DEFAULT_ACTION = "Download"             # E.g. Watch, Download, Syncplay
 DEFAULT_DOWNLOAD_PATH = pathlib.Path.home() / "Downloads"
-DEFAULT_LANGUAGE = "German Sub"  # German Dub, English Sub, German Sub
-DEFAULT_PROVIDER_DOWNLOAD = "VOE"         # Vidoza, Streamtape, VOE, Doodstream
+DEFAULT_LANGUAGE = "German Sub"         # German Dub, English Sub, German Sub
+DEFAULT_PROVIDER_DOWNLOAD = "Vidmoly"   # SUPPORTED_PROVIDERS above
 DEFAULT_PROVIDER_WATCH = "Doodstream"
 DEFAULT_ANISKIP = False
 DEFAULT_KEEP_WATCHING = False
