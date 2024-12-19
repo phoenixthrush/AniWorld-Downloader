@@ -496,8 +496,8 @@ class Episode:
         # self.season = self._get_season_from_link()
         # self.episode = self._get_episode_from_link()
 
-        self.season = 1
-        self.episode = 1
+        self.season = self.season or 1
+        self.episode = self.episode or 1
 
         if self.slug and self.season and self.episode:
             self.link = (
