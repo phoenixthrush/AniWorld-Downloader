@@ -47,9 +47,12 @@ from aniworld.models import Anime, Episode
 anime = Anime(
     episode_list=[
         Episode(
-            slug="loner-life-in-another-world",
+            slug="food-wars-shokugeki-no-sma",
             season=1,
-            episode=1
+            episode=5
+        ),
+        Episode(
+            link="https://aniworld.to/anime/stream/food-wars-shokugeki-no-sma/staffel-1/episode-6"
         )
     ]
 )
