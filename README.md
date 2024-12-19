@@ -57,6 +57,7 @@ anime = Anime(
 # Iterate over episodes and print Episode objects
 for episode in anime:
     print(episode)
+    print(episode.get_direct_link("VOE", "German Sub"))
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>

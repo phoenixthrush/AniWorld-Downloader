@@ -462,7 +462,30 @@ class Episode:
         self.embeded_link = requests.get(self.redirect_link, timeout=DEFAULT_REQUEST_TIMEOUT).url
         return self.embeded_link
 
-    def get_direct_link(self):
+    def get_direct_link(self, provider=None, language=None):
+        """
+        Retrieves the direct streaming link for the episode.
+
+        Example:
+            episode.get_direct_link("VOE", "German Sub")
+
+        Note:
+            If this method is not being called from a menu or with arguments,
+            ensure that 'provider' and 'language' are set before calling.
+
+        Args:
+            provider (str): The name of the provider to use for fetching the direct link.
+            language (str): The language code to use for fetching the direct link.
+
+        Returns:
+            str: The direct streaming link for the episode.
+        """
+        if provider:
+            self._selected_provider = provider
+
+        if language:
+            self._selected_language = language
+
         if not self.embeded_link:
             self.get_embeded_link()
 
