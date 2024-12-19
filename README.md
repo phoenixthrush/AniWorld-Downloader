@@ -8,6 +8,8 @@ AniWorld Downloader is a command-line tool for downloading and streaming anime, 
 
 ![AniWorld Downloader - Demo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/next/.github/assets/demo.png?raw=true)
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ### Installation (Requires Git)
 
 - To install the latest version from GitHub, run:
@@ -17,6 +19,8 @@ pip install --upgrade git+https://github.com/phoenixthrush/AniWorld-Downloader.g
 ```
 
 To update, simply rerun the above command. Note that these builds may be unstable, so regular checks are recommended.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Usage
 
@@ -55,8 +59,7 @@ for episode in anime:
     print(episode)
 ```
 
-
-### Roadmap
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Roadmap
 
@@ -69,3 +72,5 @@ for episode in anime:
 - [ ] Enhance performance by filling unnecessary variables only when they are used at runtime, rather than directly in classes
 - [ ] Implement proxy support
 - [ ] Add support for Playwright
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
