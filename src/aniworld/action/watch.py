@@ -8,11 +8,10 @@ def watch(anime: Anime):
     for episode in anime:
         command = [
             MPV_PATH,
-            f"'{episode.get_direct_link()}'",
+            f'"{episode.get_direct_link()}"',
             "--fs",
             "--quiet",
-            "--really-quiet",
-            f"--force-media-title={episode.title_german}"
+            f'--force-media-title="{episode.title_german}"'
         ]
 
         headers = {
@@ -27,9 +26,7 @@ def watch(anime: Anime):
             build_flags = aniskip(anime.title, episode.episode, episode.season)
             command.append(build_flags)
 
-        result = subprocess.run(command, check=False)
-
-        if result.returncode != 0:
+        try:
+            subprocess.run(command, check=True)
+        except subprocess.CalledProcessError:
             print(f"Error running command: {' '.join(str(item) if item is not None else '' for item in command)}")
-        else:
-            print("Command executed successfully.")

@@ -20,9 +20,12 @@ pip install --upgrade git+https://github.com/phoenixthrush/AniWorld-Downloader.g
 
 ### Roadmap
 
+- [ ] Fix subprocess commands in Watch, Download, Syncplay
+- [ ] Fix None title of anime -> probably fixes get_mal_id_from_title crash
 - [ ] Add automatic mpv, syncplay pull
 - [ ] Add Anime4K support
 - [ ] Add syncplay room options
 - [ ] Add episode file support
+- [ ] Speedup everything by not autofilling yet unnecessary vars in classes
 - [ ] Add proxy support
 - [ ] Add playwright support

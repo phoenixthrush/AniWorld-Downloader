@@ -75,7 +75,7 @@ class SelectionMenu(npyscreen.NPSApp):
         if default_provider in supported_providers:
             DEFAULT_PROVIDER_INDEX = supported_providers.index(default_provider)
         else:
-            DEFAULT_PROVIDER_INDEX = 1
+            DEFAULT_PROVIDER_INDEX = 0
 
         npyscreen.setTheme(CustomTheme)
         F = npyscreen.Form(name=f"Welcome to AniWorld-Downloader {VERSION}")
@@ -108,14 +108,24 @@ class SelectionMenu(npyscreen.NPSApp):
                 self.folder_selection.hidden = True
                 self.aniskip_selection.hidden = False
 
-                if self.provider_selection.value != [supported_providers.index(DEFAULT_PROVIDER_WATCH)]:
-                    self.provider_selection.value = [supported_providers.index(DEFAULT_PROVIDER_WATCH)]
+                try:
+                    provider_index = supported_providers.index(DEFAULT_PROVIDER_WATCH)
+                except ValueError:
+                    provider_index = 0
+
+                if self.provider_selection.value != [provider_index]:
+                    self.provider_selection.value = [provider_index]
             else:
                 self.folder_selection.hidden = False
                 self.aniskip_selection.hidden = True
 
-                if self.provider_selection.value != [supported_providers.index(DEFAULT_PROVIDER_DOWNLOAD)]:
-                    self.provider_selection.value = [supported_providers.index(DEFAULT_PROVIDER_DOWNLOAD)]
+                try:
+                    provider_index = supported_providers.index(DEFAULT_PROVIDER_DOWNLOAD)
+                except ValueError:
+                    provider_index = 0
+
+                if self.provider_selection.value != [provider_index]:
+                    self.provider_selection.value = [provider_index]
             F.display()
 
         self.action_selection.when_value_edited = update_visibility
