@@ -30,7 +30,7 @@ def check_episodes(anime_id):
         logging.debug("Count of the episodes %s", episodes)
         return int(episodes)
 
-    logging.debug("The Number can not be found!")
+    logging.warning("The Number can not be found!")
     return None
 
 
@@ -38,10 +38,10 @@ def get_mal_id_from_title(title: str, season: int) -> int:
     logging.debug("Fetching MAL ID for: %s", title)
 
     name = re.sub(r' \(\d+ episodes\)', '', title)
-    logging.debug("Processed name: %s", name)
+    # logging.debug("Processed name: %s", name)
 
     keyword = re.sub(r'\s+', '%20', name)
-    logging.debug("Keyword for search: %s", keyword)
+    # logging.debug("Keyword for search: %s", keyword)
 
     response = requests.get(
         f"https://myanimelist.net/search/prefix.json?type=anime&keyword={keyword}",
@@ -59,14 +59,14 @@ def get_mal_id_from_title(title: str, season: int) -> int:
         entry for entry in mal_metadata['categories'][0]['items']
         if 'OVA' not in entry['name']
     ]
-    logging.debug("Search results: %s", results)
+    # logging.debug("Search results: %s", results)
 
     if not results:
         logging.error("No match found!")
         raise ValueError("No match found!")
 
     best_match = results[0]
-    logging.debug("Best match: %s", best_match)
+    # logging.debug("Best match: %s", best_match)
 
     for entry in mal_metadata['categories'][0]['items']:
         if entry['name'] == best_match['name']:
@@ -75,7 +75,7 @@ def get_mal_id_from_title(title: str, season: int) -> int:
 
             while season > 1:
                 url = f"https://myanimelist.net/anime/{anime_id}"
-                logging.debug("Fetching URL: %s", url)
+                # logging.debug("Fetching URL: %s", url)
 
                 response = requests.get(url, timeout=DEFAULT_REQUEST_TIMEOUT)
                 response.raise_for_status()
@@ -104,7 +104,7 @@ def get_mal_id_from_title(title: str, season: int) -> int:
                     raise ValueError(error_msg)
 
                 link_url = link_element.get("href")
-                logging.debug("Found Link: %s", link_url)
+                # logging.debug("Found Link: %s", link_url)
                 match = re.search(r'/anime/(\d+)', link_url)
 
                 if not match:
@@ -124,17 +124,17 @@ def get_mal_id_from_title(title: str, season: int) -> int:
 
 
 def build_options(metadata: Dict, chapters_file: str) -> str:
-    logging.debug("Building options with metadata: %s and chapters_file: %s",
-                  json.dumps(metadata, indent=2), chapters_file)
+    # logging.debug("Building options with metadata: %s and chapters_file: %s",
+    #              json.dumps(metadata, indent=2), chapters_file)
     op_end, ed_start = None, None
     options = []
 
     for skip in metadata["results"]:
-        logging.debug("Processing skip: %s", skip)
+        # logging.debug("Processing skip: %s", skip)
         skip_type = skip["skip_type"]
         st_time = skip["interval"]["start_time"]
         ed_time = skip["interval"]["end_time"]
-        logging.debug("Skip type: %s, start time: %s, end time: %s", skip_type, st_time, ed_time)
+        # logging.debug("Skip type: %s, start time: %s, end time: %s", skip_type, st_time, ed_time)
 
         ch_name = None
 
@@ -144,36 +144,36 @@ def build_options(metadata: Dict, chapters_file: str) -> str:
         elif skip_type == "ed":
             ed_start = st_time
             ch_name = "Ending"
-        logging.debug("Chapter name: %s", ch_name)
+        # logging.debug("Chapter name: %s", ch_name)
 
         with open(chapters_file, 'a', encoding='utf-8') as f:
             f.write(CHAPTER_FORMAT.format(ftoi(st_time), ftoi(ed_time), ch_name))
-            logging.debug("Wrote chapter to file: %s", chapters_file)
+            # logging.debug("Wrote chapter to file: %s", chapters_file)
 
         options.append(OPTION_FORMAT.format(skip_type, st_time, skip_type, ed_time))
-        logging.debug("Options so far: %s", options)
+        # logging.debug("Options so far: %s", options)
 
     if op_end:
         ep_ed = ed_start if ed_start else op_end
         with open(chapters_file, 'a', encoding='utf-8') as f:
             f.write(CHAPTER_FORMAT.format(ftoi(op_end), ftoi(ep_ed), "Episode"))
-            logging.debug("Wrote episode chapter to file: %s", chapters_file)
+            # logging.debug("Wrote episode chapter to file: %s", chapters_file)
 
     return ",".join(options)
 
 
 def build_flags(anime_id: str, episode: int, chapters_file: str) -> str:
-    logging.debug(
-        "Building flags for MAL ID: %s, episode: %d, chapters_file: %s",
-        anime_id, episode, chapters_file
-    )
+    # logging.debug(
+    #    "Building flags for MAL ID: %s, episode: %d, chapters_file: %s",
+    #    anime_id, episode, chapters_file
+    # )
     aniskip_api = f"https://api.aniskip.com/v1/skip-times/{anime_id}/{episode}?types=op&types=ed"
-    logging.debug("Fetching skip times from: %s", aniskip_api)
+    # logging.debug("Fetching skip times from: %s", aniskip_api)
     response = requests.get(
         aniskip_api,
         timeout=DEFAULT_REQUEST_TIMEOUT
     )
-    logging.debug("Response status code: %d", response.status_code)
+    # logging.debug("Response status code: %d", response.status_code)
 
     if response.status_code == 500:
         logging.info("Aniskip API is currently not working!")
@@ -183,37 +183,37 @@ def build_flags(anime_id: str, episode: int, chapters_file: str) -> str:
         return ""
 
     metadata = response.json()
-    logging.debug("AniSkip response: %s", json.dumps(metadata, indent=2))
+    # logging.debug("AniSkip response: %s", json.dumps(metadata, indent=2))
 
     if not metadata.get("found"):
-        logging.debug("No skip times found.")
+        logging.warning("No skip times found.")
         return ""
 
     with open(chapters_file, 'w', encoding='utf-8') as f:
         f.write(";FFMETADATA1")
-        logging.debug("Initialized chapters file: %s", chapters_file)
+        # logging.debug("Initialized chapters file: %s", chapters_file)
 
     options = build_options(metadata, chapters_file)
-    logging.debug("Built options: %s", options)
+    # logging.debug("Built options: %s", options)
     return f"--chapters-file={chapters_file} --script-opts={options}"
 
 
 def aniskip(title: str, episode: int, season: int) -> str:
-    logging.debug("Running aniskip for anime_title: %s, episode: %d", title, episode)
+    # logging.debug("Running aniskip for anime_title: %s, episode: %d", title, episode)
     anime_id = get_mal_id_from_title(title, season) if not title.isdigit() else title
-    logging.debug("Fetched MAL ID: %s", anime_id)
+    # logging.debug("Fetched MAL ID: %s", anime_id)
     if not anime_id:
-        logging.debug("No MAL ID found.")
+        logging.warning("No MAL ID found.")
         return ""
 
     if check_episodes(anime_id):  # == episode_count: # TODO Add episode count of season
         with tempfile.NamedTemporaryFile(mode="w+", delete=False) as chapters_file:
-            logging.debug("Created temporary chapters file: %s", chapters_file.name)
+            # logging.debug("Created temporary chapters file: %s", chapters_file.name)
             return build_flags(anime_id, episode, chapters_file.name)
     else:
-        logging.debug("Check_Episode: %s", check_episodes(anime_id))
-        logging.debug("Check get_season_episode_count: %s", 123)
-        logging.debug("Mal ID isn't matching episode counter!")
+        logging.info("Check_Episode: %s", check_episodes(anime_id))
+        logging.info("Check get_season_episode_count: %s", 123)
+        logging.warning("Mal ID isn't matching episode counter!")
         return ""
 
 
