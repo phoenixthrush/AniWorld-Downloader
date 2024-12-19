@@ -15,7 +15,7 @@ def syncplay(anime: Anime):
 
         command = [
             executable,
-            f'"{episode.direct_link}"',
+            f'"{episode.get_direct_link()}"',
             "--no-gui",
             "--no-store",
             "--host", f'"{syncplay_hostname}"',
@@ -39,5 +39,5 @@ def syncplay(anime: Anime):
         if anime.provider in headers:
             command.extend(['--add-header', headers[anime.provider]])
 
-        # subprocess.run(command, check=False)
-        print(' '.join(command))
+        subprocess.run(command, check=False)
+        print(' '.join(str(item) if item is not None else '' for item in command))

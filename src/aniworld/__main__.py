@@ -10,9 +10,14 @@ def main() -> None:
         arguments = parse_arguments()
 
         if not arguments.episode:
-            slug = search_anime()
-            anime = menu(arguments=arguments, slug=slug)
+            while True:
+                try:
+                    slug = search_anime()
+                    break
+                except ValueError:
+                    continue
 
+            anime = menu(arguments=arguments, slug=slug)
             execute(anime_list=[anime])
         else:
             anime_list = [

@@ -9,7 +9,7 @@ def watch(anime: Anime):
     for episode in anime:
         command = [
             MPV_PATH,
-            episode.get_direct_link(),  # TODO
+            f'"{episode.get_direct_link()}"',
             "--fs",
             "--profile=fast",
             "--hwdec=auto-safe",
@@ -29,5 +29,5 @@ def watch(anime: Anime):
             build_flags = aniskip(anime.title, episode.episode, episode.season)
             command.append(build_flags)
 
-        # subprocess.run(command, check=False)
-        print(' '.join(command))
+        subprocess.run(command, check=False)
+        print(' '.join(str(item) if item is not None else '' for item in command))

@@ -1,7 +1,7 @@
-import argparse
 import pathlib
 import re
 import json
+import logging
 
 import requests
 import requests.models
@@ -42,7 +42,7 @@ class Anime:
         self,
         title: str = None,
         slug: str = None,
-        action: str = "Watch",
+        action: str = DEFAULT_ACTION,
         provider: str = None,
         language: int = None,
         aniskip: bool = False,
@@ -51,7 +51,8 @@ class Anime:
         output_directory: str = pathlib.Path.home() / "Downloads",
         episode_list: list = None,
         description_german: str = None,
-        description_english: str = None
+        description_english: str = None,
+        html: requests.models.Response = None
     ) -> None:
         if not episode_list:
             raise ValueError("Provide 'episode_list'.")
@@ -68,24 +69,35 @@ class Anime:
         self.episode_list: list = episode_list
         self.description_german: str = description_german
         self.description_english: str = description_english
+        self.html: requests.models.Response = html
 
         self.auto_fill_details()
 
     def _get_aniworld_description_from_html(self):
-        soup = BeautifulSoup(self.episode_list[0].html.content, 'html.parser')
+        soup = BeautifulSoup(self.html.content, 'html.parser')
         seri_des_div = soup.find('p', class_='seri_des')
-        description = seri_des_div['data-full-description']
-        return description
+
+        if seri_des_div:
+            description = seri_des_div.get('data-full-description', '')
+            return description
+        else:
+            return "Could not fetch description."
 
     def _get_myanimelist_description_from_html(self):
         anime_id = get_mal_id_from_title(self.title, 1)
         response = requests.get(f"https://myanimelist.net/anime/{anime_id}", timeout=DEFAULT_REQUEST_TIMEOUT)
         soup = BeautifulSoup(response.content, 'html.parser')
-        description = soup.find('meta', property='og:description')['content']
-        return description
+        description_meta = soup.find('meta', property='og:description')
+
+        if description_meta:
+            description = description_meta['content']
+            return description
+        else:
+            return "Could not fetch description."
 
     def auto_fill_details(self) -> None:
-        self.title = get_anime_title_from_html(html=self.episode_list[0].html)
+        self.html = requests.get(f"https://aniworld.to/anime/stream/{self.slug}", timeout=DEFAULT_REQUEST_TIMEOUT)
+        self.title = get_anime_title_from_html(html=self.html)
         self.description_german = self._get_aniworld_description_from_html()
         self.description_english = self._get_myanimelist_description_from_html()
 
@@ -144,9 +156,10 @@ class Episode:
         anime_title: str = None,
         title_german: str = None,
         title_english: str = None,
-        season: int = 1,
-        episode: int = 1,
+        season: int = None,
+        episode: int = None,
         slug: str = None,
+        # slug_link: str = None,
         link: str = None,
         mal_id: int = None,
         redirect_link: str = None,
@@ -171,6 +184,7 @@ class Episode:
         self.season: int = season
         self.episode: int = episode
         self.slug: str = slug
+        # self.slug_link: str = slug_link
         self.link: str = link
         self.mal_id: int = mal_id
         self.redirect_link = redirect_link
@@ -258,23 +272,34 @@ class Episode:
         soup = BeautifulSoup(self.html.content, 'html.parser')
         providers = {}
 
+        logging.debug("Parsed HTML content with BeautifulSoup.")
+
         episode_links = soup.find_all('li', class_=lambda x: x and x.startswith('episodeLink'))
+        logging.debug(f"Found {len(episode_links)} episode links.")
 
         for link in episode_links:
             provider_name_tag = link.find('h4')
             provider_name = provider_name_tag.text.strip() if provider_name_tag else None
+            logging.debug(f"Extracted provider name: {provider_name}")
 
             redirect_link_tag = link.find('a', class_='watchEpisode')
             redirect_link = redirect_link_tag['href'] if redirect_link_tag else None
+            logging.debug(f"Extracted redirect link: {redirect_link}")
 
             lang_key = link.get('data-lang-key')
             lang_key = int(lang_key) if lang_key and lang_key.isdigit() else None
+            logging.debug(f"Extracted language key: {lang_key}")
 
             if provider_name and redirect_link and lang_key:
                 if provider_name not in providers:
                     providers[provider_name] = {}
                 providers[provider_name][lang_key] = f"https://aniworld.to{redirect_link}"
+                logging.debug(f"Added provider '{provider_name}' with language key '{lang_key}' to providers.")
 
+        if not providers:
+            raise ValueError(f"Could not get providers from {self.html.content}")
+
+        logging.debug(f"Final providers dictionary: {providers}")
         return providers
 
     def _get_key_from_language(self, language: str) -> int:
@@ -284,10 +309,10 @@ class Episode:
             "German Sub": 3
         }
 
-        language_key = lang_mapping.get(language, "Unknown Language")
+        language_key = lang_mapping.get(language, None)
 
         if language_key is None:
-            raise ValueError("Language not valid.")
+            raise ValueError(f"Language: {language} not valid.")
 
         return language_key
 
@@ -366,8 +391,23 @@ class Episode:
         return max(movie_indices) if movie_indices else 0
 
     def get_redirect_link(self):
-        self.redirect_link = self.provider[self._selected_provider][self._get_key_from_language(self._selected_language)]
-        return self.redirect_link
+        # print(f"Selected language: {self._selected_language}")
+        lang_key = self._get_key_from_language(self._selected_language)
+
+        if self._selected_provider not in self.provider or lang_key not in self.provider[self._selected_provider]:
+            for provider_name, lang_dict in self.provider.items():
+                if lang_key in lang_dict:
+                    self._selected_provider = provider_name
+                    self.redirect_link = lang_dict[lang_key]
+                    break
+            else:
+                raise KeyError(
+                    "No provider with the language key '"
+                    f"{lang_key}' found. Checked providers: {list(self.provider.keys())}. "
+                    f"Provider variable: {self.provider}"
+                )
+        else:
+            self.redirect_link = self.provider[self._selected_provider][lang_key]
 
     def get_embeded_link(self):
         if not self.redirect_link:
@@ -384,6 +424,12 @@ class Episode:
         return self.direct_link
 
     def auto_fill_details(self) -> None:
+        # self.season = self._get_season_from_link()
+        # self.episode = self._get_episode_from_link()
+
+        self.season = 1
+        self.episode = 1
+
         if self.slug and self.season and self.episode:
             self.link = (
                 f"https://aniworld.to/anime/stream/{self.slug}/"
@@ -392,9 +438,8 @@ class Episode:
 
         if self.link:
             self.slug = self.slug or self.link.split("/")[-3]
-            self.season = self.season or self._get_season_from_link()
-            self.episode = self.episode or self._get_episode_from_link()
 
+        # self.slug_link = f"https://aniworld.to/anime/stream/{self.slug}"
         self.html = requests.get(self.link, timeout=DEFAULT_REQUEST_TIMEOUT)
         self.title_german, self.title_english = self._get_episode_title_from_html()
         self.language = self._get_available_language_from_html()

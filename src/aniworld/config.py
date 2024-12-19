@@ -3,7 +3,14 @@ import pathlib
 import shutil
 import platform
 import os
+import logging
 from importlib.metadata import version, PackageNotFoundError
+
+logging.basicConfig(
+    level=logging.WARNING,  # DEBUG
+    format="%(levelname)s:%(name)s:%(funcName)s: %(message)s"
+)
+logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
 
 
 def get_version():
