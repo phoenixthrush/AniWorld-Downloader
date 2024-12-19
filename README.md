@@ -74,4 +74,38 @@ for episode in anime:
 - [ ] Implement proxy support
 - [ ] Add support for Playwright
 
+<details>
+  <summary>Command-Line Arguments</summary>
+
+- [x] --help
+- [ ] --version
+- [ ] --debug
+- [ ] --uninstall
+- [ ] --update
+- [ ] --slug
+- [ ] --link
+- [ ] --query
+- [x] --episode
+- [ ] --episode-file
+- [ ] --episode-local
+- [ ] --action
+- [ ] --output
+- [ ] --output-directory
+- [ ] --language
+- [ ] --provider
+- [ ] --anime4k
+- [ ] --syncplay-hostname
+- [ ] --syncplay-username
+- [ ] --syncplay-room
+- [ ] --syncplay-password
+- [ ] --aniskip
+- [ ] --keep-watching
+- [ ] --random-anime
+- [ ] --only-direct-link
+- [ ] --only-command
+- [ ] --proxy
+- [ ] --use-playwright
+
+</details>
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>

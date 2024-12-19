@@ -23,11 +23,17 @@ def main() -> None:
             anime_list = [
                 Anime(
                     episode_list=[
-                        Episode(link=link, arguments=arguments) if arguments.episode else Episode(
-                            slug=search_anime(), arguments=arguments
+                        Episode(
+                            link=link,
+                            _selected_provider="VOE",
+                            _selected_language="German Sub"
+                        ) if arguments.episode else Episode(
+                            # yet defaults to season 1, episode 1
+                            slug=search_anime(),
+                            _selected_provider="VOE",
+                            _selected_language="German Sub"
                         )
-                    ],
-                    arguments=arguments
+                    ]
                 ) for link in (arguments.episode or [None])
             ]
 
