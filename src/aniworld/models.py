@@ -10,9 +10,6 @@ from bs4 import BeautifulSoup
 from aniworld.aniskip import get_mal_id_from_title
 from aniworld.config import (
     DEFAULT_REQUEST_TIMEOUT,
-    DEFAULT_LANGUAGE,
-    DEFAULT_PROVIDER_DOWNLOAD,
-    DEFAULT_PROVIDER_WATCH,
     DEFAULT_ACTION
 )
 
@@ -38,6 +35,39 @@ def get_anime_title_from_html(html: requests.models.Response) -> str:
 
 
 class Anime:
+    """
+        Represents an anime series with various attributes and methods to fetch and manage its details.
+
+        Example:
+            anime = Anime(
+                episode_list=[
+                    Episode(
+                        slug="loner-life-in-another-world",
+                        season=1,
+                        episode=1
+                    )
+                ]
+            )
+
+        Required Attributes:
+             episode_list (list): A list of Episode objects for the anime.
+
+        Attributes:
+            title (str): The title of the anime.
+            slug (str): A URL-friendly version of the title used for web requests.
+            action (str): The default action to be performed, e.g., download or watch.
+            provider (str): The provider of the anime content.
+            language (int): The language code for the anime.
+            aniskip (bool): Whether to skip certain actions or not.
+            only_command (bool): If true, only commands are executed without additional actions.
+            only_direct_link (bool): If true, only direct links are fetched.
+            output_directory (str): The directory where downloads are saved.
+            episode_list (list): A list of Episode episodes for the anime.
+            description_german (str): The German description of the anime.
+            description_english (str): The English description of the anime.
+            html (requests.models.Response): The HTML response object for the anime's webpage.
+    """
+
     def __init__(
         self,
         title: str = None,
@@ -130,25 +160,40 @@ class Anime:
 
 class Episode:
     """
+    Represents an episode of an anime series with various attributes and methods to fetch and manage its details.
+
+    Example:
+        Episode(
+            slug="loner-life-in-another-world",
+            season=1,
+            episode=1
+        )
+
+    Required Attributes:
+        link (str) or slug (str), season (int), episode (int):
+        Either a direct link to the episode or a slug with season and episode numbers for constructing the link.
+
     Attributes:
-        anime_title (str): None
-        title_german (str): None
-        title_english (str): None
-        season (int): 1
-        episode (int): 1
-        slug (str): None
-        link (str): None
-        mal_id (int): None
-        redirect_link (str): None
-        embeded_link (str): None
-        direct_link (str): None
-        provider (dict): None
-        provider_name (list): None
-        language (list): None
-        language_name (list): None
-        season_episode_count (dict): None
-        html (requests.models.Response): None
-        arguments (argparse.Namespace): None
+        anime_title (str): The title of the anime the episode belongs to.
+        title_german (str): The German title of the episode.
+        title_english (str): The English title of the episode.
+        season (int): The season number of the episode.
+        episode (int): The episode number within the season.
+        slug (str): A URL-friendly version of the episode title used for web requests.
+        link (str): The direct link to the episode.
+        mal_id (int): The MyAnimeList ID for the episode.
+        redirect_link (str): The redirect link for streaming the episode.
+        embeded_link (str): The embedded link for the episode.
+        direct_link (str): The direct streaming link for the episode.
+        provider (dict): A dictionary of available providers and their links.
+        provider_name (list): A list of provider names.
+        language (list): A list of available language codes for the episode.
+        language_name (list): A list of available language names for the episode.
+        season_episode_count (dict): A dictionary mapping season numbers to episode counts.
+        movie_episode_count (int): The count of movie episodes.
+        html (requests.models.Response): The HTML response object for the episode's webpage.
+        _selected_provider (str): The selected provider for streaming.
+        _selected_language (int): The selected language code for streaming.
     """
 
     def __init__(
@@ -175,8 +220,8 @@ class Episode:
         _selected_provider: str = None,
         _selected_language: int = None
     ) -> None:
-        if not link and not slug:
-            raise ValueError("Provide either 'link' or 'slug'.")
+        if not link and (not slug or not season or not episode):
+            raise ValueError("Provide either 'link' or 'slug' with 'season' and 'episode'.")
 
         self.anime_title: str = anime_title
         self.title_german: str = title_german

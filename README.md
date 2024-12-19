@@ -16,16 +16,56 @@ AniWorld Downloader is a command-line tool for downloading and streaming anime, 
 pip install --upgrade git+https://github.com/phoenixthrush/AniWorld-Downloader.git@next#egg=aniworld
 ```
 
-- To update, simply rerun the above command. These builds may be unstable, so it’s good to check regularly.
+To update, simply rerun the above command. Note that these builds may be unstable, so regular checks are recommended.
+
+### Usage
+
+AniWorld Downloader can be utilized in three different ways: through an interactive menu, via command-line arguments, or as a Python library.
+
+#### Menu Example
+To start the interactive menu, simply run:
+```shell
+aniworld
+```
+
+#### Command-Line Arguments Example
+To download a specific episode directly, use:
+```shell
+aniworld --episode https://aniworld.to/anime/stream/loner-life-in-another-world/staffel-1/episode-1
+```
+
+#### Library Example
+You can also use AniWorld Downloader as a library in your Python scripts:
+```python
+from aniworld.models import Anime, Episode
+
+# Create an Anime object with a list of Episode objects
+anime = Anime(
+    episode_list=[
+        Episode(
+            slug="loner-life-in-another-world",
+            season=1,
+            episode=1
+        )
+    ]
+)
+
+# Iterate over episodes and print Episode objects
+for episode in anime:
+    print(episode)
+```
+
 
 ### Roadmap
 
-- [ ] Fix subprocess commands in Watch, Download, Syncplay
-- [ ] Fix None title of anime -> probably fixes get_mal_id_from_title crash
-- [ ] Add automatic mpv, syncplay pull
-- [ ] Add Anime4K support
-- [ ] Add syncplay room options
-- [ ] Add episode file support
-- [ ] Speedup everything by not autofilling yet unnecessary vars in classes
-- [ ] Add proxy support
-- [ ] Add playwright support
+### Roadmap
+
+- [ ] Resolve issues with subprocess commands in Watch, Download, and Syncplay features
+- [ ] Correct the issue of anime titles being `None`, which may resolve the `get_mal_id_from_title` crash
+- [ ] Implement automatic fetching for mpv and syncplay
+- [ ] Integrate support for Anime4K
+- [ ] Introduce options for syncplay rooms
+- [ ] Enable support for episode files
+- [ ] Enhance performance by filling unnecessary variables only when they are used at runtime, rather than directly in classes
+- [ ] Implement proxy support
+- [ ] Add support for Playwright
