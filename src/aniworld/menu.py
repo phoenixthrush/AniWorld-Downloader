@@ -38,7 +38,7 @@ class CustomTheme(npyscreen.ThemeManager):
 class SelectionMenu(npyscreen.NPSApp):
     def __init__(self, slug):
         super().__init__()
-        self.anime = Anime(slug=slug, episode_list=[Episode(slug=slug)])
+        self.anime = Anime(slug=slug, episode_list=[Episode(slug=slug, season=1, episode=1)])
         self.selected_episodes = []
         self.episode_dict = {}
 

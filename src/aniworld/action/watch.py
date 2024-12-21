@@ -8,10 +8,10 @@ def watch(anime: Anime):
     for episode in anime:
         command = [
             MPV_PATH,
-            f'"{episode.get_direct_link()}"',
+            episode.get_direct_link(),
             "--fs",
             "--quiet",
-            f'--force-media-title="{episode.title_german}"'
+            f"--force-media-title={episode.title_german}"
         ]
 
         headers = {
@@ -20,7 +20,7 @@ def watch(anime: Anime):
         }
 
         if anime.provider in headers:
-            command.extend(['--add-header', headers[anime.provider]])
+            command.append(f"--http-header-fields={headers[anime.provider]}")
 
         if anime.aniskip:
             build_flags = aniskip(anime.title, episode.episode, episode.season)
