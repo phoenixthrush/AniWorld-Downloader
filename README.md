@@ -68,7 +68,7 @@ for episode in anime:
 ### Roadmap
 
 - [ ] Resolve issues with subprocess commands in Watch, Download, and Syncplay features
-- [ ] Correct the issue of anime titles being `None`, which may resolve the `get_mal_id_from_title` crash
+- [x] Correct the issue of anime titles being `None`, which may resolve the `get_mal_id_from_title` crash
 - [ ] Implement automatic fetching for mpv and syncplay
 - [ ] Integrate support for Anime4K
 - [ ] Introduce options for syncplay rooms

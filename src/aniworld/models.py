@@ -126,6 +126,11 @@ class Anime:
             return "Could not fetch description."
 
     def auto_fill_details(self) -> None:
+        self.slug = self.slug or self.episode_list[0].slug
+
+        if self.slug is None:
+            raise ValueError("Slug of Anime is None.")
+
         self.html = requests.get(f"https://aniworld.to/anime/stream/{self.slug}", timeout=DEFAULT_REQUEST_TIMEOUT)
         self.title = get_anime_title_from_html(html=self.html)
         self.description_german = self._get_aniworld_description_from_html()
