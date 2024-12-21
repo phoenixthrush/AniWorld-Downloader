@@ -7,8 +7,10 @@ from aniworld.config import DEFAULT_DOWNLOAD_PATH
 
 def download(anime: Anime):
     for episode in anime:
-        output_file = f"S{episode.season}E{episode.episode}"
+        output_file = f"{anime.title} - S{episode.season}E{episode.episode} - ({anime.language}).mp4"
         output_path = os.path.join(DEFAULT_DOWNLOAD_PATH, anime.title, output_file)
+
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
         command = [
             "yt-dlp",
@@ -22,14 +24,15 @@ def download(anime: Anime):
         ]
 
         headers = {
-            "Vidmoly": 'Referer: "https://vidmoly.to"',
-            "Doodstream": 'Referer: "https://dood.li/"'
+            "Vidmoly": "Referer: https://vidmoly.to",
+            "Doodstream": "Referer: https://dood.li/"
         }
 
         if anime.provider in headers:
-            command.extend(['--add-header', headers[anime.provider]])
+            command.extend(["--add-header", headers[anime.provider]])
 
         try:
+            print(f"Downloading to {output_path}...")
             subprocess.run(command, check=True)
         except subprocess.CalledProcessError:
-            print(f"Command failed: {' '.join(str(item) if item is not None else '' for item in command)}")
+            print(f"Error running command: {' '.join(str(item) if item is not None else '' for item in command)}")
