@@ -6,12 +6,17 @@ from aniworld.config import MPV_PATH, PROVIDER_HEADERS
 
 def watch(anime: Anime):
     for episode in anime:
+        if episode.has_movies and episode.season not in list(episode.season_episode_count.keys()):
+            mpv_title = f"{anime.title} - Movie {episode.episode} - {episode.title_german}"
+        else:
+            mpv_title = f"{anime.title} - S{episode.season}E{episode.episode} - {episode.title_german}"
+
         command = [
             MPV_PATH,
             episode.get_direct_link(),
             "--fs",
             "--quiet",
-            f"--force-media-title={episode.title_german}"
+            f"--force-media-title={mpv_title}"
         ]
 
         if anime.provider in PROVIDER_HEADERS:

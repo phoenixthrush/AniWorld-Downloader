@@ -232,6 +232,7 @@ class Episode:
         language: list = None,  # available languages
         language_name: list = None,
         season_episode_count: dict = None,
+        has_movies: bool = False,
         movie_episode_count: int = None,
         html: requests.models.Response = None,
         _selected_provider: str = None,
@@ -257,6 +258,7 @@ class Episode:
         self.language: list = language
         self.language_name: list = language_name
         self.season_episode_count: dict = season_episode_count
+        self.has_movies: bool = has_movies
         self.movie_episode_count: int = movie_episode_count
         self.html: requests.models.Response = html
         self._selected_provider: str = _selected_provider
@@ -451,6 +453,7 @@ class Episode:
             else:
                 break
 
+        self.has_movies = bool(movie_indices)
         return max(movie_indices) if movie_indices else 0
 
     def get_redirect_link(self):
@@ -513,8 +516,8 @@ class Episode:
         # self.season = self._get_season_from_link()
         # self.episode = self._get_episode_from_link()
 
-        self.season = self.season or 1
-        self.episode = self.episode or 1
+        # self.season = self.season or 1
+        # self.episode = self.episode or 1
 
         if self.slug and self.season and self.episode:
             self.link = (
