@@ -4,7 +4,8 @@ from aniworld.config import (
     DEFAULT_ACTION,
     DEFAULT_PROVIDER_DOWNLOAD,
     DEFAULT_PROVIDER_WATCH,
-    DEFAULT_LANGUAGE
+    DEFAULT_LANGUAGE,
+    VERSION
 )
 
 
@@ -182,6 +183,20 @@ def parse_arguments() -> argparse.Namespace:
     )
 
     args = parser.parse_args()
+
+    if args.version:
+        cowsay = fR"""
+_____________________________
+< AniWorld-Downloader {VERSION} >
+-----------------------------
+        \   ^__^
+         \  (oo)\_______
+            (__)\       )\/\
+                ||----w |
+                ||     ||
+"""
+        print(cowsay.strip())
+        exit()
 
     if args.action is None:
         args.action = "Download"

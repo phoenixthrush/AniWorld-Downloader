@@ -83,7 +83,7 @@ for episode in anime:
   <summary>Command-Line Arguments</summary>
 
 - [x] --help
-- [ ] --version
+- [x] --version
 - [ ] --debug
 - [ ] --uninstall
 - [ ] --update
