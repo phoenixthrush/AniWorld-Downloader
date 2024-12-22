@@ -534,8 +534,19 @@ class Episode:
         self.provider_name = list(self.provider.keys())
         self.season_episode_count = self._get_season_episode_count()
         self.movie_episode_count = self._get_movie_episode_count()
+
+        # remove last season as its the same as movies and 0
+        last_season = list(self.season_episode_count.keys())[-1]
+        del self.season_episode_count[last_season]
+
+        """
+        # now set last season which is movies to correct episode count
+        if self.season_episode_count[last_season] == 0:
+            self.season_episode_count[last_season] = self.movie_episode_count
+
         self.anime_title = get_anime_title_from_html(html=self.html)
         self.mal_id = get_mal_id_from_title(title=self.anime_title, season=self.season)
+        """
 
         """
         if not self.arguments:
@@ -589,6 +600,7 @@ class Episode:
             "language": self.language,
             "language_name": self.language_name,
             "season_episode_count": self.season_episode_count,
+            "movie_episode_count": self.movie_episode_count,
             "html": str(self.html)
         }
         return json.dumps(data, indent=4)
