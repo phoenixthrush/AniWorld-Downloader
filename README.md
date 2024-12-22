@@ -67,13 +67,13 @@ for episode in anime:
 
 ### Roadmap
 
-- [ ] Resolve issues with subprocess commands in Watch, Download, and Syncplay features
+- [x] Resolve issues with subprocess commands in Watch, Download, and Syncplay features
 - [x] Correct the issue of anime titles being `None`, which may resolve the `get_mal_id_from_title` crash
 - [ ] Implement automatic fetching for mpv and syncplay
 - [ ] Integrate support for Anime4K
 - [ ] Introduce options for syncplay rooms
 - [ ] Enable support for episode files
-- [ ] Enhance performance by filling unnecessary variables only when they are used at runtime, rather than directly in classes
+- [ ] Enhance performance by lazy loading Episode class as done in Anime class -> this is a lot of work
 - [ ] Implement proxy support
 - [ ] Add support for Playwright
 
