@@ -1,8 +1,9 @@
 import os
+import re
 import subprocess
 
 from aniworld.models import Anime
-from aniworld.config import DEFAULT_DOWNLOAD_PATH
+from aniworld.config import DEFAULT_DOWNLOAD_PATH, PROVIDER_HEADERS
 
 
 def download(anime: Anime):
@@ -23,16 +24,26 @@ def download(anime: Anime):
             "--progress"
         ]
 
-        headers = {
-            "Vidmoly": "Referer: https://vidmoly.to",
-            "Doodstream": "Referer: https://dood.li/"
-        }
-
-        if anime.provider in headers:
-            command.extend(["--add-header", headers[anime.provider]])
+        if anime.provider in PROVIDER_HEADERS:
+            command.extend(["--add-header", PROVIDER_HEADERS[anime.provider]])
 
         try:
             print(f"Downloading to {output_path}...")
             subprocess.run(command, check=True)
         except subprocess.CalledProcessError:
             print(f"Error running command: {' '.join(str(item) if item is not None else '' for item in command)}")
+        except KeyboardInterrupt:
+            # directory containing the output_path
+            output_dir = os.path.dirname(output_path)
+            is_empty = True
+
+            # delete all .part, .ytdl, or .part-Frag followed by any number in output_path
+            for file_name in os.listdir(output_dir):
+                if re.search(r'\.(part|ytdl|part-Frag\d+)$', file_name):
+                    os.remove(os.path.join(output_dir, file_name))
+                else:
+                    is_empty = False
+
+            # delete folder too if empty after
+            if is_empty or not os.listdir(output_dir):
+                os.rmdir(output_dir)

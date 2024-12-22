@@ -23,6 +23,10 @@ def get_version():
 
 
 VERSION = get_version()
+PROVIDER_HEADERS = {
+    "Vidmoly": 'Referer: "https://vidmoly.to"',
+    "Doodstream": 'Referer: "https://dood.li/"'
+}
 
 IS_NEWEST_VERSION = True
 

@@ -3,7 +3,7 @@ import getpass
 import subprocess
 
 from aniworld.models import Anime
-from aniworld.config import MPV_PATH
+from aniworld.config import MPV_PATH, PROVIDER_HEADERS
 
 
 def syncplay(anime: Anime):
@@ -27,13 +27,8 @@ def syncplay(anime: Anime):
             f"--force-media-title={episode.title_german}"
         ]
 
-        headers = {
-            "Vidmoly": "Referer: https://vidmoly.to",
-            "Doodstream": "Referer: https://dood.li/"
-        }
-
-        if anime.provider in headers:
-            command.append(f"--http-header-fields={headers[anime.provider]}")
+        if anime.provider in PROVIDER_HEADERS:
+            command.append(f"--http-header-fields={PROVIDER_HEADERS[anime.provider]}")
 
         try:
             subprocess.run(command, check=True)
