@@ -87,54 +87,65 @@ class Anime:
         if not episode_list:
             raise ValueError("Provide 'episode_list'.")
 
-        self.title: str = title
-        self.slug: str = slug
-        self.action: str = action
-        self.provider: str = provider
-        self.language: str = language
-        self.aniskip: bool = aniskip
-        self.only_command: bool = only_command
-        self.only_direct_link: bool = only_direct_link
-        self.output_directory: str = output_directory
-        self.episode_list: list = episode_list
-        self.description_german: str = description_german
-        self.description_english: str = description_english
-        self.html: requests.models.Response = html
-
-        self.auto_fill_details()
-
-    def _get_aniworld_description_from_html(self):
-        soup = BeautifulSoup(self.html.content, 'html.parser')
-        seri_des_div = soup.find('p', class_='seri_des')
-
-        if seri_des_div:
-            description = seri_des_div.get('data-full-description', '')
-            return description
-        else:
-            return "Could not fetch description."
-
-    def _get_myanimelist_description_from_html(self):
-        anime_id = get_mal_id_from_title(self.title, 1)
-        response = requests.get(f"https://myanimelist.net/anime/{anime_id}", timeout=DEFAULT_REQUEST_TIMEOUT)
-        soup = BeautifulSoup(response.content, 'html.parser')
-        description_meta = soup.find('meta', property='og:description')
-
-        if description_meta:
-            description = description_meta['content']
-            return description
-        else:
-            return "Could not fetch description."
-
-    def auto_fill_details(self) -> None:
-        self.slug = self.slug or self.episode_list[0].slug
-
-        if self.slug is None:
+        self.slug = slug or episode_list[0].slug
+        if not self.slug:
             raise ValueError("Slug of Anime is None.")
 
-        self.html = requests.get(f"https://aniworld.to/anime/stream/{self.slug}", timeout=DEFAULT_REQUEST_TIMEOUT)
-        self.title = get_anime_title_from_html(html=self.html)
-        self.description_german = self._get_aniworld_description_from_html()
-        self.description_english = self._get_myanimelist_description_from_html()
+        self._title = title
+        self.action = action
+        self.provider = provider
+        self.language = language
+        self.aniskip = aniskip
+        self.only_command = only_command
+        self.only_direct_link = only_direct_link
+        self.output_directory = output_directory
+        self.episode_list = episode_list
+
+        self._description_german = description_german
+        self._description_english = description_english
+        self._html = html
+
+    @property
+    def html(self):
+        if self._html is None:
+            self._html = requests.get(
+                f"https://aniworld.to/anime/stream/{self.slug}",
+                timeout=DEFAULT_REQUEST_TIMEOUT
+            )
+        return self._html
+
+    @property
+    def title(self):
+        if self._title is None:
+            self._title = get_anime_title_from_html(self.html)
+        return self._title
+
+    @property
+    def description_german(self):
+        if self._description_german is None:
+            soup = BeautifulSoup(self.html.content, 'html.parser')
+            seri_des_div = soup.find('p', class_='seri_des')
+            self._description_german = (
+                seri_des_div.get('data-full-description', '')
+                if seri_des_div else "Could not fetch description."
+            )
+        return self._description_german
+
+    @property
+    def description_english(self):
+        if self._description_english is None:
+            anime_id = get_mal_id_from_title(self.title, 1)
+            response = requests.get(
+                f"https://myanimelist.net/anime/{anime_id}",
+                timeout=DEFAULT_REQUEST_TIMEOUT
+            )
+            soup = BeautifulSoup(response.content, 'html.parser')
+            description_meta = soup.find('meta', property='og:description')
+            self._description_english = (
+                description_meta['content']
+                if description_meta else "Could not fetch description."
+            )
+        return self._description_english
 
     def __iter__(self):
         return iter(self.episode_list)
@@ -145,6 +156,7 @@ class Anime:
     def to_json(self) -> str:
         data = {
             "title": self.title,
+            "slug": self.slug,
             "action": self.action,
             "provider": self.provider,
             "language": self.language,
@@ -159,7 +171,7 @@ class Anime:
         # return json.dumps(data, indent=4)
         return str(data)
 
-    def __str__(self) -> str:
+    def __str__(self):
         return self.to_json()
 
 
