@@ -15,13 +15,13 @@ def syncplay(anime: Anime):
 
         command = [
             executable,
-            episode.get_direct_link(),
             "--no-gui",
             "--no-store",
             "--host", syncplay_hostname,
             "--room", room_name,
             "--name", syncplay_username,
             "--player-path", MPV_PATH,
+            episode.get_direct_link(),
             "--",
             "--fs",
             f"--force-media-title={episode.title_german}"
@@ -33,7 +33,7 @@ def syncplay(anime: Anime):
         }
 
         if anime.provider in headers:
-            command.extend(["--add-header", headers[anime.provider]])
+            command.append(f"--http-header-fields={headers[anime.provider]}")
 
         try:
             subprocess.run(command, check=True)
