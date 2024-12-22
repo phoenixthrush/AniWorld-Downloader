@@ -19,6 +19,9 @@ def watch(anime: Anime):
             f"--force-media-title={mpv_title}"
         ]
 
+        # print(anime.provider)
+        # print(bool(anime.provider in PROVIDER_HEADERS))
+
         if anime.provider in PROVIDER_HEADERS:
             command.append(f"--http-header-fields={PROVIDER_HEADERS[anime.provider]}")
 
