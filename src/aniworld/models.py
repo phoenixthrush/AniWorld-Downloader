@@ -537,7 +537,8 @@ class Episode:
 
         # remove last season as its the same as movies and 0
         last_season = list(self.season_episode_count.keys())[-1]
-        del self.season_episode_count[last_season]
+        if self.season_episode_count[last_season] == 0:
+            del self.season_episode_count[last_season]
 
         """
         # now set last season which is movies to correct episode count
