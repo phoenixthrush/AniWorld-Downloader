@@ -10,7 +10,10 @@ from bs4 import BeautifulSoup
 from aniworld.aniskip import get_mal_id_from_title
 from aniworld.config import (
     DEFAULT_REQUEST_TIMEOUT,
-    DEFAULT_ACTION
+    DEFAULT_ACTION,
+    DEFAULT_PROVIDER_DOWNLOAD,
+    DEFAULT_PROVIDER_WATCH,
+    DEFAULT_LANGUAGE
 )
 
 from aniworld.extractors import (
@@ -36,53 +39,57 @@ def get_anime_title_from_html(html: requests.models.Response) -> str:
 
 class Anime:
     """
-        Represents an anime series with various attributes and methods to fetch and manage its details.
+    Represents an anime series with various attributes and methods to fetch and manage its details.
 
-        Example:
-            anime = Anime(
-                episode_list=[
-                    Episode(
-                        slug="loner-life-in-another-world",
-                        season=1,
-                        episode=1
-                    )
-                ]
-            )
+    Example:
+        anime = Anime(
+            episode_list=[
+                Episode(
+                    slug="loner-life-in-another-world",
+                    season=1,
+                    episode=1
+                )
+            ]
+        )
 
-        Required Attributes:
-             episode_list (list): A list of Episode objects for the anime.
+    Required Attributes:
+        episode_list (list): A list of Episode objects for the anime.
 
-        Attributes:
-            title (str): The title of the anime.
-            slug (str): A URL-friendly version of the title used for web requests.
-            action (str): The default action to be performed, e.g., download or watch.
-            provider (str): The provider of the anime content.
-            language (int): The language code for the anime.
-            aniskip (bool): Whether to skip certain actions or not.
-            only_command (bool): If true, only commands are executed without additional actions.
-            only_direct_link (bool): If true, only direct links are fetched.
-            output_directory (str): The directory where downloads are saved.
-            episode_list (list): A list of Episode episodes for the anime.
-            description_german (str): The German description of the anime.
-            description_english (str): The English description of the anime.
-            html (requests.models.Response): The HTML response object for the anime's webpage.
+    Attributes:
+        title (str): The title of the anime. Fetched lazily from the anime's webpage if not provided.
+        slug (str): A URL-friendly version of the title used for web requests. Set to the slug of the first episode if not provided.
+        action (str): The default action to be performed. Must be one of "Download", "Watch", or "Syncplay". 
+                      If not provided, defaults to "Watch".
+        provider (str): The provider of the anime content. Defaults to:
+                        - "AniWorldDownload" if action is "Download"
+                        - "AniWorldWatch" if action is not "Download"
+                        If not provided, set based on the action.
+        language (str): The language code for the anime. Defaults to "en" if not provided.
+        aniskip (bool): Whether to skip certain actions (default is False).
+        only_command (bool): If True, only commands are executed without additional actions (default is False).
+        only_direct_link (bool): If True, only direct links are fetched (default is False).
+        output_directory (str): The directory where downloads are saved. Defaults to the user's home "Downloads" directory.
+        episode_list (list): A list of Episode objects for the anime.
+        description_german (str): The German description of the anime. Fetched lazily from the anime's webpage if not provided.
+        description_english (str): The English description of the anime. Fetched lazily from MyAnimeList if not provided.
+        html (requests.models.Response): The HTML response object for the anime's webpage. Fetched lazily if not provided.
     """
 
     def __init__(
         self,
-        title: str = None,
-        slug: str = None,
-        action: str = DEFAULT_ACTION,
-        provider: str = None,
-        language: int = None,
-        aniskip: bool = False,
-        only_command: bool = False,
-        only_direct_link: bool = False,
-        output_directory: str = pathlib.Path.home() / "Downloads",
-        episode_list: list = None,
-        description_german: str = None,
-        description_english: str = None,
-        html: requests.models.Response = None
+        title=None,
+        slug=None,
+        action=DEFAULT_ACTION,
+        provider=None,
+        language=None,
+        aniskip=False,
+        only_command=False,
+        only_direct_link=False,
+        output_directory=pathlib.Path.home() / "Downloads",
+        episode_list=None,
+        description_german=None,
+        description_english=None,
+        html=None
     ) -> None:
         if not episode_list:
             raise ValueError("Provide 'episode_list'.")
@@ -93,8 +100,16 @@ class Anime:
 
         self._title = title
         self.action = action
-        self.provider = provider
-        self.language = language
+
+        if provider is None:
+            if self.action == "Download":
+                self.provider = DEFAULT_PROVIDER_DOWNLOAD
+            else:
+                self.provider = DEFAULT_PROVIDER_WATCH
+
+        if language is None:
+            self.language = DEFAULT_LANGUAGE
+
         self.aniskip = aniskip
         self.only_command = only_command
         self.only_direct_link = only_direct_link
@@ -105,25 +120,25 @@ class Anime:
         self._description_english = description_english
         self._html = html
 
-    @property
-    def html(self):
+    def _fetch_html(self):
         if self._html is None:
+            print("Fetching HTML...")
             self._html = requests.get(
                 f"https://aniworld.to/anime/stream/{self.slug}",
                 timeout=DEFAULT_REQUEST_TIMEOUT
             )
         return self._html
 
-    @property
-    def title(self):
+    def _fetch_title(self):
         if self._title is None:
-            self._title = get_anime_title_from_html(self.html)
+            print("Fetching title...")
+            self._title = get_anime_title_from_html(self._fetch_html())
         return self._title
 
-    @property
-    def description_german(self):
+    def _fetch_description_german(self):
         if self._description_german is None:
-            soup = BeautifulSoup(self.html.content, 'html.parser')
+            print("Fetching German description...")
+            soup = BeautifulSoup(self._fetch_html().content, 'html.parser')
             seri_des_div = soup.find('p', class_='seri_des')
             self._description_german = (
                 seri_des_div.get('data-full-description', '')
@@ -131,10 +146,10 @@ class Anime:
             )
         return self._description_german
 
-    @property
-    def description_english(self):
+    def _fetch_description_english(self):
         if self._description_english is None:
-            anime_id = get_mal_id_from_title(self.title, 1)
+            print("Fetching English description...")
+            anime_id = get_mal_id_from_title(self._fetch_title(), 1)
             response = requests.get(
                 f"https://myanimelist.net/anime/{anime_id}",
                 timeout=DEFAULT_REQUEST_TIMEOUT
@@ -146,6 +161,22 @@ class Anime:
                 if description_meta else "Could not fetch description."
             )
         return self._description_english
+
+    @property
+    def html(self):
+        return self._fetch_html()
+
+    @property
+    def title(self):
+        return self._fetch_title()
+
+    @property
+    def description_german(self):
+        return self._fetch_description_german()
+
+    @property
+    def description_english(self):
+        return self._fetch_description_english()
 
     def __iter__(self):
         return iter(self.episode_list)
@@ -168,7 +199,6 @@ class Anime:
             "description_german": self.description_german,
             "description_english": self.description_english,
         }
-        # return json.dumps(data, indent=4)
         return str(data)
 
     def __str__(self):
