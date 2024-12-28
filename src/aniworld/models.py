@@ -26,15 +26,13 @@ from aniworld.extractors import (
 
 
 def get_anime_title_from_html(html: requests.models.Response) -> str:
-    episode_soup = BeautifulSoup(html.content, 'html.parser')
-    series_title_div = episode_soup.find('div', class_='series-title')
+    soup = BeautifulSoup(html.content, 'html.parser')
+    title_div = soup.find('div', class_='series-title')
 
-    if series_title_div:
-        episode_title = series_title_div.find('h1').find('span').text  # Kaguya-sama: Love is War
-    else:
-        return ""
+    if title_div:
+        return title_div.find('h1').find('span').text
 
-    return episode_title
+    return ""
 
 
 class Anime:
@@ -100,15 +98,10 @@ class Anime:
 
         self._title = title
         self.action = action
-
-        if provider is None:
-            if self.action == "Download":
-                self.provider = DEFAULT_PROVIDER_DOWNLOAD
-            else:
-                self.provider = DEFAULT_PROVIDER_WATCH
-
-        if language is None:
-            self.language = DEFAULT_LANGUAGE
+        self.provider = provider or (
+            DEFAULT_PROVIDER_DOWNLOAD if action == "Download" else DEFAULT_PROVIDER_WATCH
+        )
+        self.language = language or DEFAULT_LANGUAGE
 
         self.aniskip = aniskip
         self.only_command = only_command
@@ -122,7 +115,6 @@ class Anime:
 
     def _fetch_html(self):
         if self._html is None:
-            print("Fetching HTML...")
             self._html = requests.get(
                 f"https://aniworld.to/anime/stream/{self.slug}",
                 timeout=DEFAULT_REQUEST_TIMEOUT
@@ -131,34 +123,31 @@ class Anime:
 
     def _fetch_title(self):
         if self._title is None:
-            print("Fetching title...")
             self._title = get_anime_title_from_html(self._fetch_html())
         return self._title
 
     def _fetch_description_german(self):
         if self._description_german is None:
-            print("Fetching German description...")
             soup = BeautifulSoup(self._fetch_html().content, 'html.parser')
-            seri_des_div = soup.find('p', class_='seri_des')
+            desc_div = soup.find('p', class_='seri_des')
             self._description_german = (
-                seri_des_div.get('data-full-description', '')
-                if seri_des_div else "Could not fetch description."
+                desc_div.get('data-full-description', '')
+                if desc_div else "Could not fetch description."
             )
         return self._description_german
 
     def _fetch_description_english(self):
         if self._description_english is None:
-            print("Fetching English description...")
             anime_id = get_mal_id_from_title(self._fetch_title(), 1)
             response = requests.get(
                 f"https://myanimelist.net/anime/{anime_id}",
                 timeout=DEFAULT_REQUEST_TIMEOUT
             )
             soup = BeautifulSoup(response.content, 'html.parser')
-            description_meta = soup.find('meta', property='og:description')
+            desc_meta = soup.find('meta', property='og:description')
             self._description_english = (
-                description_meta['content']
-                if description_meta else "Could not fetch description."
+                desc_meta['content']
+                if desc_meta else "Could not fetch description."
             )
         return self._description_english
 
