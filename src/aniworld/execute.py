@@ -383,11 +383,22 @@ def handle_download_action(params: Dict[str, Any]) -> None:
         return language
 
     output_directory = os.getenv("OUTPUT_DIRECTORY") or params['output_directory']
+    seasons = params['season_number']
+    episodes = params['episode_number']
+    if seasons:
+        if seasons < 10:
+            seasons = "00" + str(seasons)
+        elif 10 <= seasons < 100:
+            seasons = "0" + str(seasons)
+    if episodes < 10:
+        episodes = "00" + str(episodes)
+    elif 10 <= episodes < 100:
+        episodes = "0" + str(episodes)
 
     file_name = (
-        f"{sanitize_anime_title} - S{params['season_number']}E{params['episode_number']}"
+        f"{sanitize_anime_title} - S{seasons}E{episodes}"
         if params['season_number']
-        else f"{sanitize_anime_title} - Movie {params['episode_number']}"
+        else f"{sanitize_anime_title} - Movie {episodes}"
     )
 
     file_path = os.path.join(
