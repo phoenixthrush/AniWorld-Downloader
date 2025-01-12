@@ -194,6 +194,12 @@ class Anime:
         return self.to_json()
 
 
+# Please someone help me with this
+# I want to add lazy loading like its in the Anime class
+# Variables should be initialized with None.
+# When you access a variable, it should automatically fetch the value and store it in the background
+# and keep it for the rest of its lifetime without calling any functions explicitly.
+
 class Episode:
     """
     Represents an episode of an anime series with various attributes and methods to fetch and manage its details.
@@ -630,3 +636,98 @@ class Episode:
 
     def __str__(self) -> str:
         return self.to_json()
+
+
+class Serie:
+    def __init__(
+        self,
+        title=None,
+        slug=None,
+        action=DEFAULT_ACTION,
+        provider="VOE",
+        language="German Dub",
+        only_command=False,
+        only_direct_link=False,
+        output_directory=pathlib.Path.home() / "Downloads",
+        episode_list=None,
+        description=None,
+        html=None,
+    ) -> None:
+        if not episode_list:
+            raise ValueError("Provide 'episode_list'.")
+
+        self.slug = slug or episode_list[0].get("slug")
+        if not self.slug:
+            raise ValueError("Slug of series is None.")
+
+        self.html = requests.get(
+            f"https://s.to/serie/stream/{self.slug}",
+            timeout=DEFAULT_REQUEST_TIMEOUT,
+        )
+
+        self.title = self._get_title()
+        self.action = action
+        self.provider = provider or (
+            DEFAULT_PROVIDER_DOWNLOAD if action == "Download" else DEFAULT_PROVIDER_WATCH
+        )
+        self.language = language or DEFAULT_LANGUAGE
+        self.only_command = only_command
+        self.only_direct_link = only_direct_link
+        self.output_directory = output_directory
+        self.episode_list = episode_list
+        self.description = self._fetch_description()
+
+    def _get_title(self):
+        soup = BeautifulSoup(self.html.content, 'html.parser')
+        title_div = soup.find('div', class_='series-title')
+
+        if title_div:
+            return title_div.find('h1').find('span').text
+
+        return "Unknown Title"
+
+    def _fetch_description(self):
+        soup = BeautifulSoup(self.html.content, "html.parser")
+        desc_div = soup.find("p", class_="seri_des")
+
+        if not desc_div:
+            return "Could not fetch description."
+
+        description = desc_div.get("data-full-description", "No description available.")
+
+        return description
+
+    def __iter__(self):
+        return iter(self.episode_list)
+
+    def __getitem__(self, index: int):
+        return self.episode_list[index]
+
+    def to_json(self) -> str:
+        data = {
+            "title": self.title,
+            "slug": self.slug,
+            "action": self.action,
+            "provider": self.provider,
+            "language": self.language,
+            "only_command": self.only_command,
+            "only_direct_link": self.only_direct_link,
+            "output_directory": str(self.output_directory),
+            "episode_list": self.episode_list,
+            "description": self.description,
+        }
+
+        return json.dumps(data, indent=4, ensure_ascii=False)
+
+    def __str__(self):
+        return self.to_json()
+
+
+if __name__ == "__main__":
+    serie = Serie(
+        episode_list=[
+            {"slug": "fantasy-island", "season": 1, "episode": 1},
+        ]
+    )
+
+    print(serie)
