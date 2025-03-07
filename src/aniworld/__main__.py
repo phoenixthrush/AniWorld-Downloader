@@ -347,7 +347,7 @@ class EpisodeForm(npyscreen.ActionForm):
 
     def validate_provider(self, provider_selected):
         logging.debug("Validating provider: %s", provider_selected)
-        valid_providers = ["Vidoza", "Streamtape", "VOE", "Doodstream", "SpeedFiles"]
+        valid_providers = ["Vidoza", "Streamtape", "VOE", "Vidmoly", "SpeedFiles"]
         while provider_selected[0] not in valid_providers:
             logging.debug("Invalid provider selected, falling back to Vidoza")
             npyscreen.notify_confirm(
