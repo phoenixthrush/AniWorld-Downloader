@@ -49,7 +49,6 @@
                 extractData(html, url, output);
             }
         });
-
         function extractData(html, url, outputElement) {
             const doc = new DOMParser().parseFromString(html, "text/html");
 
@@ -67,8 +66,40 @@
                 description_shortened = descriptionWords.slice(0, 15).join(' ') + '...';
             }
 
-            outputElement.textContent = `Title: ${title}\nSlug:  ${slug}\nGerman Title: ${germanTitle}\nEnglish Title: ${englishTitle}\nDescription: ${description_shortened}`;
+            const currentElement = doc.querySelector(".currentActiveLink a");
+            const episode = currentElement?.querySelector("span[itemprop='name']")?.textContent.trim().match(/\d+/)?.[0] || "Not found";
+            const seasonMatch = currentElement?.href.match(/staffel-(\d+)/);
+            const season = seasonMatch ? seasonMatch[1] : "Not found";
+
+            const languageBox = doc.querySelector(".changeLanguageBox");
+            let languages = "Not found";
+            if (languageBox) {
+                const languageMap = {
+                    1: "German Dub",
+                    2: "English Sub",
+                    3: "German Sub"
+                };
+                const langKeys = [...languageBox.querySelectorAll("img[data-lang-key]")]
+                    .map(img => img.getAttribute("data-lang-key"))
+                    .filter(lang => lang && !isNaN(lang))
+                    .map(lang => languageMap[lang] || `Unknown (${lang})`);
+                if (langKeys.length) {
+                    languages = langKeys.join(", ");
+                }
+            }
+
+            outputElement.textContent = `
+Title:          ${title}
+Slug:           ${slug}
+Description:    ${description_shortened}
+Season:         ${season}
+Episode:        ${episode}
+Ger. Title:     ${germanTitle}
+Eng. Title:     ${englishTitle}
+Avl. Languages: ${languages}`;
         }
+
+
 
     </script>
 </body>
