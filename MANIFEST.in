@@ -1,3 +1,0 @@
-include src/aniworld/aniskip/skip.lua
-include src/aniworld/aniskip/autostart.lua
-include src/aniworld/aniskip/autoexit.lua

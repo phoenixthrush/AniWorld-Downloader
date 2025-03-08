@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AniWorld-Downloader</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>AniWorld-Downloader</h1>
+        <p>Enter aniworld.to links below</p>
+        <input type="text" id="urlInput" value="https://aniworld.to/anime/stream/highschool-dxd"><br>
+        <button type="button" id="fetchButton">Submit</button>
+        <div class="output" id="output"></div>
+    </div>
+
+    <script>
+        document.getElementById("fetchButton").addEventListener("click", async () => {
+            const url = document.getElementById("urlInput").value;
+            const output = document.getElementById("output");
+
+            if (!url.startsWith("https://")) {
+                output.textContent = "Invalid URL!";
+                return;
+            }
+
+            const proxyUrl = "https://api.codetabs.com/v1/proxy/?quest=" + encodeURIComponent(url);
+
+            let html;
+            try {
+                const proxyResponse = await fetch(proxyUrl);
+                if (proxyResponse.ok) {
+                    html = await proxyResponse.text();
+                } else {
+                    throw new Error("Proxy failed");
+                }
+            } catch (proxyError) {
+                html = await fetch(url).then(response => response.text()).catch(error => {
+                    output.textContent = "Failed to fetch content, even with direct request.";
+                    return null;
+                });
+            }
+
+            if (html) {
+                extractTitle(html, url, output);
+            }
+        });
+
+        function extractTitle(html, url, outputElement) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, "text/html");
+
+            const titleDiv = doc.querySelector(".series-title");
+            const title = titleDiv?.querySelector("h1 span")?.textContent || "Title not found";
+
+            const slugMatch = url.match(/\/anime\/stream\/(.+)/);
+            const slug = slugMatch ? slugMatch[1] : "Slug not found";
+
+            outputElement.textContent = `Title: ${title}\nSlug:  ${slug}`;
+        }
+    </script>
+</body>
+
+</html>
