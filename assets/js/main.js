@@ -1,3 +1,5 @@
+const proxy = "https://api.codetabs.com/v1/proxy/?quest="
+
 // event listener for when the fetch button is clicked
 document.getElementById("fetchButton").addEventListener("click", async () => {
     const url = document.getElementById("urlInput").value;
@@ -10,7 +12,7 @@ document.getElementById("fetchButton").addEventListener("click", async () => {
     }
 
     // construct proxy URL to fetch content
-    const proxyUrl = "https://api.codetabs.com/v1/proxy/?quest=" + encodeURIComponent(url);
+    const proxyUrl = proxy + encodeURIComponent(url);
 
     let html;
 
@@ -24,19 +26,19 @@ document.getElementById("fetchButton").addEventListener("click", async () => {
         }
     } catch (proxyError) {
         html = await fetch(url).then(response => response.text()).catch(error => {
-            output.textContent = "Failed to fetch content, even with direct request.";
+            output.textContent = "Failed to fetch content, even with cors proxy.\nPlease try again later.";
             return null;
         });
     }
 
     // if we have HTML content, extract the necessary data
     if (html) {
-        extractData(html, url, output);
+        await extractData(html, url, output);
     }
 });
 
 // extract necessary data from the HTML content
-function extractData(html, url, outputElement) {
+async function extractData(html, url, outputElement) {
     const doc = new DOMParser().parseFromString(html, "text/html");
 
     const title = getTitle(doc);
@@ -48,7 +50,7 @@ function extractData(html, url, outputElement) {
     const { episode, season } = getEpisodeAndSeason(doc);
     const languages = getAvailableLanguages(doc);
     const episodeLinks = getEpisodeLinks(doc);
-    const providerLinks = formatProviderLinks(episodeLinks);
+    const providerLinks = await formatProviderLinks(episodeLinks);  // Make sure to await this
 
     // display the extracted details on the page
     outputElement.textContent = `
@@ -63,7 +65,10 @@ Eng. Title:     ${englishTitle}
 \nProcessing available languages...
 Avl. Languages: ${languages}
 \nProcessing provider links...
-${providerLinks}`;
+${providerLinks}
+\nTODO: Fetch content of redirect url...
+\nTODO: Get video direct link using provider backend...
+`;
 }
 
 // get the title from the HTML document
@@ -158,21 +163,37 @@ function getEpisodeLinks(doc) {
     return episodeLinks;
 }
 
-// format provider links for display
-function formatProviderLinks(episodeLinks) {
+// TODO: broken, someone please fix this
+async function getFinalUrl(url) {
+    try {
+        const response = await fetch(proxy + encodeURIComponent(url), { method: 'GET', redirect: 'follow' });
+        if (response.redirected) {
+            return response.url;
+        }
+        // fallback to original url
+        return url;
+    } catch (error) {
+        console.error("Error fetching URL:", error);
+        return url;
+    }
+}
+
+// display provider links padded
+async function formatProviderLinks(episodeLinks) {
     const maxLangLength = Math.max(...Object.values(episodeLinks).flatMap(links => Object.keys(links).map(lang => lang.length)));
 
-    return Object.entries(episodeLinks)
-        .map(([hoster, links]) => {
-            const linkUrls = Object.entries(links)
-                .map(([lang, link]) => {
-                    // add padding after the colon
+    const result = await Promise.all(Object.entries(episodeLinks)
+        .map(async ([hoster, links]) => {
+            const linkUrls = await Promise.all(Object.entries(links)
+                .map(async ([lang, link]) => {
                     const paddedLang = lang + ":";
                     const spaceAfterColon = " ".repeat(maxLangLength - lang.length + 1);
-                    return `${paddedLang}${spaceAfterColon}${link}`;
+                    const finalUrl = await getFinalUrl(link);
+                    return `${paddedLang}${spaceAfterColon}${link} -> ${finalUrl}`;
                 })
-                .join(' \n');
-            return `${hoster}\n${linkUrls}\n\n`;
+            );
+            return `${hoster}\n${linkUrls.join(' \n')}\n\n`;
         })
-        .join('');
+    );
+    return result.join('');
 }
