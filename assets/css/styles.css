@@ -41,3 +41,16 @@ body {
     white-space: pre-wrap;
     font-family: monospace;
 }
+
+#copyright {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    padding: 1em;
+    margin: 0;
+}
+
+#copyright a {
+    color: inherit;
+    text-decoration: underline;
+}
