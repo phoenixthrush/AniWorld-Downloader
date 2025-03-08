@@ -152,7 +152,7 @@ function getEpisodeLinks(doc) {
         if (!episodeLinks[hosterName]) {
             episodeLinks[hosterName] = {};
         }
-        episodeLinks[hosterName][language] = episodeLink;
+        episodeLinks[hosterName][language] = `https://aniworld.to${episodeLink}`;
     });
 
     return episodeLinks;
@@ -160,12 +160,19 @@ function getEpisodeLinks(doc) {
 
 // format provider links for display
 function formatProviderLinks(episodeLinks) {
+    const maxLangLength = Math.max(...Object.values(episodeLinks).flatMap(links => Object.keys(links).map(lang => lang.length)));
+
     return Object.entries(episodeLinks)
         .map(([hoster, links]) => {
             const linkUrls = Object.entries(links)
-                .map(([lang, link]) => `${lang}: ${link}`)
+                .map(([lang, link]) => {
+                    // add padding after the colon
+                    const paddedLang = lang + ":";
+                    const spaceAfterColon = " ".repeat(maxLangLength - lang.length + 1);
+                    return `${paddedLang}${spaceAfterColon}${link}`;
+                })
                 .join(' \n');
-            return `${hoster}:\n${linkUrls}\n\n`;
+            return `${hoster}\n${linkUrls}\n\n`;
         })
         .join('');
 }
