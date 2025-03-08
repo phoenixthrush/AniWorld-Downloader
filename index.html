@@ -11,8 +11,9 @@
 <body>
     <div class="container">
         <h1>AniWorld-Downloader</h1>
-        <p>Enter aniworld.to links below</p>
-        <input type="text" id="urlInput" value="https://aniworld.to/anime/stream/highschool-dxd"><br>
+        <p>Enter aniworld.to link below</p>
+        <input type="text" id="urlInput"
+            value="https://aniworld.to/anime/stream/highschool-dxd/staffel-1/episode-1"><br>
         <button type="button" id="fetchButton">Submit</button>
         <div class="output" id="output"></div>
     </div>
@@ -45,22 +46,30 @@
             }
 
             if (html) {
-                extractTitle(html, url, output);
+                extractData(html, url, output);
             }
         });
 
-        function extractTitle(html, url, outputElement) {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, "text/html");
+        function extractData(html, url, outputElement) {
+            const doc = new DOMParser().parseFromString(html, "text/html");
 
-            const titleDiv = doc.querySelector(".series-title");
-            const title = titleDiv?.querySelector("h1 span")?.textContent || "Title not found";
-
-            const slugMatch = url.match(/\/anime\/stream\/(.+)/);
+            const title = doc.querySelector(".series-title h1 span")?.textContent || "Title not found";
+            const slugMatch = url.match(/\/anime\/stream\/([^/]+)/);
             const slug = slugMatch ? slugMatch[1] : "Slug not found";
+            const description = doc.querySelector(".seri_des")?.getAttribute("data-full-description") || "Description not found";
 
-            outputElement.textContent = `Title: ${title}\nSlug:  ${slug}`;
+            const germanTitle = doc.querySelector(".episodeGermanTitle")?.textContent || "German title not found";
+            const englishTitle = doc.querySelector(".episodeEnglishTitle")?.textContent || "English title not found";
+
+            let description_shortened = description;
+            const descriptionWords = description.split(' ');
+            if (descriptionWords.length > 15) {
+                description_shortened = descriptionWords.slice(0, 15).join(' ') + '...';
+            }
+
+            outputElement.textContent = `Title: ${title}\nSlug:  ${slug}\nGerman Title: ${germanTitle}\nEnglish Title: ${englishTitle}\nDescription: ${description_shortened}`;
         }
+
     </script>
 </body>
 
