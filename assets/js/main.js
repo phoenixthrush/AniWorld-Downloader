@@ -1,4 +1,6 @@
 const proxy = "https://api.codetabs.com/v1/proxy/?quest="
+// const proxy = "https://nuss.tmaster055.com/fetch-url?link="
+const proxyHtml = "https://nuss.tmaster055.com/fetch-html?link="
 const SPEEDFILES_PATTERN = /var _0x5opu234 = "(.*?)";/;
 
 const languageMap = {
@@ -114,7 +116,7 @@ async function extractData(html, url, outputElement) {
     const embedded_url = await getFinalUrl(embedded_link_redirect);
 
     // TODO: current proxy does not allow this domain
-    const embedded_url_html = await (await fetch(proxy + encodeURIComponent(embedded_url))).text();
+    const embedded_url_html = await (await fetch(proxyHtml + embedded_url)).text();
 
     if (selected_provider === 'Vidoza') {
         const scripts = new DOMParser().parseFromString(embedded_url_html, 'text/html').querySelectorAll('script');
@@ -261,7 +263,7 @@ function getEpisodeLinks(doc) {
 // TODO: broken, someone please fix this
 async function getFinalUrl(url) {
     try {
-        const con_url = "https://nuss.tmaster055.com/fetch-url?link=" + encodeURIComponent(url)
+        const con_url = "https://nuss.tmaster055.com/fetch-url?link=" + url;
         const response = await fetch(con_url, {
             method: 'GET',
             redirect: 'follow'
