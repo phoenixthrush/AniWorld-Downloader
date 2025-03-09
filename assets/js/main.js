@@ -8,8 +8,6 @@ const languageMap = {
 
 // event listener for when the fetch button is clicked
 document.getElementById("fetchButton").addEventListener("click", async () => {
-    const selected_language = languageMap[document.getElementById("selected_language").value];
-    alert("Selected language: " + selected_language);
     const url = document.getElementById("urlInput").value;
     const output = document.getElementById("output");
 
@@ -76,6 +74,11 @@ async function extractData(html, url, outputElement) {
 
     console.log(JSON.stringify(filteredEpisodeLinks, null, 2));
 
+    const selected_language = languageMap[document.getElementById("selected_language").value];
+    const selected_provider = document.getElementById("selected_provider").value;
+
+    const redirect_link = filteredEpisodeLinks[selected_provider]?.[selected_language];
+
     // display the extracted details on the page
     outputElement.textContent = `
 Fetching details of ${url}...\n
@@ -90,6 +93,8 @@ Eng. Title:     ${englishTitle}
 Avl. Languages: ${languages}
 \nProcessing provider links...
 ${providerLinks}
+Selected Provider: ${selected_provider}
+Selected Language: ${selected_language}
 \nTODO: Fetch content of redirect url...
 \nTODO: Get video direct link using provider backend...
 `;

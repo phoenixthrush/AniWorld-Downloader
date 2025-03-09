@@ -28,6 +28,7 @@ body {
 .container button {
     font-size: 1.25em;
     cursor: pointer;
+    margin-top: 15px;
 }
 
 .container select {

@@ -14,12 +14,23 @@
         <p>Enter one aniworld.to link below</p>
         <input type="text" id="urlInput" value="https://aniworld.to/anime/stream/highschool-dxd/staffel-1/episode-1">
         <br>
-        <button type="button" id="fetchButton">Fetch Episode Details</button>
+        <p>Select Language & Provider</p>
+        <!-- TODO: this needs to be set dynamically -->
         <select name=" options" id="selected_language">
             <option value="1">German Dub</option>
             <option value="2">English Sub</option>
-            <option value="3">German Sub</option>
+            <option value="3" selected>German Sub</option>
         </select>
+        <!-- TODO: this needs to be set dynamically -->
+        <select name=" options" id="selected_provider">
+            <option value="Vidoza" selected>Vidoza</option>
+            <option value="SpeedFiles">SpeedFiles</option>
+            <!-- <option value="Vidmoly">Vidmoly</option> -->
+            <!-- <option value="VOE">VOE</option> -->
+            <!-- <option value="Doodstream">Doodstream</option> -->
+        </select>
+        <br>
+        <button type="button" id="fetchButton">Fetch Episode Details</button>
         <div class="output" id="output"></div>
     </div>
     <script src="assets/js/main.js"></script>
