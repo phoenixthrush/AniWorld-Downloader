@@ -72,17 +72,21 @@ async function extractData(html, url, outputElement) {
     const providerLinks = await formatProviderLinks(episodeLinks);
     const filteredEpisodeLinks = filterEpisodeLinks(episodeLinks)
 
-    console.log(JSON.stringify(filteredEpisodeLinks, null, 2));
+    // console.log(JSON.stringify(filteredEpisodeLinks, null, 2));
 
     const selected_language = languageMap[document.getElementById("selected_language").value];
     const selected_provider = document.getElementById("selected_provider").value;
 
-    const redirect_link = filteredEpisodeLinks[selected_provider]?.[selected_language];
+    const embedded_link = episodeLinks[selected_provider]?.[selected_language];
+    const finalUrl = await getFinalUrl(embedded_link);
+
+
+
 
     // display the extracted details on the page
     outputElement.textContent = `
-Fetching details of ${url}...\n
-Title:          ${title}
+Fetching details of ${url}...
+\nTitle:          ${title}
 Slug:           ${slug}
 Description:    ${description_shortened}
 Season:         ${season}
@@ -95,6 +99,7 @@ Avl. Languages: ${languages}
 ${providerLinks}
 Selected Provider: ${selected_provider}
 Selected Language: ${selected_language}
+\nEmbedded Link:   ${finalUrl}
 \nTODO: Fetch content of redirect url...
 \nTODO: Get video direct link using provider backend...
 `;
