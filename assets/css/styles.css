@@ -30,6 +30,10 @@ body {
     cursor: pointer;
 }
 
+.container select {
+    font-size: 1.25em;
+}
+
 .output {
     margin-top: 20px;
     text-align: left;

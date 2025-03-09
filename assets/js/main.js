@@ -1,7 +1,15 @@
 const proxy = "https://api.codetabs.com/v1/proxy/?quest="
 
+const languageMap = {
+    1: "German Dub",
+    2: "English Sub",
+    3: "German Sub"
+};
+
 // event listener for when the fetch button is clicked
 document.getElementById("fetchButton").addEventListener("click", async () => {
+    const selected_language = languageMap[document.getElementById("selected_language").value];
+    alert("Selected language: " + selected_language);
     const url = document.getElementById("urlInput").value;
     const output = document.getElementById("output");
 
@@ -37,6 +45,19 @@ document.getElementById("fetchButton").addEventListener("click", async () => {
     }
 });
 
+function filterEpisodeLinks(episodeLinks) {
+    const allowedHosts = ["Vidoza", "Speedfiles"];
+    const filteredLinks = {};
+
+    Object.entries(episodeLinks).forEach(([hoster, languages]) => {
+        if (allowedHosts.includes(hoster)) {
+            filteredLinks[hoster] = languages;
+        }
+    });
+
+    return filteredLinks;
+}
+
 // extract necessary data from the HTML content
 async function extractData(html, url, outputElement) {
     const doc = new DOMParser().parseFromString(html, "text/html");
@@ -50,7 +71,10 @@ async function extractData(html, url, outputElement) {
     const { episode, season } = getEpisodeAndSeason(doc);
     const languages = getAvailableLanguages(doc);
     const episodeLinks = getEpisodeLinks(doc);
-    const providerLinks = await formatProviderLinks(episodeLinks);  // Make sure to await this
+    const providerLinks = await formatProviderLinks(episodeLinks);
+    const filteredEpisodeLinks = filterEpisodeLinks(episodeLinks)
+
+    console.log(JSON.stringify(filteredEpisodeLinks, null, 2));
 
     // display the extracted details on the page
     outputElement.textContent = `
@@ -120,11 +144,6 @@ function getAvailableLanguages(doc) {
     const languageBox = doc.querySelector(".changeLanguageBox");
     let languages = "Not found";
     if (languageBox) {
-        const languageMap = {
-            1: "German Dub",
-            2: "English Sub",
-            3: "German Sub"
-        };
         const langKeys = [...languageBox.querySelectorAll("img[data-lang-key]")]
             .map(img => img.getAttribute("data-lang-key"))
             .filter(lang => lang && !isNaN(lang))
@@ -139,11 +158,6 @@ function getAvailableLanguages(doc) {
 // get episode links for all available hosts
 function getEpisodeLinks(doc) {
     const episodeLinks = {};
-    const keyMapping = {
-        1: "German Dub",
-        2: "English Sub",
-        3: "German Sub"
-    };
     const allLinks = [...doc.querySelectorAll('li')].filter(linkElement =>
         /episodeLink\d+/.test(linkElement.className)
     );
@@ -152,7 +166,7 @@ function getEpisodeLinks(doc) {
         const hosterName = linkElement.querySelector('i')?.title?.split(' ')[1] || 'Unknown Host';
         const episodeLink = linkElement.querySelector('a')?.getAttribute('href') || 'No link';
         const langKey = linkElement.getAttribute('data-lang-key');
-        const language = keyMapping[langKey] || 'Unknown Language';
+        const language = languageMap[langKey] || 'Unknown Language';
 
         if (!episodeLinks[hosterName]) {
             episodeLinks[hosterName] = {};
@@ -166,15 +180,21 @@ function getEpisodeLinks(doc) {
 // TODO: broken, someone please fix this
 async function getFinalUrl(url) {
     try {
-        const response = await fetch(proxy + encodeURIComponent(url), { method: 'GET', redirect: 'follow' });
-        if (response.redirected) {
-            return response.url;
+        const con_url = "https://nuss.tmaster055.com/fetch-url?link=" + encodeURIComponent(url)
+        const response = await fetch(con_url, {
+            method: 'GET',
+            redirect: 'follow'
+        });
+
+        if (!response.ok) {
+            throw new Error('Network response was not ok: ' + response.statusText);
         }
-        // fallback to original url
-        return url;
+
+        const content = await response.text();
+        return content;
     } catch (error) {
-        console.error("Error fetching URL:", error);
-        return url;
+        console.error('Error fetching final URL:', error);
+        throw error;
     }
 }
 
