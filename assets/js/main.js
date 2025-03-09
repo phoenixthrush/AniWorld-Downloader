@@ -1,4 +1,5 @@
 const proxy = "https://api.codetabs.com/v1/proxy/?quest="
+const SPEEDFILES_PATTERN = /var _0x5opu234 = "(.*?)";/;
 
 const languageMap = {
     1: "German Dub",
@@ -56,6 +57,34 @@ function filterEpisodeLinks(episodeLinks) {
     return filteredLinks;
 }
 
+// this does absolutely not work
+async function getDirectLinkFromSpeedFiles(html) {
+    const match = text.match(SPEEDFILES_PATTERN);
+    if (!match) {
+        throw new Error("Pattern not found in the response.");
+    }
+
+    let encodedData = match[1];
+    let decoded = atob(encodedData);
+    decoded = decoded.split('').reverse().join('').toUpperCase();
+    decoded = atob(decoded);
+    decoded = decoded.split('').reverse().join('');
+
+    let decodedHex = '';
+    for (let i = 0; i < decoded.length; i += 2) {
+        decodedHex += String.fromCharCode(parseInt(decoded.substr(i, 2), 16));
+    }
+
+    let shifted = '';
+    for (let i = 0; i < decodedHex.length; i++) {
+        shifted += String.fromCharCode(decodedHex.charCodeAt(i) - 3);
+    }
+
+    let result = atob(shifted.split('').reverse().join('')).toLowerCase();
+
+    return result;
+}
+
 // extract necessary data from the HTML content
 async function extractData(html, url, outputElement) {
     const doc = new DOMParser().parseFromString(html, "text/html");
@@ -85,20 +114,46 @@ async function extractData(html, url, outputElement) {
     const embedded_url = await getFinalUrl(embedded_link_redirect);
 
     // TODO: current proxy does not allow this domain
-    const embedded_url_html = await fetch(proxy + encodeURIComponent(embedded_url)).text();
+    const embedded_url_html = await (await fetch(proxy + encodeURIComponent(embedded_url))).text();
 
-    if (selected_provider === 'vidoza') {
+    if (selected_provider === 'Vidoza') {
         const scripts = new DOMParser().parseFromString(embedded_url_html, 'text/html').querySelectorAll('script');
+        let found = false;
+
         for (let script of scripts) {
             if (script.textContent.includes('sourcesCode:')) {
                 const match = script.textContent.match(/src: "(.*?)"/);
                 if (match) {
                     alert(match[1]);
+                    found = true;
+                    break;
                 }
             }
         }
+
+        if (!found) {
+            alert("Video source not found :(");
+        }
     } else if (selected_provider === 'SpeedFiles') {
-        alert("Sorry SpeedFiles is not implemented yet")
+        alert("Sorry SpeedFiles is currently not implemented");
+        return;
+
+        const scripts = new DOMParser().parseFromString(embedded_url_html, 'text/html').querySelectorAll('script');
+        for (let script of scripts) {
+            if (script.textContent.includes('sourcesCode:')) {
+                console.log(script)
+                const match = script.textContent.match(/src: "(.*?)"/);
+                if (match) {
+                    console.log(match)
+                    try {
+                        const result = await getDirectLinkFromSpeedFiles(match[1]);
+                        alert(result);
+                    } catch (error) {
+                        console.error(error);
+                    }
+                }
+            }
+        }
     }
 
     // display the extracted details on the page
