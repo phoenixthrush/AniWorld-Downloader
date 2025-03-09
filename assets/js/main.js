@@ -85,9 +85,21 @@ async function extractData(html, url, outputElement) {
     const embedded_url = await getFinalUrl(embedded_link_redirect);
 
     // TODO: current proxy does not allow this domain
-    const embedded_url_html = await fetch(proxy + encodeURIComponent(embedded_url));
+    const embedded_url_html = await fetch(proxy + encodeURIComponent(embedded_url)).text();
 
-    console.log(embedded_url_html)
+    if (selected_provider === 'vidoza') {
+        const scripts = new DOMParser().parseFromString(embedded_url_html, 'text/html').querySelectorAll('script');
+        for (let script of scripts) {
+            if (script.textContent.includes('sourcesCode:')) {
+                const match = script.textContent.match(/src: "(.*?)"/);
+                if (match) {
+                    alert(match[1]);
+                }
+            }
+        }
+    } else if (selected_provider === 'SpeedFiles') {
+        alert("Sorry SpeedFiles is not implemented yet")
+    }
 
     // display the extracted details on the page
     outputElement.textContent = `
@@ -106,8 +118,6 @@ ${providerLinks}
 Selected Provider: ${selected_provider}
 Selected Language: ${selected_language}
 \nEmbedded Link:   ${embedded_url}
-\nTODO: Fetch content of redirect url...
-\nTODO: Get video direct link using provider backend...
 `;
 }
 
