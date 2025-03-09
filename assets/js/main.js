@@ -77,11 +77,17 @@ async function extractData(html, url, outputElement) {
     const selected_language = languageMap[document.getElementById("selected_language").value];
     const selected_provider = document.getElementById("selected_provider").value;
 
-    const embedded_link = episodeLinks[selected_provider]?.[selected_language];
-    const finalUrl = await getFinalUrl(embedded_link);
+    const embedded_link_redirect = episodeLinks[selected_provider]?.[selected_language];
+    if (!embedded_link_redirect) {
+        alert('Selected language or provider is not available.');
+    }
 
+    const embedded_url = await getFinalUrl(embedded_link_redirect);
 
+    // TODO: current proxy does not allow this domain
+    const embedded_url_html = await fetch(proxy + encodeURIComponent(embedded_url));
 
+    console.log(embedded_url_html)
 
     // display the extracted details on the page
     outputElement.textContent = `
@@ -99,7 +105,7 @@ Avl. Languages: ${languages}
 ${providerLinks}
 Selected Provider: ${selected_provider}
 Selected Language: ${selected_language}
-\nEmbedded Link:   ${finalUrl}
+\nEmbedded Link:   ${embedded_url}
 \nTODO: Fetch content of redirect url...
 \nTODO: Get video direct link using provider backend...
 `;
