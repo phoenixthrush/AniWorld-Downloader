@@ -71,7 +71,7 @@ document.getElementById("fetchButton").addEventListener("click", async () => {
 
 
 function filterEpisodeLinks(episodeLinks) {
-    const allowedHosts = ["Vidoza", "Speedfiles"];
+    const allowedHosts = ["Vidoza", "SpeedFiles"];
     const filteredLinks = {};
 
     Object.entries(episodeLinks).forEach(([hoster, languages]) => {
@@ -83,24 +83,37 @@ function filterEpisodeLinks(episodeLinks) {
     return filteredLinks;
 }
 
-// this does absolutely not work
-async function getDirectLinkFromSpeedFiles(html) {
-    const match = html.match(SPEEDFILES_PATTERN);
-    if (!match) {
-        throw new Error("Pattern not found in the response.");
+function swapCase(s) {
+    return s.split('').map(ch => ch >= 'a' && ch <= 'z' ? ch.toUpperCase() : ch >= 'A' && ch <= 'Z' ? ch.toLowerCase() : ch).join('')
+}
+
+function getDirectLinkFromSpeedFilesFromHtml(html) {
+    const doc = new DOMParser().parseFromString(html, 'text/html')
+    const scripts = doc.querySelectorAll('script')
+    let encodedData = null
+    for (let script of scripts) {
+        if (script.textContent.includes('var _0x5opu234 =')) {
+            const match = script.textContent.match(/var _0x5opu234 = "(.*?)";/)
+            if (match) {
+                encodedData = match[1]
+                break
+            }
+        }
     }
-
-    let encodedData = match[1];
-    let decoded = atob(encodedData);
-    decoded = decoded.split('').reverse().join('').toUpperCase();
-    decoded = atob(decoded);
-    decoded = decoded.split('').reverse().join('');
-
-    let decodedHex = decoded.match(/.{1,2}/g).map(hex => String.fromCharCode(parseInt(hex, 16))).join('');
-
-    let shifted = decodedHex.split('').map(char => String.fromCharCode(char.charCodeAt(0) - 3)).join('');
-
-    return atob(shifted.split('').reverse().join('')).toLowerCase();
+    if (!encodedData) throw new Error("Pattern not found in the HTML.")
+    let decoded = atob(encodedData)
+    decoded = swapCase(decoded).split('').reverse().join('')
+    decoded = atob(decoded).split('').reverse().join('')
+    let decodedHex = ""
+    for (let i = 0; i < decoded.length; i += 2) {
+        decodedHex += String.fromCharCode(parseInt(decoded.substr(i, 2), 16))
+    }
+    let shifted = ""
+    for (let i = 0; i < decodedHex.length; i++) {
+        shifted += String.fromCharCode(decodedHex.charCodeAt(i) - 3)
+    }
+    const result = atob(swapCase(shifted).split('').reverse().join(''))
+    return result
 }
 
 // extract necessary data from the HTML content
@@ -222,29 +235,14 @@ async function extractData(html, url, outputElement) {
                     alert("Video source not found :(");
                 }
             } else if (selected_provider === 'SpeedFiles') {
-                console.log("Processing SpeedFiles provider...");
-                outputElement.textContent += `Processing SpeedFiles provider...\n`;
-                alert("Sorry SpeedFiles is currently not implemented");
-                return;
-
-                const scripts = new DOMParser().parseFromString(embedded_url_html, 'text/html').querySelectorAll('script');
-                for (let script of scripts) {
-                    if (script.textContent.includes('sourcesCode:')) {
-                        console.log("Found script:", script);
-                        outputElement.textContent += `Found script: ${script.textContent}\n`;
-                        const match = script.textContent.match(/src: "(.*?)"/);
-                        if (match) {
-                            console.log("SpeedFiles Match:", match);
-                            try {
-                                const result = await getDirectLinkFromSpeedFiles(match[1]);
-                                console.log("Decoded SpeedFiles Link:", result);
-                                alert(result);
-                            } catch (error) {
-                                console.error("Error decoding SpeedFiles link:", error);
-                                outputElement.textContent += `Error decoding SpeedFiles link: ${error}\n`;
-                            }
-                        }
-                    }
+                console.log("Processing SpeedFiles provider...")
+                outputElement.textContent += `\nProcessing SpeedFiles provider...\n`
+                try {
+                    const result = getDirectLinkFromSpeedFilesFromHtml(embedded_url_html)
+                    console.log("Decoded SpeedFiles Link:", result)
+                    outputElement.textContent += `SpeedFiles Video Source:\t${result}\n`;
+                } catch (error) {
+                    console.error("Error decoding SpeedFiles link:", error)
                 }
             }
         })
