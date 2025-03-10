@@ -1,6 +1,7 @@
 const proxy = ""
 const proxy_redirect = "https://nuss.tmaster055.com/fetch-url?link="
-const proxy_html = "https://nuss.tmaster055.com/fetch-html?link="
+// const proxy_html = "https://nuss.tmaster055.com/fetch-html?link="
+const proxy_html = "http://127.0.0.1:5000/fetch-html?link="
 
 const SPEEDFILES_PATTERN = /var _0x5opu234 = "(.*?)";/;
 
