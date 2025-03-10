@@ -241,8 +241,10 @@ async function extractData(html, url, outputElement) {
                     const result = getDirectLinkFromSpeedFilesFromHtml(embedded_url_html)
                     console.log("Decoded SpeedFiles Link:", result)
                     outputElement.textContent += `SpeedFiles Video Source:\t${result}\n`;
-                    document.getElementById("stream").src = result;
-                    document.querySelector(".stream").style.display = "block";
+                    document.querySelector('.video-mini').style.display = 'block';
+                    document.querySelectorAll('.video-mini, #video').forEach(video => {
+                        video.src = result;
+                    });
                 } catch (error) {
                     console.error("Error decoding SpeedFiles link:", error)
                 }
@@ -394,11 +396,38 @@ const observer = new MutationObserver(() => {
 
 observer.observe(outputElement, { childList: true, subtree: true });
 
-document.getElementById("stream").addEventListener("playing", function () {
-    this.style.position = "absolute";
-    this.style.width = "80svw";
-    this.style.height = "80svh";
-    this.style.top = "50%";
-    this.style.left = "50%";
-    this.style.transform = "translate(-50%, -50%)";
+
+
+
+const miniVideo = document.getElementById('miniVideo');
+const videoContainer = document.getElementById('videoContainer');
+const fullVideo = document.getElementById('video');
+
+miniVideo.addEventListener('play', () => {
+    videoContainer.classList.add('active');
+    fullVideo.play();
+    miniVideo.pause();
+});
+
+function closeVideo() {
+    videoContainer.classList.remove('active');
+    fullVideo.pause();
+    miniVideo.currentTime = fullVideo.currentTime;
+}
+
+// please fix this someone :)
+document.getElementById('downloadBtn').addEventListener('click', function () {
+    const video = document.getElementById('miniVideo');
+    const videoURL = video.src;
+
+    if (videoURL.startsWith('http')) {
+        const link = document.createElement('a');
+        link.href = videoURL;
+        link.download = 'video.mp4';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    } else {
+        alert('Kein gültiges Video zum Download verfügbar!');
+    }
 });
