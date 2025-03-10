@@ -1,6 +1,5 @@
-const proxy = "https://api.codetabs.com/v1/proxy/?quest="
-// const proxy = "https://nuss.tmaster055.com/fetch-url?link="
-const proxyHtml = "https://nuss.tmaster055.com/fetch-html?link="
+const proxy = ""
+const proxy_redirect = "https://nuss.tmaster055.com/fetch-url?link="
 const SPEEDFILES_PATTERN = /var _0x5opu234 = "(.*?)";/;
 
 const languageMap = {
@@ -14,37 +13,56 @@ document.getElementById("fetchButton").addEventListener("click", async () => {
     const url = document.getElementById("urlInput").value;
     const output = document.getElementById("output");
 
-    // check if the URL is valid
+    console.log("Fetch button clicked.");
+    console.log("Input URL:", url);
+
     if (!url.startsWith("https://")) {
         output.textContent = "Invalid URL!";
+        console.log("Invalid URL detected.");
         return;
     }
 
-    // construct proxy URL to fetch content
-    const proxyUrl = proxy + encodeURIComponent(url);
+    console.log("URL is valid. Attempting to fetch...");
 
     let html;
 
-    // attempt to fetch content through proxy or directly
     try {
-        const proxyResponse = await fetch(proxyUrl);
+        console.log("Trying proxy:", proxy + url);
+        const proxyResponse = await fetch(proxy + url);
+        console.log("Proxy response status:", proxyResponse.status);
+
         if (proxyResponse.ok) {
             html = await proxyResponse.text();
+            console.log("Successfully fetched HTML via proxy.");
+            console.log("First 50 characters of HTML:", html.substring(0, 50));
         } else {
             throw new Error("Proxy failed");
         }
     } catch (proxyError) {
-        html = await fetch(url).then(response => response.text()).catch(error => {
-            output.textContent = "Failed to fetch content, even with cors proxy.\nPlease try again later.";
-            return null;
-        });
+        console.warn("Proxy failed, attempting direct fetch...", proxyError);
+
+        try {
+            const response = await fetch(url);
+            console.log("Direct fetch response status:", response.status);
+            html = await response.text();
+            console.log("Successfully fetched HTML directly.");
+            console.log("HTML:\n", html.substring(0, 200) + "...");
+        } catch (error) {
+            console.error("Both proxy and direct fetch failed:", error);
+            output.textContent = "Failed to fetch content, even with CORS proxy.\nPlease try again later.";
+            return;
+        }
     }
 
-    // if we have HTML content, extract the necessary data
     if (html) {
         await extractData(html, url, output);
+        console.log("Data extraction completed.");
+    } else {
+        console.error("No HTML content retrieved.");
     }
 });
+
+
 
 function filterEpisodeLinks(episodeLinks) {
     const allowedHosts = ["Vidoza", "Speedfiles"];
@@ -61,7 +79,7 @@ function filterEpisodeLinks(episodeLinks) {
 
 // this does absolutely not work
 async function getDirectLinkFromSpeedFiles(html) {
-    const match = text.match(SPEEDFILES_PATTERN);
+    const match = html.match(SPEEDFILES_PATTERN);
     if (!match) {
         throw new Error("Pattern not found in the response.");
     }
@@ -72,53 +90,109 @@ async function getDirectLinkFromSpeedFiles(html) {
     decoded = atob(decoded);
     decoded = decoded.split('').reverse().join('');
 
-    let decodedHex = '';
-    for (let i = 0; i < decoded.length; i += 2) {
-        decodedHex += String.fromCharCode(parseInt(decoded.substr(i, 2), 16));
-    }
+    let decodedHex = decoded.match(/.{1,2}/g).map(hex => String.fromCharCode(parseInt(hex, 16))).join('');
 
-    let shifted = '';
-    for (let i = 0; i < decodedHex.length; i++) {
-        shifted += String.fromCharCode(decodedHex.charCodeAt(i) - 3);
-    }
+    let shifted = decodedHex.split('').map(char => String.fromCharCode(char.charCodeAt(0) - 3)).join('');
 
-    let result = atob(shifted.split('').reverse().join('')).toLowerCase();
-
-    return result;
+    return atob(shifted.split('').reverse().join('')).toLowerCase();
 }
 
 // extract necessary data from the HTML content
 async function extractData(html, url, outputElement) {
+    console.log("Extracting data from HTML...");
     const doc = new DOMParser().parseFromString(html, "text/html");
 
     const title = getTitle(doc);
-    const slug = getSlug(url);
-    const description = getDescription(doc);
-    const germanTitle = getGermanTitle(doc);
-    const englishTitle = getEnglishTitle(doc);
-    const description_shortened = shortenDescription(description);
-    const { episode, season } = getEpisodeAndSeason(doc);
-    const languages = getAvailableLanguages(doc);
-    const episodeLinks = getEpisodeLinks(doc);
-    const providerLinks = await formatProviderLinks(episodeLinks);
-    const filteredEpisodeLinks = filterEpisodeLinks(episodeLinks)
+    console.log("Title:", title);
+    outputElement.textContent += `Title:\t\t${title}\n`;
 
-    // console.log(JSON.stringify(filteredEpisodeLinks, null, 2));
+    const slug = getSlug(url);
+    console.log("Slug:", slug);
+    outputElement.textContent += `Slug:\t\t${slug}\n`;
+
+    const { episode, season } = getEpisodeAndSeason(doc);
+    console.log("Season:", season, ",", "Episode:", episode);
+    outputElement.textContent += `Season:\t\t${season}\nEpisode:\t${episode}\n`;
+
+    const description = getDescription(doc);
+    console.log("Full Description:", description);
+    // outputElement.textContent += `Full Description: ${description}\n`;
+
+    const germanTitle = getGermanTitle(doc);
+    console.log("German Title:", germanTitle);
+    outputElement.textContent += `German Title:\t${germanTitle}\n`;
+
+    const englishTitle = getEnglishTitle(doc);
+    console.log("English Title:", englishTitle);
+    outputElement.textContent += `English Title:\t${englishTitle}\n`;
+
+    const languages = getAvailableLanguages(doc);
+    console.log("Available Languages:", languages);
+    outputElement.textContent += `Avl. Languages:\t${languages}\n`;
+
+    const description_shortened = shortenDescription(description);
+    console.log("Shortened Description:", description_shortened);
+    outputElement.textContent += `Description:\t${description_shortened}\n`;
+
+    const episodeLinks = getEpisodeLinks(doc);
+    console.log("Episode Links:", episodeLinks);
+    // outputElement.textContent += `Episode Links: ${JSON.stringify(episodeLinks)}\n`;
+
+    const providerLinks = await formatProviderLinks(episodeLinks);
+    console.log("Formatted Provider Links:", providerLinks);
+    outputElement.textContent += `\nProvider Links:\n${providerLinks}\n`;
+
+    const filteredEpisodeLinks = filterEpisodeLinks(episodeLinks);
+    console.log("Supported Episode Links:", filteredEpisodeLinks);
+    outputElement.textContent += `Supported Episode Links:\n${JSON.stringify(filteredEpisodeLinks, null, 4)}\n\n`;
 
     const selected_language = languageMap[document.getElementById("selected_language").value];
     const selected_provider = document.getElementById("selected_provider").value;
+    const redirect_link = episodeLinks[selected_provider]?.[selected_language];
 
-    const embedded_link_redirect = episodeLinks[selected_provider]?.[selected_language];
-    if (!embedded_link_redirect) {
+    console.log("Selected Language:", selected_language);
+    outputElement.textContent += `Selected Language:\t${selected_language}\n`;
+
+    console.log("Selected Provider:", selected_provider);
+    outputElement.textContent += `Selected Provider:\t${selected_provider}\n\n`;
+
+    console.log("Selected Redirect Link:", redirect_link);
+    outputElement.textContent += `Selected Redirect:\t${redirect_link}\n`;
+
+    if (!redirect_link) {
         alert('Selected language or provider is not available.');
+        return 1;
     }
 
-    const embedded_url = await getFinalUrl(embedded_link_redirect);
+    fetch(proxy_redirect + redirect_link)
+        .then(response => response.text())
+        .then(data => {
+            const embedded_url = data;
+            console.log("Embedded Link:", embedded_url);
+            outputElement.textContent += `Embedded Link:\t\t${embedded_url}\n`;
+        })
+        .catch(error => {
+            console.error("Error fetching the link:", error);
+        });
 
-    // TODO: current proxy does not allow this domain
-    const embedded_url_html = await (await fetch(proxyHtml + embedded_url)).text();
+    return 0;
+
+    const embedded_url = await getFinalUrl(redirect_link);
+    if (!embedded_url) {
+        alert("Could not get redirect of ", embedded_link_redirect);
+        return 1;
+    }
+
+    console.log("Embedded URL:", embedded_url);
+    outputElement.textContent += `Embedded URL: ${embedded_url}\n`;
+
+    const embedded_url_html = await (await fetch(proxy + embedded_url)).text();
+    console.log("Embedded URL HTML (first 100 chars):", embedded_url_html.substring(0, 100) + "...");
+    outputElement.textContent += `Embedded URL HTML (first 100 chars): ${embedded_url_html.substring(0, 100)}...\n`;
 
     if (selected_provider === 'Vidoza') {
+        console.log("Processing Vidoza provider...");
+        outputElement.textContent += `Processing Vidoza provider...\n`;
         const scripts = new DOMParser().parseFromString(embedded_url_html, 'text/html').querySelectorAll('script');
         let found = false;
 
@@ -126,6 +200,8 @@ async function extractData(html, url, outputElement) {
             if (script.textContent.includes('sourcesCode:')) {
                 const match = script.textContent.match(/src: "(.*?)"/);
                 if (match) {
+                    console.log("Vidoza Video Source:", match[1]);
+                    outputElement.textContent += `Vidoza Video Source: ${match[1]}\n`;
                     alert(match[1]);
                     found = true;
                     break;
@@ -134,49 +210,50 @@ async function extractData(html, url, outputElement) {
         }
 
         if (!found) {
+            console.log("Video source not found.");
             alert("Video source not found :(");
         }
     } else if (selected_provider === 'SpeedFiles') {
+        console.log("Processing SpeedFiles provider...");
+        outputElement.textContent += `Processing SpeedFiles provider...\n`;
         alert("Sorry SpeedFiles is currently not implemented");
         return;
 
         const scripts = new DOMParser().parseFromString(embedded_url_html, 'text/html').querySelectorAll('script');
         for (let script of scripts) {
             if (script.textContent.includes('sourcesCode:')) {
-                console.log(script)
+                console.log("Found script:", script);
+                outputElement.textContent += `Found script: ${script.textContent}\n`;
                 const match = script.textContent.match(/src: "(.*?)"/);
                 if (match) {
-                    console.log(match)
+                    console.log("SpeedFiles Match:", match);
                     try {
                         const result = await getDirectLinkFromSpeedFiles(match[1]);
+                        console.log("Decoded SpeedFiles Link:", result);
                         alert(result);
                     } catch (error) {
-                        console.error(error);
+                        console.error("Error decoding SpeedFiles link:", error);
+                        outputElement.textContent += `Error decoding SpeedFiles link: ${error}\n`;
                     }
                 }
             }
         }
     }
 
-    // display the extracted details on the page
-    outputElement.textContent = `
-Fetching details of ${url}...
-\nTitle:          ${title}
-Slug:           ${slug}
-Description:    ${description_shortened}
-Season:         ${season}
-Episode:        ${episode}
-Ger. Title:     ${germanTitle}
-Eng. Title:     ${englishTitle}
-\nProcessing available languages...
-Avl. Languages: ${languages}
-\nProcessing provider links...
-${providerLinks}
-Selected Provider: ${selected_provider}
-Selected Language: ${selected_language}
-\nEmbedded Link:   ${embedded_url}
-`;
+    console.log("Final extracted data:");
+    console.log({
+        url, title, slug, description_shortened, season, episode,
+        germanTitle, englishTitle, languages, providerLinks,
+        selected_provider, selected_language, embedded_url
+    });
+
+    outputElement.textContent += `\nFinal extracted data:\n${JSON.stringify({
+        url, title, slug, description_shortened, season, episode,
+        germanTitle, englishTitle, languages, providerLinks,
+        selected_provider, selected_language, embedded_url
+    }, null, 2)}\n`;
 }
+
 
 // get the title from the HTML document
 function getTitle(doc) {
@@ -207,8 +284,8 @@ function getEnglishTitle(doc) {
 // shorten the description if it's too long
 function shortenDescription(description) {
     const descriptionWords = description.split(' ');
-    if (descriptionWords.length > 15) {
-        return descriptionWords.slice(0, 15).join(' ') + ' [...]';
+    if (descriptionWords.length > 10) {
+        return descriptionWords.slice(0, 10).join(' ') + ' [...]';
     }
     return description;
 }
@@ -263,23 +340,35 @@ function getEpisodeLinks(doc) {
 // TODO: broken, someone please fix this
 async function getFinalUrl(url) {
     try {
-        const con_url = "https://nuss.tmaster055.com/fetch-url?link=" + url;
-        const response = await fetch(con_url, {
+        console.log(`Fetching URL: ${url}`);
+
+        const response = await fetch(proxy + url, {
             method: 'GET',
-            redirect: 'follow'
+            headers: {
+                'Referer': "https://vidoza.net",
+                'User-Agent': navigator.userAgent,
+                'Accept': '*/*',
+                'Origin': "https://aniworld.to"
+            },
+            redirect: 'manual'
         });
 
-        if (!response.ok) {
-            throw new Error('Network response was not ok: ' + response.statusText);
+        console.log(`Response status: ${response.status}`);
+
+        if (response.status === 301 || response.status === 302) {
+            const newUrl = response.headers.get('Location');
+            console.log(`Redirected to: ${newUrl}`);
+            if (newUrl) return newUrl;
         }
 
-        const content = await response.text();
-        return content;
+        console.log(`Final URL: ${response.url}`);
+        return response.url;
     } catch (error) {
-        console.error('Error fetching final URL:', error);
+        console.error('Fetch Error:', error);
         throw error;
     }
 }
+
 
 // display provider links padded
 async function formatProviderLinks(episodeLinks) {
@@ -291,8 +380,9 @@ async function formatProviderLinks(episodeLinks) {
                 .map(async ([lang, link]) => {
                     const paddedLang = lang + ":";
                     const spaceAfterColon = " ".repeat(maxLangLength - lang.length + 1);
-                    const finalUrl = await getFinalUrl(link);
-                    return `${paddedLang}${spaceAfterColon}${link} -> ${finalUrl}`;
+                    // const finalUrl = await getFinalUrl(link);
+                    // return `${paddedLang}${spaceAfterColon}${link} -> ${finalUrl}`;
+                    return `${paddedLang}${spaceAfterColon}${link}`;
                 })
             );
             return `${hoster}\n${linkUrls.join(' \n')}\n\n`;
