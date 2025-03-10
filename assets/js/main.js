@@ -1,5 +1,7 @@
 const proxy = ""
 const proxy_redirect = "https://nuss.tmaster055.com/fetch-url?link="
+const proxy_html = "https://nuss.tmaster055.com/fetch-html?link="
+
 const SPEEDFILES_PATTERN = /var _0x5opu234 = "(.*?)";/;
 
 const languageMap = {
@@ -166,92 +168,79 @@ async function extractData(html, url, outputElement) {
 
     fetch(proxy_redirect + redirect_link)
         .then(response => response.text())
-        .then(data => {
+        .then(async data => {
             const embedded_url = data;
             console.log("Embedded Link:", embedded_url);
             outputElement.textContent += `Embedded Link:\t\t${embedded_url}\n`;
-        })
-        .catch(error => {
-            console.error("Error fetching the link:", error);
-        });
 
-    return 0;
+            let embedded_url_html = '';  // Declare it here to make it accessible in all the provider logic
 
-    const embedded_url = await getFinalUrl(redirect_link);
-    if (!embedded_url) {
-        alert("Could not get redirect of ", embedded_link_redirect);
-        return 1;
-    }
-
-    console.log("Embedded URL:", embedded_url);
-    outputElement.textContent += `Embedded URL: ${embedded_url}\n`;
-
-    const embedded_url_html = await (await fetch(proxy + embedded_url)).text();
-    console.log("Embedded URL HTML (first 100 chars):", embedded_url_html.substring(0, 100) + "...");
-    outputElement.textContent += `Embedded URL HTML (first 100 chars): ${embedded_url_html.substring(0, 100)}...\n`;
-
-    if (selected_provider === 'Vidoza') {
-        console.log("Processing Vidoza provider...");
-        outputElement.textContent += `Processing Vidoza provider...\n`;
-        const scripts = new DOMParser().parseFromString(embedded_url_html, 'text/html').querySelectorAll('script');
-        let found = false;
-
-        for (let script of scripts) {
-            if (script.textContent.includes('sourcesCode:')) {
-                const match = script.textContent.match(/src: "(.*?)"/);
-                if (match) {
-                    console.log("Vidoza Video Source:", match[1]);
-                    outputElement.textContent += `Vidoza Video Source: ${match[1]}\n`;
-                    alert(match[1]);
-                    found = true;
-                    break;
-                }
+            try {
+                console.log("Fetching Link:", embedded_url);
+                const response = await fetch(proxy_html + embedded_url);
+                console.log(`Response status: ${response.status}`);
+                embedded_url_html = await response.text();
+                console.log("HTML:\n" + embedded_url_html.substring(0, 200) + "...");
+            } catch (error) {
+                console.error("Error fetching embedded URL:", error);
+                outputElement.textContent += "Failed to fetch the embedded URL.\n";
+                return;  // Return early if fetching the embedded URL fails
             }
-        }
 
-        if (!found) {
-            console.log("Video source not found.");
-            alert("Video source not found :(");
-        }
-    } else if (selected_provider === 'SpeedFiles') {
-        console.log("Processing SpeedFiles provider...");
-        outputElement.textContent += `Processing SpeedFiles provider...\n`;
-        alert("Sorry SpeedFiles is currently not implemented");
-        return;
+            if (selected_provider === 'Vidoza') {
+                console.log("Processing Vidoza Provider...");
+                outputElement.textContent += `\nProcessing Vidoza Provider...\n`;
+                const scripts = new DOMParser().parseFromString(embedded_url_html, 'text/html').querySelectorAll('script');
+                let found = false;
 
-        const scripts = new DOMParser().parseFromString(embedded_url_html, 'text/html').querySelectorAll('script');
-        for (let script of scripts) {
-            if (script.textContent.includes('sourcesCode:')) {
-                console.log("Found script:", script);
-                outputElement.textContent += `Found script: ${script.textContent}\n`;
-                const match = script.textContent.match(/src: "(.*?)"/);
-                if (match) {
-                    console.log("SpeedFiles Match:", match);
-                    try {
-                        const result = await getDirectLinkFromSpeedFiles(match[1]);
-                        console.log("Decoded SpeedFiles Link:", result);
-                        alert(result);
-                    } catch (error) {
-                        console.error("Error decoding SpeedFiles link:", error);
-                        outputElement.textContent += `Error decoding SpeedFiles link: ${error}\n`;
+                for (let script of scripts) {
+                    if (script.textContent.includes('sourcesCode:')) {
+                        const match = script.textContent.match(/src: "(.*?)"/);
+                        if (match) {
+                            console.log("Vidoza Video Source:", match[1]);
+                            outputElement.textContent += `Vidoza Video Source:\t${match[1]}\n`;
+                            // alert(match[1]);
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!found) {
+                    console.log("Video source not found.");
+                    alert("Video source not found :(");
+                }
+            } else if (selected_provider === 'SpeedFiles') {
+                console.log("Processing SpeedFiles provider...");
+                outputElement.textContent += `Processing SpeedFiles provider...\n`;
+                alert("Sorry SpeedFiles is currently not implemented");
+                return;
+
+                const scripts = new DOMParser().parseFromString(embedded_url_html, 'text/html').querySelectorAll('script');
+                for (let script of scripts) {
+                    if (script.textContent.includes('sourcesCode:')) {
+                        console.log("Found script:", script);
+                        outputElement.textContent += `Found script: ${script.textContent}\n`;
+                        const match = script.textContent.match(/src: "(.*?)"/);
+                        if (match) {
+                            console.log("SpeedFiles Match:", match);
+                            try {
+                                const result = await getDirectLinkFromSpeedFiles(match[1]);
+                                console.log("Decoded SpeedFiles Link:", result);
+                                alert(result);
+                            } catch (error) {
+                                console.error("Error decoding SpeedFiles link:", error);
+                                outputElement.textContent += `Error decoding SpeedFiles link: ${error}\n`;
+                            }
+                        }
                     }
                 }
             }
-        }
-    }
-
-    console.log("Final extracted data:");
-    console.log({
-        url, title, slug, description_shortened, season, episode,
-        germanTitle, englishTitle, languages, providerLinks,
-        selected_provider, selected_language, embedded_url
-    });
-
-    outputElement.textContent += `\nFinal extracted data:\n${JSON.stringify({
-        url, title, slug, description_shortened, season, episode,
-        germanTitle, englishTitle, languages, providerLinks,
-        selected_provider, selected_language, embedded_url
-    }, null, 2)}\n`;
+        })
+        .catch(error => {
+            console.error("Error fetching the redirect link:", error);
+            outputElement.textContent += "Failed to fetch the redirect link.\n";
+        });
 }
 
 
@@ -390,3 +379,10 @@ async function formatProviderLinks(episodeLinks) {
     );
     return result.join('');
 }
+
+const outputElement = document.getElementById('output');
+const observer = new MutationObserver(() => {
+    outputElement.scrollTop = outputElement.scrollHeight;
+});
+
+observer.observe(outputElement, { childList: true, subtree: true });
