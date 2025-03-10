@@ -1,6 +1,7 @@
 from flask import Flask, request
 from flask_cors import CORS
 import requests
+import socket
 
 PROXY = "127.0.0.1:9050"
 HEADERS = {
@@ -13,6 +14,18 @@ CORS(app)
 
 def get_proxy():
     return {"http": f"socks5h://{PROXY}", "https": f"socks5h://{PROXY}"} if PROXY else None
+
+
+def request_new_tor_ip():
+    with socket.create_connection(("127.0.0.1", 9051)) as s:
+        s.sendall(b'AUTHENTICATE ""\r\n')
+        response = s.recv(1024).decode()
+        if "250" not in response:
+            raise Exception("Tor authentication failed")
+        s.sendall(b'SIGNAL NEWNYM\r\n')
+        response = s.recv(1024).decode()
+        if "250" not in response:
+            raise Exception("Failed to request new identity")
 
 
 def get_tor_ip():
@@ -56,8 +69,17 @@ def fetch_html():
     if 'vidmoly' in redirect_link:
         headers['Referer'] = 'https://vidmoly.to'
 
+    def fetch():
+        return requests.get(redirect_link, headers=headers, allow_redirects=True, timeout=10, proxies=get_proxy())
+
     try:
-        response = requests.get(redirect_link, headers=headers, allow_redirects=True, timeout=10, proxies=get_proxy())
+        response = fetch()
+        if 'Just a moment...' in response.text:
+            raise ValueError("Captcha")
+        return response.text
+    except ValueError:
+        request_new_tor_ip()
+        response = fetch()
         return response.text
     except requests.RequestException as e:
         return str(e), 500

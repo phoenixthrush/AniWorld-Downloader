@@ -47,6 +47,16 @@ body {
     font-family: monospace;
 }
 
+.stream {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100svh;
+    width: 100svw;
+    z-index: 2;
+    display: none;
+}
+
 #copyright {
     position: absolute;
     bottom: 0;

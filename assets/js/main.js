@@ -241,6 +241,8 @@ async function extractData(html, url, outputElement) {
                     const result = getDirectLinkFromSpeedFilesFromHtml(embedded_url_html)
                     console.log("Decoded SpeedFiles Link:", result)
                     outputElement.textContent += `SpeedFiles Video Source:\t${result}\n`;
+                    document.getElementById("stream").src = result;
+                    document.querySelector(".stream").style.display = "block";
                 } catch (error) {
                     console.error("Error decoding SpeedFiles link:", error)
                 }
@@ -391,3 +393,12 @@ const observer = new MutationObserver(() => {
 });
 
 observer.observe(outputElement, { childList: true, subtree: true });
+
+document.getElementById("stream").addEventListener("playing", function () {
+    this.style.position = "absolute";
+    this.style.width = "80svw";
+    this.style.height = "80svh";
+    this.style.top = "50%";
+    this.style.left = "50%";
+    this.style.transform = "translate(-50%, -50%)";
+});

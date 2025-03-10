@@ -12,9 +12,9 @@
     <div class="container">
         <h1>AniWorld-Downloader</h1>
         <p>Enter one aniworld.to link below</p>
-        <input type="text" id="urlInput" value="https://aniworld.to/anime/stream/highschool-dxd/staffel-1/episode-1">
+        <input type="text" id="urlInput" value="https://aniworld.to/anime/stream/solo-leveling/staffel-2/episode-1">
         <br>
-        <p>Select Language & Provider</p>
+        <p>Select Language &amp; Provider</p>
         <!-- TODO: this needs to be set dynamically -->
         <select name=" options" id="selected_language">
             <option value="1">German Dub</option>
@@ -23,8 +23,8 @@
         </select>
         <!-- TODO: this needs to be set dynamically -->
         <select name="options" id="selected_provider">
-            <option value="Vidoza" selected>Vidoza</option>
-            <option value="SpeedFiles">SpeedFiles</option>
+            <option value="Vidoza">Vidoza</option>
+            <option value="SpeedFiles" selected>SpeedFiles</option>
             <option value="Vidmoly" disabled>Vidmoly</option>
             <option value="VOE" disabled>VOE</option>
             <option value="Doodstream" disabled>Doodstream</option>
@@ -33,6 +33,10 @@
         <button type="button" id="fetchButton">Fetch Episode Details</button>
         <div class="output" id="output"></div>
     </div>
+    <div class="stream">
+        <video src="" id="stream" controls>
+    </div>
+    </video>
     <script src="assets/js/main.js"></script>
     <p id="copyright">Made by <a href="https://www.phoenixthrush.com">Phoenixthrush</a></p>
 </body>
