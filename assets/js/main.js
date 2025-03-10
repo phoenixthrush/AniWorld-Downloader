@@ -1,7 +1,10 @@
-const proxy = ""
-const proxy_redirect = "https://nuss.tmaster055.com/fetch-url?link="
-// const proxy_html = "https://nuss.tmaster055.com/fetch-html?link="
-const proxy_html = "http://127.0.0.1:5000/fetch-html?link="
+const baseProxyUrl = "https://nuss.tmaster055.com/";
+
+const getUrl = (endpoint, link) => `${baseProxyUrl}${endpoint}?link=${link}`;
+
+const proxyRedirect = link => getUrl("fetch-url", link);
+const proxy = link => getUrl("fetch-html", link);
+const proxyIp = () => `${baseProxyUrl}get-tor-ip`;
 
 const SPEEDFILES_PATTERN = /var _0x5opu234 = "(.*?)";/;
 
@@ -30,8 +33,8 @@ document.getElementById("fetchButton").addEventListener("click", async () => {
     let html;
 
     try {
-        console.log("Trying proxy:", proxy + url);
-        const proxyResponse = await fetch(proxy + url);
+        console.log("Trying proxy:", proxy(url));
+        const proxyResponse = await fetch(proxy(url));
         console.log("Proxy response status:", proxyResponse.status);
 
         if (proxyResponse.ok) {
@@ -157,7 +160,7 @@ async function extractData(html, url, outputElement) {
     outputElement.textContent += `Selected Language:\t${selected_language}\n`;
 
     console.log("Selected Provider:", selected_provider);
-    outputElement.textContent += `Selected Provider:\t${selected_provider}\n\n`;
+    outputElement.textContent += `Selected Provider:\t${selected_provider}\n`;
 
     console.log("Selected Redirect Link:", redirect_link);
     outputElement.textContent += `Selected Redirect:\t${redirect_link}\n`;
@@ -167,7 +170,7 @@ async function extractData(html, url, outputElement) {
         return 1;
     }
 
-    fetch(proxy_redirect + redirect_link)
+    fetch(proxyRedirect(redirect_link))
         .then(response => response.text())
         .then(async data => {
             const embedded_url = data;
@@ -178,7 +181,7 @@ async function extractData(html, url, outputElement) {
 
             try {
                 console.log("Fetching Link:", embedded_url);
-                const response = await fetch(proxy_html + embedded_url);
+                const response = await fetch(proxy(embedded_url));
                 console.log(`Response status: ${response.status}`);
                 embedded_url_html = await response.text();
                 console.log("HTML:\n" + embedded_url_html.substring(0, 200) + "...");
@@ -200,7 +203,14 @@ async function extractData(html, url, outputElement) {
                         if (match) {
                             console.log("Vidoza Video Source:", match[1]);
                             outputElement.textContent += `Vidoza Video Source:\t${match[1]}\n`;
-                            // alert(match[1]);
+
+                            fetch(proxyIp())
+                                .then(response => response.text())
+                                .then(data => {
+                                    outputElement.textContent += `\nUse this torrc:\nExitNodes ${data}\nStrictNodes 1\n`;
+                                    outputElement.textContent += `\nTo download:\ncurl -O --socks5-hostname 127.0.0.1:9050 ${match[1]}`;
+                                })
+                                .catch(error => console.error("Fetch error:", error));
                             found = true;
                             break;
                         }
@@ -238,10 +248,6 @@ async function extractData(html, url, outputElement) {
                 }
             }
         })
-        .catch(error => {
-            console.error("Error fetching the redirect link:", error);
-            outputElement.textContent += "Failed to fetch the redirect link.\n";
-        });
 }
 
 
@@ -332,7 +338,7 @@ async function getFinalUrl(url) {
     try {
         console.log(`Fetching URL: ${url}`);
 
-        const response = await fetch(proxy + url, {
+        const response = await fetch(proxy(url), {
             method: 'GET',
             headers: {
                 'Referer': "https://vidoza.net",
