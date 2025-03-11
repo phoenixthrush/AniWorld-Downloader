@@ -238,15 +238,20 @@ async function extractData(html, url, outputElement) {
                 console.log("Processing SpeedFiles provider...")
                 outputElement.textContent += `\nProcessing SpeedFiles provider...\n`
                 try {
-                    const result = getDirectLinkFromSpeedFilesFromHtml(embedded_url_html)
-                    console.log("Decoded SpeedFiles Link:", result)
+                    const result = getDirectLinkFromSpeedFilesFromHtml(embedded_url_html);
+                    console.log("Decoded SpeedFiles Link:", result);
                     outputElement.textContent += `SpeedFiles Video Source:\t${result}\n`;
-                    document.querySelector('.video-mini').style.display = 'block';
-                    document.querySelectorAll('.video-mini, #video').forEach(video => {
-                        video.src = result;
-                    });
+                    const videoElement = document.querySelector('#miniVideo');
+                    if (videoElement) {
+                        document.querySelector('.video-mini').style.display = 'block';
+                        videoElement.src = result;
+                    }
+                    const otherElement = document.querySelector('#video');
+                    if (otherElement) {
+                        otherElement.src = result;
+                    }
                 } catch (error) {
-                    console.error("Error decoding SpeedFiles link:", error)
+                    console.error("Error decoding SpeedFiles link:", error);
                 }
             }
         })
