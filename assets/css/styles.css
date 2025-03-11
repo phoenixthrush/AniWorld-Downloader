@@ -98,7 +98,8 @@ body {
     bottom: 0;
     padding: 20px;
     margin: 20px;
-    background-color: #fff;
+    background-color: rgba(0, 0, 0, 0);
+    color: white;
     border: none;
     cursor: pointer;
     font-size: 16px;

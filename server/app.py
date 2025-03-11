@@ -76,6 +76,9 @@ def fetch_html():
         response = fetch()
         if 'Just a moment...' in response.text:
             raise ValueError("Captcha")
+
+        if '500 Internal Server Error' in response.text:
+            raise ValueError("500 Internal Server Error")
         return response.text
     except ValueError:
         request_new_tor_ip()
