@@ -788,7 +788,7 @@ def main():
 
         if args.episode:
             for episode_url in args.episode:
-                slug = episode_url.split('/')[-1]
+                slug = episode_url.split('/')[5]
                 execute_with_params(args, selected_episodes, anime_title, language, anime_slug=slug)
             logging.debug("Execution complete. Exiting.")
             sys.exit()
