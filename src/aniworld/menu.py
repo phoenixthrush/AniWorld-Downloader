@@ -1,5 +1,6 @@
 import os
 import npyscreen
+import curses
 from aniworld.models import Anime, Episode
 from aniworld.config import (
     VERSION,
@@ -213,9 +214,10 @@ def menu(arguments, slug):
         app = SelectionMenu(slug=slug)
         app.run()
         anime = app.get_selected_values()
-
+        curses.endwin()
         return anime
     except KeyboardInterrupt:
+        curses.endwin()
         pass
 
 
