@@ -18,7 +18,7 @@ def get_direct_link_from_voe(embeded_voe_link: str) -> str:
         timeout=DEFAULT_REQUEST_TIMEOUT
     )
 
-    redirect_match = REDIRECT_PATTERN.search(str(response.content))
+    redirect_match = REDIRECT_PATTERN.search(str(response.text))
     if not redirect_match:
         raise ValueError("No redirect link found.")
 
