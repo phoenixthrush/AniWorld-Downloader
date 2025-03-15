@@ -723,11 +723,92 @@ class Serie:
         return self.to_json()
 
 
+class SerieEpisode:
+    def __init__(
+        self,
+        series_title=None,
+        title_german=None,
+        title_english=None,
+        season=None,
+        episode=None,
+        slug=None,
+        link=None,
+        redirect_link=None,
+        embeded_link=None,
+        direct_link=None,
+        provider=None,
+        provider_name=None,
+        language=None,
+        language_name=None,
+        season_episode_count=None,
+        has_movies=False,
+        movie_episode_count=None,
+        html=None,
+        selected_provider=None,
+        selected_language=None
+    ):
+        if not link and (not slug or season is None or episode is None):
+            raise ValueError("Provide either 'link' or 'slug' with 'season' and 'episode'.")
+
+        self.series_title = series_title
+        self.title_german = title_german
+        self.title_english = title_english
+        self.season = season
+        self.episode = episode
+        self.slug = slug
+        self.link = link
+        self.redirect_link = redirect_link
+        self.embeded_link = embeded_link
+        self.direct_link = direct_link
+        self.provider = provider
+        self.provider_name = provider_name
+        self.language = language
+        self.language_name = language_name
+        self.season_episode_count = season_episode_count
+        self.has_movies = has_movies
+        self.movie_episode_count = movie_episode_count
+        self.html = html
+        self.selected_provider = selected_provider
+        self.selected_language = selected_language
+
+    def to_json(self):
+        data = {
+            "series_title": self.series_title,
+            "title_german": self.title_german,
+            "title_english": self.title_english,
+            "season": self.season,
+            "episode": self.episode,
+            "slug": self.slug,
+            "link": self.link,
+            "redirect_link": self.redirect_link,
+            "embeded_link": self.embeded_link,
+            "direct_link": self.direct_link,
+            "provider": self.provider,
+            "provider_name": self.provider_name,
+            "language": self.language,
+            "language_name": self.language_name,
+            "season_episode_count": self.season_episode_count,
+            "has_movies": self.has_movies,
+            "movie_episode_count": self.movie_episode_count,
+            "html": str(self.html) if self.html else None,
+        }
+        return json.dumps(data, indent=4, ensure_ascii=False)
+
+    def __str__(self):
+        return self.to_json()
+
+
 if __name__ == "__main__":
-    serie = Serie(
-        episode_list=[
-            {"slug": "fantasy-island", "season": 1, "episode": 1},
-        ]
+    # serie = Serie(
+    #    episode_list=[
+    #        {"slug": "fantasy-island", "season": 1, "episode": 1},
+    #    ]
+    # )
+
+    episode = SerieEpisode(
+        slug="fantasy-island",
+        season=1,
+        episode=1
     )
 
-    print(serie)
+    print(episode)
