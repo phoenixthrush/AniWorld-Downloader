@@ -103,7 +103,10 @@ def find_program(program_name: str, fallback_path: str) -> str:
     return fallback_program_path
 
 
-MPV_PATH = find_program("mpv", DEFAULT_APPDATA_PATH)
+MPV_PATH = (
+    os.path.join(DEFAULT_APPDATA_PATH) if os.path.isfile(DEFAULT_APPDATA_PATH) else
+    os.path.join(os.getenv('APPDATA', ''), "aniworld", "mpv", "mpv.exe") if os.path.isfile(os.path.join(os.getenv('APPDATA', ''), "AniWorld", "mpv", "mpv.exe")) else None
+)
 
 SYNCPLAY_PATH = find_program("syncplay", DEFAULT_APPDATA_PATH)
 if platform.system() == "Windows" and not SYNCPLAY_PATH:
