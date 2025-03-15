@@ -105,12 +105,13 @@ def find_program(program_name: str, fallback_path: str) -> str:
 
 MPV_PATH = (
     os.path.join(DEFAULT_APPDATA_PATH) if os.path.isfile(DEFAULT_APPDATA_PATH) else
-    os.path.join(os.getenv('APPDATA', ''), "aniworld", "mpv", "mpv.exe") if os.path.isfile(os.path.join(os.getenv('APPDATA', ''), "AniWorld", "mpv", "mpv.exe")) else None
+    os.path.join(os.getenv('APPDATA', ''), "aniworld", "mpv", "mpv.exe") if os.path.isfile(os.path.join(os.getenv('APPDATA', ''), "aniworld", "mpv", "mpv.exe")) else None
 )
 
-SYNCPLAY_PATH = find_program("syncplay", DEFAULT_APPDATA_PATH)
-if platform.system() == "Windows" and not SYNCPLAY_PATH:
-    SYNCPLAY_PATH = find_program("SyncplayConsole", DEFAULT_APPDATA_PATH)
+SYNCPLAY_PATH = (
+    os.path.join(DEFAULT_APPDATA_PATH) if os.path.isfile(DEFAULT_APPDATA_PATH) else
+    os.path.join(os.getenv('APPDATA', ''), "aniworld", "syncplay", "SyncplayConsole.exe") if os.path.isfile(os.path.join(os.getenv('APPDATA', ''), "aniworld", "syncplay", "SyncplayConsole.exe")) else None
+)
 
 YTDLP_PATH = find_program("yt-dlp", DEFAULT_APPDATA_PATH)
 
