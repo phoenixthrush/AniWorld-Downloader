@@ -3,13 +3,14 @@ import re
 import subprocess
 
 from aniworld.models import Anime
-from aniworld.config import DEFAULT_DOWNLOAD_PATH, PROVIDER_HEADERS
+from aniworld.config import DEFAULT_DOWNLOAD_PATH, PROVIDER_HEADERS, INVALID_PATH_CHARS
 
 
 def download(anime: Anime):
     for episode in anime:
-        output_file = f"{anime.title} - S{episode.season}E{episode.episode} - ({anime.language}).mp4"
-        output_path = os.path.join(DEFAULT_DOWNLOAD_PATH, anime.title, output_file)
+        sanitized_anime_title = ''.join(char for char in anime.title if char not in INVALID_PATH_CHARS)
+        output_file = f"{sanitized_anime_title} - S{episode.season}E{episode.episode} - ({anime.language}).mp4"
+        output_path = os.path.join(DEFAULT_DOWNLOAD_PATH, sanitized_anime_title, output_file)
 
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
 

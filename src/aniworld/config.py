@@ -34,6 +34,8 @@ SUPPORTED_PROVIDERS = [
     "VOE", "Doodstream", "Luluvdo", "Vidmoly", "Vidoza", "SpeedFiles", "Streamtape"
 ]  # Not supported: "Filemoon"
 
+# https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file
+INVALID_PATH_CHARS = ['<', '>', ':', '"', '/', '\\', '|', '?', '*', '&']
 
 DEFAULT_ACTION = "Download"             # E.g. Watch, Download, Syncplay
 DEFAULT_DOWNLOAD_PATH = pathlib.Path.home() / "Downloads"
