@@ -40,7 +40,9 @@ def syncplay(anime: Anime):
             subprocess.run(command, check=True)
         except subprocess.CalledProcessError:
             print(
-                f"Error running command: {' '.join(str(item) if item is not None else '' for item in command)}")
+                "Error running command:\n"
+                f"{' '.join(str(item) if item is not None else '' for item in command)}"
+            )
 
 
 def download_syncplay(dep_path: str = None, appdata_path: str = None):
@@ -69,8 +71,9 @@ def download_syncplay(dep_path: str = None, appdata_path: str = None):
 
     if not os.path.exists(executable_path):
         print("Downloading Syncplay...")
-        r = requests.get(direct_link, allow_redirects=True)
-        open(zip_path, 'wb').write(r.content)
+        r = requests.get(direct_link, allow_redirects=True, timeout=15)
+        with open(zip_path, 'wb') as file:
+            file.write(r.content)
 
     logging.debug("Extracting Syncplay to %s", dep_path)
     try:
@@ -83,8 +86,8 @@ def download_syncplay(dep_path: str = None, appdata_path: str = None):
         logging.error("Failed to extract files: %s", e)
     except FileNotFoundError:
         logging.error("7zr.exe not found at the specified path.")
-    except Exception as e:
-        logging.error("An unexpected error occurred: %s", e)
+    except subprocess.SubprocessError as e:
+        logging.error("An error occurred: %s", e)
 
 
 # import from common.py in future
@@ -92,10 +95,13 @@ def get_github_release(repo: str) -> dict:
     api_url = f"https://api.github.com/repos/{repo}/releases/latest"
 
     try:
-        response = requests.get(api_url)
+        response = requests.get(api_url, timeout=15)
         response.raise_for_status()
         release_data = response.json()
-        return {asset['name']: asset['browser_download_url'] for asset in release_data.get('assets', [])}
+        return {
+            asset['name']: asset['browser_download_url']
+            for asset in release_data.get('assets', [])
+        }
     except (json.JSONDecodeError, requests.RequestException) as e:
         logging.error("Failed to fetch release data from GitHub: %s", e)
     return {}

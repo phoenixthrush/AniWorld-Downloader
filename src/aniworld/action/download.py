@@ -11,7 +11,11 @@ def download(anime: Anime):
         sanitized_anime_title = ''.join(
             char for char in anime.title if char not in INVALID_PATH_CHARS
         )
-        output_file = f"{sanitized_anime_title} - S{episode.season}E{episode.episode} - ({anime.language}).mp4"
+        output_file = (
+            f"{sanitized_anime_title} - "
+            f"S{episode.season}E{episode.episode} - "
+            f"({anime.language}).mp4"
+        )
         output_path = os.path.join(
             DEFAULT_DOWNLOAD_PATH, sanitized_anime_title, output_file
         )
@@ -37,7 +41,8 @@ def download(anime: Anime):
             subprocess.run(command, check=True)
         except subprocess.CalledProcessError:
             print(
-                f"Error running command: {' '.join(str(item) if item is not None else '' for item in command)}"
+                "Error running command:\n"
+                f"{' '.join(str(item) if item is not None else '' for item in command)}"
             )
         except KeyboardInterrupt:
             # directory containing the output_path
