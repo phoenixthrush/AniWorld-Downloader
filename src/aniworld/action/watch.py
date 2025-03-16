@@ -18,13 +18,13 @@ def watch(anime: Anime):
     for episode in anime:
         if episode.has_movies and episode.season not in list(episode.season_episode_count.keys()):
             mpv_title = (
-            f"{anime.title} - Movie {episode.episode} - "
-            f"{episode.title_german}"
+                f"{anime.title} - Movie {episode.episode} - "
+                f"{episode.title_german}"
             )
         else:
             mpv_title = (
-            f"{anime.title} - S{episode.season}E{episode.episode} - "
-            f"{episode.title_german}"
+                f"{anime.title} - S{episode.season}E{episode.episode} - "
+                f"{episode.title_german}"
             )
 
         command = [
@@ -76,7 +76,7 @@ def download_mpv(dep_path: str = None, appdata_path: str = None):
     direct_links = get_github_release("shinchiro/mpv-winbuild-cmake")
     avx2_supported = check_avx2_support()
     pattern = (
-        r'mpv-x86_64-v3-\d{8}-git-[a-f0-9]{7}\.7z' 
+        r'mpv-x86_64-v3-\d{8}-git-[a-f0-9]{7}\.7z'
         if avx2_supported
         else r'mpv-x86_64-\d{8}-git-[a-f0-9]{7}\.7z'
     )
@@ -87,19 +87,22 @@ def download_mpv(dep_path: str = None, appdata_path: str = None):
     )
 
     if not direct_link:
-        logging.error("No suitable MPV download link found. Please download manually.")
+        logging.error(
+            "No suitable MPV download link found. Please download manually.")
         return
 
     if not os.path.exists(zip_tool):
         print("Downloading 7z...")
-        r = requests.get('https://7-zip.org/a/7zr.exe', allow_redirects=True, timeout=15)
+        r = requests.get('https://7-zip.org/a/7zr.exe',
+                         allow_redirects=True, timeout=15)
         with open(zip_tool, 'wb') as f:
             f.write(r.content)
 
     if not os.path.exists(zip_path):
         logging.debug("Downloading MPV from %s to %s", direct_link, zip_path)
         try:
-            print(f"Downloading MPV ({'without' if not avx2_supported else 'with'} AVX2)...")
+            print(
+                f"Downloading MPV ({'without' if not avx2_supported else 'with'} AVX2)...")
             print(direct_link)
             with requests.get(direct_link, allow_redirects=True, timeout=15) as r:
                 r.raise_for_status()
@@ -112,7 +115,7 @@ def download_mpv(dep_path: str = None, appdata_path: str = None):
     logging.debug("Extracting MPV to %s", dep_path)
     try:
         subprocess.run([zip_tool, "x", zip_path], check=True, cwd=dep_path)
-    except (subprocess.CalledProcessError, FileNotFoundError, OSError, 
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError,
             subprocess.SubprocessError) as e:
         logging.error("Failed to extract files: %s", e)
 

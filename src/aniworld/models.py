@@ -25,14 +25,10 @@ from aniworld.extractors import (
 )
 
 
-def get_anime_title_from_html(html: requests.models.Response) -> str:
-    soup = BeautifulSoup(html.content, 'html.parser')
-    title_div = soup.find('div', class_='series-title')
-
-    if title_div:
-        return title_div.find('h1').find('span').text
-
-    return ""
+# Implement lazy loading for the Anime and Episode class.
+# Initialize variables with None.
+# When a variable is accessed, fetch and store its value automatically,
+# so it doesn't need to be fetched again on subsequent accesses.
 
 
 class Anime:
@@ -54,8 +50,8 @@ class Anime:
         episode_list (list): A list of Episode objects for the anime.
 
     Attributes:
-        title (str): The title of the anime. Fetched lazily from the anime's webpage if not provided.
-        slug (str): A URL-friendly version of the title used for web requests. Set to the slug of the first episode if not provided.
+        title (str): The title of the anime.
+        slug (str): A URL-friendly version of the title used for web requests.
         action (str): The default action to be performed. Must be one of "Download", "Watch", or "Syncplay". 
                       Defaults to "Watch" if not provided.
         provider (str): The provider of the anime content. Defaults to:
@@ -68,9 +64,9 @@ class Anime:
         only_direct_link (bool): If True, only direct links are fetched (default is False).
         output_directory (str): The directory where downloads are saved. Defaults to the user's home "Downloads" directory.
         episode_list (list): A list of Episode objects for the anime.
-        description_german (str): The German description of the anime. Fetched lazily from the anime's webpage if not provided.
-        description_english (str): The English description of the anime. Fetched lazily from MyAnimeList if not provided.
-        html (requests.models.Response): The HTML response object for the anime's webpage. Fetched lazily if not provided.
+        description_german (str): The German description of the anime.
+        description_english (str): The English description of the anime.
+        html (requests.models.Response): The HTML response object for the anime's webpage.
     """
 
     def __init__(
@@ -96,7 +92,12 @@ class Anime:
         if not self.slug:
             raise ValueError("Slug of Anime is None.")
 
-        self.title = title or self._fetch_title()
+        self.html = html or requests.get(
+            f"https://aniworld.to/anime/stream/{self.slug}",
+            timeout=DEFAULT_REQUEST_TIMEOUT
+        )
+
+        self.title = title or get_anime_title_from_html(self.html)
         self.action = action
         self.provider = provider or (
             DEFAULT_PROVIDER_DOWNLOAD if action == "Download" else DEFAULT_PROVIDER_WATCH
@@ -111,19 +112,9 @@ class Anime:
 
         self.description_german = description_german or self._fetch_description_german()
         self.description_english = description_english or self._fetch_description_english()
-        self.html = html or self._fetch_html()
-
-    def _fetch_html(self):
-        return requests.get(
-            f"https://aniworld.to/anime/stream/{self.slug}",
-            timeout=DEFAULT_REQUEST_TIMEOUT
-        )
-
-    def _fetch_title(self):
-        return get_anime_title_from_html(self._fetch_html())
 
     def _fetch_description_german(self):
-        soup = BeautifulSoup(self._fetch_html().content, 'html.parser')
+        soup = BeautifulSoup(self.html.content, 'html.parser')
         desc_div = soup.find('p', class_='seri_des')
         return (
             desc_div.get('data-full-description', '')
@@ -131,7 +122,7 @@ class Anime:
         )
 
     def _fetch_description_english(self):
-        anime_id = get_mal_id_from_title(self._fetch_title(), 1)
+        anime_id = get_mal_id_from_title(self.title, 1)
         response = requests.get(
             f"https://myanimelist.net/anime/{anime_id}",
             timeout=DEFAULT_REQUEST_TIMEOUT
@@ -169,12 +160,6 @@ class Anime:
     def __str__(self):
         return self.to_json()
 
-
-# Please someone help me with this
-# I want to add lazy loading like its in the Anime class
-# Variables should be initialized with None.
-# When you access a variable, it should automatically fetch the value and store it in the background
-# and keep it for the rest of its lifetime without calling any functions explicitly.
 
 class Episode:
     """
@@ -222,7 +207,6 @@ class Episode:
         season: int = None,
         episode: int = None,
         slug: str = None,
-        # slug_link: str = None,
         link: str = None,
         mal_id: int = None,
         redirect_link: str = None,
@@ -249,7 +233,6 @@ class Episode:
         self.season: int = season
         self.episode: int = episode
         self.slug: str = slug
-        # self.slug_link: str = slug_link
         self.link: str = link
         self.mal_id: int = mal_id
         self.redirect_link = redirect_link
@@ -413,9 +396,6 @@ class Episode:
         return languages
 
     def _get_direct_link_from_provider(self) -> str:
-        # if not self._selected_provider:
-        #    raise ValueError(self._selected_provider)
-        #    # return get_direct_link_from_voe(embeded_voe_link=self.embeded_link)
         if self._selected_provider == "Vidmoly":
             return get_direct_link_from_vidmoly(embeded_vidmoly_link=self.embeded_link)
         if self._selected_provider == "Vidoza":
@@ -477,7 +457,6 @@ class Episode:
         return max(movie_indices) if movie_indices else 0
 
     def get_redirect_link(self):
-        # print(f"Selected language: {self._selected_language}")
         lang_key = self._get_key_from_language(self._selected_language)
 
         if self._selected_provider not in self.provider or lang_key not in self.provider[self._selected_provider]:
@@ -534,12 +513,6 @@ class Episode:
         return self.direct_link
 
     def auto_fill_details(self) -> None:
-        # self.season = self._get_season_from_link()
-        # self.episode = self._get_episode_from_link()
-
-        # self.season = self.season or 1
-        # self.episode = self.episode or 1
-
         if self.slug and self.season and self.episode:
             self.link = (
                 f"https://aniworld.to/anime/stream/{self.slug}/"
@@ -548,9 +521,11 @@ class Episode:
 
         if self.link:
             self.slug = self.slug or self.link.split("/")[-3]
+            self.season = self.season or self._get_season_from_link()
+            self.episode = self.episode or self._get_episode_from_link()
 
-        # self.slug_link = f"https://aniworld.to/anime/stream/{self.slug}"
         self.html = requests.get(self.link, timeout=DEFAULT_REQUEST_TIMEOUT)
+        self.anime_title = get_anime_title_from_html(html=self.html)
         self.title_german, self.title_english = self._get_episode_title_from_html()
         self.language = self._get_available_language_from_html()
         self.language_name = self._get_languages_from_keys(self.language)
@@ -563,49 +538,6 @@ class Episode:
         last_season = list(self.season_episode_count.keys())[-1]
         if self.season_episode_count[last_season] == 0:
             del self.season_episode_count[last_season]
-
-        """
-        # now set last season which is movies to correct episode count
-        if self.season_episode_count[last_season] == 0:
-            self.season_episode_count[last_season] = self.movie_episode_count
-
-        self.anime_title = get_anime_title_from_html(html=self.html)
-        self.mal_id = get_mal_id_from_title(title=self.anime_title, season=self.season)
-        """
-
-        """
-        if not self.arguments:
-            selected_provider = DEFAULT_PROVIDER_DOWNLOAD
-            selected_language = DEFAULT_LANGUAGE
-        else:
-            selected_language = self.arguments.language
-
-            if self.arguments.provider:
-                selected_provider = self.arguments.provider
-            else:
-                if self.arguments.action == "Download":
-                    selected_provider = DEFAULT_PROVIDER_DOWNLOAD
-                else:
-                    selected_provider = DEFAULT_PROVIDER_WATCH
-        """
-
-        # print(selected_provider)
-        # print(selected_language)
-
-        # TODO - fix "KeyError None" crash
-        # if not selected_provider in self.provider_name:
-        #    raise ValueError(f"Invalid provider: {selected_provider}. Available providers: {list(self.provider_name)}")
-
-        # Those three depend on the Anime Class and should be asigned
-        # from self._selected_provider and self._selected_language
-
-        # TODO - self.redirect_link = self.provider[self._selected_provider][self._get_key_from_language(self._selected_language)]
-        # self.redirect_link = self.provider["VOE"][3]
-        # TODO - self.embeded_link = requests.get(self.redirect_link, timeout=DEFAULT_REQUEST_TIMEOUT).url
-
-        # TODO - Fix Vidmoly Timeout
-        # TODO - self.direct_link = self._get_direct_link_from_provider()
-        # print(self.direct_link)
 
     def to_json(self) -> str:
         data = {
@@ -634,179 +566,35 @@ class Episode:
         return self.to_json()
 
 
-class Serie:
-    def __init__(
-        self,
-        title=None,
-        slug=None,
-        action=DEFAULT_ACTION,
-        provider="VOE",
-        language="German Dub",
-        only_command=False,
-        only_direct_link=False,
-        output_directory=pathlib.Path.home() / "Downloads",
-        episode_list=None,
-        description=None,
-        html=None,
-    ) -> None:
-        if not episode_list:
-            raise ValueError("Provide 'episode_list'.")
+def get_anime_title_from_html(html: requests.models.Response):
+    soup = BeautifulSoup(html.content, 'html.parser')
+    title_div = soup.find('div', class_='series-title')
 
-        self.slug = slug or episode_list[0].get("slug")
-        if not self.slug:
-            raise ValueError("Slug of series is None.")
+    if title_div:
+        return title_div.find('h1').find('span').text
 
-        self.html = requests.get(
-            f"https://s.to/serie/stream/{self.slug}",
-            timeout=DEFAULT_REQUEST_TIMEOUT,
-        )
-
-        self.title = self._get_title()
-        self.action = action
-        self.provider = provider or (
-            DEFAULT_PROVIDER_DOWNLOAD if action == "Download" else DEFAULT_PROVIDER_WATCH
-        )
-        self.language = language or DEFAULT_LANGUAGE
-        self.only_command = only_command
-        self.only_direct_link = only_direct_link
-        self.output_directory = output_directory
-        self.episode_list = episode_list
-        self.description = self._fetch_description()
-
-    def _get_title(self):
-        soup = BeautifulSoup(self.html.content, 'html.parser')
-        title_div = soup.find('div', class_='series-title')
-
-        if title_div:
-            return title_div.find('h1').find('span').text
-
-        return "Unknown Title"
-
-    def _fetch_description(self):
-        soup = BeautifulSoup(self.html.content, "html.parser")
-        desc_div = soup.find("p", class_="seri_des")
-
-        if not desc_div:
-            return "Could not fetch description."
-
-        description = desc_div.get(
-            "data-full-description", "No description available.")
-
-        return description
-
-    def __iter__(self):
-        return iter(self.episode_list)
-
-    def __getitem__(self, index: int):
-        return self.episode_list[index]
-
-    def to_json(self) -> str:
-        data = {
-            "title": self.title,
-            "slug": self.slug,
-            "action": self.action,
-            "provider": self.provider,
-            "language": self.language,
-            "only_command": self.only_command,
-            "only_direct_link": self.only_direct_link,
-            "output_directory": str(self.output_directory),
-            "episode_list": self.episode_list,
-            "description": self.description,
-        }
-
-        return json.dumps(data, indent=4, ensure_ascii=False)
-
-    def __str__(self):
-        return self.to_json()
-
-
-class SerieEpisode:
-    def __init__(
-        self,
-        series_title=None,
-        title_german=None,
-        title_english=None,
-        season=None,
-        episode=None,
-        slug=None,
-        link=None,
-        redirect_link=None,
-        embeded_link=None,
-        direct_link=None,
-        provider=None,
-        provider_name=None,
-        language=None,
-        language_name=None,
-        season_episode_count=None,
-        has_movies=False,
-        movie_episode_count=None,
-        html=None,
-        selected_provider=None,
-        selected_language=None
-    ):
-        if not link and (not slug or season is None or episode is None):
-            raise ValueError(
-                "Provide either 'link' or 'slug' with 'season' and 'episode'.")
-
-        self.series_title = series_title
-        self.title_german = title_german
-        self.title_english = title_english
-        self.season = season
-        self.episode = episode
-        self.slug = slug
-        self.link = link
-        self.redirect_link = redirect_link
-        self.embeded_link = embeded_link
-        self.direct_link = direct_link
-        self.provider = provider
-        self.provider_name = provider_name
-        self.language = language
-        self.language_name = language_name
-        self.season_episode_count = season_episode_count
-        self.has_movies = has_movies
-        self.movie_episode_count = movie_episode_count
-        self.html = html
-        self.selected_provider = selected_provider
-        self.selected_language = selected_language
-
-    def to_json(self):
-        data = {
-            "series_title": self.series_title,
-            "title_german": self.title_german,
-            "title_english": self.title_english,
-            "season": self.season,
-            "episode": self.episode,
-            "slug": self.slug,
-            "link": self.link,
-            "redirect_link": self.redirect_link,
-            "embeded_link": self.embeded_link,
-            "direct_link": self.direct_link,
-            "provider": self.provider,
-            "provider_name": self.provider_name,
-            "language": self.language,
-            "language_name": self.language_name,
-            "season_episode_count": self.season_episode_count,
-            "has_movies": self.has_movies,
-            "movie_episode_count": self.movie_episode_count,
-            "html": str(self.html) if self.html else None,
-        }
-        return json.dumps(data, indent=4, ensure_ascii=False)
-
-    def __str__(self):
-        return self.to_json()
+    return ""
 
 
 if __name__ == "__main__":
-    # serie = Serie(
-    #    episode_list=[
-    #        {"slug": "fantasy-island", "season": 1, "episode": 1},
-    #    ]
-    # )
+    # Create an Anime object with a list of Episode objects
+    """
+    anime = Anime(
+        episode_list=[
+            Episode(
+                slug="food-wars-shokugeki-no-sma",
+                season=1,
+                episode=5
+            ),
+            Episode(
+                link="https://aniworld.to/anime/stream/food-wars-shokugeki-no-sma/staffel-1/episode-6"
+            )
+        ]
+    )
+    """
 
-    episode = SerieEpisode(
-        slug="fantasy-island",
-        season=1,
-        episode=1
+    episode = Episode(
+        link="https://aniworld.to/anime/stream/food-wars-shokugeki-no-sma/staffel-1/episode-6"
     )
 
-    print(episode)
+    print(episode.anime_title)
