@@ -1,8 +1,9 @@
 import re
 import logging
-import json
 import tempfile
 from typing import Dict
+import os
+import shutil
 
 import requests
 from bs4 import BeautifulSoup
@@ -50,7 +51,8 @@ def get_mal_id_from_title(title: str, season: int) -> int:
     logging.debug("Response status code: %d", response.status_code)
 
     if response.status_code != 200:
-        logging.error("Failed to fetch MyAnimeList data. HTTP Status: %d", response.status_code)
+        logging.error(
+            "Failed to fetch MyAnimeList data. HTTP Status: %d", response.status_code)
         # raise ValueError("Error fetching data from MyAnimeList.")
         return 0
 
@@ -147,16 +149,19 @@ def build_options(metadata: Dict, chapters_file: str) -> str:
         # logging.debug("Chapter name: %s", ch_name)
 
         with open(chapters_file, 'a', encoding='utf-8') as f:
-            f.write(CHAPTER_FORMAT.format(ftoi(st_time), ftoi(ed_time), ch_name))
+            f.write(CHAPTER_FORMAT.format(
+                ftoi(st_time), ftoi(ed_time), ch_name))
             # logging.debug("Wrote chapter to file: %s", chapters_file)
 
-        options.append(OPTION_FORMAT.format(skip_type, st_time, skip_type, ed_time))
+        options.append(OPTION_FORMAT.format(
+            skip_type, st_time, skip_type, ed_time))
         # logging.debug("Options so far: %s", options)
 
     if op_end:
         ep_ed = ed_start if ed_start else op_end
         with open(chapters_file, 'a', encoding='utf-8') as f:
-            f.write(CHAPTER_FORMAT.format(ftoi(op_end), ftoi(ep_ed), "Episode"))
+            f.write(CHAPTER_FORMAT.format(
+                ftoi(op_end), ftoi(ep_ed), "Episode"))
             # logging.debug("Wrote episode chapter to file: %s", chapters_file)
 
     return ",".join(options)
@@ -200,7 +205,8 @@ def build_flags(anime_id: str, episode: int, chapters_file: str) -> str:
 
 def aniskip(title: str, episode: int, season: int) -> str:
     # logging.debug("Running aniskip for anime_title: %s, episode: %d", title, episode)
-    anime_id = get_mal_id_from_title(title, season) if not title.isdigit() else title
+    anime_id = get_mal_id_from_title(
+        title, season) if not title.isdigit() else title
     # logging.debug("Fetched MAL ID: %s", anime_id)
     if not anime_id:
         logging.warning("No MAL ID found.")
@@ -217,5 +223,86 @@ def aniskip(title: str, episode: int, season: int) -> str:
         return ""
 
 
+def get_mpv_scripts_directory():
+    if os.name == 'nt':
+        return os.path.join(os.environ.get('APPDATA', ''), 'mpv', 'scripts')
+
+    return os.path.expanduser('~/.config/mpv/scripts')
+
+
+def copy_file_if_different(source_path, destination_path):
+    if os.path.exists(destination_path):
+        with open(source_path, 'r', encoding="utf-8") as source_file:
+            source_content = source_file.read()
+
+        with open(destination_path, 'r', encoding="utf-8") as destination_file:
+            destination_content = destination_file.read()
+
+        if source_content != destination_content:
+            logging.debug("Content differs, overwriting %s",
+                          os.path.basename(destination_path))
+            shutil.copy(source_path, destination_path)
+        else:
+            logging.debug("%s already exists and is identical, no overwrite needed",
+                          os.path.basename(destination_path))
+    else:
+        logging.debug("Copying %s to %s", os.path.basename(
+            source_path), os.path.dirname(destination_path))
+        shutil.copy(source_path, destination_path)
+
+
+def setup_aniskip():
+    script_directory = os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__)))
+    mpv_scripts_directory = get_mpv_scripts_directory()
+
+    if not os.path.exists(mpv_scripts_directory):
+        os.makedirs(mpv_scripts_directory)
+
+    skip_source_path = os.path.join(
+        script_directory, 'aniskip', 'scripts', 'aniskip.lua')
+    skip_destination_path = os.path.join(mpv_scripts_directory, 'aniskip.lua')
+
+    copy_file_if_different(skip_source_path, skip_destination_path)
+
+
+def setup_autostart():
+    logging.debug("Copying autostart.lua to mpv script directory")
+    script_directory = os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__)))
+    mpv_scripts_directory = get_mpv_scripts_directory()
+
+    if not os.path.exists(mpv_scripts_directory):
+        os.makedirs(mpv_scripts_directory)
+
+    autostart_source_path = os.path.join(
+        script_directory, 'aniskip', 'scripts', 'autostart.lua')
+    autostart_destination_path = os.path.join(
+        mpv_scripts_directory, 'autostart.lua')
+
+    copy_file_if_different(autostart_source_path, autostart_destination_path)
+
+
+def setup_autoexit():
+    logging.debug("Copying autoexit.lua to mpv script directory")
+    script_directory = os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__)))
+    mpv_scripts_directory = get_mpv_scripts_directory()
+
+    if not os.path.exists(mpv_scripts_directory):
+        os.makedirs(mpv_scripts_directory)
+
+    autoexit_source_path = os.path.join(
+        script_directory, 'aniskip', 'scripts', 'autoexit.lua')
+    autoexit_destination_path = os.path.join(
+        mpv_scripts_directory, 'autoexit.lua')
+
+    copy_file_if_different(autoexit_source_path, autoexit_destination_path)
+
+
 if __name__ == '__main__':
+    # setup_aniskip()
+    # setup_autoexit()
+    # setup_autostart()
+
     print(get_mal_id_from_title("Kaguya-sama: Love is War", season=1))

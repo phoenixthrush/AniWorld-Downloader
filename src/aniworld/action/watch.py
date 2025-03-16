@@ -13,6 +13,7 @@ from aniworld.aniskip import aniskip
 from aniworld.models import Anime
 from aniworld.config import MPV_PATH, PROVIDER_HEADERS
 
+
 def watch(anime: Anime):
     for episode in anime:
         if episode.has_movies and episode.season not in list(episode.season_episode_count.keys()):
@@ -32,7 +33,8 @@ def watch(anime: Anime):
         # print(bool(anime.provider in PROVIDER_HEADERS))
 
         if anime.provider in PROVIDER_HEADERS:
-            command.append(f"--http-header-fields={PROVIDER_HEADERS[anime.provider]}")
+            command.append(
+                f"--http-header-fields={PROVIDER_HEADERS[anime.provider]}")
 
         if anime.aniskip:
             build_flags = aniskip(anime.title, episode.episode, episode.season)
@@ -41,13 +43,15 @@ def watch(anime: Anime):
         try:
             subprocess.run(command, check=True)
         except subprocess.CalledProcessError:
-            print(f"Error running command: {' '.join(str(item) if item is not None else '' for item in command)}")
+            print(
+                f"Error running command: {' '.join(str(item) if item is not None else '' for item in command)}")
 
 
-def download_mpv(dep_path: str=None, appdata_path: str=None):
+def download_mpv(dep_path: str = None, appdata_path: str = None):
     if sys.platform == 'win32':
         if appdata_path is None:
-            appdata_path = os.path.join(os.environ['USERPROFILE'], 'AppData', 'Roaming', 'aniworld')
+            appdata_path = os.path.join(
+                os.environ['USERPROFILE'], 'AppData', 'Roaming', 'aniworld')
         if dep_path is None:
             dep_path = os.path.join(appdata_path, "mpv")
             os.makedirs(dep_path, exist_ok=True)
@@ -71,7 +75,8 @@ def download_mpv(dep_path: str=None, appdata_path: str=None):
 
     logging.debug("Downloading MPV using pattern: %s", pattern)
     direct_link = next(
-        (link for name, link in direct_links.items() if re.match(pattern, name)), None
+        (link for name, link in direct_links.items()
+         if re.match(pattern, name)), None
     )
 
     if not direct_link:
@@ -81,16 +86,18 @@ def download_mpv(dep_path: str=None, appdata_path: str=None):
         return
 
     if not os.path.exists(zip_tool):
-        print(f"Downloading 7z...")
-        r = requests.get('https://7-zip.org/a/7zr.exe', allow_redirects=True)
+        print("Downloading 7z...")
+        r = requests.get('https://7-zip.org/a/7zr.exe',
+                         allow_redirects=True, timeout=15)
         open(zip_tool, 'wb').write(r.content)
 
     if not os.path.exists(zip_path):
         logging.debug("Downloading MPV from %s to %s", direct_link, zip_path)
         try:
-            print(f"Downloading MPV ({'without' if not avx2_supported else 'with'} AVX2)...")
+            print(
+                f"Downloading MPV ({'without' if not avx2_supported else 'with'} AVX2)...")
             print(direct_link)
-            r = requests.get(direct_link, allow_redirects=True)
+            r = requests.get(direct_link, allow_redirects=True, timeout=15)
             open(zip_path, 'wb').write(r.content)
         except requests.RequestException as e:
             logging.error("Failed to download MPV: %s", e)
@@ -151,7 +158,7 @@ def get_github_release(repo: str) -> dict:
     api_url = f"https://api.github.com/repos/{repo}/releases/latest"
 
     try:
-        response = requests.get(api_url)
+        response = requests.get(api_url, timeout=15)
         response.raise_for_status()
         release_data = response.json()
         return {asset['name']: asset['browser_download_url'] for asset in release_data.get('assets', [])}

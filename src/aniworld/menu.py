@@ -1,6 +1,7 @@
 import os
-import npyscreen
 import curses
+import npyscreen
+
 from aniworld.models import Anime, Episode
 from aniworld.config import (
     VERSION,
@@ -39,7 +40,8 @@ class CustomTheme(npyscreen.ThemeManager):
 class SelectionMenu(npyscreen.NPSApp):
     def __init__(self, slug):
         super().__init__()
-        self.anime = Anime(slug=slug, episode_list=[Episode(slug=slug, season=1, episode=1)])
+        self.anime = Anime(slug=slug, episode_list=[
+                           Episode(slug=slug, season=1, episode=1)])
         self.selected_episodes = []
         self.episode_dict = {}
 
@@ -49,7 +51,8 @@ class SelectionMenu(npyscreen.NPSApp):
         movie_episode_count = self.anime[0].movie_episode_count
         available_providers = self.anime[0].provider_name
 
-        supported_providers = [provider for provider in available_providers if provider in SUPPORTED_PROVIDERS]
+        supported_providers = [
+            provider for provider in available_providers if provider in SUPPORTED_PROVIDERS]
 
         for season, episodes in season_episode_count.items():
             for episode in range(1, episodes + 1):
@@ -65,7 +68,8 @@ class SelectionMenu(npyscreen.NPSApp):
         available_episodes = list(self.episode_dict.values())
 
         terminal_height = os.get_terminal_size().lines
-        total_reserved_height = 3 + 2 + 2 + len(available_languages) + len(supported_providers) + 5
+        total_reserved_height = 3 + 2 + 2 + \
+            len(available_languages) + len(supported_providers) + 5
         max_episode_height = max(3, terminal_height - total_reserved_height)
 
         if DEFAULT_ACTION == "Download":
@@ -74,7 +78,8 @@ class SelectionMenu(npyscreen.NPSApp):
             default_provider = DEFAULT_PROVIDER_WATCH
 
         if default_provider in supported_providers:
-            DEFAULT_PROVIDER_INDEX = supported_providers.index(default_provider)
+            DEFAULT_PROVIDER_INDEX = supported_providers.index(
+                default_provider)
         else:
             DEFAULT_PROVIDER_INDEX = 0
 
@@ -110,7 +115,8 @@ class SelectionMenu(npyscreen.NPSApp):
                 self.aniskip_selection.hidden = False
 
                 try:
-                    provider_index = supported_providers.index(DEFAULT_PROVIDER_WATCH)
+                    provider_index = supported_providers.index(
+                        DEFAULT_PROVIDER_WATCH)
                 except ValueError:
                     provider_index = 0
 
@@ -121,7 +127,8 @@ class SelectionMenu(npyscreen.NPSApp):
                 self.aniskip_selection.hidden = True
 
                 try:
-                    provider_index = supported_providers.index(DEFAULT_PROVIDER_DOWNLOAD)
+                    provider_index = supported_providers.index(
+                        DEFAULT_PROVIDER_DOWNLOAD)
                 except ValueError:
                     provider_index = 0
 

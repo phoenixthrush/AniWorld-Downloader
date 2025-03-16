@@ -85,7 +85,8 @@ USER_AGENTS = [
 ]
 
 RANDOM_USER_AGENT = random.choice(USER_AGENTS)
-DEFAULT_APPDATA_PATH = os.path.join(os.getenv("APPDATA") or os.path.expanduser("~"), ".aniworld")
+DEFAULT_APPDATA_PATH = os.path.join(
+    os.getenv("APPDATA") or os.path.expanduser("~"), ".aniworld")
 
 
 def find_program(program_name: str, fallback_path: str) -> str:
@@ -97,7 +98,8 @@ def find_program(program_name: str, fallback_path: str) -> str:
     if platform.system() == "Windows" and program_name.lower() == "syncplayconsole":
         fallback_program_path = os.path.join(fallback_path, "syncplay")
     else:
-        fallback_program_path = os.path.join(fallback_path, program_name.lower())
+        fallback_program_path = os.path.join(
+            fallback_path, program_name.lower())
 
     # if os.path.isfile(fallback_program_path):
     return fallback_program_path
@@ -105,12 +107,14 @@ def find_program(program_name: str, fallback_path: str) -> str:
 
 MPV_PATH = (
     os.path.join(DEFAULT_APPDATA_PATH) if os.path.isfile(DEFAULT_APPDATA_PATH) else
-    os.path.join(os.getenv('APPDATA', ''), "aniworld", "mpv", "mpv.exe") if os.path.isfile(os.path.join(os.getenv('APPDATA', ''), "aniworld", "mpv", "mpv.exe")) else None
+    os.path.join(os.getenv('APPDATA', ''), "aniworld", "mpv", "mpv.exe") if os.path.isfile(
+        os.path.join(os.getenv('APPDATA', ''), "aniworld", "mpv", "mpv.exe")) else None
 )
 
 SYNCPLAY_PATH = (
     os.path.join(DEFAULT_APPDATA_PATH) if os.path.isfile(DEFAULT_APPDATA_PATH) else
-    os.path.join(os.getenv('APPDATA', ''), "aniworld", "syncplay", "SyncplayConsole.exe") if os.path.isfile(os.path.join(os.getenv('APPDATA', ''), "aniworld", "syncplay", "SyncplayConsole.exe")) else None
+    os.path.join(os.getenv('APPDATA', ''), "aniworld", "syncplay", "SyncplayConsole.exe") if os.path.isfile(
+        os.path.join(os.getenv('APPDATA', ''), "aniworld", "syncplay", "SyncplayConsole.exe")) else None
 )
 
 YTDLP_PATH = find_program("yt-dlp", DEFAULT_APPDATA_PATH)

@@ -1,4 +1,3 @@
-import platform
 import getpass
 import subprocess
 import sys
@@ -11,6 +10,7 @@ import requests
 
 from aniworld.models import Anime
 from aniworld.config import MPV_PATH, PROVIDER_HEADERS, SYNCPLAY_PATH
+
 
 def syncplay(anime: Anime):
     for episode in anime:
@@ -33,18 +33,21 @@ def syncplay(anime: Anime):
         ]
 
         if anime.provider in PROVIDER_HEADERS:
-            command.append(f"--http-header-fields={PROVIDER_HEADERS[anime.provider]}")
+            command.append(
+                f"--http-header-fields={PROVIDER_HEADERS[anime.provider]}")
 
         try:
             subprocess.run(command, check=True)
         except subprocess.CalledProcessError:
-            print(f"Error running command: {' '.join(str(item) if item is not None else '' for item in command)}")
+            print(
+                f"Error running command: {' '.join(str(item) if item is not None else '' for item in command)}")
 
 
-def download_syncplay(dep_path: str=None, appdata_path: str=None):
+def download_syncplay(dep_path: str = None, appdata_path: str = None):
     if sys.platform == 'win32':
         if appdata_path is None:
-            appdata_path = os.path.join(os.environ['USERPROFILE'], 'AppData', 'Roaming', 'aniworld')
+            appdata_path = os.path.join(
+                os.environ['USERPROFILE'], 'AppData', 'Roaming', 'aniworld')
         if dep_path is None:
             dep_path = os.path.join(appdata_path, "syncplay")
             os.makedirs(dep_path, exist_ok=True)
@@ -56,7 +59,7 @@ def download_syncplay(dep_path: str=None, appdata_path: str=None):
             return
     else:
         return
-    
+
     direct_links = get_github_release("Syncplay/syncplay")
     direct_link = next(
         (link for name, link in direct_links.items()
@@ -65,7 +68,7 @@ def download_syncplay(dep_path: str=None, appdata_path: str=None):
     )
 
     if not os.path.exists(executable_path):
-        print(f"Downloading Syncplay...")
+        print("Downloading Syncplay...")
         r = requests.get(direct_link, allow_redirects=True)
         open(zip_path, 'wb').write(r.content)
 

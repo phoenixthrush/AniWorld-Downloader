@@ -7,7 +7,8 @@ import requests
 
 from aniworld.config import DEFAULT_REQUEST_TIMEOUT, RANDOM_USER_AGENT
 
-REDIRECT_PATTERN = re.compile(r"window\.location\.href\s*=\s*'(https://[^/]+/e/\w+)';")
+REDIRECT_PATTERN = re.compile(
+    r"window\.location\.href\s*=\s*'(https://[^/]+/e/\w+)';")
 EXTRACT_VEO_HLS_PATTERN = re.compile(r"'hls': '(?P<hls>.*)'")
 
 

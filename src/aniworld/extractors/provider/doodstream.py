@@ -32,7 +32,8 @@ def get_direct_link_from_doodstream(embeded_doodstream_link):
     pass_md5_pattern = r"\$\.get\('([^']*\/pass_md5\/[^']*)'"
     pass_md5_url = extract_data(pass_md5_pattern, content)
     if not pass_md5_url:
-        raise ValueError(f'pass_md5 URL not found using {embeded_doodstream_link}.')
+        raise ValueError(
+            f'pass_md5 URL not found using {embeded_doodstream_link}.')
 
     full_md5_url = f"https://dood.li{pass_md5_url}"
 
@@ -41,7 +42,8 @@ def get_direct_link_from_doodstream(embeded_doodstream_link):
     if not token:
         raise ValueError(f'Token not found using {embeded_doodstream_link}.')
 
-    md5_response = requests.get(full_md5_url, headers=headers, timeout=DEFAULT_REQUEST_TIMEOUT)
+    md5_response = requests.get(
+        full_md5_url, headers=headers, timeout=DEFAULT_REQUEST_TIMEOUT)
     md5_response.raise_for_status()
     video_base_url = md5_response.text.strip()
 

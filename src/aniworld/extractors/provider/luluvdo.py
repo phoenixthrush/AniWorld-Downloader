@@ -13,7 +13,8 @@ def get_direct_link_from_luluvdo(embeded_luluvdo_link):
         "User-Agent": RANDOM_USER_AGENT
     }
 
-    response = requests.get(filelink, headers=headers, timeout=DEFAULT_REQUEST_TIMEOUT)
+    response = requests.get(filelink, headers=headers,
+                            timeout=DEFAULT_REQUEST_TIMEOUT)
 
     if response.status_code == 200:
         beautified_js = jsbeautifier.beautify(response.text)

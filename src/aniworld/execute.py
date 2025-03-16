@@ -1,3 +1,5 @@
+import sys
+
 from aniworld.models import Anime
 from aniworld.action import watch, download, syncplay
 
@@ -15,4 +17,4 @@ def execute(anime_list: list[Anime]):
             else:
                 raise ValueError("Invalid action specified for anime: {anime}")
         except AttributeError:
-            exit()
+            sys.exit()

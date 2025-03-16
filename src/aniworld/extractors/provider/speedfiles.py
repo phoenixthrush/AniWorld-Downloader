@@ -23,7 +23,8 @@ def get_direct_link_from_speedfiles(embeded_speedfiles_link):
     decoded = base64.b64decode(encoded_data).decode()
     decoded = decoded.swapcase()[::-1]
     decoded = base64.b64decode(decoded).decode()[::-1]
-    decoded_hex = ''.join(chr(int(decoded[i:i + 2], 16)) for i in range(0, len(decoded), 2))
+    decoded_hex = ''.join(chr(int(decoded[i:i + 2], 16))
+                          for i in range(0, len(decoded), 2))
     shifted = ''.join(chr(ord(char) - 3) for char in decoded_hex)
     result = base64.b64decode(shifted.swapcase()[::-1]).decode()
 
@@ -32,4 +33,5 @@ def get_direct_link_from_speedfiles(embeded_speedfiles_link):
 
 if __name__ == '__main__':
     embeded_speedfiles_link = input("Enter Speedfiles Link: ")
-    print(get_direct_link_from_speedfiles(embeded_speedfiles_link=embeded_speedfiles_link))
+    print(get_direct_link_from_speedfiles(
+        embeded_speedfiles_link=embeded_speedfiles_link))

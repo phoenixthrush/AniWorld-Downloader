@@ -1,3 +1,4 @@
+import sys
 import argparse
 
 from aniworld.config import (
@@ -196,7 +197,7 @@ _____________________________
                 ||     ||
 """
         print(cowsay.strip())
-        exit()
+        sys.exit()
 
     if args.action is None:
         args.action = "Download"

@@ -264,7 +264,8 @@ class Episode:
         _selected_language: int = None
     ) -> None:
         if not link and (not slug or not season or not episode):
-            raise ValueError("Provide either 'link' or 'slug' with 'season' and 'episode'.")
+            raise ValueError(
+                "Provide either 'link' or 'slug' with 'season' and 'episode'.")
 
         self.anime_title: str = anime_title
         self.title_german: str = title_german
@@ -293,8 +294,10 @@ class Episode:
 
     def _get_episode_title_from_html(self) -> tuple:
         episode_soup = BeautifulSoup(self.html.content, 'html.parser')
-        episode_german_title_div = episode_soup.find('span', class_='episodeGermanTitle')
-        episode_english_title_div = episode_soup.find('small', class_='episodeEnglishTitle')
+        episode_german_title_div = episode_soup.find(
+            'span', class_='episodeGermanTitle')
+        episode_english_title_div = episode_soup.find(
+            'small', class_='episodeEnglishTitle')
 
         german_title = episode_german_title_div.text if episode_german_title_div else ""
         english_title = episode_english_title_div.text if episode_english_title_div else ""
@@ -308,7 +311,8 @@ class Episode:
         if numbers:
             return int(numbers[-1])  # e.g 2
 
-        raise ValueError(f"No valid season number found in the link: {self.link}")
+        raise ValueError(
+            f"No valid season number found in the link: {self.link}")
 
     def _get_episode_from_link(self) -> int:
         episode = self.link.split("/")[-1]  # e.g. episode-2
@@ -317,7 +321,8 @@ class Episode:
         if numbers:
             return int(numbers[-1])  # e.g 2
 
-        raise ValueError(f"No valid episode number found in the link: {self.link}")
+        raise ValueError(
+            f"No valid episode number found in the link: {self.link}")
 
     def _get_available_language_from_html(self) -> list[int]:
         """
@@ -328,7 +333,8 @@ class Episode:
         """
 
         episode_soup = BeautifulSoup(self.html.content, 'html.parser')
-        change_language_box_div = episode_soup.find('div', class_='changeLanguageBox')
+        change_language_box_div = episode_soup.find(
+            'div', class_='changeLanguageBox')
         language = []
 
         if change_language_box_div:
@@ -363,30 +369,41 @@ class Episode:
 
         logging.debug("Parsed HTML content with BeautifulSoup.")
 
-        episode_links = soup.find_all('li', class_=lambda x: x and x.startswith('episodeLink'))
-        logging.debug(f"Found {len(episode_links)} episode links.")
+        episode_links = soup.find_all(
+            'li', class_=lambda x: x and x.startswith('episodeLink'))
+        logging.debug("Found %d episode links.", len(episode_links))
 
         for link in episode_links:
             provider_name_tag = link.find('h4')
             provider_name = provider_name_tag.text.strip() if provider_name_tag else None
-            logging.debug(f"Extracted provider name: {provider_name}")
+
+            if provider_name:
+                logging.debug(f"Extracted provider name: {provider_name}")
 
             redirect_link_tag = link.find('a', class_='watchEpisode')
             redirect_link = redirect_link_tag['href'] if redirect_link_tag else None
-            logging.debug(f"Extracted redirect link: {redirect_link}")
+
+            if redirect_link:
+                logging.debug(f"Extracted redirect link: {redirect_link}")
 
             lang_key = link.get('data-lang-key')
-            lang_key = int(lang_key) if lang_key and lang_key.isdigit() else None
-            logging.debug(f"Extracted language key: {lang_key}")
+            lang_key = int(
+                lang_key) if lang_key and lang_key.isdigit() else None
+            if lang_key:
+                logging.debug(f"Extracted language key: {lang_key}")
 
             if provider_name and redirect_link and lang_key:
                 if provider_name not in providers:
                     providers[provider_name] = {}
                 providers[provider_name][lang_key] = f"https://aniworld.to{redirect_link}"
-                logging.debug(f"Added provider '{provider_name}' with language key '{lang_key}' to providers.")
+                logging.debug(
+                    "Added provider '%s' with language key '%s' to providers.",
+                    provider_name, lang_key
+                )
 
         if not providers:
-            raise ValueError(f"Could not get providers from {self.html.content}")
+            raise ValueError(
+                f"Could not get providers from {self.html.content}")
 
         logging.debug(f"Final providers dictionary: {providers}")
         return providers
@@ -452,7 +469,8 @@ class Episode:
             soup = BeautifulSoup(response.content, 'html.parser')
 
             episode_links = soup.find_all('a', href=True)
-            unique_links = set(link['href'] for link in episode_links if f"staffel-{season}/episode-" in link['href'])
+            unique_links = set(
+                link['href'] for link in episode_links if f"staffel-{season}/episode-" in link['href'])
 
             episode_counts[season] = len(unique_links)
 
@@ -460,7 +478,8 @@ class Episode:
 
     def _get_movie_episode_count(self) -> int:
         movie_page_url = f"https://aniworld.to/anime/stream/{self.slug}/filme"
-        response = requests.get(movie_page_url, timeout=DEFAULT_REQUEST_TIMEOUT)
+        response = requests.get(
+            movie_page_url, timeout=DEFAULT_REQUEST_TIMEOUT)
 
         parsed_html = BeautifulSoup(response.content, 'html.parser')
         movie_indices = []
@@ -504,7 +523,8 @@ class Episode:
         if not self.redirect_link:
             self.get_redirect_link()
 
-        self.embeded_link = requests.get(self.redirect_link, timeout=DEFAULT_REQUEST_TIMEOUT).url
+        self.embeded_link = requests.get(
+            self.redirect_link, timeout=DEFAULT_REQUEST_TIMEOUT).url
         return self.embeded_link
 
     def get_direct_link(self, provider=None, language=None):
@@ -693,7 +713,8 @@ class Serie:
         if not desc_div:
             return "Could not fetch description."
 
-        description = desc_div.get("data-full-description", "No description available.")
+        description = desc_div.get(
+            "data-full-description", "No description available.")
 
         return description
 
@@ -748,7 +769,8 @@ class SerieEpisode:
         selected_language=None
     ):
         if not link and (not slug or season is None or episode is None):
-            raise ValueError("Provide either 'link' or 'slug' with 'season' and 'episode'.")
+            raise ValueError(
+                "Provide either 'link' or 'slug' with 'season' and 'episode'.")
 
         self.series_title = series_title
         self.title_german = title_german

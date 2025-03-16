@@ -41,7 +41,8 @@ def fetch_anime_list(url: str) -> list:
 
 def show_menu(stdscr: curses.window, options: list) -> str:
     current_row = 0
-    konami_code = ['UP', 'UP', 'DOWN', 'DOWN', 'LEFT', 'RIGHT', 'LEFT', 'RIGHT', 'b', 'a']
+    konami_code = ['UP', 'UP', 'DOWN', 'DOWN',
+                   'LEFT', 'RIGHT', 'LEFT', 'RIGHT', 'b', 'a']
     entered_keys = []
     key_map = {
         curses.KEY_UP: 'UP',
@@ -71,7 +72,8 @@ def show_menu(stdscr: curses.window, options: list) -> str:
                 if len(entered_keys) > len(konami_code):
                     entered_keys.pop(0)
                 if entered_keys == konami_code:
-                    webbrowser.open('https://www.youtube.com/watch?v=PDJLvF1dUek')
+                    webbrowser.open(
+                        'https://www.youtube.com/watch?v=PDJLvF1dUek')
                     entered_keys.clear()
             else:
                 entered_keys.clear()
