@@ -111,7 +111,8 @@ class Anime:
         self.episode_list = episode_list
 
         self.description_german = description_german or self._fetch_description_german()
-        self.description_english = description_english or self._fetch_description_english()
+        # This should be fetched manually as its not needed for now
+        # self.description_english = description_english or self._fetch_description_english()
 
     def _fetch_description_german(self):
         soup = BeautifulSoup(self.html.content, 'html.parser')
