@@ -57,12 +57,12 @@ class Anime:
         title (str): The title of the anime. Fetched lazily from the anime's webpage if not provided.
         slug (str): A URL-friendly version of the title used for web requests. Set to the slug of the first episode if not provided.
         action (str): The default action to be performed. Must be one of "Download", "Watch", or "Syncplay". 
-                      If not provided, defaults to "Watch".
+                      Defaults to "Watch" if not provided.
         provider (str): The provider of the anime content. Defaults to:
-                        - "AniWorldDownload" if action is "Download"
-                        - "AniWorldWatch" if action is not "Download"
-                        If not provided, set based on the action.
-        language (str): The language code for the anime. Defaults to "en" if not provided.
+                        - DEFAULT_PROVIDER_DOWNLOAD if action is "Download"
+                        - DEFAULT_PROVIDER_WATCH if action is not "Download"
+                        Set based on the action if not provided.
+        language (str): The language code for the anime. Defaults to DEFAULT_LANGUAGE if not provided.
         aniskip (bool): Whether to skip certain actions (default is False).
         only_command (bool): If True, only commands are executed without additional actions (default is False).
         only_direct_link (bool): If True, only direct links are fetched (default is False).
@@ -96,7 +96,7 @@ class Anime:
         if not self.slug:
             raise ValueError("Slug of Anime is None.")
 
-        self._title = title
+        self.title = title or self._fetch_title()
         self.action = action
         self.provider = provider or (
             DEFAULT_PROVIDER_DOWNLOAD if action == "Download" else DEFAULT_PROVIDER_WATCH
@@ -109,63 +109,39 @@ class Anime:
         self.output_directory = output_directory
         self.episode_list = episode_list
 
-        self._description_german = description_german
-        self._description_english = description_english
-        self._html = html
+        self.description_german = description_german or self._fetch_description_german()
+        self.description_english = description_english or self._fetch_description_english()
+        self.html = html or self._fetch_html()
 
     def _fetch_html(self):
-        if self._html is None:
-            self._html = requests.get(
-                f"https://aniworld.to/anime/stream/{self.slug}",
-                timeout=DEFAULT_REQUEST_TIMEOUT
-            )
-        return self._html
+        return requests.get(
+            f"https://aniworld.to/anime/stream/{self.slug}",
+            timeout=DEFAULT_REQUEST_TIMEOUT
+        )
 
     def _fetch_title(self):
-        if self._title is None:
-            self._title = get_anime_title_from_html(self._fetch_html())
-        return self._title
+        return get_anime_title_from_html(self._fetch_html())
 
     def _fetch_description_german(self):
-        if self._description_german is None:
-            soup = BeautifulSoup(self._fetch_html().content, 'html.parser')
-            desc_div = soup.find('p', class_='seri_des')
-            self._description_german = (
-                desc_div.get('data-full-description', '')
-                if desc_div else "Could not fetch description."
-            )
-        return self._description_german
+        soup = BeautifulSoup(self._fetch_html().content, 'html.parser')
+        desc_div = soup.find('p', class_='seri_des')
+        return (
+            desc_div.get('data-full-description', '')
+            if desc_div else "Could not fetch description."
+        )
 
     def _fetch_description_english(self):
-        if self._description_english is None:
-            anime_id = get_mal_id_from_title(self._fetch_title(), 1)
-            response = requests.get(
-                f"https://myanimelist.net/anime/{anime_id}",
-                timeout=DEFAULT_REQUEST_TIMEOUT
-            )
-            soup = BeautifulSoup(response.content, 'html.parser')
-            desc_meta = soup.find('meta', property='og:description')
-            self._description_english = (
-                desc_meta['content']
-                if desc_meta else "Could not fetch description."
-            )
-        return self._description_english
-
-    @property
-    def html(self):
-        return self._fetch_html()
-
-    @property
-    def title(self):
-        return self._fetch_title()
-
-    @property
-    def description_german(self):
-        return self._fetch_description_german()
-
-    @property
-    def description_english(self):
-        return self._fetch_description_english()
+        anime_id = get_mal_id_from_title(self._fetch_title(), 1)
+        response = requests.get(
+            f"https://myanimelist.net/anime/{anime_id}",
+            timeout=DEFAULT_REQUEST_TIMEOUT
+        )
+        soup = BeautifulSoup(response.content, 'html.parser')
+        desc_meta = soup.find('meta', property='og:description')
+        return (
+            desc_meta['content']
+            if desc_meta else "Could not fetch description."
+        )
 
     def __iter__(self):
         return iter(self.episode_list)
@@ -185,8 +161,8 @@ class Anime:
             "only_direct_link": self.only_direct_link,
             "output_directory": str(self.output_directory),
             "episode_list": self.episode_list,
-            "description_german": self.description_german,
-            "description_english": self.description_english,
+            "description_german": ' '.join(self.description_german.split()[:10]) + ' [...]',
+            "description_english": ' '.join(self.description_english.split()[:10]) + ' [...]',
         }
         return str(data)
 
