@@ -27,7 +27,6 @@ logging.basicConfig(
     format="%(levelname)s:%(name)s:%(funcName)s: %(message)s",
     handlers=[
         logging.FileHandler(log_file_path, mode='w'),
-        logging.StreamHandler(),
         CriticalErrorHandler()
     ]
 )
@@ -40,6 +39,7 @@ console_handler.setFormatter(logging.Formatter(
 logging.getLogger().addHandler(console_handler)
 
 logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
+logging.getLogger().setLevel(logging.WARNING)
 
 
 #########################################################################################

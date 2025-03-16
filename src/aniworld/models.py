@@ -134,6 +134,39 @@ class Anime:
             if desc_meta else "Could not fetch description."
         )
 
+    # Please dont use this for now
+    # Lazy loading is not implemented yet
+    # Fetching all episodes at once will be time consuming and lead to timeouts
+    def append_and_populate_episode(self, episode_links: list):
+        for link in episode_links:
+            if link.endswith('/'):
+                link = link[:-1]
+
+            # if specific episode
+            if "staffel-" in link and "episode-" in link:
+                season = int(re.search(r'staffel-(\d+)', link).group(1))
+                episode = int(re.search(r'episode-(\d+)', link).group(1))
+                self.episode_list.append(
+                    Episode(slug=self.slug, season=season, episode=episode))
+
+            # if season
+            elif "staffel-" in link:
+                season = int(re.search(r'staffel-(\d+)', link).group(1))
+                for ep_num in range(1, self.episode_list[0]._get_season_episode_count()[season] + 1):
+                    episode = Episode(
+                        slug=self.slug, season=season, episode=ep_num)
+                    self.episode_list.append(episode)
+                continue
+
+            # whole anime
+            else:
+                for season in self.episode_list[0]._get_season_episode_count().keys():
+                    for ep_num in range(1, self.episode_list[0]._get_season_episode_count()[season] + 1):
+                        episode = Episode(
+                            slug=self.slug, season=season, episode=ep_num)
+                        self.episode_list.append(episode)
+                continue
+
     def __iter__(self):
         return iter(self.episode_list)
 
@@ -592,5 +625,18 @@ if __name__ == "__main__":
         ]
     )
 
+    """
+    other_episodes = [
+        # example of whole anime
+        "https://aniworld.to/anime/stream/food-wars-shokugeki-no-sma",
+        # example of whole season
+        "https://aniworld.to/anime/stream/food-wars-shokugeki-no-sma/staffel-1",
+        # example of one episode
+        "https://aniworld.to/anime/stream/food-wars-shokugeki-no-sma/staffel-1/episode-1"
+    ]
+
+    anime.append_and_populate_episode(other_episodes)"
+    """
+
     for episode in anime:
-        print(episode)
+        print(episode.title_german)
