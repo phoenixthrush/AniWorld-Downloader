@@ -578,7 +578,7 @@ def get_anime_title_from_html(html: requests.models.Response):
 
 if __name__ == "__main__":
     # Create an Anime object with a list of Episode objects
-    """
+
     anime = Anime(
         episode_list=[
             Episode(
@@ -591,10 +591,6 @@ if __name__ == "__main__":
             )
         ]
     )
-    """
 
-    episode = Episode(
-        link="https://aniworld.to/anime/stream/food-wars-shokugeki-no-sma/staffel-1/episode-6"
-    )
-
-    print(episode.anime_title)
+    for episode in anime:
+        print(episode)
