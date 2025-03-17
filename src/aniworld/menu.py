@@ -257,7 +257,7 @@ class SelectionMenu(npyscreen.NPSApp):
         )
 
 
-def menu(slug):
+def menu(arguments, slug):
     try:
         app = SelectionMenu(slug=slug)
         app.run()
