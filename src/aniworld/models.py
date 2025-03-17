@@ -116,7 +116,8 @@ class Anime:
         self.episode_list = episode_list
 
         self.description_german = description_german or self._fetch_description_german()
-        self.description_english = description_english or self._fetch_description_english()
+        # This should be fetched manually as its not needed for now
+        # self.description_english = description_english or self._fetch_description_english()
 
     def _fetch_description_german(self):
         soup = BeautifulSoup(self.html.content, 'html.parser')
@@ -422,8 +423,10 @@ class Episode:
             return get_direct_link_from_doodstream(embeded_doodstream_link=self.embeded_link)
         if self._selected_provider == "SpeedFiles":
             return get_direct_link_from_speedfiles(embeded_speedfiles_link=self.embeded_link)
+        # if self._selected_provider == "Luluvdo":
+        #    return get_direct_link_from_luluvdo(embeded_luluvdo_link=self.embeded_link)
 
-        raise ValueError("No valid provider selected.")
+        raise ValueError(f"{self._selected_provider} is currently not supported.")
 
     def _get_season_episode_count(self) -> dict:
         base_url = f"https://aniworld.to/anime/stream/{self.slug}/"

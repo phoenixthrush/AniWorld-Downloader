@@ -6,7 +6,8 @@ from aniworld.config import (
     DEFAULT_PROVIDER_DOWNLOAD,
     DEFAULT_PROVIDER_WATCH,
     DEFAULT_LANGUAGE,
-    VERSION
+    VERSION,
+    SUPPORTED_PROVIDERS
 )
 
 
@@ -106,7 +107,7 @@ def parse_arguments() -> argparse.Namespace:
     action_opts.add_argument(
         '-p', '--provider',
         type=str,
-        choices=['Vidoza', 'Streamtape', 'VOE', 'Vidmoly', 'Doodstream'],
+        choices=SUPPORTED_PROVIDERS,
         help='Specify the preferred provider.'
     )
 
@@ -171,16 +172,6 @@ def parse_arguments() -> argparse.Namespace:
         '-C', '--command-only',
         action='store_true',
         help='Output only the execution command.'
-    )
-    misc_opts.add_argument(
-        '-x', '--proxy',
-        type=str,
-        help='Set an HTTP proxy (e.g., http://0.0.0.0:8080).'
-    )
-    misc_opts.add_argument(
-        '-w', '--use-playwright',
-        action='store_true',
-        help='Use Playwright for bypassing with a headless browser.'
     )
 
     args = parser.parse_args()

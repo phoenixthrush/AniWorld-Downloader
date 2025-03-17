@@ -14,6 +14,9 @@ requires-python = ">=3.9"
 dependencies = [
     'requests',
     'bs4',
+    'yt-dlp',
+    'npyscreen',
+    'windows-curses; platform_system == "Windows"'
 ]
 classifiers = [
     "Programming Language :: Python :: 3",

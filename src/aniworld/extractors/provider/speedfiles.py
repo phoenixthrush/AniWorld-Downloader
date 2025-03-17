@@ -14,6 +14,12 @@ def get_direct_link_from_speedfiles(embeded_speedfiles_link):
         headers={'User-Agent': RANDOM_USER_AGENT}
     )
 
+    if "<span class=\"inline-block\">Web server is down</span>" in response.text:
+        raise ValueError(
+            "The SpeedFiles server is currently down.\n"
+            "Please try again later or choose a different hoster."
+        )
+
     match = SPEEDFILES_PATTERN.search(response.text)
 
     if not match:
