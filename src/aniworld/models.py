@@ -2,6 +2,7 @@ import pathlib
 import re
 import json
 import logging
+import concurrent.futures
 
 import requests
 import requests.models
@@ -52,17 +53,21 @@ class Anime:
     Attributes:
         title (str): The title of the anime.
         slug (str): A URL-friendly version of the title used for web requests.
-        action (str): The default action to be performed. Must be one of "Download", "Watch", or "Syncplay". 
+        action (str): The default action to be performed.
+                      Must be one of "Download", "Watch", or "Syncplay". 
                       Defaults to "Watch" if not provided.
         provider (str): The provider of the anime content. Defaults to:
                         - DEFAULT_PROVIDER_DOWNLOAD if action is "Download"
                         - DEFAULT_PROVIDER_WATCH if action is not "Download"
                         Set based on the action if not provided.
-        language (str): The language code for the anime. Defaults to DEFAULT_LANGUAGE if not provided.
+        language (str): The language code for the anime.
+                        Defaults to DEFAULT_LANGUAGE if not provided.
         aniskip (bool): Whether to skip certain actions (default is False).
-        only_command (bool): If True, only commands are executed without additional actions (default is False).
+        only_command (bool): If True, only commands are executed without additional actions
+                            (default is False).
         only_direct_link (bool): If True, only direct links are fetched (default is False).
-        output_directory (str): The directory where downloads are saved. Defaults to the user's home "Downloads" directory.
+        output_directory (str): The directory where downloads are saved.
+                                Defaults to the user's home "Downloads" directory.
         episode_list (list): A list of Episode objects for the anime.
         description_german (str): The German description of the anime.
         description_english (str): The English description of the anime.
@@ -134,39 +139,6 @@ class Anime:
             if desc_meta else "Could not fetch description."
         )
 
-    # Please dont use this for now
-    # Lazy loading is not implemented yet
-    # Fetching all episodes at once will be time consuming and lead to timeouts
-    def append_and_populate_episode(self, episode_links: list):
-        for link in episode_links:
-            if link.endswith('/'):
-                link = link[:-1]
-
-            # if specific episode
-            if "staffel-" in link and "episode-" in link:
-                season = int(re.search(r'staffel-(\d+)', link).group(1))
-                episode = int(re.search(r'episode-(\d+)', link).group(1))
-                self.episode_list.append(
-                    Episode(slug=self.slug, season=season, episode=episode))
-
-            # if season
-            elif "staffel-" in link:
-                season = int(re.search(r'staffel-(\d+)', link).group(1))
-                for ep_num in range(1, self.episode_list[0]._get_season_episode_count()[season] + 1):
-                    episode = Episode(
-                        slug=self.slug, season=season, episode=ep_num)
-                    self.episode_list.append(episode)
-                continue
-
-            # whole anime
-            else:
-                for season in self.episode_list[0]._get_season_episode_count().keys():
-                    for ep_num in range(1, self.episode_list[0]._get_season_episode_count()[season] + 1):
-                        episode = Episode(
-                            slug=self.slug, season=season, episode=ep_num)
-                        self.episode_list.append(episode)
-                continue
-
     def __iter__(self):
         return iter(self.episode_list)
 
@@ -196,7 +168,8 @@ class Anime:
 
 class Episode:
     """
-    Represents an episode of an anime series with various attributes and methods to fetch and manage its details.
+    Represents an episode of an anime series with various attributes
+    and methods to fetch and manage its details.
 
     Example:
         Episode(
@@ -207,7 +180,8 @@ class Episode:
 
     Required Attributes:
         link (str) or slug (str), season (int), episode (int):
-        Either a direct link to the episode or a slug with season and episode numbers for constructing the link.
+        Either a direct link to the episode or a slug with season
+        and episode numbers for constructing the link.
 
     Attributes:
         anime_title (str): The title of the anime the episode belongs to.
@@ -307,6 +281,9 @@ class Episode:
             f"No valid season number found in the link: {self.link}")
 
     def _get_episode_from_link(self) -> int:
+        if self.link.endswith("/"):
+            self.link = self.link[:-1]
+
         episode = self.link.split("/")[-1]  # e.g. episode-2
         numbers = re.findall(r'\d+', episode)
 
@@ -342,13 +319,19 @@ class Episode:
 
     def _get_provider_from_html(self) -> dict:
         """
-            Parses the HTML content to extract streaming providers, their language keys, and redirect links.
-            Returns a dictionary with provider names as keys and language key-to-redirect URL mappings as values.
+            Parses the HTML content to extract streaming providers,
+            their language keys, and redirect links.
+            
+            Returns a dictionary with provider names as keys
+            and language key-to-redirect URL mappings as values.
 
             Example:
+
             {
-                'VOE': {1: 'https://aniworld.to/redirect/1766412', 2: 'https://aniworld.to/redirect/1766405'},
-                'Doodstream': {1: 'https://aniworld.to/redirect/1987922', 2: 'https://aniworld.to/redirect/2700342'},
+                'VOE': {1: 'https://aniworld.to/redirect/1766412',
+                        2: 'https://aniworld.to/redirect/1766405'},
+                'Doodstream': {1: 'https://aniworld.to/redirect/1987922',
+                               2: 'https://aniworld.to/redirect/2700342'},
                 ...
             }
 
@@ -370,19 +353,19 @@ class Episode:
             provider_name = provider_name_tag.text.strip() if provider_name_tag else None
 
             if provider_name:
-                logging.debug(f"Extracted provider name: {provider_name}")
+                logging.debug("Extracted provider name: %s", provider_name)
 
             redirect_link_tag = link.find('a', class_='watchEpisode')
             redirect_link = redirect_link_tag['href'] if redirect_link_tag else None
 
             if redirect_link:
-                logging.debug(f"Extracted redirect link: {redirect_link}")
+                logging.debug("Extracted redirect link: %s", redirect_link)
 
             lang_key = link.get('data-lang-key')
             lang_key = int(
                 lang_key) if lang_key and lang_key.isdigit() else None
             if lang_key:
-                logging.debug(f"Extracted language key: {lang_key}")
+                logging.debug("Extracted language key: %s", lang_key)
 
             if provider_name and redirect_link and lang_key:
                 if provider_name not in providers:
@@ -397,7 +380,7 @@ class Episode:
             raise ValueError(
                 f"Could not get providers from {self.html.content}")
 
-        logging.debug(f"Final providers dictionary: {providers}")
+        logging.debug("Final providers dictionary: %s", providers)
         return providers
 
     def _get_key_from_language(self, language: str) -> int:
@@ -459,7 +442,10 @@ class Episode:
 
             episode_links = soup.find_all('a', href=True)
             unique_links = set(
-                link['href'] for link in episode_links if f"staffel-{season}/episode-" in link['href'])
+                link['href']
+                for link in episode_links
+                if f"staffel-{season}/episode-" in link['href']
+            )
 
             episode_counts[season] = len(unique_links)
 
@@ -492,7 +478,9 @@ class Episode:
     def get_redirect_link(self):
         lang_key = self._get_key_from_language(self._selected_language)
 
-        if self._selected_provider not in self.provider or lang_key not in self.provider[self._selected_provider]:
+        if (self._selected_provider not in self.provider or
+            lang_key not in self.provider[self._selected_provider]
+            ):
             for provider_name, lang_dict in self.provider.items():
                 if lang_key in lang_dict:
                     self._selected_provider = provider_name
@@ -567,10 +555,11 @@ class Episode:
         self.season_episode_count = self._get_season_episode_count()
         self.movie_episode_count = self._get_movie_episode_count()
 
-        # remove last season as its the same as movies and 0
-        last_season = list(self.season_episode_count.keys())[-1]
-        if self.season_episode_count[last_season] == 0:
-            del self.season_episode_count[last_season]
+        if self.movie_episode_count:
+            # remove last season as its the same as movies and 0
+            last_season = list(self.season_episode_count.keys())[-1]
+            if self.season_episode_count[last_season] == 0:
+                del self.season_episode_count[last_season]
 
     def to_json(self) -> str:
         data = {
@@ -609,34 +598,76 @@ def get_anime_title_from_html(html: requests.models.Response):
     return ""
 
 
-if __name__ == "__main__":
-    # Create an Anime object with a list of Episode objects
-
-    anime = Anime(
-        episode_list=[
-            Episode(
-                slug="food-wars-shokugeki-no-sma",
-                season=1,
-                episode=5
-            ),
-            Episode(
-                link="https://aniworld.to/anime/stream/food-wars-shokugeki-no-sma/staffel-1/episode-6"
-            )
-        ]
-    )
-
+# Please dont use this for now
+# Lazy loading is not implemented yet
+# Fetching all episodes at once will be time consuming and lead to timeouts
+def generate_links(urls, seasons_info):
     """
-    other_episodes = [
-        # example of whole anime
-        "https://aniworld.to/anime/stream/food-wars-shokugeki-no-sma",
-        # example of whole season
-        "https://aniworld.to/anime/stream/food-wars-shokugeki-no-sma/staffel-1",
-        # example of one episode
-        "https://aniworld.to/anime/stream/food-wars-shokugeki-no-sma/staffel-1/episode-1"
+    seasons = {1: 12, 2: 13, 3: 4}
+    base_url = [
+        "https://aniworld.to/anime/stream/food-wars-shokugeki-no-sma/staffel-1/episode-1",
+        "https://aniworld.to/anime/stream/food-wars-shokugeki-no-sma/staffel-2",
+        "https://aniworld.to/anime/stream/overlord"
+    ]
+    result = generate_links(base_url, seasons)
+
+    for url in result:
+        print(url)
+    """
+
+    unique_links = set()
+
+    for base_url in urls:
+        if base_url.endswith("/"):
+            base_url = base_url[:-1]
+
+        parts = base_url.split("/")
+
+        if "staffel" not in base_url and "episode" not in base_url:
+            for season, episodes in seasons_info.items():
+                season_url = f"{base_url}/staffel-{season}/"
+                for episode in range(1, episodes + 1):
+                    unique_links.add(f"{season_url}/episode-{episode}")
+            continue
+
+        if "staffel" in base_url and "episode" not in base_url:
+            season = int(parts[-1].split("-")[-1])
+            if season in seasons_info:
+                for episode in range(1, seasons_info[season] + 1):
+                    unique_links.add(f"{base_url}/episode-{episode}")
+            continue
+
+        unique_links.add(base_url)
+
+    def natural_sort_key(url):
+        return [int(text) if text.isdigit() else text for text in re.split(r'(\d+)', url)]
+
+    return sorted(unique_links, key=natural_sort_key)
+
+
+if __name__ == "__main__":
+    # links from eg. argparse
+
+    links = [
+        "https://aniworld.to/anime/stream/food-wars-shokugeki-no-sma/staffel-1/episode-3",
+        "https://aniworld.to/anime/stream/food-wars-shokugeki-no-sma/staffel-2",
     ]
 
-    anime.append_and_populate_episode(other_episodes)"
-    """
+    episode_list = generate_links(links, {1: 12, 2: 13, 3: 4})
 
-    for episode in anime:
-        print(episode.title_german)
+    for url in episode_list:
+        print(url)
+
+
+    # def create_episode(link):
+    #     return Episode(link=link)
+
+    # with concurrent.futures.ThreadPoolExecutor() as executor:
+    #     episodes = list(executor.map(create_episode, episode_list))
+
+    # anime = Anime(
+    #     episode_list=episodes
+    # )
+
+    # for episode in anime:
+    #    print(f"Season: {episode.season}, Episode: {episode.episode}")
