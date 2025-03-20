@@ -77,7 +77,7 @@ class SelectionMenu(npyscreen.NPSApp):
         available_episodes = list(self.episode_dict.values())
 
         terminal_height = os.get_terminal_size().lines
-        total_reserved_height = 3 + 2 + 2 + \
+        total_reserved_height = 3 + 2 + 2 + 2 + \
             len(available_languages) + len(supported_providers) + 5
         max_episode_height = max(3, terminal_height - total_reserved_height)
 
@@ -150,6 +150,26 @@ class SelectionMenu(npyscreen.NPSApp):
             scroll_exit=True,
             rely=self.provider_selection.rely + self.provider_selection.height + 1
         )
+
+        self.select_all_button = f.add(
+            npyscreen.ButtonPress,
+            name="Select All",
+            rely=self.episode_selection.rely + self.episode_selection.height + 1
+        )
+
+        def toggle_select_all():
+            if len(self.episode_selection.value) == len(available_episodes):
+                self.episode_selection.value = []
+                self.selected_episodes = []
+                self.select_all_button.name = "Select All"
+            else:
+                self.episode_selection.value = list(
+                    range(len(available_episodes)))
+                self.selected_episodes = list(self.episode_dict.keys())
+                self.select_all_button.name = "Deselect All"
+            f.display()
+
+        self.select_all_button.whenPressed = toggle_select_all
 
         def update_visibility():
             selected_action = self.action_selection.get_selected_objects()[0]
