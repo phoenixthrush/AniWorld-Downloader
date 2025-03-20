@@ -24,7 +24,8 @@ def get_direct_link_from_doodstream(embeded_doodstream_link):
     response = requests.get(
         embeded_doodstream_link,
         headers=headers,
-        timeout=DEFAULT_REQUEST_TIMEOUT
+        timeout=DEFAULT_REQUEST_TIMEOUT,
+        verify=False
     )
     response.raise_for_status()
     content = response.text
@@ -43,7 +44,7 @@ def get_direct_link_from_doodstream(embeded_doodstream_link):
         raise ValueError(f'Token not found using {embeded_doodstream_link}.')
 
     md5_response = requests.get(
-        full_md5_url, headers=headers, timeout=DEFAULT_REQUEST_TIMEOUT)
+        full_md5_url, headers=headers, timeout=DEFAULT_REQUEST_TIMEOUT, verify=False)
     md5_response.raise_for_status()
     video_base_url = md5_response.text.strip()
 
