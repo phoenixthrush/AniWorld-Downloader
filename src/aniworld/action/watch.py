@@ -15,6 +15,7 @@ from aniworld.config import MPV_PATH, PROVIDER_HEADERS
 
 
 def watch(anime: Anime):
+    download_mpv()
     for episode in anime:
         if episode.has_movies and episode.season not in list(episode.season_episode_count.keys()):
             mpv_title = (
@@ -122,6 +123,9 @@ def download_mpv(dep_path: str = None, appdata_path: str = None):
     # os.remove(zip_path)
     logging.debug("Download and extraction complete.")
 
+    logging.debug("Adding MPV path to environment: %s", dep_path)
+    os.environ["PATH"] += os.pathsep + dep_path
+
 
 # extremly unreliable lol
 def check_avx2_support() -> bool:
@@ -174,7 +178,3 @@ def get_github_release(repo: str) -> dict:
     except (json.JSONDecodeError, requests.RequestException) as e:
         logging.error("Failed to fetch release data from GitHub: %s", e)
     return {}
-
-
-if __name__ == '__main__':
-    download_mpv()

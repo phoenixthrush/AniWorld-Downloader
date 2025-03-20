@@ -322,7 +322,7 @@ class Episode:
         """
             Parses the HTML content to extract streaming providers,
             their language keys, and redirect links.
-            
+
             Returns a dictionary with provider names as keys
             and language key-to-redirect URL mappings as values.
 
@@ -426,7 +426,8 @@ class Episode:
         # if self._selected_provider == "Luluvdo":
         #    return get_direct_link_from_luluvdo(embeded_luluvdo_link=self.embeded_link)
 
-        raise ValueError(f"{self._selected_provider} is currently not supported.")
+        raise ValueError(
+            f"{self._selected_provider} is currently not supported.")
 
     def _get_season_episode_count(self) -> dict:
         base_url = f"https://aniworld.to/anime/stream/{self.slug}/"
@@ -482,8 +483,8 @@ class Episode:
         lang_key = self._get_key_from_language(self._selected_language)
 
         if (self._selected_provider not in self.provider or
-            lang_key not in self.provider[self._selected_provider]
-            ):
+                lang_key not in self.provider[self._selected_provider]
+                ):
             for provider_name, lang_dict in self.provider.items():
                 if lang_key in lang_dict:
                     self._selected_provider = provider_name
@@ -660,7 +661,6 @@ if __name__ == "__main__":
 
     for url in episode_list:
         print(url)
-
 
     # def create_episode(link):
     #     return Episode(link=link)

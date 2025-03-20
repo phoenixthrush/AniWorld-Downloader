@@ -60,7 +60,8 @@ PROVIDER_HEADERS = {
 }
 
 SUPPORTED_PROVIDERS = [
-    "VOE", "Doodstream", "Vidmoly", "Vidoza", "SpeedFiles", "Streamtape"  # "Luluvdo" not supported
+    # "Luluvdo" not supported
+    "VOE", "Doodstream", "Vidmoly", "Vidoza", "SpeedFiles", "Streamtape"
 ]
 
 # E.g. Watch, Download, Syncplay

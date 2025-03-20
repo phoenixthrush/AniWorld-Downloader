@@ -13,6 +13,8 @@ from aniworld.config import MPV_PATH, PROVIDER_HEADERS, SYNCPLAY_PATH
 
 
 def syncplay(anime: Anime):
+    download_syncplay()
+    # TODO: download mpv too
     for episode in anime:
         syncplay_username = getpass.getuser()
         syncplay_hostname = "syncplay.pl:8997"
