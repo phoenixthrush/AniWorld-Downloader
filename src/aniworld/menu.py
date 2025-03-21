@@ -9,7 +9,8 @@ from aniworld.config import (
     SUPPORTED_PROVIDERS,
     DEFAULT_PROVIDER_DOWNLOAD,
     DEFAULT_PROVIDER_WATCH,
-    DEFAULT_ACTION
+    DEFAULT_ACTION,
+    DEFAULT_LANGUAGE
 )
 
 
@@ -38,8 +39,9 @@ class CustomTheme(npyscreen.ThemeManager):
 
 
 class SelectionMenu(npyscreen.NPSApp):
-    def __init__(self, slug):
+    def __init__(self, arguments, slug):
         super().__init__()
+        self.arguments = arguments
         self.anime = Anime(slug=slug, episode_list=[
                            Episode(slug=slug, season=1, episode=1)])
         self.selected_episodes = []
@@ -77,28 +79,63 @@ class SelectionMenu(npyscreen.NPSApp):
         available_episodes = list(self.episode_dict.values())
 
         terminal_height = os.get_terminal_size().lines
-        total_reserved_height = 3 + 2 + 2 + 2 + \
-            len(available_languages) + len(supported_providers) + 5
+
+        # these are the heights of each widget
+        total_reserved_height = (
+            3 + 2 + 2 + 2 + len(available_languages) +
+            len(supported_providers) + 5
+        )
+
         max_episode_height = max(3, terminal_height - total_reserved_height)
 
-        if DEFAULT_ACTION == "Download":
-            default_provider = DEFAULT_PROVIDER_DOWNLOAD
-        else:
-            default_provider = DEFAULT_PROVIDER_WATCH
+        # Set Default Action
+        default_action = self.arguments.action if self.arguments and self.arguments.action else DEFAULT_ACTION
 
-        if default_provider in supported_providers:
-            DEFAULT_PROVIDER_INDEX = supported_providers.index(
-                default_provider)
+        # TODO: fix it does not select from arguments
+        # Set Default Provider
+        if self.arguments and self.arguments.provider:
+            selected_provider = self.arguments.provider.lower()
+
+            if selected_provider in available_providers:
+                default_provider = available_providers[
+                    available_providers.index(
+                        selected_provider
+                    )
+                ]
+            else:
+                default_provider = DEFAULT_PROVIDER_DOWNLOAD if default_action == "Download" else DEFAULT_PROVIDER_WATCH
         else:
-            DEFAULT_PROVIDER_INDEX = 0
+            default_provider = DEFAULT_PROVIDER_DOWNLOAD if default_action == "Download" else DEFAULT_PROVIDER_WATCH
+
+        # Set Default Language
+        if self.arguments and self.arguments.language:
+            default_language_selection = available_languages.index(
+                self.arguments.language
+            )
+        else:
+            default_language_selection = available_languages.index(
+                DEFAULT_LANGUAGE
+            )
+
+        # Set Default Aniskip
+        if self.arguments and self.arguments.aniskip:
+            default_aniskip_selection = 0
+        else:
+            default_aniskip_selection = 1
 
         npyscreen.setTheme(CustomTheme)
         f = npyscreen.Form(name=f"Welcome to AniWorld-Downloader {VERSION}")
 
+        # Set Default Output Directory
+        if self.arguments and self.arguments.output_dir:
+            default_output_directory = self.arguments.output_dir
+        else:
+            default_output_directory = DEFAULT_DOWNLOAD_PATH
+
         self.action_selection = f.add(
             npyscreen.TitleSelectOne,
             max_height=3,
-            value=[1],
+            value=[["Watch", "Download", "Syncplay"].index(default_action)],
             name="Action",
             values=["Watch", "Download", "Syncplay"],
             scroll_exit=True
@@ -107,7 +144,7 @@ class SelectionMenu(npyscreen.NPSApp):
         self.aniskip_selection = f.add(
             npyscreen.TitleMultiSelect,
             max_height=2,
-            value=[1],
+            value=default_aniskip_selection,
             name="Aniskip",
             values=["Enabled"],
             scroll_exit=True,
@@ -119,13 +156,13 @@ class SelectionMenu(npyscreen.NPSApp):
             max_height=2,
             name="Save Location",
             rely=self.action_selection.rely + self.action_selection.height + 1,
-            value=DEFAULT_DOWNLOAD_PATH
+            value=default_output_directory
         )
 
         self.language_selection = f.add(
             npyscreen.TitleSelectOne,
             max_height=len(available_languages),
-            value=[1],
+            value=[default_language_selection],
             name="Language",
             values=available_languages,
             scroll_exit=True,
@@ -135,7 +172,8 @@ class SelectionMenu(npyscreen.NPSApp):
         self.provider_selection = f.add(
             npyscreen.TitleSelectOne,
             max_height=len(supported_providers),
-            value=[DEFAULT_PROVIDER_INDEX],
+            value=[supported_providers.index(
+                default_provider) if default_provider in supported_providers else 0],
             name="Provider",
             values=supported_providers,
             scroll_exit=True,
@@ -278,8 +316,9 @@ class SelectionMenu(npyscreen.NPSApp):
 
 
 def menu(arguments, slug):
+    # print(arguments)
     try:
-        app = SelectionMenu(slug=slug)
+        app = SelectionMenu(arguments=arguments, slug=slug)
         app.run()
         anime = app.get_selected_values()
         curses.endwin()
