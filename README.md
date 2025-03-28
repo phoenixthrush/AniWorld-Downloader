@@ -75,7 +75,7 @@ Aniworld-Downloader is currently being rewritten on the `next` branch to be even
 - **Aniskip Integration**: Automatically skip intros and outros.
 - **Syncplay for Group Watching**: Enjoy synchronized anime watching sessions with friends.
 - **Proxy Compatibility**: Set up an HTTP proxy for restricted network environments.
-- **Online download**: Download Animes with Google Colab in your browser.
+- **Online download**: Download Animes with Google Colab in your Browser.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
