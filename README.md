@@ -17,6 +17,7 @@ AniWorld Downloader is a command-line tool built to download and stream anime co
 - [TODO](#todo-list)
 
 ### Getting Started
+- [Aniworld Online](#download-anime-online)
 - [Installation](#installation)
   - [Latest Release](#installing-aniworld-downloader)
   - [Dev Version (Unstable)](#development-version-unstable--requires-git)
@@ -74,6 +75,7 @@ Aniworld-Downloader is currently being rewritten on the `next` branch to be even
 - **Aniskip Integration**: Automatically skip intros and outros.
 - **Syncplay for Group Watching**: Enjoy synchronized anime watching sessions with friends.
 - **Proxy Compatibility**: Set up an HTTP proxy for restricted network environments.
+- **Online download**: Download Animes with Google Colab in your browser.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -92,6 +94,17 @@ Aniworld-Downloader is currently being rewritten on the `next` branch to be even
 > **Note:** Native extractor sites require the optional dependency **playwright**. To install, run `pip install playwright` and then `playwright install` to complete the setup.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Download Anime Online
+
+### Usage
+
+- To use the online Anime downloader click this link **[here](https://colab.research.google.com/drive/1urNFWavQ-tyIByEIFPDUL1qh2pVg1OnR?usp=sharing)**
+
+   - **Note**: Its latest and may it is buggy.If you find any bugs please report them.
+
+  <p align="right">(<a href="#readme-top">back to top</a>)</p>
+</details>
 
 ## Installation
 
@@ -505,6 +518,7 @@ Feel free to contribute! Any help is appreciated, and I’d be happy to merge in
 - **[Syncplay](https://github.com/Syncplay/syncplay.git)**: Service for synchronized playback with friends.
 - **[Anime4K](https://github.com/bloc97/Anime4K)**: A high-quality real-time upscaler for anime video.
 - **[htv](https://github.com/rxqv/htv)**: Backend implementation for hanime playback and downloading.
+- **[Google Colab](https://colab.research.google.com/)**: Run code online in your Browser.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
