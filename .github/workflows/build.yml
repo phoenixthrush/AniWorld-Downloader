@@ -30,10 +30,17 @@ jobs:
 
       - name: Build executable with Nuitka
         run: |
-          python -m nuitka --onefile --assume-yes-for-downloads --include-package=aniworld --output-filename=aniworld.exe src/aniworld/entry.py
+            python -m nuitka --onefile --assume-yes-for-downloads --include-package=aniworld --output-filename=aniworld.exe \
+            --company-name="Phoenixthrush UwU" \
+            --product-name="AniWorld Downloader" \
+            --file-version=3.0.0.0 \
+            --product-version=3.0.0.0 \
+            --file-description="AniWorld Downloader is a command-line tool built to download and stream anime content from aniworld.to." \
+            --copyright="Copyright (c) 2024-2025 Phoenixthrush UwU" \
+            src/aniworld/entry.py
 
       - name: Upload executable
         uses: actions/upload-artifact@v4
         with:
-          name: aniworld.zip
+          name: aniworld
           path: aniworld.exe
