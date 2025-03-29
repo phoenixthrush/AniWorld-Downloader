@@ -30,10 +30,10 @@ jobs:
 
       - name: Build executable with Nuitka
         run: |
-          python -m nuitka --include-package=aniworld --output-filename=aniworld.exe src/aniworld/entry.py --assume-yes-for-downloads
+          python -m nuitka --onefile --assume-yes-for-downloads --include-package=aniworld --output-filename=aniworld.exe src/aniworld/entry.py
 
       - name: Upload executable
         uses: actions/upload-artifact@v4
         with:
-          name: aniworld
+          name: aniworld.zip
           path: aniworld.exe
