@@ -1,2 +1,2 @@
-from aniworld.aniworld import aniworld
+from aniworld.entry import aniworld
 aniworld()

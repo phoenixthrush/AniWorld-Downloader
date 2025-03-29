@@ -1,0 +1,38 @@
+name: Build with Nuitka
+
+on:
+  push:
+    branches:
+      - next
+  pull_request:
+    branches:
+      - next
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+
+      - name: Build executable with Nuitka
+        run: |
+          python -m nuitka --include-package=aniworld --output-filename=aniworld.exe src/aniworld/entry.py
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: aniworld-exe
+          path: aniworld.exe
