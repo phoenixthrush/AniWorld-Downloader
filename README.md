@@ -6,6 +6,14 @@ AniWorld Downloader is a command-line tool built to download and stream anime co
 ![Downloads](https://img.shields.io/pypi/dm/aniworld?label=Downloads&color=blue)
 ![License](https://img.shields.io/pypi/l/aniworld?label=License&color=blue)
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## :construction: AniWorld-Downloader has been rewritten
+
+AniWorld-Downloader's `next` branch has been fully rewritten for better speed and readability using OOP principles. It’s now at the same stage as the main branch and ready for testing, so I highly recommend using it. Check it out [here](https://github.com/phoenixthrush/AniWorld-Downloader/tree/next).
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ![AniWorld Downloader - Demo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/main/.github/demo.png?raw=true)
 
 <details>
@@ -55,12 +63,6 @@ AniWorld Downloader is a command-line tool built to download and stream anime co
 ### Project Insights
 - [Star History](#star-history)
 </details>
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-## :construction: Aniworld-Downloader is Currently Being Rewritten
-
-Aniworld-Downloader is currently being rewritten on the `next` branch to be even faster, with the code made much more readable by using OOP principles. This rewrite will take some time until it reaches the same stage as the main branch. However, I will continue supporting the main branch and fix any bugs that may occur. If you want, you can check it out [here](https://github.com/phoenixthrush/AniWorld-Downloader/tree/next).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
