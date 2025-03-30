@@ -30,10 +30,10 @@ def watch(anime: Anime):
 
         command = [
             MPV_PATH,
-            episode.get_direct_link(),
+            f'"{episode.get_direct_link()}"',
             "--fs",
             "--quiet",
-            f"--force-media-title={mpv_title}"
+            f'--force-media-title="{mpv_title}"'
         ]
 
         # print(anime.provider)
