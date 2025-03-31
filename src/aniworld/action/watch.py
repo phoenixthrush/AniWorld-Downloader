@@ -30,7 +30,7 @@ def watch(anime: Anime):
 
         command = [
             MPV_PATH,
-            f'"{episode.get_direct_link()}"',
+            episode.get_direct_link(),
             "--fs",
             "--quiet",
             f'--force-media-title="{mpv_title}"'
@@ -48,11 +48,11 @@ def watch(anime: Anime):
             command.append(build_flags)
 
         try:
-            subprocess.run(command, check=True)
-        except subprocess.CalledProcessError:
-            print(
-                "Error running command:\n"
-                f"{' '.join(str(item) if item is not None else '' for item in command)}"
+            subprocess.run(command, check=True, shell=False)
+        except subprocess.CalledProcessError as e:
+            logging.error(
+                "Error running command: %s\nCommand: %s",
+                e, ' '.join(str(item) if item is not None else '' for item in command)
             )
 
 

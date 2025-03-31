@@ -54,15 +54,15 @@ except PackageNotFoundError:
 IS_NEWEST_VERSION = True  # For now :)
 PLATFORM_SYSTEM = platform.system()
 
-PROVIDER_HEADERS = {
-    "Vidmoly": 'Referer: "https://vidmoly.to"',
-    "Doodstream": 'Referer: "https://dood.li/"'
-}
-
 SUPPORTED_PROVIDERS = [
     # "Luluvdo" not supported
     "VOE", "Doodstream", "Vidmoly", "Vidoza", "SpeedFiles", "Streamtape"
 ]
+
+PROVIDER_HEADERS = {
+    "Vidmoly": 'Referer: "https://vidmoly.to"',
+    "Doodstream": 'Referer: "https://dood.li/"'
+}
 
 # E.g. Watch, Download, Syncplay
 DEFAULT_ACTION = "Download"
@@ -185,32 +185,25 @@ RANDOM_USER_AGENT = random.choice(USER_AGENTS)
 # Executable Path Resolution
 #########################################################################################
 
-DEFAULT_APPDATA_PATH = os.path.join(
-    os.getenv("APPDATA") or os.path.expanduser("~"), ".aniworld"
-)
+DEFAULT_APPDATA_PATH = os.getenv("APPDATA") or os.path.expanduser("~/.aniworld")
 
 if platform.system() == "Windows":
-    mpv_path_options = [
-        DEFAULT_APPDATA_PATH,
-        os.path.join(os.getenv('APPDATA', ''), "aniworld", "mpv", "mpv.exe")
-    ]
-    MPV_PATH = next(
-        (path for path in mpv_path_options if os.path.isfile(path)), None
-    )
+    mpv_path = shutil.which("mpv")
+    if not mpv_path:
+        mpv_path = os.path.join(os.getenv('APPDATA', ''), "aniworld", "mpv", "mpv.exe")
 else:
-    MPV_PATH = shutil.which("mpv")
+    mpv_path = shutil.which("mpv")
+
+MPV_PATH = mpv_path
 
 if platform.system() == "Windows":
-    syncplay_path_options = [
-        DEFAULT_APPDATA_PATH,
-        os.path.join(os.getenv('APPDATA', ''), "aniworld",
-                     "syncplay", "SyncplayConsole.exe")
-    ]
-    SYNCPLAY_PATH = next(
-        (path for path in syncplay_path_options if os.path.isfile(path)), None
-    )
+    syncplay_path = shutil.which("syncplay")
+    if not syncplay_path:
+        syncplay_path = os.path.join(os.getenv('APPDATA', ''), "aniworld", "syncplay", "SyncplayConsole.exe")
 else:
-    SYNCPLAY_PATH = shutil.which("syncplay")
+    syncplay_path = shutil.which("syncplay")
+
+SYNCPLAY_PATH = syncplay_path
 
 YTDLP_PATH = shutil.which("yt-dlp")  # already in pip deps
 

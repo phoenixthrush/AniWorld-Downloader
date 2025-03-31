@@ -1,12 +1,12 @@
 name: Build with Nuitka
 
 on:
-  push:
-    branches:
-      - next
-  pull_request:
-    branches:
-      - next
+  # push:
+  #   branches:
+  #     - next
+  # pull_request:
+  #   branches:
+  #     - next
   workflow_dispatch:
 
 jobs:

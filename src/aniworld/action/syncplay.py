@@ -31,7 +31,7 @@ def syncplay(anime: Anime):
             episode.get_direct_link(),
             "--",
             "--fs",
-            f"--force-media-title={episode.title_german}"
+            f'--force-media-title="{episode.title_german}"'
         ]
 
         if anime.provider in PROVIDER_HEADERS:
@@ -40,7 +40,7 @@ def syncplay(anime: Anime):
 
         try:
             subprocess.run(command, check=True)
-        except subprocess.CalledProcessError:
+        except (subprocess.CalledProcessError, TypeError):
             print(
                 "Error running command:\n"
                 f"{' '.join(str(item) if item is not None else '' for item in command)}"
