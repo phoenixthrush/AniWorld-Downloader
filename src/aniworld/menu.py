@@ -334,6 +334,7 @@ def menu(arguments, slug):
     curses.endwin()
     return anime
 
+
 if __name__ == "__main__":
     selected_episodes = menu(slug="dan-da-dan", arguments=None)
     print("Selected Episodes:", selected_episodes)

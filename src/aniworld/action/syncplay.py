@@ -3,18 +3,19 @@ import subprocess
 import sys
 import os
 import re
-import json
 import logging
 
 import requests
 
 from aniworld.models import Anime
 from aniworld.config import MPV_PATH, PROVIDER_HEADERS, SYNCPLAY_PATH
+from aniworld.common import get_github_release, download_mpv
 
 
 def syncplay(anime: Anime):
+    download_mpv()
     download_syncplay()
-    # TODO: download mpv too
+
     for episode in anime:
         syncplay_username = getpass.getuser()
         syncplay_hostname = "syncplay.pl:8997"
@@ -90,23 +91,6 @@ def download_syncplay(dep_path: str = None, appdata_path: str = None):
         logging.error("7zr.exe not found at the specified path.")
     except subprocess.SubprocessError as e:
         logging.error("An error occurred: %s", e)
-
-
-# import from common.py in future
-def get_github_release(repo: str) -> dict:
-    api_url = f"https://api.github.com/repos/{repo}/releases/latest"
-
-    try:
-        response = requests.get(api_url, timeout=15)
-        response.raise_for_status()
-        release_data = response.json()
-        return {
-            asset['name']: asset['browser_download_url']
-            for asset in release_data.get('assets', [])
-        }
-    except (json.JSONDecodeError, requests.RequestException) as e:
-        logging.error("Failed to fetch release data from GitHub: %s", e)
-    return {}
 
 
 if __name__ == '__main__':
