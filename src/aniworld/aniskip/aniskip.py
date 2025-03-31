@@ -158,6 +158,10 @@ def build_flags(anime_id: str, episode: int, chapters_file: str) -> str:
 
 
 def aniskip(title: str, episode: int, season: int) -> str:
+    setup_autostart()
+    setup_autoexit()
+    setup_aniskip()
+
     anime_id = get_mal_id_from_title(
         title, season) if not title.isdigit() else title
     if not anime_id:

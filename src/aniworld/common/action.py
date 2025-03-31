@@ -123,7 +123,12 @@ def download_mpv(dep_path: str = None, appdata_path: str = None):
 
     logging.debug("Extracting MPV to %s", dep_path)
     try:
-        subprocess.run([zip_tool, "x", zip_path], check=True, cwd=dep_path)
+        subprocess.run(
+            [zip_tool, "x", zip_path],
+            check=True,
+            cwd=dep_path,
+            stdout=subprocess.DEVNULL
+        )
     except (subprocess.CalledProcessError, FileNotFoundError, OSError,
             subprocess.SubprocessError) as e:
         logging.error("Failed to extract files: %s", e)

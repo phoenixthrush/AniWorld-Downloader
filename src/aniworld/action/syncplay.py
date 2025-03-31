@@ -10,6 +10,7 @@ import requests
 from aniworld.models import Anime
 from aniworld.config import MPV_PATH, PROVIDER_HEADERS, SYNCPLAY_PATH
 from aniworld.common import get_github_release, download_mpv
+from aniworld.aniskip import aniskip
 
 
 def syncplay(anime: Anime):
@@ -38,6 +39,10 @@ def syncplay(anime: Anime):
         if anime.provider in PROVIDER_HEADERS:
             command.append(
                 f"--http-header-fields={PROVIDER_HEADERS[anime.provider]}")
+
+        if anime.aniskip:
+            build_flags = aniskip(anime.title, episode.episode, episode.season)
+            command.append(build_flags)
 
         try:
             subprocess.run(command, check=True)
