@@ -52,6 +52,7 @@ class SelectionMenu(npyscreen.NPSApp):
         self.language_selection = None
         self.provider_selection = None
         self.episode_selection = None
+        self.select_all_button = None
 
     def main(self):
         available_languages = self.anime[0].language_name
@@ -89,23 +90,27 @@ class SelectionMenu(npyscreen.NPSApp):
         max_episode_height = max(3, terminal_height - total_reserved_height)
 
         # Set Default Action
-        default_action = self.arguments.action if self.arguments and self.arguments.action else DEFAULT_ACTION
+        default_action = (
+            self.arguments.action
+            if self.arguments and self.arguments.action
+            else DEFAULT_ACTION
+        )
 
         # TODO: fix it does not select from arguments
         # Set Default Provider
+        default_provider = (
+            DEFAULT_PROVIDER_DOWNLOAD
+            if default_action == "Download"
+            else DEFAULT_PROVIDER_WATCH
+        )
+
         if self.arguments and self.arguments.provider:
             selected_provider = self.arguments.provider.lower()
 
             if selected_provider in available_providers:
                 default_provider = available_providers[
-                    available_providers.index(
-                        selected_provider
-                    )
+                    available_providers.index(selected_provider)
                 ]
-            else:
-                default_provider = DEFAULT_PROVIDER_DOWNLOAD if default_action == "Download" else DEFAULT_PROVIDER_WATCH
-        else:
-            default_provider = DEFAULT_PROVIDER_DOWNLOAD if default_action == "Download" else DEFAULT_PROVIDER_WATCH
 
         # Set Default Language
         if self.arguments and self.arguments.language:
@@ -172,8 +177,10 @@ class SelectionMenu(npyscreen.NPSApp):
         self.provider_selection = f.add(
             npyscreen.TitleSelectOne,
             max_height=len(supported_providers),
-            value=[supported_providers.index(
-                default_provider) if default_provider in supported_providers else 0],
+            value=[
+                supported_providers.index(default_provider)
+                if default_provider in supported_providers else 0
+            ],
             name="Provider",
             values=supported_providers,
             scroll_exit=True,
@@ -321,11 +328,11 @@ def menu(arguments, slug):
         app = SelectionMenu(arguments=arguments, slug=slug)
         app.run()
         anime = app.get_selected_values()
-        curses.endwin()
-        return anime
     except KeyboardInterrupt:
         curses.endwin()
 
+    curses.endwin()
+    return anime
 
 if __name__ == "__main__":
     selected_episodes = menu(slug="dan-da-dan", arguments=None)

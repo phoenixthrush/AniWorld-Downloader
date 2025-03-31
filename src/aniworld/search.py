@@ -35,6 +35,7 @@ def fetch_anime_list(url: str) -> list:
         decoded_data = json.loads(html.unescape(response.text))
         if isinstance(decoded_data, list):
             return decoded_data
+        return []
     except (requests.RequestException, json.JSONDecodeError) as exc:
         raise ValueError("Could not get valid anime: ") from exc
 

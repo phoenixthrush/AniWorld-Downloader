@@ -52,7 +52,8 @@ def watch(anime: Anime):
         except subprocess.CalledProcessError as e:
             logging.error(
                 "Error running command: %s\nCommand: %s",
-                e, ' '.join(str(item) if item is not None else '' for item in command)
+                e, ' '.join(
+                    str(item) if item is not None else '' for item in command)
             )
 
 

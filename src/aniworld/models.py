@@ -2,7 +2,7 @@ import pathlib
 import re
 import json
 import logging
-import concurrent.futures
+# import concurrent.futures
 
 import requests
 import requests.models
@@ -87,7 +87,7 @@ class Anime:
         output_directory=pathlib.Path.home() / "Downloads",
         episode_list=None,
         description_german=None,
-        description_english=None,
+        # description_english=None,
         html=None
     ) -> None:
         if not episode_list:
@@ -159,7 +159,7 @@ class Anime:
             "output_directory": str(self.output_directory),
             "episode_list": self.episode_list,
             "description_german": ' '.join(self.description_german.split()[:10]) + ' [...]',
-            "description_english": ' '.join(self.description_english.split()[:10]) + ' [...]',
+            # "description_english": ' '.join(self.description_english.split()[:10]) + ' [...]',
         }
         return str(data)
 
@@ -643,8 +643,8 @@ def generate_links(urls, seasons_info):
 
         unique_links.add(base_url)
 
-    def natural_sort_key(url):
-        return [int(text) if text.isdigit() else text for text in re.split(r'(\d+)', url)]
+    def natural_sort_key(link_url):
+        return [int(text) if text.isdigit() else text for text in re.split(r'(\d+)', link_url)]
 
     return sorted(unique_links, key=natural_sort_key)
 
@@ -657,9 +657,9 @@ if __name__ == "__main__":
         "https://aniworld.to/anime/stream/food-wars-shokugeki-no-sma/staffel-2",
     ]
 
-    episode_list = generate_links(links, {1: 12, 2: 13, 3: 4})
+    episodes_list = generate_links(links, {1: 12, 2: 13, 3: 4})
 
-    for url in episode_list:
+    for url in episodes_list:
         print(url)
 
     # def create_episode(link):

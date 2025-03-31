@@ -38,6 +38,6 @@ def get_direct_link_from_speedfiles(embeded_speedfiles_link):
 
 
 if __name__ == '__main__':
-    embeded_speedfiles_link = input("Enter Speedfiles Link: ")
+    speedfiles_link = input("Enter Speedfiles Link: ")
     print(get_direct_link_from_speedfiles(
-        embeded_speedfiles_link=embeded_speedfiles_link))
+        embeded_speedfiles_link=speedfiles_link))

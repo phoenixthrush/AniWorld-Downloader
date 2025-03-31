@@ -185,12 +185,14 @@ RANDOM_USER_AGENT = random.choice(USER_AGENTS)
 # Executable Path Resolution
 #########################################################################################
 
-DEFAULT_APPDATA_PATH = os.getenv("APPDATA") or os.path.expanduser("~/.aniworld")
+DEFAULT_APPDATA_PATH = os.getenv(
+    "APPDATA") or os.path.expanduser("~/.aniworld")
 
 if platform.system() == "Windows":
     mpv_path = shutil.which("mpv")
     if not mpv_path:
-        mpv_path = os.path.join(os.getenv('APPDATA', ''), "aniworld", "mpv", "mpv.exe")
+        mpv_path = os.path.join(os.getenv('APPDATA', ''),
+                                "aniworld", "mpv", "mpv.exe")
 else:
     mpv_path = shutil.which("mpv")
 
@@ -199,7 +201,10 @@ MPV_PATH = mpv_path
 if platform.system() == "Windows":
     syncplay_path = shutil.which("syncplay")
     if not syncplay_path:
-        syncplay_path = os.path.join(os.getenv('APPDATA', ''), "aniworld", "syncplay", "SyncplayConsole.exe")
+        syncplay_path = os.path.join(
+            os.getenv(
+                'APPDATA', ''), "aniworld", "syncplay", "SyncplayConsole.exe"
+        )
 else:
     syncplay_path = shutil.which("syncplay")
 
