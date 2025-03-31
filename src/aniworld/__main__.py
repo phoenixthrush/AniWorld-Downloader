@@ -1,4 +1,4 @@
-from .entry import aniworld
+from aniworld.entry import aniworld
 
 
 def main():
