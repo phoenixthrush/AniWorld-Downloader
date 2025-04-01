@@ -33,10 +33,10 @@ jobs:
             python -m nuitka --onefile --assume-yes-for-downloads --include-package=aniworld --output-filename=aniworld.exe `
             --company-name="Phoenixthrush UwU" `
             --product-name="AniWorld Downloader" `
-            --file-version=3.0.0.0 `
-            --product-version=3.0.0.0 `
-            --file-description="AniWorld Downloader is a command-line tool built to download and stream anime content from aniworld.to." `
-            --copyright="Copyright (c) 2024-2025 Phoenixthrush UwU" `
+            --file-version=$(python -c "import toml; print(toml.load(open('pyproject.toml'))['project']['version'])") `
+            --product-version=$(python -c "import toml; print(toml.load(open('pyproject.toml'))['project']['version'])") `
+            --file-description="AniWorld Downloader is a command-line tool built to download and stream anime content from aniworld.to" `
+            --copyright="Copyright (c) 2024-${{ github.event.date | date('yyyy') }} Phoenixthrush UwU" `
             --windows-icon-from-ico=src/aniworld/icon.png `
             src/aniworld/entry.py
 
