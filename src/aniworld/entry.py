@@ -1,5 +1,5 @@
 from aniworld.models import Anime, Episode
-from aniworld.parser import parse_arguments
+from aniworld.parser import arguments
 from aniworld.search import search_anime
 from aniworld.execute import execute
 from aniworld.menu import menu
@@ -7,8 +7,6 @@ from aniworld.menu import menu
 
 def aniworld() -> None:
     try:
-        arguments = parse_arguments()
-
         if not arguments.episode:
             while True:
                 try:

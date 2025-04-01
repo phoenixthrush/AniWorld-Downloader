@@ -258,3 +258,6 @@ _____________________________
             open_terminal_with_command('tail -f -n +1 /tmp/aniworld.log')
 
     return parser.parse_args()
+
+
+arguments = parse_arguments()

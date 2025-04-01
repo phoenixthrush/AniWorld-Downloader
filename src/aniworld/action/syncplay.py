@@ -11,6 +11,7 @@ from aniworld.models import Anime
 from aniworld.config import MPV_PATH, PROVIDER_HEADERS, SYNCPLAY_PATH
 from aniworld.common import get_github_release, download_mpv
 from aniworld.aniskip import aniskip
+from aniworld.parser import arguments
 
 
 def syncplay(anime: Anime):
@@ -24,9 +25,20 @@ def syncplay(anime: Anime):
             print(f"{episode.get_direct_link()}\n")
             continue
 
-        syncplay_username = getpass.getuser()
-        syncplay_hostname = "syncplay.pl:8997"
-        room_name = episode.title_german
+        if arguments.username:
+            syncplay_username = arguments.username
+        else:
+            syncplay_username = getpass.getuser()
+
+        if arguments.hostname:
+            syncplay_hostname = arguments.hostname
+        else:
+            syncplay_hostname = "syncplay.pl:8997"
+
+        if arguments.room:
+            room_name = arguments.room
+        else:
+            room_name = episode.title_german
 
         command = [
             SYNCPLAY_PATH,
@@ -41,6 +53,10 @@ def syncplay(anime: Anime):
             "--fs",
             f'--force-media-title="{episode.title_german}"'
         ]
+
+        if arguments.password:
+            command.append("--password")
+            command.append(arguments.password)
 
         if anime.provider in PROVIDER_HEADERS:
             command.append(
