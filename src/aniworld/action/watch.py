@@ -46,6 +46,12 @@ def watch(anime: Anime):
             build_flags = aniskip(anime.title, episode.episode, episode.season)
             command.append(build_flags)
 
+        if anime.only_command:
+            msg = f"{anime.title} - S{episode.season}E{episode.episode} - ({anime.language}):"
+            print(msg)
+            print(f"{command}\n")
+            continue
+
         try:
             subprocess.run(command, check=True, shell=False)
         except subprocess.CalledProcessError as e:

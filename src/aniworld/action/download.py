@@ -42,6 +42,12 @@ def download(anime: Anime):
         if anime.provider in PROVIDER_HEADERS:
             command.extend(["--add-header", PROVIDER_HEADERS[anime.provider]])
 
+        if anime.only_command:
+            msg = f"{anime.title} - S{episode.season}E{episode.episode} - ({anime.language}):"
+            print(msg)
+            print(f"{command}\n")
+            continue
+
         try:
             print(f"Downloading to {output_path}...")
             subprocess.run(command, check=True)

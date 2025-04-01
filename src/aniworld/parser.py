@@ -172,7 +172,7 @@ def parse_arguments() -> argparse.Namespace:
         help='Output only the direct streaming link.'
     )
     misc_opts.add_argument(
-        '-C', '--command-only',
+        '-C', '--only-command',
         action='store_true',
         help='Output only the execution command.'
     )
