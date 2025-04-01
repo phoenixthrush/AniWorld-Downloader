@@ -37,7 +37,7 @@ jobs:
             --product-version=$(python -c "import toml; print(toml.load(open('pyproject.toml'))['project']['version'])") `
             --file-description="AniWorld Downloader is a command-line tool built to download and stream anime content from aniworld.to" `
             --copyright="Copyright (c) 2024-$(python -c "import datetime; print(datetime.datetime.now().year)") Phoenixthrush UwU" `
-            --windows-icon-from-ico=src/aniworld/icon.png `
+            --windows-icon-from-ico=src/aniworld/icon.webp `
             src/aniworld/entry.py
 
       - name: Upload executable
