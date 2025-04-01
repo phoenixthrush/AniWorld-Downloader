@@ -2,7 +2,7 @@ import pathlib
 import re
 import json
 import logging
-# import concurrent.futures
+import concurrent.futures
 
 import requests
 import requests.models
@@ -651,7 +651,6 @@ def generate_links(urls, seasons_info):
 
 if __name__ == "__main__":
     # links from eg. argparse
-
     links = [
         "https://aniworld.to/anime/stream/food-wars-shokugeki-no-sma/staffel-1/episode-3",
         "https://aniworld.to/anime/stream/food-wars-shokugeki-no-sma/staffel-2",
@@ -662,15 +661,15 @@ if __name__ == "__main__":
     for url in episodes_list:
         print(url)
 
-    # def create_episode(link):
-    #     return Episode(link=link)
+    def create_episode(link):
+        return Episode(link=link)
 
-    # with concurrent.futures.ThreadPoolExecutor() as executor:
-    #     episodes = list(executor.map(create_episode, episode_list))
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        episodes = list(executor.map(create_episode, episodes_list))
 
-    # anime = Anime(
-    #     episode_list=episodes
-    # )
+    anime = Anime(
+        episode_list=episodes,
+    )
 
-    # for episode in anime:
-    #    print(f"Season: {episode.season}, Episode: {episode.episode}")
+    for episode in anime:
+        print(f"Episode Details:\n{episode}\n{'=' * 79}")
