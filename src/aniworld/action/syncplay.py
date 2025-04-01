@@ -51,9 +51,12 @@ def syncplay(anime: Anime):
             command.append(build_flags)
 
         if anime.only_command:
-            msg = f"{anime.title} - S{episode.season}E{episode.episode} - ({anime.language}):"
-            print(msg)
-            print(f"{command}\n")
+            print(
+                f"\n{anime.title} - S{episode.season}E{episode.episode} - ({anime.language}):"
+            )
+            print(
+                f"{' '.join(str(item) if item is not None else '' for item in command)}"
+            )
             continue
 
         try:
