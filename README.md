@@ -96,7 +96,7 @@ These packages are automatically installed when you set up AniWorld Downloader u
 - **[Syncplay](https://github.com/Syncplay/syncplay.git)**: Service for synchronized playback with friends.
 - **[Anime4K](https://github.com/bloc97/Anime4K)**: A high-quality real-time upscaler for anime video.
 - **[htv](https://github.com/rxqv/htv)**: Backend implementation for hanime playback and downloading.
-- **[logo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/next/src/aniworld/icon.png?raw=true)**: The binary logo used at `src/aniworld/icon.png`.
+- **[logo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/next/src/aniworld/icon.png?raw=true)**: The binary logo used at `src/aniworld/icon.webp`.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
