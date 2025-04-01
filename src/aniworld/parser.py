@@ -1,5 +1,8 @@
 import sys
 import argparse
+import platform
+import logging
+import subprocess
 
 from aniworld.config import (
     DEFAULT_ACTION,
@@ -198,5 +201,53 @@ _____________________________
             args.provider = DEFAULT_PROVIDER_DOWNLOAD
         else:
             args.provider = DEFAULT_PROVIDER_WATCH
+
+    if args.debug is True:
+        def open_terminal_with_command(command):
+            terminal_emulators = [
+                ('gnome-terminal', ['gnome-terminal', '--', 'bash', '-c', f'{command}; exec bash']),
+                ('xterm', ['xterm', '-hold', '-e', command]),
+                ('konsole', ['konsole', '--hold', '-e', command])
+            ]
+
+            for terminal, cmd in terminal_emulators:
+                try:
+                    subprocess.Popen(cmd)  # pylint: disable=consider-using-with
+                    return
+                except FileNotFoundError:
+                    logging.debug("%s not found, trying next option.", terminal)
+                except subprocess.SubprocessError as e:
+                    logging.error("Error opening terminal with %s: %s", terminal, e)
+
+            logging.error("No supported terminal emulator found. Install gnome-terminal, xterm, or konsole.")
+
+        logging.getLogger().setLevel(logging.DEBUG)
+        logging.debug("============================================")
+        logging.debug("Welcome to Aniworld!")
+        logging.debug("============================================\n")
+        logging.debug("Debug mode enabled")
+
+        system = platform.system()
+
+        if system == "Darwin":
+            try:
+                subprocess.run([
+                    "osascript", "-e",
+                    'tell application "Terminal" to do script "trap exit SIGINT; tail -f -n +1 $TMPDIR/aniworld.log" activate'
+                ], check=True)
+                logging.debug("Started tailing the log file in a new Terminal window.")
+            except subprocess.CalledProcessError as e:
+                logging.error("Failed to start tailing the log file: %s", e)
+        elif system == "Windows":
+            try:
+                command = (
+                    "start cmd /c \"powershell -NoExit -c Get-Content -Wait \"$env:TEMP\\aniworld.log\"\""
+                )
+                subprocess.run(command, shell=True, check=True)
+                logging.debug("Started tailing the log file in a new Terminal window.")
+            except subprocess.CalledProcessError as e:
+                logging.error("Failed to start tailing the log file: %s", e)
+        elif system == "Linux":
+            open_terminal_with_command('tail -f -n +1 /tmp/aniworld.log')
 
     return parser.parse_args()
