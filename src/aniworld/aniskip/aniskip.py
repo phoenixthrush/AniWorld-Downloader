@@ -8,10 +8,13 @@ import shutil
 import requests
 from bs4 import BeautifulSoup
 
-from aniworld.config import DEFAULT_REQUEST_TIMEOUT
+from aniworld.config import DEFAULT_REQUEST_TIMEOUT, MPV_SCRIPTS_DIRECTORY
 
 CHAPTER_FORMAT = "\n[CHAPTER]\nTIMEBASE=1/1000\nSTART={}\nEND={}\nTITLE={}\n"
 OPTION_FORMAT = "skip-{}_start={},skip-{}_end={}"
+MAL_ANIME_URL = "https://myanimelist.net/anime/{}"
+MAL_SEARCH_URL = "https://myanimelist.net/search/prefix.json?type=anime&keyword={}"
+ANISKIP_API_URL = "https://api.aniskip.com/v1/skip-times/{}/{}?types=op&types=ed"
 
 
 def ftoi(value: float) -> str:
@@ -20,7 +23,7 @@ def ftoi(value: float) -> str:
 
 def check_episodes(anime_id):
     response = requests.get(
-        f"https://myanimelist.net/anime/{anime_id}",
+        MAL_ANIME_URL.format(anime_id),
         timeout=DEFAULT_REQUEST_TIMEOUT
     )
     soup = BeautifulSoup(response.content, 'html.parser')
@@ -42,7 +45,7 @@ def get_mal_id_from_title(title: str, season: int) -> int:
     keyword = re.sub(r'\s+', '%20', name)
 
     response = requests.get(
-        f"https://myanimelist.net/search/prefix.json?type=anime&keyword={keyword}",
+        MAL_SEARCH_URL.format(keyword),
         timeout=DEFAULT_REQUEST_TIMEOUT
     )
     logging.debug("Response status code: %d", response.status_code)
@@ -74,7 +77,7 @@ def get_mal_id_from_title(title: str, season: int) -> int:
 
 
 def get_sequel_anime_id(anime_id: int) -> int:
-    url = f"https://myanimelist.net/anime/{anime_id}"
+    url = MAL_ANIME_URL.format(anime_id)
     response = requests.get(url, timeout=DEFAULT_REQUEST_TIMEOUT)
     response.raise_for_status()
 
@@ -134,7 +137,7 @@ def build_options(metadata: Dict, chapters_file: str) -> str:
 
 
 def build_flags(anime_id: str, episode: int, chapters_file: str) -> str:
-    aniskip_api = f"https://api.aniskip.com/v1/skip-times/{anime_id}/{episode}?types=op&types=ed"
+    aniskip_api = ANISKIP_API_URL.format(anime_id, episode)
     response = requests.get(aniskip_api, timeout=DEFAULT_REQUEST_TIMEOUT)
 
     if response.status_code == 500:
@@ -176,12 +179,6 @@ def aniskip(title: str, episode: int, season: int) -> str:
         return ""
 
 
-def get_mpv_scripts_directory():
-    if os.name == 'nt':
-        return os.path.join(os.environ.get('APPDATA', ''), 'mpv', 'scripts')
-    return os.path.expanduser('~/.config/mpv/scripts')
-
-
 def copy_file_if_different(source_path, destination_path):
     if os.path.exists(destination_path):
         with open(source_path, 'r', encoding="utf-8") as source_file:
@@ -213,7 +210,7 @@ def copy_file_if_different(source_path, destination_path):
 def setup_aniskip():
     script_directory = os.path.dirname(
         os.path.dirname(os.path.abspath(__file__)))
-    mpv_scripts_directory = get_mpv_scripts_directory()
+    mpv_scripts_directory = MPV_SCRIPTS_DIRECTORY
 
     if not os.path.exists(mpv_scripts_directory):
         os.makedirs(mpv_scripts_directory)
@@ -229,7 +226,7 @@ def setup_autostart():
     logging.debug("Copying autostart.lua to mpv script directory")
     script_directory = os.path.dirname(
         os.path.dirname(os.path.abspath(__file__)))
-    mpv_scripts_directory = get_mpv_scripts_directory()
+    mpv_scripts_directory = MPV_SCRIPTS_DIRECTORY
 
     if not os.path.exists(mpv_scripts_directory):
         os.makedirs(mpv_scripts_directory)
@@ -246,7 +243,7 @@ def setup_autoexit():
     logging.debug("Copying autoexit.lua to mpv script directory")
     script_directory = os.path.dirname(
         os.path.dirname(os.path.abspath(__file__)))
-    mpv_scripts_directory = get_mpv_scripts_directory()
+    mpv_scripts_directory = MPV_SCRIPTS_DIRECTORY
 
     if not os.path.exists(mpv_scripts_directory):
         os.makedirs(mpv_scripts_directory)

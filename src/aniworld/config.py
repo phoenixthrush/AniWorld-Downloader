@@ -186,7 +186,14 @@ RANDOM_USER_AGENT = random.choice(USER_AGENTS)
 #########################################################################################
 
 DEFAULT_APPDATA_PATH = os.getenv(
-    "APPDATA") or os.path.expanduser("~/.aniworld")
+    "APPDATA"
+) or os.path.expanduser("~/.aniworld")
+
+MPV_SCRIPTS_DIRECTORY = (
+    os.path.join(os.environ.get('APPDATA', ''), 'mpv', 'scripts')
+    if os.name == 'nt'
+    else os.path.expanduser('~/.config/mpv/scripts')
+)
 
 if platform.system() == "Windows":
     mpv_path = shutil.which("mpv")
