@@ -9,8 +9,6 @@ import re
 
 import requests
 
-from aniworld.common import DEFAULT_REQUEST_TIMEOUT
-
 # extremly unreliable lol
 
 
@@ -56,7 +54,7 @@ def get_github_release(repo: str) -> dict:
     api_url = f"https://api.github.com/repos/{repo}/releases/latest"
 
     try:
-        response = requests.get(api_url, timeout=DEFAULT_REQUEST_TIMEOUT)
+        response = requests.get(api_url, timeout=15)
         response.raise_for_status()
         release_data = response.json()
         assets = release_data.get('assets', [])
@@ -70,7 +68,7 @@ def download_7z(zip_tool: str) -> None:
     if not os.path.exists(zip_tool):
         print("Downloading 7z...")
         r = requests.get('https://7-zip.org/a/7zr.exe',
-                         allow_redirects=True, timeout=DEFAULT_REQUEST_TIMEOUT)
+                         allow_redirects=True, timeout=15)
         with open(zip_tool, 'wb') as f:
             f.write(r.content)
 
@@ -117,7 +115,7 @@ def download_mpv(dep_path: str = None, appdata_path: str = None):
             print(
                 f"Downloading MPV ({'without' if not avx2_supported else 'with'} AVX2)...")
             print(direct_link)
-            with requests.get(direct_link, allow_redirects=True, timeout=DEFAULT_REQUEST_TIMEOUT) as r:
+            with requests.get(direct_link, allow_redirects=True, timeout=15) as r:
                 r.raise_for_status()
                 with open(zip_path, 'wb') as f:
                     f.write(r.content)
