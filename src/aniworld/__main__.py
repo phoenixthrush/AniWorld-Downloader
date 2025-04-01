@@ -8,7 +8,7 @@ from aniworld.config import VERSION
 def main():
     if platform.system() == "Windows":
         ctypes.windll.kernel32.SetConsoleTitleW(
-            f"Welcome to AniWorld-Downloader {VERSION}"
+            f"AniWorld-Downloader {VERSION}"
         )
 
     aniworld()
