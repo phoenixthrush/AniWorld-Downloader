@@ -10,6 +10,12 @@ from aniworld.models import Anime
 def watch(anime: Anime):
     download_mpv()
     for episode in anime:
+        if anime.only_direct_link:
+            msg = f"{anime.title} - S{episode.season}E{episode.episode} - ({anime.language}):"
+            print(msg)
+            print(f"{episode.get_direct_link()}\n")
+            continue
+
         if episode.has_movies and episode.season not in list(episode.season_episode_count.keys()):
             mpv_title = (
                 f"{anime.title} - Movie {episode.episode} - "

@@ -18,6 +18,12 @@ def syncplay(anime: Anime):
     download_syncplay()
 
     for episode in anime:
+        if anime.only_direct_link:
+            msg = f"{anime.title} - S{episode.season}E{episode.episode} - ({anime.language}):"
+            print(msg)
+            print(f"{episode.get_direct_link()}\n")
+            continue
+
         syncplay_username = getpass.getuser()
         syncplay_hostname = "syncplay.pl:8997"
         room_name = episode.title_german

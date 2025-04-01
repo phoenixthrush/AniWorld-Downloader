@@ -167,7 +167,7 @@ def parse_arguments() -> argparse.Namespace:
         help='Play a random anime (default genre is "all", e.g., Drama).'
     )
     misc_opts.add_argument(
-        '-D', '--direct-link',
+        '-D', '--only-direct-link',
         action='store_true',
         help='Output only the direct streaming link.'
     )

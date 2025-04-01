@@ -8,6 +8,12 @@ from aniworld.config import DEFAULT_DOWNLOAD_PATH, PROVIDER_HEADERS, INVALID_PAT
 
 def download(anime: Anime):
     for episode in anime:
+        if anime.only_direct_link:
+            msg = f"{anime.title} - S{episode.season}E{episode.episode} - ({anime.language}):"
+            print(msg)
+            print(f"{episode.get_direct_link()}\n")
+            continue
+
         sanitized_anime_title = ''.join(
             char for char in anime.title if char not in INVALID_PATH_CHARS
         )
