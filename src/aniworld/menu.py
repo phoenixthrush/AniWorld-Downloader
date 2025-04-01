@@ -297,6 +297,7 @@ class SelectionMenu(npyscreen.NPSApp):
         selected_language = self.language_selection.get_selected_objects()[0]
         selected_provider = self.provider_selection.get_selected_objects()[0]
         selected_output_directory = self.folder_selection.value
+        selected_aniskip = self.aniskip_selection.value is not None
 
         # print(f"Anime Title: {self.anime.title}")
         # print(f"Selected Episodes: {self.selected_episodes}")
@@ -320,7 +321,8 @@ class SelectionMenu(npyscreen.NPSApp):
             provider=selected_provider,
             output_directory=selected_output_directory,
             only_direct_link=self.anime.only_direct_link,
-            only_command=self.anime.only_command
+            only_command=self.anime.only_command,
+            aniskip=selected_aniskip
         )
 
 
