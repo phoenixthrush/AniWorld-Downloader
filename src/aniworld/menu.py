@@ -122,12 +122,6 @@ class SelectionMenu(npyscreen.NPSApp):
                 DEFAULT_LANGUAGE
             )
 
-        # Set Default Aniskip
-        if self.arguments and self.arguments.aniskip:
-            default_aniskip_selection = 0
-        else:
-            default_aniskip_selection = 1
-
         npyscreen.setTheme(CustomTheme)
         f = npyscreen.Form(name=f"Welcome to AniWorld-Downloader {VERSION}")
 
@@ -149,7 +143,6 @@ class SelectionMenu(npyscreen.NPSApp):
         self.aniskip_selection = f.add(
             npyscreen.TitleMultiSelect,
             max_height=2,
-            value=default_aniskip_selection,
             name="Aniskip",
             values=["Enabled"],
             scroll_exit=True,
@@ -297,7 +290,7 @@ class SelectionMenu(npyscreen.NPSApp):
         selected_language = self.language_selection.get_selected_objects()[0]
         selected_provider = self.provider_selection.get_selected_objects()[0]
         selected_output_directory = self.folder_selection.value
-        selected_aniskip = self.aniskip_selection.value is not None
+        selected_aniskip = bool(self.aniskip_selection.value)
 
         # print(f"Anime Title: {self.anime.title}")
         # print(f"Selected Episodes: {self.selected_episodes}")

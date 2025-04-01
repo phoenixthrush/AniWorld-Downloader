@@ -48,7 +48,9 @@ def syncplay(anime: Anime):
 
         if anime.aniskip:
             build_flags = aniskip(anime.title, episode.episode, episode.season)
-            command.append(build_flags)
+            sanitized_build_flags = build_flags.split()
+            command.append(sanitized_build_flags[0])
+            command.append(sanitized_build_flags[1])
 
         if anime.only_command:
             print(
