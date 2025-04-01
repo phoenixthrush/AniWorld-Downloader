@@ -9,6 +9,8 @@ import re
 
 import requests
 
+from aniworld.common import DEFAULT_REQUEST_TIMEOUT
+
 # extremly unreliable lol
 
 
@@ -54,7 +56,7 @@ def get_github_release(repo: str) -> dict:
     api_url = f"https://api.github.com/repos/{repo}/releases/latest"
 
     try:
-        response = requests.get(api_url, timeout=15)
+        response = requests.get(api_url, timeout=DEFAULT_REQUEST_TIMEOUT)
         response.raise_for_status()
         release_data = response.json()
         assets = release_data.get('assets', [])
@@ -62,6 +64,15 @@ def get_github_release(repo: str) -> dict:
     except (json.JSONDecodeError, requests.RequestException) as e:
         logging.error("Failed to fetch release data from GitHub: %s", e)
     return {}
+
+
+def download_7z(zip_tool: str) -> None:
+    if not os.path.exists(zip_tool):
+        print("Downloading 7z...")
+        r = requests.get('https://7-zip.org/a/7zr.exe',
+                         allow_redirects=True, timeout=DEFAULT_REQUEST_TIMEOUT)
+        with open(zip_tool, 'wb') as f:
+            f.write(r.content)
 
 
 def download_mpv(dep_path: str = None, appdata_path: str = None):
@@ -100,26 +111,21 @@ def download_mpv(dep_path: str = None, appdata_path: str = None):
             "No suitable MPV download link found. Please download manually.")
         return
 
-    if not os.path.exists(zip_tool):
-        print("Downloading 7z...")
-        r = requests.get('https://7-zip.org/a/7zr.exe',
-                         allow_redirects=True, timeout=15)
-        with open(zip_tool, 'wb') as f:
-            f.write(r.content)
-
     if not os.path.exists(zip_path):
         logging.debug("Downloading MPV from %s to %s", direct_link, zip_path)
         try:
             print(
                 f"Downloading MPV ({'without' if not avx2_supported else 'with'} AVX2)...")
             print(direct_link)
-            with requests.get(direct_link, allow_redirects=True, timeout=15) as r:
+            with requests.get(direct_link, allow_redirects=True, timeout=DEFAULT_REQUEST_TIMEOUT) as r:
                 r.raise_for_status()
                 with open(zip_path, 'wb') as f:
                     f.write(r.content)
         except requests.RequestException as e:
             logging.error("Failed to download MPV: %s", e)
             return
+
+    download_7z(zip_tool)
 
     logging.debug("Extracting MPV to %s", dep_path)
     try:
