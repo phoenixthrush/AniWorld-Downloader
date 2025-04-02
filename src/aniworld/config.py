@@ -207,6 +207,7 @@ MPV_PATH = mpv_path
 
 if platform.system() == "Windows":
     syncplay_path = shutil.which("syncplay")
+    syncplay_path = syncplay_path.replace("syncplay.EXE", "SyncplayConsole.exe")
     if not syncplay_path:
         syncplay_path = os.path.join(
             os.getenv(
