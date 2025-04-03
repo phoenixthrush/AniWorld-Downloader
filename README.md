@@ -19,7 +19,6 @@ AniWorld Downloader is a command-line tool for downloading and streaming anime, 
 - **Language Options**: Switch between German Dub, English Sub, or German Sub based on your preference.
 - **Aniskip Integration**: Automatically skip intros and outros.
 - **Syncplay for Group Watching**: Enjoy synchronized anime watching sessions with friends.
-- **Proxy Compatibility**: Set up an HTTP proxy for restricted network environments.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -167,9 +166,7 @@ Contributions to AniWorld Downloader are welcome! Your input helps improve the p
 
 ## Support
 
-I’ve received several reports from users experiencing unexpected menu quits. Recently, streaming providers have started blocking IP addresses from downloading. You can bypass this by using a VPN. You might try using the `--use-playwright` option instead, though it's still experimental and may not be very effective. Additionally, run aniworld with the `--debug` flag.
-
-This will typically reveal a timeout error, indicating the domain couldn’t be reached or another issue.
+I’ve received several reports from users experiencing unexpected menu quits. Recently, streaming providers have started blocking IP addresses from downloading. You can bypass this by using a VPN.
 
 ### How to Get Help
 If you still need assistance with AniWorld Downloader, you can:

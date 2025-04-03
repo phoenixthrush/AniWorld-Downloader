@@ -238,7 +238,8 @@ _____________________________
             try:
                 subprocess.run([
                     "osascript", "-e",
-                    'tell application "Terminal" to do script "trap exit SIGINT; tail -f -n +1 $TMPDIR/aniworld.log" activate'
+                    'tell application "Terminal" to do script "trap exit SIGINT; '
+                    'tail -f -n +1 $TMPDIR/aniworld.log" activate'
                 ], check=True)
                 logging.debug(
                     "Started tailing the log file in a new Terminal window.")
@@ -247,7 +248,8 @@ _____________________________
         elif system == "Windows":
             try:
                 command = (
-                    "start cmd /c \"powershell -NoExit -c Get-Content -Wait \"$env:TEMP\\aniworld.log\"\""
+                    "start cmd /c \"powershell -NoExit -c "
+                    "Get-Content -Wait \"$env:TEMP\\aniworld.log\"\""
                 )
                 subprocess.run(command, shell=True, check=True)
                 logging.debug(

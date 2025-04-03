@@ -28,10 +28,9 @@ def get_direct_link_from_doodstream(embeded_doodstream_link):
         verify=False
     )
     response.raise_for_status()
-    content = response.text
 
     pass_md5_pattern = r"\$\.get\('([^']*\/pass_md5\/[^']*)'"
-    pass_md5_url = extract_data(pass_md5_pattern, content)
+    pass_md5_url = extract_data(pass_md5_pattern, response.text)
     if not pass_md5_url:
         raise ValueError(
             f'pass_md5 URL not found using {embeded_doodstream_link}.')
@@ -39,7 +38,7 @@ def get_direct_link_from_doodstream(embeded_doodstream_link):
     full_md5_url = f"https://dood.li{pass_md5_url}"
 
     token_pattern = r"token=([a-zA-Z0-9]+)"
-    token = extract_data(token_pattern, content)
+    token = extract_data(token_pattern, response.text)
     if not token:
         raise ValueError(f'Token not found using {embeded_doodstream_link}.')
 
