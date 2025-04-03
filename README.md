@@ -113,7 +113,7 @@ These packages are automatically installed when you set up AniWorld Downloader u
 
 - [x] --help
 - [x] --version
-- [ ] --debug
+- [x] --debug
 - [ ] --uninstall
 - [ ] --update
 - [ ] --slug
@@ -128,15 +128,15 @@ These packages are automatically installed when you set up AniWorld Downloader u
 - [ ] --language
 - [ ] --provider
 - [ ] --anime4k
-- [ ] --syncplay-hostname
-- [ ] --syncplay-username
-- [ ] --syncplay-room
-- [ ] --syncplay-password
-- [ ] --aniskip
+- [x] --syncplay-hostname
+- [x] --syncplay-username
+- [x] --syncplay-room
+- [x] --syncplay-password
+- [x] --aniskip
 - [ ] --keep-watching
 - [ ] --random-anime
-- [ ] --only-direct-link
-- [ ] --only-command
+- [x] --only-direct-link
+- [x] --only-command
 
 </details>
 
