@@ -24,15 +24,11 @@ def aniworld() -> None:
             for link in (arguments.episode or [None]):
                 if link:
                     episode = Episode(
-                        link=link,
-                        _selected_provider="VOE",
-                        _selected_language="German Sub"
+                        link=link
                     )
                 else:
                     episode = Episode(
-                        slug=search_anime(),
-                        _selected_provider="VOE",
-                        _selected_language="German Sub"
+                        slug=search_anime()
                     )
                 anime = Anime(episode_list=[episode])
                 anime_list.append(anime)

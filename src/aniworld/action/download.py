@@ -1,6 +1,7 @@
 import os
 import re
 import subprocess
+import logging
 
 from aniworld.models import Anime
 from aniworld.config import DEFAULT_DOWNLOAD_PATH, PROVIDER_HEADERS, INVALID_PATH_CHARS
@@ -38,6 +39,7 @@ def download(anime: Anime):
             "--no-warnings",
             "--progress"
         ]
+        logging.debug("Executing command:\n%s", command)
 
         if anime.provider in PROVIDER_HEADERS:
             command.extend(["--add-header", PROVIDER_HEADERS[anime.provider]])

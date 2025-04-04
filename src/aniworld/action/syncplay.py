@@ -53,6 +53,7 @@ def syncplay(anime: Anime):
             "--fs",
             f'--force-media-title="{episode.title_german}"'
         ]
+        logging.debug("Executing command:\n%s", command)
 
         if arguments.password:
             command.append("--password")

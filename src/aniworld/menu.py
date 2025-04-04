@@ -9,7 +9,6 @@ from aniworld.config import (
     SUPPORTED_PROVIDERS,
     DEFAULT_PROVIDER_DOWNLOAD,
     DEFAULT_PROVIDER_WATCH,
-    DEFAULT_ACTION,
     DEFAULT_LANGUAGE
 )
 
@@ -43,7 +42,9 @@ class SelectionMenu(npyscreen.NPSApp):
         super().__init__()
         self.arguments = arguments
         self.anime = Anime(slug=slug, episode_list=[
-                           Episode(slug=slug, season=1, episode=1)], only_direct_link=arguments.only_direct_link, only_command=arguments.only_command)
+            Episode(slug=slug, season=1, episode=1)],
+            only_direct_link=arguments.only_direct_link,
+            only_command=arguments.only_command)
         self.selected_episodes = []
         self.episode_dict = {}
         self.action_selection = None
@@ -89,18 +90,11 @@ class SelectionMenu(npyscreen.NPSApp):
 
         max_episode_height = max(3, terminal_height - total_reserved_height)
 
-        # Set Default Action
-        default_action = (
-            self.arguments.action
-            if self.arguments and self.arguments.action
-            else DEFAULT_ACTION
-        )
-
         # TODO: fix it does not select from arguments
         # Set Default Provider
         default_provider = (
             DEFAULT_PROVIDER_DOWNLOAD
-            if default_action == "Download"
+            if self.arguments.action == "Download"
             else DEFAULT_PROVIDER_WATCH
         )
 
@@ -134,7 +128,8 @@ class SelectionMenu(npyscreen.NPSApp):
         self.action_selection = f.add(
             npyscreen.TitleSelectOne,
             max_height=3,
-            value=[["Watch", "Download", "Syncplay"].index(default_action)],
+            value=[["Watch", "Download", "Syncplay"].index(
+                self.arguments.action)],
             name="Action",
             values=["Watch", "Download", "Syncplay"],
             scroll_exit=True

@@ -74,8 +74,8 @@ DEFAULT_LANGUAGE = "German Sub"
 DEFAULT_ONLY_COMMAND = False
 DEFAULT_ONLY_DIRECT_LINK = False
 # SUPPORTED_PROVIDERS above
-DEFAULT_PROVIDER_DOWNLOAD = "SpeedFiles"
-DEFAULT_PROVIDER_WATCH = "SpeedFiles"
+DEFAULT_PROVIDER_DOWNLOAD = "VOE"
+DEFAULT_PROVIDER_WATCH = "Doodstream"
 DEFAULT_REQUEST_TIMEOUT = 30
 DEFAULT_TERMINAL_SIZE = (90, 30)
 
@@ -208,7 +208,8 @@ MPV_PATH = mpv_path
 if platform.system() == "Windows":
     syncplay_path = shutil.which("syncplay")
     if syncplay_path:
-        syncplay_path = syncplay_path.replace("syncplay.EXE", "SyncplayConsole.exe")
+        syncplay_path = syncplay_path.replace(
+            "syncplay.EXE", "SyncplayConsole.exe")
     else:
         syncplay_path = os.path.join(
             os.getenv(

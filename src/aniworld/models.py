@@ -1,4 +1,3 @@
-import pathlib
 import re
 import json
 import logging
@@ -9,13 +8,8 @@ import requests.models
 from bs4 import BeautifulSoup
 
 from aniworld.aniskip import get_mal_id_from_title
-from aniworld.config import (
-    DEFAULT_REQUEST_TIMEOUT,
-    DEFAULT_ACTION,
-    DEFAULT_PROVIDER_DOWNLOAD,
-    DEFAULT_PROVIDER_WATCH,
-    DEFAULT_LANGUAGE
-)
+from aniworld.config import DEFAULT_REQUEST_TIMEOUT
+from aniworld.parser import arguments
 
 from aniworld.extractors import (
     get_direct_link_from_vidmoly,
@@ -78,13 +72,13 @@ class Anime:
         self,
         title=None,
         slug=None,
-        action=DEFAULT_ACTION,
-        provider=None,
-        language=None,
-        aniskip=False,
+        action=arguments.action,
+        provider=arguments.provider,
+        language=arguments.language,
+        aniskip=arguments.aniskip,
         only_command=False,
         only_direct_link=False,
-        output_directory=pathlib.Path.home() / "Downloads",
+        output_directory=arguments.output_dir,
         episode_list=None,
         description_german=None,
         # description_english=None,
@@ -104,11 +98,8 @@ class Anime:
 
         self.title = title or get_anime_title_from_html(self.html)
         self.action = action
-        self.provider = provider or (
-            DEFAULT_PROVIDER_DOWNLOAD if action == "Download" else DEFAULT_PROVIDER_WATCH
-        )
-        self.language = language or DEFAULT_LANGUAGE
-
+        self.provider = provider
+        self.language = language
         self.aniskip = aniskip
         self.only_command = only_command
         self.only_direct_link = only_direct_link
@@ -228,8 +219,8 @@ class Episode:
         has_movies: bool = False,
         movie_episode_count: int = None,
         html: requests.models.Response = None,
-        _selected_provider: str = None,
-        _selected_language: int = None
+        _selected_provider: str = arguments.provider,
+        _selected_language: str = arguments.language
     ) -> None:
         if not link and (not slug or not season or not episode):
             raise ValueError(
@@ -255,7 +246,7 @@ class Episode:
         self.movie_episode_count: int = movie_episode_count
         self.html: requests.models.Response = html
         self._selected_provider: str = _selected_provider
-        self._selected_language: int = _selected_language
+        self._selected_language: str = _selected_language
 
         self.auto_fill_details()
 
@@ -343,39 +334,24 @@ class Episode:
         soup = BeautifulSoup(self.html.content, 'html.parser')
         providers = {}
 
-        logging.debug("Parsed HTML content with BeautifulSoup.")
-
         episode_links = soup.find_all(
             'li', class_=lambda x: x and x.startswith('episodeLink'))
-        logging.debug("Found %d episode links.", len(episode_links))
 
         for link in episode_links:
             provider_name_tag = link.find('h4')
             provider_name = provider_name_tag.text.strip() if provider_name_tag else None
 
-            if provider_name:
-                logging.debug("Extracted provider name: %s", provider_name)
-
             redirect_link_tag = link.find('a', class_='watchEpisode')
             redirect_link = redirect_link_tag['href'] if redirect_link_tag else None
-
-            if redirect_link:
-                logging.debug("Extracted redirect link: %s", redirect_link)
 
             lang_key = link.get('data-lang-key')
             lang_key = int(
                 lang_key) if lang_key and lang_key.isdigit() else None
-            if lang_key:
-                logging.debug("Extracted language key: %s", lang_key)
 
             if provider_name and redirect_link and lang_key:
                 if provider_name not in providers:
                     providers[provider_name] = {}
                 providers[provider_name][lang_key] = f"https://aniworld.to{redirect_link}"
-                logging.debug(
-                    "Added provider '%s' with language key '%s' to providers.",
-                    provider_name, lang_key
-                )
 
         if not providers:
             raise ValueError(

@@ -34,6 +34,7 @@ def watch(anime: Anime):
             "--quiet",
             f'--force-media-title="{mpv_title}"'
         ]
+        logging.debug("Executing command:\n%s", command)
 
         # print(anime.provider)
         # print(bool(anime.provider in PROVIDER_HEADERS))
