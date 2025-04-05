@@ -12,7 +12,7 @@ import requests
 # extremly unreliable lol
 
 
-def check_avx2_support() -> bool:
+def check_avx2_support() -> bool:  # TODO Not working yet right
     if platform.system() != "Windows":
         logging.debug("AVX2 check is only supported on Windows.")
         return False
@@ -23,6 +23,7 @@ def check_avx2_support() -> bool:
                 ['wmic', 'cpu', 'get', 'Caption,InstructionSet'],
                 capture_output=True,
                 text=True,
+                errors="replace",
                 check=False
             )
             if 'avx2' in cpu_info.stdout.lower():
@@ -73,7 +74,7 @@ def download_7z(zip_tool: str) -> None:
             f.write(r.content)
 
 
-def download_mpv(dep_path: str = None, appdata_path: str = None):
+def download_mpv(dep_path: str = None, appdata_path: str = None, update: bool = False):
     if sys.platform != 'win32':
         return
 
@@ -81,6 +82,9 @@ def download_mpv(dep_path: str = None, appdata_path: str = None):
         os.environ['USERPROFILE'], 'AppData', 'Roaming', 'aniworld'
     )
     dep_path = dep_path or os.path.join(appdata_path, "mpv")
+    if update is True:
+        if os.path.exists(dep_path):
+            shutil.rmtree(dep_path)
     os.makedirs(dep_path, exist_ok=True)
 
     executable_path = os.path.join(dep_path, 'mpv.exe')
@@ -114,7 +118,6 @@ def download_mpv(dep_path: str = None, appdata_path: str = None):
         try:
             print(
                 f"Downloading MPV ({'without' if not avx2_supported else 'with'} AVX2)...")
-            print(direct_link)
             with requests.get(direct_link, allow_redirects=True, timeout=15) as r:
                 r.raise_for_status()
                 with open(zip_path, 'wb') as f:
@@ -137,8 +140,59 @@ def download_mpv(dep_path: str = None, appdata_path: str = None):
             subprocess.SubprocessError) as e:
         logging.error("Failed to extract files: %s", e)
 
-    # os.remove(zip_path)
     logging.debug("Download and extraction complete.")
 
     logging.debug("Adding MPV path to environment: %s", dep_path)
     os.environ["PATH"] += os.pathsep + dep_path
+
+    if os.path.exists(zip_path):
+        os.remove(zip_path)
+
+
+def download_syncplay(dep_path: str = None, appdata_path: str = None, update: bool = False):
+    if sys.platform != 'win32':
+        return
+
+    appdata_path = appdata_path or os.path.join(
+        os.environ['USERPROFILE'], 'AppData', 'Roaming', 'aniworld')
+    dep_path = dep_path or os.path.join(appdata_path, "syncplay")
+    if update is True:
+        if os.path.exists(dep_path):
+            shutil.rmtree(dep_path)
+    os.makedirs(dep_path, exist_ok=True)
+
+    executable_path = os.path.join(dep_path, 'SyncplayConsole.exe')
+    zip_path = os.path.join(dep_path, 'syncplay.zip')
+
+    if os.path.exists(executable_path):
+        return
+
+    direct_links = get_github_release("Syncplay/syncplay")
+    direct_link = next(
+        (link for name, link in direct_links.items()
+         if re.match(r'Syncplay_\d+\.\d+\.\d+_Portable\.zip', name)),
+        None
+    )
+
+    if not os.path.exists(executable_path):
+        print("Downloading Syncplay...")
+        r = requests.get(direct_link, allow_redirects=True, timeout=15)
+        with open(zip_path, 'wb') as file:
+            file.write(r.content)
+
+    logging.debug("Extracting Syncplay to %s", dep_path)
+    try:
+        subprocess.run(
+            ["tar", "-xf", zip_path],
+            check=True,
+            cwd=dep_path
+        )
+    except subprocess.CalledProcessError as e:
+        logging.error("Failed to extract files: %s", e)
+    except FileNotFoundError:
+        logging.error("7zr.exe not found at the specified path.")
+    except subprocess.SubprocessError as e:
+        logging.error("An error occurred: %s", e)
+
+    if os.path.exists(zip_path):
+        os.remove(zip_path)

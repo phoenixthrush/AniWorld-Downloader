@@ -1,15 +1,10 @@
 import getpass
 import subprocess
-import sys
-import os
-import re
 import logging
-
-import requests
 
 from aniworld.models import Anime
 from aniworld.config import MPV_PATH, PROVIDER_HEADERS, SYNCPLAY_PATH
-from aniworld.common import get_github_release, download_mpv
+from aniworld.common import download_mpv, download_syncplay
 from aniworld.aniskip import aniskip
 from aniworld.parser import arguments
 
@@ -88,51 +83,6 @@ def syncplay(anime: Anime or None):
                     "Error running command:\n"
                     f"{' '.join(str(item) if item is not None else '' for item in command)}"
                 )
-
-
-def download_syncplay(dep_path: str = None, appdata_path: str = None):
-    if sys.platform == 'win32':
-        if appdata_path is None:
-            appdata_path = os.path.join(
-                os.environ['USERPROFILE'], 'AppData', 'Roaming', 'aniworld')
-        if dep_path is None:
-            dep_path = os.path.join(appdata_path, "syncplay")
-            os.makedirs(dep_path, exist_ok=True)
-
-        executable_path = os.path.join(dep_path, 'SyncplayConsole.exe')
-        zip_path = os.path.join(dep_path, 'syncplay.zip')
-
-        if os.path.exists(executable_path):
-            return
-    else:
-        return
-
-    direct_links = get_github_release("Syncplay/syncplay")
-    direct_link = next(
-        (link for name, link in direct_links.items()
-         if re.match(r'Syncplay_\d+\.\d+\.\d+_Portable\.zip', name)),
-        None
-    )
-
-    if not os.path.exists(executable_path):
-        print("Downloading Syncplay...")
-        r = requests.get(direct_link, allow_redirects=True, timeout=15)
-        with open(zip_path, 'wb') as file:
-            file.write(r.content)
-
-    logging.debug("Extracting Syncplay to %s", dep_path)
-    try:
-        subprocess.run(
-            ["tar", "-xf", zip_path],
-            check=True,
-            cwd=dep_path
-        )
-    except subprocess.CalledProcessError as e:
-        logging.error("Failed to extract files: %s", e)
-    except FileNotFoundError:
-        logging.error("7zr.exe not found at the specified path.")
-    except subprocess.SubprocessError as e:
-        logging.error("An error occurred: %s", e)
 
 
 def syncplay_local_file():

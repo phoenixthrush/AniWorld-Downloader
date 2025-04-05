@@ -114,7 +114,7 @@ These packages are automatically installed when you set up AniWorld Downloader u
 - [x] --version
 - [x] --debug
 - [ ] --uninstall
-- [ ] --update
+- [x] --update
 - [ ] --slug
 - [ ] --link
 - [ ] --query

@@ -1,9 +1,11 @@
+import os
 import sys
 import argparse
 import platform
 import logging
 import subprocess
 
+from aniworld.common import download_mpv, download_syncplay
 from aniworld.config import (
     DEFAULT_ACTION,
     DEFAULT_PROVIDER_DOWNLOAD,
@@ -197,6 +199,26 @@ _____________________________
 """
         print(cowsay.strip())
         sys.exit()
+
+    # That is written extremly bad
+    if args.update == "mpv":  # TODO Not checking for the version just reinstalls
+        print("Updating MPV...")
+        download_mpv(update=True)
+    elif args.update == "yt-dlp":
+        print("Updating YT-dlp...")
+        os.system("pip install -U yt-dlp")
+    elif args.update == "syncplay":
+        print("Updating Syncplay...")
+        download_syncplay(update=True)
+    elif args.update == "all":
+        print("Updating MPV...")
+        download_mpv(update=True)
+        print("Updating YT-dlp...")
+        os.system("pip install -U yt-dlp")
+        print("Updating Syncplay...")
+        download_syncplay(update=True)
+    elif args.update == "anime4k":
+        pass  # First implement Anime4k
 
     if args.provider is None:
         # TODO Think about something better
