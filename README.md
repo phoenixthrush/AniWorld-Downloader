@@ -120,7 +120,7 @@ These packages are automatically installed when you set up AniWorld Downloader u
 - [ ] --query
 - [x] --episode
 - [ ] --episode-file
-- [ ] --episode-local
+- [x] --episode-local
 - [ ] --action
 - [ ] --output
 - [x] --output-directory

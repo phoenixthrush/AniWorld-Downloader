@@ -78,7 +78,8 @@ def parse_arguments() -> argparse.Namespace:
     )
     episode_opts.add_argument(
         '-lf', '--local-episodes',
-        action='store_true',
+        type=str,
+        nargs='+',
         help='Use local MP4 files for episodes instead of URLs.'
     )
 

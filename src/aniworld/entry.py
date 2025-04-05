@@ -1,3 +1,4 @@
+from aniworld.action import watch, syncplay
 from aniworld.models import Anime, Episode
 from aniworld.parser import arguments
 from aniworld.search import search_anime
@@ -7,17 +8,12 @@ from aniworld.menu import menu
 
 def aniworld() -> None:
     try:
-        if not arguments.episode:
-            while True:
-                try:
-                    slug = search_anime()
-                    break
-                except ValueError:
-                    continue
-
-            anime = menu(arguments=arguments, slug=slug)
-            execute(anime_list=[anime])
-        else:
+        if arguments.local_episodes:
+            if arguments.action == "Watch":
+                watch(None)
+            elif arguments.action == "Syncplay":
+                syncplay(None)
+        if arguments.episode:
             # TODO: this needs to pass all links to a function
             #       that will return Anime objects instead
             anime_list = []
@@ -34,6 +30,16 @@ def aniworld() -> None:
                 anime_list.append(anime)
 
             execute(anime_list=anime_list)
+        if not arguments.episode and not arguments.local_episodes:
+            while True:
+                try:
+                    slug = search_anime()
+                    break
+                except ValueError:
+                    continue
+
+            anime = menu(arguments=arguments, slug=slug)
+            execute(anime_list=[anime])
     except KeyboardInterrupt:
         pass
 
