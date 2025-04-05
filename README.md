@@ -124,8 +124,8 @@ These packages are automatically installed when you set up AniWorld Downloader u
 - [ ] --action
 - [ ] --output
 - [x] --output-directory
-- [ ] --language
-- [ ] --provider
+- [x] --language
+- [x] --provider
 - [ ] --anime4k
 - [x] --syncplay-hostname
 - [x] --syncplay-username

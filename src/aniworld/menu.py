@@ -8,8 +8,8 @@ from aniworld.config import (
     SUPPORTED_PROVIDERS,
     DEFAULT_PROVIDER_DOWNLOAD,
     DEFAULT_PROVIDER_WATCH,
-    DEFAULT_LANGUAGE
 )
+from aniworld.parser import USES_DEFAULT_PROVIDER
 
 
 class CustomTheme(npyscreen.ThemeManager):
@@ -87,32 +87,6 @@ class SelectionMenu(npyscreen.NPSApp):
 
         max_episode_height = max(3, terminal_height - total_reserved_height)
 
-        # TODO: fix it does not select from arguments
-        # Set Default Provider
-        default_provider = (
-            DEFAULT_PROVIDER_DOWNLOAD
-            if self.arguments.action == "Download"
-            else DEFAULT_PROVIDER_WATCH
-        )
-
-        if self.arguments and self.arguments.provider:
-            selected_provider = self.arguments.provider.lower()
-
-            if selected_provider in available_providers:
-                default_provider = available_providers[
-                    available_providers.index(selected_provider)
-                ]
-
-        # Set Default Language
-        if self.arguments and self.arguments.language:
-            default_language_selection = available_languages.index(
-                self.arguments.language
-            )
-        else:
-            default_language_selection = available_languages.index(
-                DEFAULT_LANGUAGE
-            )
-
         npyscreen.setTheme(CustomTheme)
         f = npyscreen.Form(name=f"Welcome to AniWorld-Downloader {VERSION}")
 
@@ -146,7 +120,10 @@ class SelectionMenu(npyscreen.NPSApp):
         self.language_selection = f.add(
             npyscreen.TitleSelectOne,
             max_height=len(available_languages),
-            value=[default_language_selection],
+            value=[
+                available_languages.index(self.arguments.language)
+                if self.arguments.language in available_languages else 0
+            ],
             name="Language",
             values=available_languages,
             scroll_exit=True,
@@ -157,8 +134,8 @@ class SelectionMenu(npyscreen.NPSApp):
             npyscreen.TitleSelectOne,
             max_height=len(supported_providers),
             value=[
-                supported_providers.index(default_provider)
-                if default_provider in supported_providers else 0
+                supported_providers.index(self.arguments.provider)
+                if self.arguments.provider in supported_providers else 0
             ],
             name="Provider",
             values=supported_providers,
@@ -201,26 +178,28 @@ class SelectionMenu(npyscreen.NPSApp):
                 self.folder_selection.hidden = True
                 self.aniskip_selection.hidden = False
 
-                try:
-                    provider_index = supported_providers.index(
-                        DEFAULT_PROVIDER_WATCH)
-                except ValueError:
-                    provider_index = 0
+                if USES_DEFAULT_PROVIDER:
+                    try:
+                        provider_index = supported_providers.index(
+                            DEFAULT_PROVIDER_WATCH)
+                    except ValueError:
+                        provider_index = 0
 
-                if self.provider_selection.value != [provider_index]:
-                    self.provider_selection.value = [provider_index]
+                    if self.provider_selection.value != [provider_index]:
+                        self.provider_selection.value = [provider_index]
             else:
                 self.folder_selection.hidden = False
                 self.aniskip_selection.hidden = True
 
-                try:
-                    provider_index = supported_providers.index(
-                        DEFAULT_PROVIDER_DOWNLOAD)
-                except ValueError:
-                    provider_index = 0
+                if USES_DEFAULT_PROVIDER:
+                    try:
+                        provider_index = supported_providers.index(
+                            DEFAULT_PROVIDER_DOWNLOAD)
+                    except ValueError:
+                        provider_index = 0
 
-                if self.provider_selection.value != [provider_index]:
-                    self.provider_selection.value = [provider_index]
+                    if self.provider_selection.value != [provider_index]:
+                        self.provider_selection.value = [provider_index]
             f.display()
 
         self.action_selection.when_value_edited = update_visibility

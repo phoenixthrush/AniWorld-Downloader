@@ -76,7 +76,6 @@ def watch(anime: Anime or None):
 
 def watch_local_file():
     for file in arguments.local_episodes:
-        logging.debug(file)
         command = [
             MPV_PATH,
             f'{file}',

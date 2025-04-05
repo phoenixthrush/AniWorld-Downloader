@@ -14,6 +14,8 @@ from aniworld.config import (
     DEFAULT_DOWNLOAD_PATH
 )
 
+USES_DEFAULT_PROVIDER = False
+
 
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -197,6 +199,9 @@ _____________________________
         sys.exit()
 
     if args.provider is None:
+        # TODO Think about something better
+        global USES_DEFAULT_PROVIDER
+        USES_DEFAULT_PROVIDER = True
         if args.action == "Download":
             args.provider = DEFAULT_PROVIDER_DOWNLOAD
         else:
