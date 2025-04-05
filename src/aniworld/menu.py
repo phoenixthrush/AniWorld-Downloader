@@ -5,7 +5,6 @@ import npyscreen
 from aniworld.models import Anime, Episode
 from aniworld.config import (
     VERSION,
-    DEFAULT_DOWNLOAD_PATH,
     SUPPORTED_PROVIDERS,
     DEFAULT_PROVIDER_DOWNLOAD,
     DEFAULT_PROVIDER_WATCH,
@@ -119,12 +118,6 @@ class SelectionMenu(npyscreen.NPSApp):
         npyscreen.setTheme(CustomTheme)
         f = npyscreen.Form(name=f"Welcome to AniWorld-Downloader {VERSION}")
 
-        # Set Default Output Directory
-        if self.arguments and self.arguments.output_dir:
-            default_output_directory = self.arguments.output_dir
-        else:
-            default_output_directory = DEFAULT_DOWNLOAD_PATH
-
         self.action_selection = f.add(
             npyscreen.TitleSelectOne,
             max_height=3,
@@ -149,7 +142,7 @@ class SelectionMenu(npyscreen.NPSApp):
             max_height=2,
             name="Save Location",
             rely=self.action_selection.rely + self.action_selection.height + 1,
-            value=default_output_directory
+            value=self.arguments.output_dir
         )
 
         self.language_selection = f.add(

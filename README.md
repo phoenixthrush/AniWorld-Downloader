@@ -123,7 +123,7 @@ These packages are automatically installed when you set up AniWorld Downloader u
 - [ ] --episode-local
 - [ ] --action
 - [ ] --output
-- [ ] --output-directory
+- [x] --output-directory
 - [ ] --language
 - [ ] --provider
 - [ ] --anime4k

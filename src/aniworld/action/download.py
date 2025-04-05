@@ -4,7 +4,8 @@ import subprocess
 import logging
 
 from aniworld.models import Anime
-from aniworld.config import DEFAULT_DOWNLOAD_PATH, PROVIDER_HEADERS, INVALID_PATH_CHARS
+from aniworld.config import PROVIDER_HEADERS, INVALID_PATH_CHARS
+from aniworld.parser import arguments
 
 
 def download(anime: Anime):
@@ -24,7 +25,7 @@ def download(anime: Anime):
             f"({anime.language}).mp4"
         )
         output_path = os.path.join(
-            DEFAULT_DOWNLOAD_PATH, sanitized_anime_title, output_file
+            arguments.output_dir, sanitized_anime_title, output_file
         )
 
         os.makedirs(os.path.dirname(output_path), exist_ok=True)

@@ -3,7 +3,6 @@ import argparse
 import platform
 import logging
 import subprocess
-import pathlib
 
 from aniworld.config import (
     DEFAULT_ACTION,
@@ -11,7 +10,8 @@ from aniworld.config import (
     DEFAULT_PROVIDER_WATCH,
     DEFAULT_LANGUAGE,
     VERSION,
-    SUPPORTED_PROVIDERS
+    SUPPORTED_PROVIDERS,
+    DEFAULT_DOWNLOAD_PATH
 )
 
 
@@ -94,7 +94,7 @@ def parse_arguments() -> argparse.Namespace:
     action_opts.add_argument(
         '-o', '--output-dir',
         type=str,
-        default=pathlib.Path.home() / "Downloads",
+        default=DEFAULT_DOWNLOAD_PATH,
         help='Set the download directory (e.g., /path/to/downloads).'
     )
     action_opts.add_argument(
