@@ -19,7 +19,7 @@ def syncplay(anime: Anime):
     download_syncplay()
 
     for episode in anime:
-        if anime.only_direct_link:
+        if arguments.only_direct_link:
             msg = f"{anime.title} - S{episode.season}E{episode.episode} - ({anime.language}):"
             print(msg)
             print(f"{episode.get_direct_link()}\n")
@@ -69,7 +69,7 @@ def syncplay(anime: Anime):
             command.append(sanitized_build_flags[0])
             command.append(sanitized_build_flags[1])
 
-        if anime.only_command:
+        if arguments.only_command:
             print(
                 f"\n{anime.title} - S{episode.season}E{episode.episode} - ({anime.language}):"
             )

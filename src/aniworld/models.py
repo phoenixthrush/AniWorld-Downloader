@@ -57,9 +57,6 @@ class Anime:
         language (str): The language code for the anime.
                         Defaults to DEFAULT_LANGUAGE if not provided.
         aniskip (bool): Whether to skip certain actions (default is False).
-        only_command (bool): If True, only commands are executed without additional actions
-                            (default is False).
-        only_direct_link (bool): If True, only direct links are fetched (default is False).
         output_directory (str): The directory where downloads are saved.
                                 Defaults to the user's home "Downloads" directory.
         episode_list (list): A list of Episode objects for the anime.
@@ -76,8 +73,6 @@ class Anime:
         provider=arguments.provider,
         language=arguments.language,
         aniskip=arguments.aniskip,
-        only_command=False,
-        only_direct_link=False,
         output_directory=arguments.output_dir,
         episode_list=None,
         description_german=None,
@@ -101,8 +96,6 @@ class Anime:
         self.provider = provider
         self.language = language
         self.aniskip = aniskip
-        self.only_command = only_command
-        self.only_direct_link = only_direct_link
         self.output_directory = output_directory
         self.episode_list = episode_list
 
@@ -145,8 +138,6 @@ class Anime:
             "provider": self.provider,
             "language": self.language,
             "aniskip": self.aniskip,
-            "only_command": self.only_command,
-            "only_direct_link": self.only_direct_link,
             "output_directory": str(self.output_directory),
             "episode_list": self.episode_list,
             "description_german": ' '.join(self.description_german.split()[:10]) + ' [...]',

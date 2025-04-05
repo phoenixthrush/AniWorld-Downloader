@@ -10,7 +10,7 @@ from aniworld.parser import arguments
 
 def download(anime: Anime):
     for episode in anime:
-        if anime.only_direct_link:
+        if arguments.only_direct_link:
             msg = f"{anime.title} - S{episode.season}E{episode.episode} - ({anime.language}):"
             print(msg)
             print(f"{episode.get_direct_link()}\n")
@@ -45,7 +45,7 @@ def download(anime: Anime):
         if anime.provider in PROVIDER_HEADERS:
             command.extend(["--add-header", PROVIDER_HEADERS[anime.provider]])
 
-        if anime.only_command:
+        if arguments.only_command:
             print(
                 f"\n{anime.title} - S{episode.season}E{episode.episode} - ({anime.language}):"
             )

@@ -41,9 +41,7 @@ class SelectionMenu(npyscreen.NPSApp):
         super().__init__()
         self.arguments = arguments
         self.anime = Anime(slug=slug, episode_list=[
-            Episode(slug=slug, season=1, episode=1)],
-            only_direct_link=arguments.only_direct_link,
-            only_command=arguments.only_command)
+            Episode(slug=slug, season=1, episode=1)])
         self.selected_episodes = []
         self.episode_dict = {}
         self.action_selection = None
@@ -301,8 +299,6 @@ class SelectionMenu(npyscreen.NPSApp):
             language=selected_language,
             provider=selected_provider,
             output_directory=selected_output_directory,
-            only_direct_link=self.anime.only_direct_link,
-            only_command=self.anime.only_command,
             aniskip=selected_aniskip
         )
 
