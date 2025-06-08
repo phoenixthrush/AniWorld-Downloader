@@ -57,6 +57,13 @@ window.addEventListener("DOMContentLoaded", () => {
           providerSel.appendChild(option);
         });
 
+        // for now default to Filemoon provider if available
+        if (data["Filemoon"]) {
+          providerSel.value = "Filemoon";
+        } else {
+          providerSel.value = providerSel.options[0]?.text || "";
+        }
+
         providerSel.style.display = "inline-block";
         langSel.style.display = "inline-block";
 
@@ -68,12 +75,21 @@ window.addEventListener("DOMContentLoaded", () => {
             option.textContent = l;
             langSel.appendChild(option);
           });
+          // for now default to German Sub provider if available
+          langSel.value = langs["German Sub"] ? "German Sub" : langSel.options[0]?.text || "";
           langSel.onchange();
         };
 
         langSel.onchange = () => {
           const url = data[providerSel.value]?.[langSel.value] ?? "";
-          status.textContent = url;
+          fetch(url)
+            .then(r => r.text())
+            .then(html => {
+              status.innerHTML = html;
+            })
+            .catch(err => {
+              status.textContent = "Error loading content: " + err.message;
+            });
         };
 
         providerSel.onchange();
