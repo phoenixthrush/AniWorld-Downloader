@@ -13,10 +13,11 @@
   <main class="container">
     <h1>Welcome to AniWorld</h1>
 
-    <textarea id="episode" name="episode" rows="5" cols="33">
-      https://aniworld.to/anime/stream/goblin-slayer/staffel-1/episode-1
-    </textarea>
-    <button type="submit" id="submit">Fetch</button>
+    <input type="text" name="query" id="query" placeholder="Search for an anime">
+    <select id="anime"></select>
+
+    <textarea id="episode" name="episode" rows="5" cols="33"></textarea>
+    <button type="submit" id="submit">Search</button>
 
     <div class="selection">
       <select id="provider"></select>
@@ -25,6 +26,7 @@
 
     <div id="status"></div>
   </main>
+  <div id="copyright">&copy;2025 phoenixthrush</div>
 </body>
 
 </html>

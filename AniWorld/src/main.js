@@ -36,11 +36,49 @@ function getProvidersFromHTML(html) {
   return providers;
 }
 
+async function getAnimesFromSearch(query) {
+  const searchUrl = `${ANIWORLD_TO}/ajax/seriesSearch?keyword=${encodeURIComponent(query)}`;
+  const response = await fetch(searchUrl);
+  if (!response.ok) throw new Error("Fehler beim Abrufen der Suchergebnisse");
+  return response.json();
+}
+
 window.addEventListener("DOMContentLoaded", () => {
   const episodeInput = document.getElementById("episode");
   const providerSel = document.getElementById("provider");
   const langSel = document.getElementById("language");
   const status = document.getElementById("status");
+
+  const queryInput = document.getElementById("query");
+  const animeSelect = document.getElementById("anime");
+  queryInput.addEventListener("input", () => {
+    getAnimesFromSearch(queryInput.value)
+      .then(animes => {
+        animeSelect.textContent = "";
+        if (animes.length > 0) {
+          animes.forEach(anime => {
+            const option = document.createElement("option");
+            option.value = anime.link ? `${ANIWORLD_TO}/anime/stream/${anime.link}/staffel-1/episode-1` : "";
+            option.textContent = anime.title || anime.link || "";
+            animeSelect.appendChild(option);
+          });
+          episodeInput.value = animes[0].link ? `${ANIWORLD_TO}/anime/stream/${animes[0].link}/staffel-1/episode-1` : "";
+          episodeInput.style.display = "inline-block";  // will be replaced by selection
+        } else {
+          episodeInput.value = "";
+          episodeInput.style.display = "none";
+        }
+      })
+      .catch(() => {
+        animeSelect.textContent = "";
+        episodeInput.value = "";
+        episodeInput.style.display = "none";
+      });
+  });
+
+  animeSelect.addEventListener("change", () => {
+    episodeInput.value = animeSelect.value;
+  });
 
   document.querySelector("button[type='submit']").addEventListener("click", e => {
     e.preventDefault();
@@ -50,7 +88,10 @@ window.addEventListener("DOMContentLoaded", () => {
       .then(html => {
         const data = getProvidersFromHTML(html);
 
-        providerSel.textContent = "";
+        providerSel.style.display = "inline-block";
+        langSel.style.display = "inline-block";
+
+        providerSel.innerHTML = "";
         Object.keys(data).forEach(p => {
           const option = document.createElement("option");
           option.textContent = p;
@@ -64,17 +105,15 @@ window.addEventListener("DOMContentLoaded", () => {
           providerSel.value = providerSel.options[0]?.text || "";
         }
 
-        providerSel.style.display = "inline-block";
-        langSel.style.display = "inline-block";
-
         providerSel.onchange = () => {
           const langs = data[providerSel.value];
-          langSel.textContent = "";
+          langSel.innerHTML = "";
           Object.keys(langs).forEach(l => {
             const option = document.createElement("option");
             option.textContent = l;
             langSel.appendChild(option);
           });
+
           // for now default to German Sub provider if available
           langSel.value = langs["German Sub"] ? "German Sub" : langSel.options[0]?.text || "";
           langSel.onchange();
