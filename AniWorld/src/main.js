@@ -43,14 +43,28 @@ async function getAnimesFromSearch(query) {
   return response.json();
 }
 
+async function get_direct_link(url) {
+  let pyodide = await loadPyodide();
+  await pyodide.loadPackage("micropip");
+
+  const micropip = pyodide.pyimport("micropip");
+  // this will raise a traceback because there is no pure Python wheel for npyscreen
+  await micropip.install('aniworld', { keep_going: true });
+
+  pyodide.runPython(`
+    from aniworld.config import VERSION
+    print(f"${url}: {VERSION}")
+  `);
+}
+
 window.addEventListener("DOMContentLoaded", () => {
   const episodeInput = document.getElementById("episode");
   const providerSel = document.getElementById("provider");
   const langSel = document.getElementById("language");
   const status = document.getElementById("status");
-
   const queryInput = document.getElementById("query");
   const animeSelect = document.getElementById("anime");
+
   queryInput.addEventListener("input", () => {
     getAnimesFromSearch(queryInput.value)
       .then(animes => {
@@ -136,5 +150,11 @@ window.addEventListener("DOMContentLoaded", () => {
       .catch(err => {
         status.textContent = "Error: " + err.message;
       });
+
+    get_direct_link("Tobias").then(result => {
+      status.innerHTML += `<br>${result}`;
+    }).catch(err => {
+      status.innerHTML += `<br>Error: ${err.message}`;
+    });
   });
 });
