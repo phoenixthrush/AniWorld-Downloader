@@ -7,16 +7,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AniWorld</title>
   <script type="module" src="/main.js" defer></script>
-  <!-- 
-    Notes on using Pyodide:
-
-    I don't want to rewrite my JS extractor logic every time something changes.
-    I want to continue updating my native aniworld Python logic, which should also be adopted here.
-    I have considered using PyO3 bindings or translating the Python code directly into JavaScript.
-    Alternatively, I could use tauri sidecar to ship my GitHub standalone aniworld builds.
-    For now, though, I think it's still best to use Pyodide and run my aniworld extractor logic through WASM.
-  -->
-  <script src="https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js" defer></script>
 </head>
 
 <body>
@@ -35,6 +25,7 @@
     </div>
 
     <div id="status"></div>
+    <button id="copy" type="button">Copy</button>
   </main>
   <div id="copyright">&copy;2025 phoenixthrush</div>
 </body>

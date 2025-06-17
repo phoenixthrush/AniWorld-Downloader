@@ -43,19 +43,52 @@ async function getAnimesFromSearch(query) {
   return response.json();
 }
 
-async function get_direct_link(url) {
-  let pyodide = await loadPyodide();
-  await pyodide.loadPackage("micropip");
+async function get_direct_link(embed_link, provider = "vidmoly") {
+  const USER_AGENT = "Mozilla/5.0 (Android 15; Mobile; rv:132.0) Gecko/132.0 Firefox/132.0";
 
-  const micropip = pyodide.pyimport("micropip");
-  // this will raise a traceback because there is no pure Python wheel for npyscreen
-  await micropip.install('aniworld', { keep_going: true });
+  const response = await fetch(embed_link, {
+    headers: {
+      "User-Agent": USER_AGENT,
+      "Referer": get_referer(provider)
+    }
+  });
 
-  pyodide.runPython(`
-    from aniworld.config import VERSION
-    print(f"${url}: {VERSION}")
-  `);
+  if (!response.ok) throw new Error(`Failed to fetch ${provider} page`);
+
+  const html = await response.text();
+
+  const parser = parsers[provider];
+  if (!parser) throw new Error(`No parser implemented for provider: ${provider}`);
+
+  return parser(html);
 }
+
+function get_referer(provider) {
+  const referers = {
+    vidmoly: "https://vidmoly.to",
+    example: "https://example.com"
+  };
+  return referers[provider] || "";
+}
+
+const parsers = {
+  vidmoly: html => {
+    const file_link_pattern = /file:\s*"((https?:\/\/)[^"]+)"/;
+    const scripts = Array.from(html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)).map(m => m[1]);
+
+    for (const script of scripts) {
+      const match = file_link_pattern.exec(script);
+      if (match) return match[1];
+    }
+
+    throw new Error("No direct link found in vidmoly response.");
+  },
+
+  example: html => {
+    // Placeholder for future providers
+    throw new Error("Example parser not implemented.");
+  }
+};
 
 window.addEventListener("DOMContentLoaded", () => {
   const episodeInput = document.getElementById("episode");
@@ -64,6 +97,13 @@ window.addEventListener("DOMContentLoaded", () => {
   const status = document.getElementById("status");
   const queryInput = document.getElementById("query");
   const animeSelect = document.getElementById("anime");
+
+  const copyBtn = document.getElementById("copy");
+  copyBtn.addEventListener("click", () => {
+    if (status.textContent) {
+      navigator.clipboard.writeText(status.textContent);
+    }
+  });
 
   queryInput.addEventListener("input", () => {
     getAnimesFromSearch(queryInput.value)
@@ -112,9 +152,9 @@ window.addEventListener("DOMContentLoaded", () => {
           providerSel.appendChild(option);
         });
 
-        // for now default to Filemoon provider if available
-        if (data["Filemoon"]) {
-          providerSel.value = "Filemoon";
+        // for now default to Vidmoly provider if available
+        if (data["Vidmoly"]) {
+          providerSel.value = "Vidmoly";
         } else {
           providerSel.value = providerSel.options[0]?.text || "";
         }
@@ -135,6 +175,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
         langSel.onchange = () => {
           const url = data[providerSel.value]?.[langSel.value] ?? "";
+          /*
           fetch(url)
             .then(r => r.text())
             .then(html => {
@@ -143,6 +184,13 @@ window.addEventListener("DOMContentLoaded", () => {
             .catch(err => {
               status.textContent = "Error loading content: " + err.message;
             });
+            */
+          get_direct_link(url).then(result => {
+            status.textContent = `yt-dlp --add-header "Referer: https://vidmoly.to"\n${result}`;
+            copyBtn.style.display = "block";
+          }).catch(err => {
+            status.textContent = `Error: ${err.message}`;
+          });
         };
 
         providerSel.onchange();
@@ -150,11 +198,5 @@ window.addEventListener("DOMContentLoaded", () => {
       .catch(err => {
         status.textContent = "Error: " + err.message;
       });
-
-    get_direct_link("Tobias").then(result => {
-      status.innerHTML += `<br>${result}`;
-    }).catch(err => {
-      status.innerHTML += `<br>Error: ${err.message}`;
-    });
   });
 });
