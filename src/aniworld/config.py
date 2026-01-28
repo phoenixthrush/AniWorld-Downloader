@@ -8,6 +8,7 @@ from niquests import Session
 
 from .env import merge_env
 from .logger import get_logger
+from .networking import create_pooled_session
 
 VERSION = "4.0.0"
 
@@ -65,9 +66,9 @@ LULUVDO_USER_AGENT = (
     "Mozilla/5.0 (Android 15; Mobile; rv:132.0) Gecko/132.0 Firefox/132.0"
 )
 
-GLOBAL_SESSION = Session(
-    resolver=["doh+google://"],
-    headers={
+# Create GLOBAL_SESSION with optimized HTTP connection pooling
+GLOBAL_SESSION = create_pooled_session(
+    base_headers={
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Sec-Fetch-Site": "none",
         "Sec-Fetch-Dest": "document",
@@ -78,6 +79,9 @@ GLOBAL_SESSION = Session(
         "Referer": "https://aniworld.to/search",
         "Priority": "u=0, i",
     },
+    resolver=["doh+google://"],
+    pool_connections=10,
+    pool_maxsize=20,
 )
 
 logger.debug("Config initialized successfully")
