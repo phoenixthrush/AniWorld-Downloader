@@ -39,10 +39,17 @@ class WebApp:
         self.auth_enabled = (
             getattr(arguments, "enable_web_auth", False) if arguments else False
         )
-        self.db = UserDatabase() if self.auth_enabled else None
+        # Always initialize database for sync jobs functionality
+        self.db = UserDatabase()
 
         # Download manager
         self.download_manager = get_download_manager(self.db)
+
+        # Sync manager
+        from .sync_manager import get_sync_manager
+        self.sync_manager = get_sync_manager(self.db, self.download_manager) if self.db else None
+        if self.sync_manager:
+            self.sync_manager.start()
 
         # Create Flask app
         self.app = self._create_app()
@@ -672,6 +679,14 @@ class WebApp:
 
                 language = data.get("language", "German Sub")
                 provider = data.get("provider", "VOE")
+                custom_path = data.get("custom_path")
+                if custom_path:
+                    custom_path = custom_path.strip() or None
+                else:
+                    custom_path = None
+                keep_updated = data.get("keep_updated", False)
+                check_interval = data.get("check_interval", 24)
+                series_url = data.get("series_url", "")
 
                 # DEBUG: Log received parameters
                 logging.debug(
@@ -721,6 +736,7 @@ class WebApp:
                     provider=provider,
                     total_episodes=total_episodes,
                     created_by=current_user["id"] if current_user else None,
+                    custom_path=custom_path,
                 )
 
                 if not queue_id:
@@ -728,16 +744,37 @@ class WebApp:
                         {"success": False, "error": "Failed to add download to queue"}
                     ), 500
 
-                return jsonify(
-                    {
-                        "success": True,
-                        "message": f"Download added to queue: {total_episodes} episode(s)",
-                        "episode_count": total_episodes,
-                        "language": language,
-                        "provider": provider,
-                        "queue_id": queue_id,
-                    }
-                )
+                # Create sync job if keep_updated is enabled
+                sync_job_id = None
+                if keep_updated and series_url and self.db and self.sync_manager:
+                    try:
+                        sync_job_id = self.db.create_sync_job(
+                            anime_title=anime_title,
+                            series_url=series_url,
+                            check_interval=check_interval,
+                            language=language,
+                            provider=provider,
+                            custom_path=custom_path,
+                            created_by=current_user["id"] if current_user else None,
+                        )
+                        logging.info(f"Created sync job {sync_job_id} for {anime_title}")
+                    except Exception as e:
+                        logging.error(f"Failed to create sync job: {e}")
+
+                response_data = {
+                    "success": True,
+                    "message": f"Download added to queue: {total_episodes} episode(s)",
+                    "episode_count": total_episodes,
+                    "language": language,
+                    "provider": provider,
+                    "queue_id": queue_id,
+                }
+
+                if sync_job_id:
+                    response_data["sync_job_id"] = sync_job_id
+                    response_data["message"] += " (Auto-sync enabled)"
+
+                return jsonify(response_data)
 
             except Exception as err:
                 logging.error(f"Download error: {err}")
@@ -763,6 +800,34 @@ class WebApp:
             except Exception as err:
                 logging.error(f"Failed to get download path: {err}")
                 return jsonify({"path": str(config.DEFAULT_DOWNLOAD_PATH)}), 500
+
+        @self.app.route("/api/browse-directory", methods=["POST"])
+        @self._require_api_auth
+        def api_browse_directory():
+            """Open a directory picker dialog on the server."""
+            try:
+                import tkinter as tk
+                from tkinter import filedialog
+                
+                # Create hidden root window
+                root = tk.Tk()
+                root.withdraw()
+                root.attributes('-topmost', True) # Bring to front
+                
+                # Open dialog
+                path = filedialog.askdirectory(title="Select Download Directory")
+                root.destroy()
+                
+                if path:
+                    # Normalize path separators
+                    path = os.path.normpath(path)
+                    return jsonify({"success": True, "path": path})
+                else:
+                    return jsonify({"success": False, "message": "No directory selected"})
+                    
+            except Exception as e:
+                logging.error(f"Failed to open directory picker: {e}")
+                return jsonify({"success": False, "error": f"Failed to open directory picker: {str(e)}"}), 500
 
         @self.app.route("/api/episodes", methods=["POST"])
         @self._require_api_auth
@@ -894,6 +959,30 @@ class WebApp:
                     {"success": False, "error": "Failed to get queue status"}
                 ), 500
 
+        @self.app.route("/api/cancel-download/<int:queue_id>", methods=["POST"])
+        @self._require_api_auth
+        def api_cancel_download(queue_id):
+            """Cancel a download in the queue."""
+            try:
+                success = self.download_manager.cancel_download(queue_id)
+                
+                if success:
+                    return jsonify({
+                        "success": True,
+                        "message": "Download cancelled successfully"
+                    })
+                else:
+                    return jsonify({
+                        "success": False,
+                        "error": "Failed to cancel download or download not found"
+                    }), 404
+                    
+            except Exception as e:
+                logging.error(f"Failed to cancel download: {e}")
+                return jsonify(
+                    {"success": False, "error": f"Failed to cancel download: {str(e)}"}
+                ), 500
+
         @self.app.route("/api/popular-new")
         @self._require_api_auth
         def api_popular_new():
@@ -916,6 +1005,298 @@ class WebApp:
                         "success": False,
                         "error": f"Failed to fetch popular/new anime: {str(e)}",
                     }
+                ), 500
+
+        # Sync Job Management Endpoints
+        @self.app.route("/api/sync", methods=["POST"])
+        @self._require_api_auth
+        def api_create_sync_job():
+            """Create a new sync job."""
+            if not self.db or not self.sync_manager:
+                return jsonify(
+                    {"success": False, "error": "Sync functionality not available"}
+                ), 400
+
+            try:
+                data = request.get_json()
+
+                anime_title = data.get("anime_title", "").strip()
+                series_url = data.get("series_url", "").strip()
+                check_interval = data.get("check_interval", 24)
+                
+                custom_path = data.get("custom_path")
+                if custom_path:
+                    custom_path = custom_path.strip() or None
+                else:
+                    custom_path = None
+                    
+                language = data.get("language", "German Sub")
+                provider = data.get("provider", "VOE")
+
+                if not anime_title or not series_url:
+                    return jsonify(
+                        {
+                            "success": False,
+                            "error": "Anime title and series URL are required",
+                        }
+                    ), 400
+
+                # Validate check interval
+                try:
+                    check_interval_float = float(check_interval)
+                    debug_interval = 0.016666
+                    valid_intervals = [1, 2, 4, 8, 12, 24]
+                    
+                    is_valid = False
+                    if check_interval_float in valid_intervals:
+                        is_valid = True
+                    elif abs(check_interval_float - debug_interval) < 0.001:
+                        is_valid = True
+                        check_interval = debug_interval  # Normalize
+                    
+                    if not is_valid:
+                        return jsonify(
+                            {
+                                "success": False,
+                                "error": f"Invalid check interval. Must be one of: {valid_intervals} or 1 min check",
+                            }
+                        ), 400
+                except (ValueError, TypeError):
+                     return jsonify({"success": False, "error": "Invalid interval format"}), 400
+
+                # Get current user
+                current_user = None
+                if self.auth_enabled and self.db:
+                    session_token = request.cookies.get("session_token")
+                    current_user = self.db.get_user_by_session(session_token)
+
+                # Create sync job
+                sync_job_id = self.db.create_sync_job(
+                    anime_title=anime_title,
+                    series_url=series_url,
+                    check_interval=check_interval,
+                    language=language,
+                    provider=provider,
+                    custom_path=custom_path,
+                    created_by=current_user["id"] if current_user else None,
+                )
+
+                if sync_job_id:
+                    return jsonify(
+                        {
+                            "success": True,
+                            "message": "Sync job created successfully",
+                            "sync_job_id": sync_job_id,
+                        }
+                    )
+                else:
+                    return jsonify(
+                        {"success": False, "error": "Failed to create sync job"}
+                    ), 500
+
+            except Exception as e:
+                logging.error(f"Error creating sync job: {e}")
+                return jsonify(
+                    {"success": False, "error": f"Failed to create sync job: {str(e)}"}
+                ), 500
+
+        @self.app.route("/api/sync", methods=["GET"])
+        @self._require_api_auth
+        def api_get_sync_jobs():
+            """Get all sync jobs for current user."""
+            if not self.db:
+                return jsonify(
+                    {"success": False, "error": "Sync functionality not available"}
+                ), 400
+
+            try:
+                # Get current user
+                current_user = None
+                user_id = None
+                if self.auth_enabled and self.db:
+                    session_token = request.cookies.get("session_token")
+                    current_user = self.db.get_user_by_session(session_token)
+                    if current_user:
+                        user_id = current_user["id"]
+
+                # Get sync jobs
+                sync_jobs = self.db.get_sync_jobs(user_id=user_id)
+
+                # Format timestamps for JSON
+                for job in sync_jobs:
+                    if job.get("created_at"):
+                        job["created_at"] = str(job["created_at"])
+                    if job.get("last_checked"):
+                        job["last_checked"] = str(job["last_checked"])
+                    if job.get("last_found_new"):
+                        job["last_found_new"] = str(job["last_found_new"])
+
+                return jsonify({"success": True, "sync_jobs": sync_jobs})
+
+            except Exception as e:
+                logging.error(f"Error getting sync jobs: {e}")
+                return jsonify(
+                    {"success": False, "error": f"Failed to get sync jobs: {str(e)}"}
+                ), 500
+
+        @self.app.route("/api/sync/<int:sync_job_id>", methods=["PUT"])
+        @self._require_api_auth
+        def api_update_sync_job(sync_job_id):
+            """Update a sync job."""
+            if not self.db:
+                return jsonify(
+                    {"success": False, "error": "Sync functionality not available"}
+                ), 400
+
+            try:
+                data = request.get_json()
+
+                check_interval = data.get("check_interval")
+                custom_path = data.get("custom_path")
+                enabled = data.get("enabled")
+                language = data.get("language")
+                provider = data.get("provider")
+
+                # Validate check interval if provided
+                if check_interval is not None:
+                    try:
+                        check_interval_float = float(check_interval)
+                        debug_interval = 0.016666
+                        valid_intervals = [1, 2, 4, 8, 12, 24]
+                        
+                        is_valid = False
+                        if check_interval_float in valid_intervals:
+                            is_valid = True
+                        elif abs(check_interval_float - debug_interval) < 0.001:
+                            is_valid = True
+                            data["check_interval"] = debug_interval  # Normalize
+                            
+                        if not is_valid:
+                            return jsonify(
+                                {
+                                    "success": False,
+                                    "error": f"Invalid check interval. Must be one of: {valid_intervals} or 1 min check",
+                                }
+                            ), 400
+                    except (ValueError, TypeError):
+                        return jsonify({"success": False, "error": "Invalid interval format"}), 400
+
+                # Update sync job
+                success = self.db.update_sync_job(
+                    sync_job_id=sync_job_id,
+                    check_interval=check_interval,
+                    custom_path=custom_path,
+                    enabled=enabled,
+                    language=language,
+                    provider=provider,
+                )
+
+                if success:
+                    return jsonify(
+                        {"success": True, "message": "Sync job updated successfully"}
+                    )
+                else:
+                    return jsonify(
+                        {"success": False, "error": "Failed to update sync job"}
+                    ), 500
+
+            except Exception as e:
+                logging.error(f"Error updating sync job: {e}")
+                return jsonify(
+                    {"success": False, "error": f"Failed to update sync job: {str(e)}"}
+                ), 500
+
+        @self.app.route("/api/sync/<int:sync_job_id>", methods=["DELETE"])
+        @self._require_api_auth
+        def api_delete_sync_job(sync_job_id):
+            """Delete a sync job."""
+            if not self.db:
+                return jsonify(
+                    {"success": False, "error": "Sync functionality not available"}
+                ), 400
+
+            try:
+                success = self.db.delete_sync_job(sync_job_id)
+
+                if success:
+                    return jsonify(
+                        {"success": True, "message": "Sync job deleted successfully"}
+                    )
+                else:
+                    return jsonify(
+                        {"success": False, "error": "Failed to delete sync job"}
+                    ), 500
+
+            except Exception as e:
+                logging.error(f"Error deleting sync job: {e}")
+                return jsonify(
+                    {"success": False, "error": f"Failed to delete sync job: {str(e)}"}
+                ), 500
+
+        @self.app.route("/api/sync/<int:sync_job_id>/status", methods=["GET"])
+        @self._require_api_auth
+        def api_get_sync_job_status(sync_job_id):
+            """Get detailed status of a sync job."""
+            if not self.db:
+                return jsonify(
+                    {"success": False, "error": "Sync functionality not available"}
+                ), 400
+
+            try:
+                sync_job = self.db.get_sync_job(sync_job_id)
+
+                if not sync_job:
+                    return jsonify(
+                        {"success": False, "error": "Sync job not found"}
+                    ), 404
+
+                # Format timestamps
+                if sync_job.get("created_at"):
+                    sync_job["created_at"] = str(sync_job["created_at"])
+                if sync_job.get("last_checked"):
+                    sync_job["last_checked"] = str(sync_job["last_checked"])
+                if sync_job.get("last_found_new"):
+                    sync_job["last_found_new"] = str(sync_job["last_found_new"])
+
+                return jsonify({"success": True, "sync_job": sync_job})
+
+            except Exception as e:
+                logging.error(f"Error getting sync job status: {e}")
+                return jsonify(
+                    {
+                        "success": False,
+                        "error": f"Failed to get sync job status: {str(e)}",
+                    }
+                ), 500
+
+        @self.app.route("/api/sync/<int:sync_job_id>/check", methods=["POST"])
+        @self._require_api_auth
+        def api_force_check_sync_job(sync_job_id):
+            """Force an immediate check for a sync job."""
+            if not self.sync_manager:
+                return jsonify(
+                    {"success": False, "error": "Sync functionality not available"}
+                ), 400
+
+            try:
+                success = self.sync_manager.force_check_job(sync_job_id)
+
+                if success:
+                    return jsonify(
+                        {
+                            "success": True,
+                            "message": "Sync job check initiated successfully",
+                        }
+                    )
+                else:
+                    return jsonify(
+                        {"success": False, "error": "Failed to check sync job"}
+                    ), 500
+
+            except Exception as e:
+                logging.error(f"Error forcing sync job check: {e}")
+                return jsonify(
+                    {"success": False, "error": f"Failed to check sync job: {str(e)}"}
                 ), 500
 
     def _format_uptime(self, seconds: int) -> str:

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
+
 <body>
     <!-- Animated Background -->
     <div class="background-container">
@@ -37,7 +39,18 @@
                 <span class="version" id="version-display">Loading...</span>
             </div>
             <div class="nav-actions">
-                <a href="https://github.com/phoenixthrush/AniWorld-Downloader" target="_blank" class="nav-btn github-btn" title="View on GitHub">
+                <!-- Tab Navigation Buttons -->
+                <button class="nav-btn tab-nav-btn active" data-tab="downloads-tab" title="Downloads">
+                    <i class="fas fa-download"></i>
+                    <span class="tab-label">Downloads</span>
+                </button>
+                <button class="nav-btn tab-nav-btn" data-tab="sync-tab" title="Auto-Sync">
+                    <i class="fas fa-sync-alt"></i>
+                    <span class="tab-label">Auto-Sync</span>
+                </button>
+
+                <a href="https://github.com/phoenixthrush/AniWorld-Downloader" target="_blank"
+                    class="nav-btn github-btn" title="View on GitHub">
                     <i class="fab fa-github"></i>
                 </a>
                 {% if not (auth_enabled and user) %}
@@ -88,74 +101,124 @@
                     </label>
                 </div>
                 <div class="search-container">
-                    <input type="text" id="search-input" placeholder="Enter anime or series name..." class="search-input">
+                    <input type="text" id="search-input" placeholder="Enter anime or series name..."
+                        class="search-input">
                     <button id="search-btn" class="search-btn">Search</button>
                 </div>
             </div>
 
-            <!-- Download Queue Section -->
-            <div class="queue-section" id="queue-section" style="display: none;">
-                <h3>Download Queue</h3>
+            <!-- Downloads Tab Content -->
+            <div id="downloads-tab" class="tab-content active">
 
-                <!-- Active Downloads -->
-                <div class="active-downloads" id="active-downloads" style="display: none;">
-                    <h4><i class="fas fa-download"></i> Active Downloads</h4>
-                    <div class="queue-list" id="active-queue-list">
-                        <!-- Active downloads will be populated here -->
+                <!-- Download Queue Section -->
+                <div class="queue-section" id="queue-section" style="display: none;">
+                    <h3>Download Queue</h3>
+
+                    <!-- Active Downloads -->
+                    <div class="active-downloads" id="active-downloads" style="display: none;">
+                        <h4><i class="fas fa-download"></i> Active Downloads</h4>
+                        <div class="queue-list" id="active-queue-list">
+                            <!-- Active downloads will be populated here -->
+                        </div>
+                    </div>
+
+                    <!-- Completed Downloads -->
+                    <div class="completed-downloads" id="completed-downloads" style="display: none;">
+                        <h4><i class="fas fa-check-circle"></i> Last Completed Download</h4>
+                        <div class="queue-list" id="completed-queue-list">
+                            <!-- Completed downloads will be populated here -->
+                        </div>
                     </div>
                 </div>
 
-                <!-- Completed Downloads -->
-                <div class="completed-downloads" id="completed-downloads" style="display: none;">
-                    <h4><i class="fas fa-check-circle"></i> Last Completed Download</h4>
-                    <div class="queue-list" id="completed-queue-list">
-                        <!-- Completed downloads will be populated here -->
+                <div class="results-section" id="results-section" style="display: none;">
+                    <h3>Search Results</h3>
+                    <div id="results-container" class="results-container">
+                        <!-- Search results will be populated here -->
                     </div>
                 </div>
-            </div>
 
-            <div class="results-section" id="results-section" style="display: none;">
-                <h3>Search Results</h3>
-                <div id="results-container" class="results-container">
-                    <!-- Search results will be populated here -->
-                </div>
-            </div>
-
-            <div class="loading-section" id="loading-section" style="display: none;">
-                <div class="loading-spinner"></div>
-                <p>Searching...</p>
-            </div>
-
-            <div class="home-content" id="home-content">
-                <div class="loading-section" id="home-loading">
+                <div class="loading-section" id="loading-section" style="display: none;">
                     <div class="loading-spinner"></div>
-                    <p>Loading popular and new anime...</p>
+                    <p>Searching...</p>
                 </div>
 
-                <div class="popular-new-sections" id="popular-new-sections" style="display: none;">
-                    <div class="anime-section" id="popular-section">
-                        <h3><i class="fas fa-fire"></i> Popular Anime</h3>
-                        <div class="anime-grid" id="popular-anime-grid">
-                            <!-- Popular anime will be populated here -->
-                        </div>
+                <div class="home-content" id="home-content">
+                    <div class="loading-section" id="home-loading">
+                        <div class="loading-spinner"></div>
+                        <p>Loading popular and new anime...</p>
                     </div>
 
-                    <div class="anime-section" id="new-section">
-                        <h3><i class="fas fa-star"></i> New Anime</h3>
-                        <div class="anime-grid" id="new-anime-grid">
-                            <!-- New anime will be populated here -->
+                    <div class="popular-new-sections" id="popular-new-sections" style="display: none;">
+                        <div class="anime-section" id="popular-section">
+                            <h3><i class="fas fa-fire"></i> Popular Anime</h3>
+                            <div class="anime-grid" id="popular-anime-grid">
+                                <!-- Popular anime will be populated here -->
+                            </div>
                         </div>
+
+                        <div class="anime-section" id="new-section">
+                            <h3><i class="fas fa-star"></i> New Anime</h3>
+                            <div class="anime-grid" id="new-anime-grid">
+                                <!-- New anime will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="empty-state" id="empty-state" style="display: none;">
+                    <div class="empty-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <h3>Search for Anime or Series</h3>
+                    <p>Enter an anime or series name in the search box above to get started.</p>
+                </div>
+            </div>
+            <!-- End Downloads Tab -->
+
+            <!-- Sync Tab Content -->
+            <div id="sync-tab" class="tab-content">
+                <div class="sync-section">
+                    <div class="sync-header">
+                        <h3><i class="fas fa-sync-alt"></i> Auto-Sync Jobs</h3>
+                        <p class="sync-description">Manage series that are automatically checked for new episodes</p>
+                    </div>
+
+                    <div class="sync-loading" id="sync-loading" style="display: none;">
+                        <div class="loading-spinner"></div>
+                        <p>Loading sync jobs...</p>
+                    </div>
+
+                    <div class="sync-empty" id="sync-empty" style="display: none;">
+                        <div class="empty-icon">
+                            <i class="fas fa-sync-alt"></i>
+                        </div>
+                        <h4>No Auto-Sync Jobs</h4>
+                        <p>Enable "Keep Updated" when downloading a series to automatically check for new episodes.</p>
+                    </div>
+
+                    <div class="sync-table-container" id="sync-table-container" style="display: none;">
+                        <table class="sync-table">
+                            <thead>
+                                <tr>
+                                    <th>Series</th>
+                                    <th>Interval</th>
+                                    <th>Last Checked</th>
+                                    <th>Last Found New</th>
+                                    <th>Episodes</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sync-jobs-tbody">
+                                <!-- Sync jobs will be populated here -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
+            <!-- End Sync Tab -->
 
-            <div class="empty-state" id="empty-state" style="display: none;">
-                <div class="empty-icon">
-                    <i class="fas fa-search"></i>
-                </div>
-                <h3>Search for Anime or Series</h3>
-                <p>Enter an anime or series name in the search box above to get started.</p>
-            </div>
         </main>
     </div>
 
@@ -169,7 +232,10 @@
             <div class="modal-body">
                 <div class="download-info">
                     <p><strong>Anime:</strong> <span id="download-anime-title"></span></p>
-                    {% if not auth_enabled or (user and user.is_admin) %}<p><strong>Download Path:</strong> <span id="download-path"></span> <i class="fas fa-info-circle path-info-icon" title="You can change the download path by using the --output-dir /your/custom/path parameter"></i></p>{% endif %}
+                    {% if not auth_enabled or (user and user.is_admin) %}<p><strong>Download Path:</strong> <span
+                            id="download-path"></span> <i class="fas fa-info-circle path-info-icon"
+                            title="You can change the download path by using the --output-dir /your/custom/path parameter"></i>
+                    </p>{% endif %}
                 </div>
 
                 <!-- Download Settings -->
@@ -185,6 +251,57 @@
                         <select id="provider-select" class="provider-dropdown">
                             <option value="">Loading providers...</option>
                         </select>
+                    </div>
+                </div>
+
+                <!-- Auto-Sync and Path Options -->
+                <div class="download-settings">
+                    <div class="setting-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="keep-updated-checkbox">
+                            <span>Keep Updated (Auto-Sync)</span>
+                        </label>
+                    </div>
+
+                    <div class="setting-group" id="interval-group" style="display: none;">
+                        <label for="interval-select"><strong>Check Interval:</strong></label>
+                        <select id="interval-select" class="interval-dropdown">
+                            <option value="0.016666">1 min (should be used for Debug only)</option>
+                            <option value="1">Every 1 hour</option>
+                            <option value="2">Every 2 hours</option>
+                            <option value="4">Every 4 hours</option>
+                            <option value="8">Every 8 hours</option>
+                            <option value="12">Every 12 hours</option>
+                            <option value="24" selected>Every 24 hours</option>
+                        </select>
+                    </div>
+
+                    <div class="setting-group">
+                        <label><strong>Download Path:</strong></label>
+                        <div class="path-options">
+                            <label class="radio-label">
+                                <input type="radio" name="path-type" value="standard" id="path-standard" checked>
+                                <span>Default Path</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="path-type" value="custom" id="path-custom">
+                                <span>Custom Path</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="setting-group" id="custom-path-group" style="display: none;">
+                        <label for="custom-path-input"><strong>Custom Path:</strong></label>
+                        <div class="path-input-group">
+                            <input type="text" id="custom-path-input" class="custom-path-input"
+                                placeholder="Enter custom download path...">
+                            <button type="button" id="browse-path-btn" class="browse-btn"
+                                title="Note: Browse button is for reference. Please enter path manually.">
+                                <i class="fas fa-folder-open"></i> Browse
+                            </button>
+                        </div>
+                        <small class="path-hint">Enter the full path where you want to save downloads (e.g.,
+                            /downloads/anime or C:\Downloads\Anime)</small>
                     </div>
                 </div>
 
@@ -220,11 +337,61 @@
         </div>
     </div>
 
+    <!-- Edit Sync Job Modal -->
+    <div id="edit-sync-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Auto-Sync Job</h3>
+                <button id="close-edit-sync-modal" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="sync-edit-info">
+                    <p><strong>Series:</strong> <span id="edit-sync-title"></span></p>
+                </div>
+
+                <div class="download-settings">
+                    <div class="setting-group">
+                        <label for="edit-interval-select"><strong>Check Interval:</strong></label>
+                        <select id="edit-interval-select" class="interval-dropdown">
+                            <option value="0.016666">1 min (should be used for Debug)</option>
+                            <option value="1">Every 1 hour</option>
+                            <option value="2">Every 2 hours</option>
+                            <option value="4">Every 4 hours</option>
+                            <option value="8">Every 8 hours</option>
+                            <option value="12">Every 12 hours</option>
+                            <option value="24">Every 24 hours</option>
+                        </select>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="edit-custom-path-input"><strong>Custom Path:</strong></label>
+                        <input type="text" id="edit-custom-path-input" class="custom-path-input"
+                            placeholder="Leave empty for standard path...">
+                        <small class="path-hint">Enter the full path or leave empty for standard path</small>
+                    </div>
+
+                    <div class="setting-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="edit-enabled-checkbox">
+                            <span>Enabled</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="modal-actions">
+                    <button id="cancel-edit-sync" class="secondary-btn">Cancel</button>
+                    <button id="save-edit-sync" class="primary-btn">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     {% if auth_enabled and user %}
     <script>
         // Authentication-specific JavaScript
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // User dropdown functionality
             const userDropdownBtn = document.getElementById('user-dropdown-btn');
             const userDropdownMenu = document.getElementById('user-dropdown-menu');
@@ -233,18 +400,18 @@
             const themeIconDropdown = document.getElementById('theme-icon-dropdown');
 
             if (userDropdownBtn && userDropdownMenu) {
-                userDropdownBtn.addEventListener('click', function(e) {
+                userDropdownBtn.addEventListener('click', function (e) {
                     e.stopPropagation();
                     userDropdownMenu.classList.toggle('show');
                 });
 
                 // Close dropdown when clicking outside
-                document.addEventListener('click', function() {
+                document.addEventListener('click', function () {
                     userDropdownMenu.classList.remove('show');
                 });
 
                 // Prevent dropdown from closing when clicking inside it
-                userDropdownMenu.addEventListener('click', function(e) {
+                userDropdownMenu.addEventListener('click', function (e) {
                     e.stopPropagation();
                 });
             }
@@ -255,7 +422,7 @@
                 const savedTheme = localStorage.getItem('theme') || 'dark';
                 updateDropdownThemeIcon(savedTheme);
 
-                themeToggleDropdown.addEventListener('click', function() {
+                themeToggleDropdown.addEventListener('click', function () {
                     const currentTheme = document.body.getAttribute('data-theme');
                     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
 
@@ -275,7 +442,7 @@
 
             // Logout functionality
             if (logoutBtn) {
-                logoutBtn.addEventListener('click', async function() {
+                logoutBtn.addEventListener('click', async function () {
                     try {
                         const response = await fetch('/logout', {
                             method: 'POST',
@@ -297,4 +464,5 @@
     </script>
     {% endif %}
 </body>
+
 </html>

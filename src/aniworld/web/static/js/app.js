@@ -1,6 +1,6 @@
 // AniWorld Downloader Web Interface JavaScript
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     console.log('AniWorld Downloader Web Interface loaded');
 
     // Get UI elements
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function() {
         searchBtn.addEventListener('click', performSearch);
     }
     if (searchInput) {
-        searchInput.addEventListener('keypress', function(e) {
+        searchInput.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 performSearch();
             }
@@ -92,6 +92,139 @@ document.addEventListener('DOMContentLoaded', function() {
         deselectAllBtn.addEventListener('click', deselectAllEpisodes);
     }
 
+    // Keep Updated checkbox - auto-select all episodes and show interval
+    const keepUpdatedCheckbox = document.getElementById('keep-updated-checkbox');
+    const intervalGroup = document.getElementById('interval-group');
+    if (keepUpdatedCheckbox) {
+        keepUpdatedCheckbox.addEventListener('change', function () {
+            if (intervalGroup) {
+                intervalGroup.style.display = this.checked ? 'block' : 'none';
+            }
+            // Auto-select all episodes when Keep Updated is enabled (if episodes are loaded)
+            if (this.checked && availableEpisodes && Object.keys(availableEpisodes).length > 0) {
+                selectAllEpisodes();
+            }
+        });
+    }
+
+    // Custom path radio buttons
+    const pathStandard = document.getElementById('path-standard');
+    const pathCustom = document.getElementById('path-custom');
+    const customPathGroup = document.getElementById('custom-path-group');
+
+    if (pathStandard) {
+        pathStandard.addEventListener('change', function () {
+            if (customPathGroup && this.checked) {
+                customPathGroup.style.display = 'none';
+            }
+        });
+    }
+
+    if (pathCustom) {
+        pathCustom.addEventListener('change', function () {
+            if (customPathGroup && this.checked) {
+                customPathGroup.style.display = 'block';
+            }
+        });
+    }
+
+    // Browse button functionality
+    const browseBtn = document.getElementById('browse-path-btn');
+    if (browseBtn) {
+        browseBtn.addEventListener('click', function () {
+            const originalText = browseBtn.innerHTML;
+            browseBtn.disabled = true;
+            browseBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            fetch('/api/browse-directory', {
+                method: 'POST'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const customPathInput = document.getElementById('custom-path-input');
+                        if (customPathInput) {
+                            customPathInput.value = data.path;
+                        }
+                    } else if (data.message && data.message !== 'No directory selected') {
+                        showNotification(data.message, 'info');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error browsing directory:', error);
+                    showNotification('Failed to open directory picker', 'error');
+                })
+                .finally(() => {
+                    browseBtn.disabled = false;
+                    browseBtn.innerHTML = originalText;
+                });
+        });
+    }
+
+    // Edit Sync Job Modal functionality
+    const editSyncModal = document.getElementById('edit-sync-modal');
+    const closeEditSyncBtn = document.getElementById('close-edit-sync-modal');
+    const cancelEditSyncBtn = document.getElementById('cancel-edit-sync');
+    const saveEditSyncBtn = document.getElementById('save-edit-sync');
+
+    if (editSyncModal) {
+        // Close handlers
+        const closeEditModal = () => {
+            editSyncModal.style.display = 'none';
+            window.currentEditingJobId = null;
+        };
+
+        if (closeEditSyncBtn) closeEditSyncBtn.addEventListener('click', closeEditModal);
+        if (cancelEditSyncBtn) cancelEditSyncBtn.addEventListener('click', closeEditModal);
+
+        // Close on outside click
+        editSyncModal.addEventListener('click', function (e) {
+            if (e.target === editSyncModal) closeEditModal();
+        });
+
+        // Save handler
+        if (saveEditSyncBtn) {
+            saveEditSyncBtn.addEventListener('click', function () {
+                if (!window.currentEditingJobId) return;
+
+                const interval = document.getElementById('edit-interval-select').value;
+                const path = document.getElementById('edit-custom-path-input').value;
+                const enabled = document.getElementById('edit-enabled-checkbox').checked;
+
+                saveEditSyncBtn.disabled = true;
+                saveEditSyncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+                fetch(`/api/sync/${window.currentEditingJobId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        check_interval: parseFloat(interval),
+                        custom_path: path.trim() || null,
+                        enabled: enabled
+                    })
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            showNotification('Sync job updated', 'success');
+                            closeEditModal();
+                            window.loadSyncJobs();
+                        } else {
+                            showNotification(data.error || 'Update failed', 'error');
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        showNotification('Error updating job', 'error');
+                    })
+                    .finally(() => {
+                        saveEditSyncBtn.disabled = false;
+                        saveEditSyncBtn.innerHTML = 'Save Changes';
+                    });
+            });
+        }
+    }
+
     // Theme toggle functionality (only if element exists)
     if (themeToggle) {
         themeToggle.addEventListener('click', toggleTheme);
@@ -99,7 +232,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Navbar title click functionality
     if (navTitle) {
-        navTitle.addEventListener('click', function() {
+        navTitle.addEventListener('click', function () {
             // Clear search input
             if (searchInput) {
                 searchInput.value = '';
@@ -113,7 +246,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Close modal when clicking outside
     if (downloadModal) {
-        downloadModal.addEventListener('click', function(e) {
+        downloadModal.addEventListener('click', function (e) {
             if (e.target === downloadModal) {
                 hideDownloadModal();
             }
@@ -231,33 +364,33 @@ document.addEventListener('DOMContentLoaded', function() {
                 site: selectedSite
             })
         })
-        .then(response => {
-            if (response.status === 401) {
-                // Authentication required - redirect to login
-                window.location.href = '/login';
-                return;
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (!data) return; // Handle redirect case
-            if (data.success) {
-                displaySearchResults(data.results);
-            } else {
-                showNotification(data.error || 'Search failed', 'error');
+            .then(response => {
+                if (response.status === 401) {
+                    // Authentication required - redirect to login
+                    window.location.href = '/login';
+                    return;
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (!data) return; // Handle redirect case
+                if (data.success) {
+                    displaySearchResults(data.results);
+                } else {
+                    showNotification(data.error || 'Search failed', 'error');
+                    showEmptyState();
+                }
+            })
+            .catch(error => {
+                console.error('Search error:', error);
+                showNotification('Search failed. Please try again.', 'error');
                 showEmptyState();
-            }
-        })
-        .catch(error => {
-            console.error('Search error:', error);
-            showNotification('Search failed. Please try again.', 'error');
-            showEmptyState();
-        })
-        .finally(() => {
-            searchBtn.disabled = false;
-            searchBtn.textContent = 'Search';
-            hideLoadingState();
-        });
+            })
+            .finally(() => {
+                searchBtn.disabled = false;
+                searchBtn.textContent = 'Search';
+                hideLoadingState();
+            });
     }
 
     function displaySearchResults(results) {
@@ -331,6 +464,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showDownloadModal(animeTitle, episodeTitle, episodeUrl) {
+        // Reset Sync UI
+        const existingWarning = document.getElementById('sync-warning-msg');
+        if (existingWarning) existingWarning.remove();
+        const keepUpdatedCheckbox = document.getElementById('keep-updated-checkbox');
+        if (keepUpdatedCheckbox) {
+            keepUpdatedCheckbox.disabled = false;
+            keepUpdatedCheckbox.checked = false;
+            keepUpdatedCheckbox.title = "";
+        }
+        const intervalSelect = document.getElementById('interval-select');
+        if (intervalSelect) intervalSelect.disabled = false;
+
         // Detect site from URL
         let detectedSite = 'aniworld.to'; // default
         if (episodeUrl.includes('/serie/stream/') || episodeUrl.includes('186.2.175.5')) {
@@ -369,6 +514,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 currentDownloadData.downloadPath = data.path;
                 document.getElementById('download-path').textContent = data.path;
+
             })
             .catch(error => {
                 console.error('Failed to fetch download path:', error);
@@ -385,24 +531,68 @@ document.addEventListener('DOMContentLoaded', function() {
                 series_url: episodeUrl
             })
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                availableEpisodes = data.episodes;
-                availableMovies = data.movies || [];
-                renderEpisodeTree();
-            } else {
-                showNotification(data.error || 'Failed to load episodes', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Failed to fetch episodes:', error);
-            showNotification('Failed to load episodes', 'error');
-        })
-        .finally(() => {
-            episodeTreeLoading.style.display = 'none';
-            episodeTree.style.display = 'block';
-        });
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    availableEpisodes = data.episodes;
+                    availableMovies = data.movies || [];
+                    renderEpisodeTree();
+
+                    // Auto-select all episodes if Keep Updated is already checked
+                    const keepUpdatedCheckbox = document.getElementById('keep-updated-checkbox');
+                    if (keepUpdatedCheckbox && keepUpdatedCheckbox.checked) {
+                        selectAllEpisodes();
+                    }
+                } else {
+                    showNotification(data.error || 'Failed to load episodes', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Failed to fetch episodes:', error);
+                showNotification('Failed to load episodes', 'error');
+            })
+            .finally(() => {
+                episodeTreeLoading.style.display = 'none';
+                episodeTree.style.display = 'block';
+            });
+
+        // Check for existing sync job
+        fetch('/api/sync')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.sync_jobs) {
+                    const match = data.sync_jobs.find(j =>
+                        j.series_url === currentDownloadData.url ||
+                        j.anime_title === currentDownloadData.anime
+                    );
+
+                    if (match) {
+                        const cb = document.getElementById('keep-updated-checkbox');
+                        if (cb) {
+                            const container = document.querySelector('.download-settings');
+                            let warning = document.getElementById('sync-warning-msg');
+                            if (!warning && container) {
+                                warning = document.createElement('div');
+                                warning.id = 'sync-warning-msg';
+                                warning.style.cssText = "padding: 10px; margin-bottom: 10px; border-radius: 4px; background: #ebf8ff; color: #2c5282; border-left: 4px solid #4299e1; font-size: 0.9em;";
+                                warning.innerHTML = `<i class="fas fa-info-circle"></i> <strong>Already monitored:</strong> Interval ${match.check_interval}h`;
+                                container.insertBefore(warning, container.firstChild);
+                            }
+                            cb.checked = true;
+                            cb.disabled = true;
+                            cb.title = "Manage this sync job in the Sync tab";
+
+                            const intervalSelect = document.getElementById('interval-select');
+                            if (intervalSelect) {
+                                intervalSelect.value = match.check_interval;
+                                intervalSelect.disabled = true;
+                            }
+                            const intervalGroup = document.getElementById('interval-group');
+                            if (intervalGroup) intervalGroup.style.display = 'block';
+                        }
+                    }
+                }
+            });
 
         downloadModal.style.display = 'flex';
     }
@@ -750,13 +940,27 @@ document.addEventListener('DOMContentLoaded', function() {
             console.warn('Warning: No language selected from dropdown, using fallback');
         }
 
+        // Get sync-related parameters
+        const keepUpdated = keepUpdatedCheckbox ? keepUpdatedCheckbox.checked : false;
+        const intervalSelect = document.getElementById('interval-select');
+        const checkInterval = intervalSelect ? intervalSelect.value : 24;
+        const useCustomPath = pathCustom ? pathCustom.checked : false;
+        const customPathInput = document.getElementById('custom-path-input');
+        const customPath = useCustomPath && customPathInput ? customPathInput.value.trim() : '';
+
         // Create request payload and log it
         const requestPayload = {
             episode_urls: selectedEpisodeUrls,
             language: selectedLanguage,
             provider: selectedProvider,
-            anime_title: currentDownloadData.anime
+            anime_title: currentDownloadData.anime,
+            keep_updated: keepUpdated,
+            check_interval: parseFloat(checkInterval),
+            custom_path: customPath || null,
+            series_url: currentDownloadData.url || ''
         };
+
+        console.log('Download payload:', requestPayload);
 
         fetch('/api/download', {
             method: 'POST',
@@ -765,25 +969,29 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify(requestPayload)
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const count = selectedEpisodes.size;
-                showNotification(`Download started for ${count} episode${count !== 1 ? 's' : ''}`, 'success');
-                hideDownloadModal();
-                startQueueTracking();
-            } else {
-                showNotification(data.error || 'Download failed to start', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Download error:', error);
-            showNotification('Failed to start download', 'error');
-        })
-        .finally(() => {
-            confirmDownload.disabled = false;
-            confirmDownload.textContent = 'Start Download';
-        });
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const count = selectedEpisodes.size;
+                    let message = `Download started for ${count} episode${count !== 1 ? 's' : ''}`;
+                    if (data.sync_job_id) {
+                        message += ' (Auto-sync enabled)';
+                    }
+                    showNotification(message, 'success');
+                    hideDownloadModal();
+                    startQueueTracking();
+                } else {
+                    showNotification(data.error || 'Download failed to start', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Download error:', error);
+                showNotification('Failed to start download', 'error');
+            })
+            .finally(() => {
+                confirmDownload.disabled = false;
+                confirmDownload.textContent = 'Start Download';
+            });
     }
 
     function showLoadingState() {
@@ -892,6 +1100,32 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
+    function cancelDownloadById(queueId) {
+        if (!confirm('Are you sure you want to cancel this download?')) {
+            return;
+        }
+
+        fetch(`/api/cancel-download/${queueId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Download cancelled', 'success');
+                    updateQueueDisplay(); // Refresh the queue
+                } else {
+                    showNotification(data.error || 'Failed to cancel download', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Cancel download error:', error);
+                showNotification('Failed to cancel download', 'error');
+            });
+    }
+
     function updateQueueList(container, items, type) {
         container.innerHTML = '';
 
@@ -909,10 +1143,20 @@ document.addEventListener('DOMContentLoaded', function() {
             const overallProgressClamped = Math.max(0, Math.min(100, overallProgress));
             const episodeProgressClamped = Math.max(0, Math.min(100, episodeProgress));
 
+            // Show cancel button only for active downloads (queued or downloading)
+            const showCancelButton = type === 'active' && (item.status === 'queued' || item.status === 'downloading');
+
             queueItem.innerHTML = `
                 <div class="queue-item-header">
                     <div class="queue-item-title">${escapeHtml(item.anime_title)}</div>
-                    <div class="queue-item-status ${item.status}">${item.status}</div>
+                    <div class="queue-item-status-row">
+                        <div class="queue-item-status ${item.status}">${item.status}</div>
+                        ${showCancelButton ? `
+                        <button class="cancel-download-btn" data-queue-id="${item.id}" title="Cancel Download">
+                            <i class="fas fa-times"></i>
+                        </button>
+                        ` : ''}
+                    </div>
                 </div>
                 ${showProgressBar ? `
                 <div class="queue-item-progress">
@@ -938,6 +1182,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     ${escapeHtml(item.current_episode || (item.status === 'completed' ? 'Download completed' : 'Waiting in queue'))}
                 </div>
             `;
+
+            // Add cancel button event listener
+            if (showCancelButton) {
+                const cancelBtn = queueItem.querySelector('.cancel-download-btn');
+                if (cancelBtn) {
+                    cancelBtn.addEventListener('click', function () {
+                        const queueId = this.getAttribute('data-queue-id');
+                        cancelDownloadById(queueId);
+                    });
+                }
+            }
 
             container.appendChild(queueItem);
         });
@@ -1079,6 +1334,164 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Make showDownloadModal globally accessible
     window.showDownloadModal = showDownloadModal;
+
+    // Tab switching functionality
+    const tabButtons = document.querySelectorAll('.tab-nav-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const targetTab = button.getAttribute('data-tab');
+
+            // Remove active class from all buttons and tabs
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
+
+            // Add active class to clicked button and corresponding tab
+            button.classList.add('active');
+            const targetContent = document.getElementById(targetTab);
+            if (targetContent) {
+                targetContent.classList.add('active');
+            }
+
+            // If switching to sync tab, load sync jobs
+            if (targetTab === 'sync-tab') {
+                loadSyncJobs();
+            }
+        });
+    });
+
+    // Sync tab functionality
+    function loadSyncJobs() {
+        const syncLoading = document.getElementById('sync-loading');
+        const syncEmpty = document.getElementById('sync-empty');
+        const syncTableContainer = document.getElementById('sync-table-container');
+        const syncJobsTbody = document.getElementById('sync-jobs-tbody');
+
+        // Show loading
+        if (syncLoading) syncLoading.style.display = 'block';
+        if (syncEmpty) syncEmpty.style.display = 'none';
+        if (syncTableContainer) syncTableContainer.style.display = 'none';
+
+        fetch('/api/sync')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.sync_jobs && data.sync_jobs.length > 0) {
+                    window.allSyncJobs = data.sync_jobs;
+                    // Show table
+                    if (syncTableContainer) syncTableContainer.style.display = 'block';
+                    if (syncJobsTbody) {
+                        syncJobsTbody.innerHTML = '';
+                        data.sync_jobs.forEach(job => {
+                            const row = createSyncJobRow(job);
+                            syncJobsTbody.appendChild(row);
+                        });
+                    }
+                } else {
+                    // Show empty state
+                    if (syncEmpty) syncEmpty.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading sync jobs:', error);
+                if (syncEmpty) syncEmpty.style.display = 'block';
+            })
+            .finally(() => {
+                if (syncLoading) syncLoading.style.display = 'none';
+            });
+    }
+
+    function createSyncJobRow(job) {
+        const row = document.createElement('tr');
+
+        const formatDate = (dateStr) => {
+            if (!dateStr) return 'Never';
+            const date = new Date(dateStr);
+            return date.toLocaleString();
+        };
+
+        const statusClass = job.enabled ? 'enabled' : 'disabled';
+        const statusText = job.enabled ? 'Enabled' : 'Disabled';
+
+        row.innerHTML = `
+            <td>${escapeHtml(job.anime_title)}</td>
+            <td>Every ${job.check_interval}h</td>
+            <td>${formatDate(job.last_checked)}</td>
+            <td>${formatDate(job.last_found_new)}</td>
+            <td>${job.last_episode_count || 0}</td>
+            <td><span class="sync-status ${statusClass}">${statusText}</span></td>
+            <td class="sync-actions">
+                <button class="action-btn edit-btn" onclick="editSyncJob(${job.id})" title="Edit">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="action-btn check-btn" onclick="forceCheckSyncJob(${job.id})" title="Check Now">
+                    <i class="fas fa-sync"></i>
+                </button>
+                <button class="action-btn delete-btn" onclick="deleteSyncJob(${job.id})" title="Delete">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        `;
+
+        return row;
+    }
+
+    // Make sync functions globally accessible
+    window.loadSyncJobs = loadSyncJobs;
+    window.editSyncJob = function (jobId) {
+        if (!window.allSyncJobs) return;
+        const job = window.allSyncJobs.find(j => j.id === jobId);
+        if (!job) return;
+
+        window.currentEditingJobId = jobId;
+
+        const titleEl = document.getElementById('edit-sync-title');
+        const intervalEl = document.getElementById('edit-interval-select');
+        const pathEl = document.getElementById('edit-custom-path-input');
+        const enabledEl = document.getElementById('edit-enabled-checkbox');
+        const modal = document.getElementById('edit-sync-modal');
+
+        if (titleEl) titleEl.textContent = job.anime_title;
+        if (intervalEl) intervalEl.value = job.check_interval;
+        if (pathEl) pathEl.value = job.custom_path || '';
+        if (enabledEl) enabledEl.checked = job.enabled;
+
+        if (modal) modal.style.display = 'flex';
+    };
+    window.forceCheckSyncJob = function (jobId) {
+        fetch(`/api/sync/${jobId}/check`, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Sync check initiated', 'success');
+                    setTimeout(loadSyncJobs, 2000);
+                } else {
+                    showNotification(data.error || 'Failed to check sync job', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error checking sync job:', error);
+                showNotification('Failed to check sync job', 'error');
+            });
+    };
+    window.deleteSyncJob = function (jobId) {
+        if (!confirm('Are you sure you want to delete this sync job?')) return;
+
+        fetch(`/api/sync/${jobId}`, { method: 'DELETE' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Sync job deleted', 'success');
+                    loadSyncJobs();
+                } else {
+                    showNotification(data.error || 'Failed to delete sync job', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting sync job:', error);
+                showNotification('Failed to delete sync job', 'error');
+            });
+    };
 });
 
 // Show notification function
@@ -1104,7 +1517,7 @@ function showNotification(message, type = 'info') {
     `;
 
     // Set background color based on type
-    switch(type) {
+    switch (type) {
         case 'success':
             notification.style.background = '#48bb78';
             break;

@@ -48,6 +48,16 @@ class DownloadQueueManager:
                 self.worker_thread.join(timeout=5)
             logging.info("Download queue processor stopped")
 
+    def is_series_in_progress(self, anime_title: str) -> bool:
+        """Check if a download for the given series is already active or queued"""
+        with self._queue_lock:
+            for download in self._active_downloads.values():
+                if download["anime_title"] == anime_title:
+                    status = download.get("status")
+                    if status in ["queued", "downloading"]:
+                        return True
+            return False
+
     def add_download(
         self,
         anime_title: str,
@@ -56,6 +66,7 @@ class DownloadQueueManager:
         provider: str,
         total_episodes: int,
         created_by: int = None,
+        custom_path: str = None,
     ) -> int:
         """Add a download to the queue"""
         with self._queue_lock:
@@ -76,6 +87,7 @@ class DownloadQueueManager:
                 "current_episode_progress": 0.0,  # Progress within current episode (0-100)
                 "error_message": "",
                 "created_by": created_by,
+                "custom_path": custom_path,  # Custom download path
                 "created_at": datetime.now(),
                 "started_at": None,
                 "completed_at": None,
@@ -137,6 +149,34 @@ class DownloadQueueManager:
                 )
 
             return {"active": active_downloads, "completed": completed_downloads}
+
+    def cancel_download(self, queue_id: int) -> bool:
+        """
+        Cancel a download by queue ID.
+        
+        Args:
+            queue_id: The ID of the download to cancel
+            
+        Returns:
+            True if cancelled successfully, False otherwise
+        """
+        with self._queue_lock:
+            if queue_id in self._active_downloads:
+                download = self._active_downloads[queue_id]
+                
+                # Mark as cancelled
+                download["status"] = "cancelled"
+                download["error_message"] = "Download cancelled by user"
+                download["completed_at"] = datetime.now()
+                
+                # Move to completed
+                self._completed_downloads.append(download)
+                del self._active_downloads[queue_id]
+                
+                logging.info(f"Download {queue_id} cancelled")
+                return True
+                
+        return False
 
     def _process_queue(self):
         """Background worker that processes the download queue"""
@@ -210,7 +250,7 @@ class DownloadQueueManager:
             failed_downloads = 0
             current_episode_index = 0
 
-            # Get download directory from arguments (which includes -o parameter)
+            # Get download directory - prioritize custom_path from job
             from ..parser import arguments
 
             download_dir = str(
@@ -220,11 +260,24 @@ class DownloadQueueManager:
             )
             if hasattr(arguments, "output_dir") and arguments.output_dir is not None:
                 download_dir = str(arguments.output_dir)
+            
+            # Override with custom path if provided in job
+            if job.get("custom_path"):
+                download_dir = str(job["custom_path"])
+                logging.info(f"Using custom download path: {download_dir}")
+
 
             for anime in anime_list:
                 for episode in anime.episode_list:
+                    # Check for global stop
                     if self._stop_event.is_set():
                         break
+
+                    # Check if this specific download was cancelled
+                    with self._queue_lock:
+                        if queue_id not in self._active_downloads:
+                            logging.info(f"Download {queue_id} cancelled during processing")
+                            return
 
                     episode_info = f"{anime.title} - Episode {episode.episode} (Season {episode.season})"
 
@@ -258,6 +311,11 @@ class DownloadQueueManager:
                                 if self._stop_event.is_set():
                                     # Signal yt-dlp to stop by raising an exception
                                     raise KeyboardInterrupt("Download stopped by user")
+                                
+                                # Check if this specific download was cancelled
+                                with self._queue_lock:
+                                    if queue_id not in self._active_downloads:
+                                        raise KeyboardInterrupt("Download cancelled by user")
 
                                 # Log the raw progress data for debugging (disabled to reduce spam)
                                 # logging.info(f"Progress data received: {progress_data}")
@@ -384,6 +442,16 @@ class DownloadQueueManager:
                                 logging.warning(
                                     f"Failed to download: {episode_info} - No new files created"
                                 )
+
+                        except KeyboardInterrupt:
+                            # Handle cancellation/interruption
+                            logging.info(f"Download cancelled: {episode_info}")
+                            with self._queue_lock:
+                                # Ensure it's marked as cancelled if not already (it should be)
+                                if queue_id in self._active_downloads:
+                                    # This happens if we stopped due to server shutdown, not user cancel
+                                    pass
+                            return  # Stop processing this job
 
                         except Exception as download_error:
                             # If an exception was raised during download, it failed

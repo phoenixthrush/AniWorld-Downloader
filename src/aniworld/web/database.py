@@ -69,6 +69,26 @@ class UserDatabase:
                 )
             """)
 
+            # Create sync_jobs table for auto-sync functionality
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS sync_jobs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    anime_title TEXT NOT NULL,
+                    series_url TEXT NOT NULL,
+                    check_interval INTEGER NOT NULL,
+                    custom_path TEXT,
+                    last_checked TIMESTAMP,
+                    last_found_new TIMESTAMP,
+                    last_episode_count INTEGER DEFAULT 0,
+                    language TEXT NOT NULL,
+                    provider TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    enabled BOOLEAN NOT NULL DEFAULT 1,
+                    created_by INTEGER,
+                    FOREIGN KEY (created_by) REFERENCES users (id) ON DELETE CASCADE
+                )
+            """)
+
             # Note: download_queue table removed - download status now handled in memory
 
             conn.commit()
@@ -475,5 +495,305 @@ class UserDatabase:
         except Exception:
             pass
 
-    # Download Queue Management Methods - Removed
-    # Download status is now handled in memory by DownloadQueueManager
+    # Sync Job Management Methods
+
+    def create_sync_job(
+        self,
+        anime_title: str,
+        series_url: str,
+        check_interval: int,
+        language: str,
+        provider: str,
+        custom_path: str = None,
+        created_by: int = None,
+    ) -> Optional[int]:
+        """
+        Create a new sync job.
+
+        Args:
+            anime_title: Title of the anime/series
+            series_url: URL to the series page
+            check_interval: Check interval in hours (1, 2, 4, 8, 12, 24)
+            language: Language preference
+            provider: Provider preference
+            custom_path: Optional custom download path
+            created_by: User ID who created this sync job
+
+        Returns:
+            Sync job ID if created successfully, None otherwise
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO sync_jobs (
+                        anime_title, series_url, check_interval, custom_path,
+                        language, provider, created_by
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                    (
+                        anime_title,
+                        series_url,
+                        check_interval,
+                        custom_path,
+                        language,
+                        provider,
+                        created_by,
+                    ),
+                )
+                conn.commit()
+                return cursor.lastrowid
+
+        except Exception as e:
+            import logging
+
+            logging.error(f"Failed to create sync job: {e}")
+            return None
+
+    def get_sync_jobs(self, user_id: int = None, enabled_only: bool = False) -> List[Dict]:
+        """
+        Get sync jobs, optionally filtered by user and enabled status.
+
+        Args:
+            user_id: Optional user ID to filter by
+            enabled_only: If True, only return enabled sync jobs
+
+        Returns:
+            List of sync job dictionaries
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+
+                query = "SELECT * FROM sync_jobs WHERE 1=1"
+                params = []
+
+                if user_id is not None:
+                    query += " AND created_by = ?"
+                    params.append(user_id)
+
+                if enabled_only:
+                    query += " AND enabled = 1"
+
+                query += " ORDER BY created_at DESC"
+
+                cursor.execute(query, params)
+
+                sync_jobs = []
+                for row in cursor.fetchall():
+                    sync_jobs.append(
+                        {
+                            "id": row[0],
+                            "anime_title": row[1],
+                            "series_url": row[2],
+                            "check_interval": row[3],
+                            "custom_path": row[4],
+                            "last_checked": row[5],
+                            "last_found_new": row[6],
+                            "last_episode_count": row[7],
+                            "language": row[8],
+                            "provider": row[9],
+                            "created_at": row[10],
+                            "enabled": bool(row[11]),
+                            "created_by": row[12],
+                        }
+                    )
+
+                return sync_jobs
+
+        except Exception as e:
+            import logging
+
+            logging.error(f"Failed to get sync jobs: {e}")
+            return []
+
+    def get_sync_job(self, sync_job_id: int) -> Optional[Dict]:
+        """
+        Get a specific sync job by ID.
+
+        Args:
+            sync_job_id: Sync job ID
+
+        Returns:
+            Sync job dictionary if found, None otherwise
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM sync_jobs WHERE id = ?", (sync_job_id,))
+
+                row = cursor.fetchone()
+                if row:
+                    return {
+                        "id": row[0],
+                        "anime_title": row[1],
+                        "series_url": row[2],
+                        "check_interval": row[3],
+                        "custom_path": row[4],
+                        "last_checked": row[5],
+                        "last_found_new": row[6],
+                        "last_episode_count": row[7],
+                        "language": row[8],
+                        "provider": row[9],
+                        "created_at": row[10],
+                        "enabled": bool(row[11]),
+                        "created_by": row[12],
+                    }
+
+                return None
+
+        except Exception as e:
+            import logging
+
+            logging.error(f"Failed to get sync job: {e}")
+            return None
+
+    def update_sync_job(
+        self,
+        sync_job_id: int,
+        check_interval: int = None,
+        custom_path: str = None,
+        enabled: bool = None,
+        language: str = None,
+        provider: str = None,
+    ) -> bool:
+        """
+        Update a sync job.
+
+        Args:
+            sync_job_id: Sync job ID to update
+            check_interval: New check interval (optional)
+            custom_path: New custom path (optional)
+            enabled: New enabled status (optional)
+            language: New language preference (optional)
+            provider: New provider preference (optional)
+
+        Returns:
+            True if updated successfully, False otherwise
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+
+                updates = []
+                params = []
+
+                if check_interval is not None:
+                    updates.append("check_interval = ?")
+                    params.append(check_interval)
+
+                if custom_path is not None:
+                    updates.append("custom_path = ?")
+                    params.append(custom_path)
+
+                if enabled is not None:
+                    updates.append("enabled = ?")
+                    params.append(enabled)
+
+                if language is not None:
+                    updates.append("language = ?")
+                    params.append(language)
+
+                if provider is not None:
+                    updates.append("provider = ?")
+                    params.append(provider)
+
+                if not updates:
+                    return True  # Nothing to update
+
+                params.append(sync_job_id)
+
+                cursor.execute(
+                    f"""
+                    UPDATE sync_jobs SET {", ".join(updates)}
+                    WHERE id = ?
+                """,
+                    params,
+                )
+
+                conn.commit()
+                return cursor.rowcount > 0
+
+        except Exception as e:
+            import logging
+
+            logging.error(f"Failed to update sync job: {e}")
+            return False
+
+    def update_sync_job_check_status(
+        self,
+        sync_job_id: int,
+        last_episode_count: int = None,
+        found_new: bool = False,
+    ) -> bool:
+        """
+        Update sync job check status after checking for new episodes.
+
+        Args:
+            sync_job_id: Sync job ID
+            last_episode_count: Latest episode count
+            found_new: Whether new episodes were found
+
+        Returns:
+            True if updated successfully, False otherwise
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+
+                if found_new:
+                    cursor.execute(
+                        """
+                        UPDATE sync_jobs
+                        SET last_checked = CURRENT_TIMESTAMP,
+                            last_found_new = CURRENT_TIMESTAMP,
+                            last_episode_count = ?
+                        WHERE id = ?
+                    """,
+                        (last_episode_count, sync_job_id),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        UPDATE sync_jobs
+                        SET last_checked = CURRENT_TIMESTAMP,
+                            last_episode_count = ?
+                        WHERE id = ?
+                    """,
+                        (last_episode_count, sync_job_id),
+                    )
+
+                conn.commit()
+                return cursor.rowcount > 0
+
+        except Exception as e:
+            import logging
+
+            logging.error(f"Failed to update sync job check status: {e}")
+            return False
+
+    def delete_sync_job(self, sync_job_id: int) -> bool:
+        """
+        Delete a sync job.
+
+        Args:
+            sync_job_id: Sync job ID to delete
+
+        Returns:
+            True if deleted successfully, False otherwise
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM sync_jobs WHERE id = ?", (sync_job_id,))
+                conn.commit()
+                return cursor.rowcount > 0
+
+        except Exception as e:
+            import logging
+
+            logging.error(f"Failed to delete sync job: {e}")
+            return False
+
