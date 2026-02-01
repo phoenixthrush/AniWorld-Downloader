@@ -14,7 +14,13 @@ from flask import Flask, render_template, jsonify, request, session, redirect, u
 from .. import config
 from .database import UserDatabase
 from .download_manager import get_download_manager
-from .security_utils import validate_custom_path, SYSTEM_USER_ID, validate_csrf_token
+from .sync_manager import get_sync_manager
+from .security_utils import (
+    validate_custom_path, 
+    SYSTEM_USER_ID, 
+    generate_csrf_token, 
+    validate_csrf_token
+)
 
 
 class WebApp:
@@ -148,6 +154,35 @@ class WebApp:
 
         return decorated_function
 
+    def _require_csrf(self, f):
+        """Decorator to require CSRF token for state-changing requests."""
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # 1. CSRF check only needed if auth is enabled
+            if not self.auth_enabled:
+                return f(*args, **kwargs)
+
+            # 2. Get tokens
+            # Token from header (client-side explicitly sends this)
+            header_token = request.headers.get("X-CSRF-Token")
+            
+            # Token from cookie (set by server on login/first load)
+            cookie_token = request.cookies.get("csrf_token")
+            
+            if not cookie_token:
+                return jsonify({"error": "CSRF cookie missing"}), 403
+                
+            if not header_token:
+                 return jsonify({"error": "CSRF header missing"}), 403
+
+            # 3. Validate
+            if not validate_csrf_token(header_token, cookie_token):
+                return jsonify({"error": "Invalid CSRF token"}), 403
+
+            return f(*args, **kwargs)
+
+        return decorated_function
+
     def _setup_routes(self):
         """Setup Flask routes."""
 
@@ -190,7 +225,17 @@ class WebApp:
                 user = self.db.verify_user(username, password)
                 if user:
                     session_token = self.db.create_session(user["id"])
-                    response = jsonify({"success": True, "redirect": url_for("index")})
+                    
+                    # Generate CSRF token for Double-Submit Cookie pattern
+                    csrf_token = generate_csrf_token()
+                    
+                    response = jsonify({
+                        "success": True, 
+                        "redirect": url_for("index"),
+                        "csrf_token": csrf_token  # Allow client to read if needed
+                    })
+                    
+                    # Auth Cookie (HttpOnly)
                     response.set_cookie(
                         "session_token",
                         session_token,
@@ -199,6 +244,19 @@ class WebApp:
                         samesite="Lax",
                         max_age=30 * 24 * 60 * 60,
                     )
+                    
+                    # CSRF Cookie (Not HttpOnly - so JS can read it to send in header)
+                    # For Double Submit Cookie pattern, the client needs to read the cookie 
+                    # and send it back in the header.
+                    response.set_cookie(
+                         "csrf_token",
+                         csrf_token,
+                         httponly=False,
+                         secure=request.is_secure,
+                         samesite="Lax",
+                         max_age=30 * 24 * 60 * 60,
+                    )
+                    
                     return response
                 else:
                     return jsonify(
@@ -292,6 +350,7 @@ class WebApp:
 
         @self.app.route("/api/users", methods=["POST"])
         @self._require_admin
+        @self._require_csrf
         def api_create_user():
             """Create new user (admin only)."""
             data = request.get_json()
@@ -348,6 +407,7 @@ class WebApp:
 
         @self.app.route("/api/users/<int:user_id>", methods=["DELETE"])
         @self._require_admin
+        @self._require_csrf
         def api_delete_user(user_id):
             """Delete user (admin only)."""
             if not self.db:
@@ -375,6 +435,7 @@ class WebApp:
 
         @self.app.route("/api/users/<int:user_id>", methods=["PUT"])
         @self._require_admin
+        @self._require_csrf
         def api_update_user(user_id):
             """Update user (admin only)."""
             data = request.get_json()
@@ -408,6 +469,7 @@ class WebApp:
 
         @self.app.route("/api/change-password", methods=["POST"])
         @self._require_api_auth
+        @self._require_csrf
         def api_change_password():
             """Change user password."""
             if not self.auth_enabled or not self.db:
@@ -660,6 +722,7 @@ class WebApp:
 
         @self.app.route("/api/download", methods=["POST"])
         @self._require_api_auth
+        @self._require_csrf
         def api_download():
             """Start download endpoint."""
             try:
@@ -686,7 +749,8 @@ class WebApp:
                     custom_path = custom_path.strip() or None
                     if custom_path:
                         try:
-                            custom_path = validate_custom_path(custom_path)
+                            # Use strict path validation with default allowed base
+                            custom_path = validate_custom_path(custom_path, base_allowed_dir=config.DEFAULT_ALLOWED_DOWNLOAD_BASE)
                         except ValueError as e:
                             return jsonify({"success": False, "error": str(e)}), 400
                 else:
@@ -968,6 +1032,7 @@ class WebApp:
 
         @self.app.route("/api/cancel-download/<int:queue_id>", methods=["POST"])
         @self._require_api_auth
+        @self._require_csrf
         def api_cancel_download(queue_id):
             """Cancel a download in the queue."""
             try:
@@ -1017,6 +1082,7 @@ class WebApp:
         # Sync Job Management Endpoints
         @self.app.route("/api/sync", methods=["POST"])
         @self._require_api_auth
+        @self._require_csrf
         def api_create_sync_job():
             """Create a new sync job."""
             if not self.db or not self.sync_manager:
@@ -1036,7 +1102,8 @@ class WebApp:
                     custom_path = custom_path.strip() or None
                     if custom_path:
                         try:
-                            custom_path = validate_custom_path(custom_path)
+                            # Use strict path validation with default allowed base
+                            custom_path = validate_custom_path(custom_path, base_allowed_dir=config.DEFAULT_ALLOWED_DOWNLOAD_BASE)
                         except ValueError as e:
                             return jsonify({"success": False, "error": str(e)}), 400
                 else:
@@ -1153,6 +1220,7 @@ class WebApp:
 
         @self.app.route("/api/sync/<int:sync_job_id>", methods=["PUT"])
         @self._require_api_auth
+        @self._require_csrf
         def api_update_sync_job(sync_job_id):
             """Update a sync job."""
             if not self.db:
@@ -1234,6 +1302,7 @@ class WebApp:
 
         @self.app.route("/api/sync/<int:sync_job_id>", methods=["DELETE"])
         @self._require_api_auth
+        @self._require_csrf
         def api_delete_sync_job(sync_job_id):
             """Delete a sync job."""
             if not self.db:
@@ -1311,6 +1380,7 @@ class WebApp:
 
         @self.app.route("/api/sync/<int:sync_job_id>/check", methods=["POST"])
         @self._require_api_auth
+        @self._require_csrf
         def api_force_check_sync_job(sync_job_id):
             """Force an immediate check for a sync job."""
             if not self.sync_manager:

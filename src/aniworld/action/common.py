@@ -59,10 +59,20 @@ def execute_command(command: List[str]) -> None:
         return
 
     try:
-        logging.debug("Running Command:\n%s", command)
+        # Redact sensitive info for logging
+        log_command = [
+            "***" if i > 0 and command[i-1] in ("--password", "-p") else str(arg)
+            for i, arg in enumerate(command)
+        ]
+        logging.debug("Running Command:\n%s", log_command)
         subprocess.run(command, check=True)
     except subprocess.CalledProcessError as err:
-        logging.error("Error running command: %s\nCommand: %s", err, " ".join(command))
+        # Redact sensitive info for error logging as well
+        log_command = [
+            "***" if i > 0 and command[i-1] in ("--password", "-p") else str(arg)
+            for i, arg in enumerate(command)
+        ]
+        logging.error("Error running command: %s\nCommand: %s", err, " ".join(log_command))
     except KeyboardInterrupt:
         logging.info("Syncplay execution interrupted by user")
         raise

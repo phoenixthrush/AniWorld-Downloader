@@ -8,7 +8,14 @@ document.addEventListener('DOMContentLoaded', function () {
         if (lower.startsWith('javascript:') || lower.startsWith('vbscript:') || lower.startsWith('data:')) {
             return '';
         }
-        return url.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        return url; // Usage with DOM textContent/setAttribute handles escaping naturally
+    }
+
+    // CSRF Helper
+    function getCsrfToken() {
+        // Double-Submit Cookie Pattern: Read token from cookie
+        const match = document.cookie.match(/(^|;)\s*csrf_token=([^;]+)/);
+        return match ? match[2] : '';
     }
 
     console.log('AniWorld Downloader Web Interface loaded');
@@ -206,7 +213,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 fetch(`/api/sync/${window.currentEditingJobId}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': getCsrfToken()
+                    },
                     body: JSON.stringify({
                         check_interval: parseFloat(interval),
                         custom_path: path.trim() || null,
@@ -423,52 +433,78 @@ document.addEventListener('DOMContentLoaded', function () {
         const card = document.createElement('div');
         card.className = 'anime-card';
 
-        // Handle cover image
-        let coverStyle = '';
-        if (anime.cover) {
-            let coverUrl = anime.cover;
-            // Make URL absolute if it's relative
-            if (!coverUrl.startsWith('http')) {
-                if (coverUrl.startsWith('//')) {
-                    coverUrl = 'https:' + coverUrl;
-                } else if (coverUrl.startsWith('/')) {
-                    // Determine base URL based on site
+        // Helper to resolve URLs
+        const resolveUrl = (url) => {
+            if (!url) return '';
+            if (!url.startsWith('http')) {
+                if (url.startsWith('//')) {
+                    return 'https:' + url;
+                } else if (url.startsWith('/')) {
                     const baseUrl = anime.site === 's.to' ? 'https://s.to' : 'https://aniworld.to';
-                    coverUrl = baseUrl + coverUrl;
+                    return baseUrl + url;
                 } else {
                     const baseUrl = anime.site === 's.to' ? 'https://s.to' : 'https://aniworld.to';
-                    coverUrl = baseUrl + '/' + coverUrl;
+                    return baseUrl + '/' + url;
                 }
             }
+            return url;
+        };
 
-            // Upgrade image resolution from 150x225 to 220x330 for better quality
+        // Create Background
+        const bgDiv = document.createElement('div');
+        bgDiv.className = 'anime-card-background';
+        if (anime.cover) {
+            let coverUrl = resolveUrl(anime.cover);
             coverUrl = coverUrl.replace("150x225", "220x330");
-
-            coverStyle = `style="background-image: url('${sanitizeUrl(coverUrl)}') "`;
+            bgDiv.style.backgroundImage = `url('${sanitizeUrl(coverUrl)}')`;
         }
+        card.appendChild(bgDiv);
 
-        card.innerHTML = `
-            <div class="anime-card-background" ${coverStyle}></div>
-            <div class="anime-card-content">
-                <div class="anime-title">${escapeHtml(anime.title)}</div>
-                <div class="anime-info">
-                    <strong>Site:</strong> ${escapeHtml(anime.site || 'aniworld.to')}<br>
-                    <strong>Slug:</strong> ${escapeHtml(anime.slug || 'Unknown')}<br>
-                    ${anime.description ? `<strong>Description:</strong> ${escapeHtml(anime.description)}<br>` : ''}
-                </div>
-                <div class="anime-actions">
-                    <button class="download-btn">
-                        Download
-                    </button>
-                </div>
-            </div>
-        `;
+        // Content Container
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'anime-card-content';
 
-        // Add event listener for the download button to avoid onclick string issues
-        const downloadBtn = card.querySelector('.download-btn');
+        // Title
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'anime-title';
+        titleDiv.textContent = anime.title || 'Unknown Title';
+        contentDiv.appendChild(titleDiv);
+
+        // Info
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'anime-info';
+
+        infoDiv.appendChild(document.createTextNode('Site: '));
+        infoDiv.appendChild(document.createTextNode(anime.site || 'aniworld.to'));
+        infoDiv.appendChild(document.createElement('br'));
+
+        infoDiv.appendChild(document.createTextNode('Slug: '));
+        infoDiv.appendChild(document.createTextNode(anime.slug || 'Unknown'));
+        infoDiv.appendChild(document.createElement('br'));
+
+        if (anime.description) {
+            const descStrong = document.createElement('strong');
+            descStrong.textContent = 'Description: ';
+            infoDiv.appendChild(descStrong);
+            infoDiv.appendChild(document.createTextNode(anime.description.substring(0, 100) + (anime.description.length > 100 ? '...' : '')));
+            infoDiv.appendChild(document.createElement('br'));
+        }
+        contentDiv.appendChild(infoDiv);
+
+        // Actions
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'anime-actions';
+
+        const downloadBtn = document.createElement('button');
+        downloadBtn.className = 'download-btn';
+        downloadBtn.textContent = 'Download';
         downloadBtn.addEventListener('click', () => {
             showDownloadModal(anime.title, 'Series', anime.url);
         });
+        actionsDiv.appendChild(downloadBtn);
+
+        contentDiv.appendChild(actionsDiv);
+        card.appendChild(contentDiv);
 
         return card;
     }
@@ -976,6 +1012,7 @@ document.addEventListener('DOMContentLoaded', function () {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'X-CSRF-Token': getCsrfToken()
             },
             body: JSON.stringify(requestPayload)
         })
@@ -1119,7 +1156,9 @@ document.addEventListener('DOMContentLoaded', function () {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-            }
+                'X-CSRF-Token': getCsrfToken()
+            },
+            body: JSON.stringify({})
         })
             .then(response => response.json())
             .then(data => {
@@ -1288,15 +1327,23 @@ document.addEventListener('DOMContentLoaded', function () {
             displayTitle = displayTitle.substring(0, truncateAt) + '...';
         }
 
-        card.innerHTML = `
-            <div class="home-anime-cover">
-                <img src="${sanitizeUrl(coverUrl)}" alt="${escapeHtml(anime.name)}" loading="lazy"
-                     onerror="this.src='${defaultCover}'">
-            </div>
-            <div class="home-anime-title" title="${escapeHtml(anime.name)}">
-                ${escapeHtml(displayTitle)}
-            </div>
-        `;
+        // Create DOM elements safely
+        const coverDiv = document.createElement('div');
+        coverDiv.className = 'home-anime-cover';
+
+        const img = document.createElement('img');
+        img.src = sanitizeUrl(coverUrl);
+        img.alt = anime.name || 'Anime Cover';
+        img.loading = 'lazy';
+        img.onerror = function () { this.src = defaultCover; };
+        coverDiv.appendChild(img);
+        card.appendChild(coverDiv);
+
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'home-anime-title';
+        titleDiv.title = anime.name || '';
+        titleDiv.textContent = displayTitle;
+        card.appendChild(titleDiv);
 
         // Add click handler to search for this anime
         card.addEventListener('click', () => {
@@ -1469,7 +1516,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (modal) modal.style.display = 'flex';
     };
     window.forceCheckSyncJob = function (jobId) {
-        fetch(`/api/sync/${jobId}/check`, { method: 'POST' })
+        fetch(`/api/sync/${jobId}/check`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-Token': getCsrfToken()
+            }
+        })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
@@ -1487,7 +1539,12 @@ document.addEventListener('DOMContentLoaded', function () {
     window.deleteSyncJob = function (jobId) {
         if (!confirm('Are you sure you want to delete this sync job?')) return;
 
-        fetch(`/api/sync/${jobId}`, { method: 'DELETE' })
+        fetch(`/api/sync/${jobId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-Token': getCsrfToken()
+            }
+        })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {

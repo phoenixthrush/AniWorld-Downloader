@@ -95,15 +95,20 @@ class UserDatabase:
 
     def _hash_password(self, password: str, salt: str) -> str:
         """
-        Hash a password with salt using SHA-256.
-
-        Args:
-            password: Plain text password
-            salt: Salt string
-
-        Returns:
-            Hashed password
+        Hash a password with salt using PBKDF2-HMAC-SHA256 (modern) or SHA256 (legacy).
+        New hashes are always PBKDF2.
         """
+        # PBKDF2 with 100,000 iterations
+        # Result is hex string
+        return hashlib.pbkdf2_hmac(
+            'sha256', 
+            password.encode('utf-8'), 
+            salt.encode('utf-8'), 
+            100000
+        ).hex()
+
+    def _hash_password_legacy(self, password: str, salt: str) -> str:
+        """Legacy SHA256 hashing for migration."""
         return hashlib.sha256((password + salt).encode()).hexdigest()
 
     def create_user(
@@ -176,7 +181,23 @@ class UserDatabase:
                 user_id, username, stored_hash, salt, is_admin, is_original_admin = row
 
                 # Verify password
+                # 1. Try modern hash (PBKDF2)
+                verified = False
+                needs_update = False
+                
                 if self._hash_password(password, salt) == stored_hash:
+                    verified = True
+                # 2. Try legacy hash (SHA256)
+                elif self._hash_password_legacy(password, salt) == stored_hash:
+                    verified = True
+                    needs_update = True
+                
+                if verified:
+                    # Update legacy hash to modern hash if needed
+                    if needs_update:
+                         new_hash = self._hash_password(password, salt)
+                         cursor.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user_id))
+
                     # Update last login
                     cursor.execute(
                         """
