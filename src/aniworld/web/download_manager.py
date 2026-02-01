@@ -102,11 +102,23 @@ class DownloadQueueManager:
 
         return queue_id
 
-    def get_queue_status(self):
-        """Get current queue status"""
+    def get_queue_status(self, user_id: int = None, is_admin: bool = False):
+        """
+        Get current queue status, optionally filtered by user.
+        
+        Args:
+            user_id: ID of the user requesting status
+            is_admin: Whether the user is an admin (sees all)
+        """
         with self._queue_lock:
             active_downloads = []
             for download in self._active_downloads.values():
+                # Filter by user if not admin and user_id is provided
+                if user_id is not None and not is_admin:
+                    # If created_by is None (system) or matches user
+                    if download["created_by"] is not None and download["created_by"] != user_id:
+                        continue
+
                 if download["status"] in ["queued", "downloading"]:
                     # Format for API compatibility
                     active_downloads.append(
@@ -125,11 +137,25 @@ class DownloadQueueManager:
                             "created_at": download["created_at"].isoformat()
                             if download["created_at"]
                             else None,
+                            "created_by": download.get("created_by")
                         }
                     )
 
             completed_downloads = []
-            for download in self._completed_downloads[-1:]:  # Get last completed
+            # For completed, we iterate slice then filter? No, we likely want last N *for this user*.
+            # But traversing the whole list backwards is better.
+            
+            count = 0
+            # Iterate backwards through completed downloads
+            for download in reversed(self._completed_downloads):
+                if count >= self._max_completed_history:
+                    break
+                    
+                # Filter by user
+                if user_id is not None and not is_admin:
+                    if download["created_by"] is not None and download["created_by"] != user_id:
+                        continue
+                
                 completed_downloads.append(
                     {
                         "id": download["id"],
@@ -146,25 +172,35 @@ class DownloadQueueManager:
                         "completed_at": download["completed_at"].isoformat()
                         if download["completed_at"]
                         else None,
+                        "created_by": download.get("created_by")
                     }
                 )
-
+                count += 1
+            
             return {"active": active_downloads, "completed": completed_downloads}
 
-    def cancel_download(self, queue_id: int) -> bool:
+    def cancel_download(self, queue_id: int, user_id: int = None, is_admin: bool = False) -> bool:
         """
-        Cancel a download by queue ID.
+        Cancel a download by queue ID with ownership check.
         
         Args:
             queue_id: The ID of the download to cancel
+            user_id: ID of the user requesting cancellation
+            is_admin: Whether the user is an admin
             
         Returns:
-            True if cancelled successfully, False otherwise
+            True if cancelled successfully, False otherwise (or permission denied)
         """
         with self._queue_lock:
             if queue_id in self._active_downloads:
                 download = self._active_downloads[queue_id]
                 
+                # Check ownership
+                if user_id is not None and not is_admin:
+                    if download["created_by"] is not None and download["created_by"] != user_id:
+                        logging.warning(f"User {user_id} attempted to cancel download {queue_id} owned by {download.get('created_by')}")
+                        return False
+
                 # Mark as cancelled
                 download["status"] = "cancelled"
                 download["error_message"] = "Download cancelled by user"
@@ -265,7 +301,7 @@ class DownloadQueueManager:
             # Override with custom path if provided in job
             if job.get("custom_path"):
                 try:
-                    download_dir = validate_custom_path(str(job["custom_path"]))
+                    download_dir = validate_custom_path(str(job["custom_path"]), base_allowed_dir=config.DEFAULT_ALLOWED_DOWNLOAD_BASE)
                     logging.info(f"Using custom download path: {download_dir}")
                 except ValueError as e:
                     logging.error(f"Invalid custom path in job {queue_id}: {e}")

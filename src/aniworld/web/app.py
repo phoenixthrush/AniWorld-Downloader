@@ -1021,7 +1021,21 @@ class WebApp:
         def api_queue_status():
             """Get download queue status endpoint."""
             try:
-                queue_status = self.download_manager.get_queue_status()
+                user_id = None
+                is_admin = False
+
+                if self.auth_enabled and self.db:
+                    session_token = request.cookies.get("session_token")
+                    if session_token:
+                        user = self.db.get_user_by_session(session_token)
+                        if user:
+                            user_id = user["id"]
+                            is_admin = bool(user.get("is_admin"))
+                else:
+                     # If auth is disabled, treat everyone as admin (see all)
+                     is_admin = True
+
+                queue_status = self.download_manager.get_queue_status(user_id=user_id, is_admin=is_admin)
 
                 return jsonify({"success": True, "queue": queue_status})
             except Exception as e:
@@ -1036,7 +1050,20 @@ class WebApp:
         def api_cancel_download(queue_id):
             """Cancel a download in the queue."""
             try:
-                success = self.download_manager.cancel_download(queue_id)
+                user_id = None
+                is_admin = False
+
+                if self.auth_enabled and self.db:
+                    session_token = request.cookies.get("session_token")
+                    if session_token:
+                        user = self.db.get_user_by_session(session_token)
+                        if user:
+                            user_id = user["id"]
+                            is_admin = bool(user.get("is_admin"))
+                else:
+                    is_admin = True
+
+                success = self.download_manager.cancel_download(queue_id, user_id=user_id, is_admin=is_admin)
                 
                 if success:
                     return jsonify({
@@ -1046,8 +1073,8 @@ class WebApp:
                 else:
                     return jsonify({
                         "success": False,
-                        "error": "Failed to cancel download or download not found"
-                    }), 404
+                        "error": "Failed to cancel download or download not found (or permission denied)"
+                    }), 404 # Using 404 to mask existence if not owned
                     
             except Exception as e:
                 logging.error(f"Failed to cancel download: {e}")
