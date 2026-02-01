@@ -310,14 +310,15 @@ def _handle_uninstall() -> None:
         remove_mpv_scripts()
 
         if sys.platform.startswith("win"):
-            command = "timeout 3 >nul & pip uninstall -y aniworld"
+            # Use cmd /c to run the command chain
+            cmd = ["cmd", "/c", "timeout 3 >nul & pip uninstall -y aniworld"]
         else:
-            command = "pip uninstall -y aniworld"
+            cmd = ["pip", "uninstall", "-y", "aniworld"]
 
         print("pip uninstall -y aniworld")
         with subprocess.Popen(
-            command,
-            shell=True,
+            cmd,
+            shell=False,
             creationflags=subprocess.CREATE_NEW_CONSOLE
             if sys.platform.startswith("win")
             else 0,
@@ -554,12 +555,19 @@ def _handle_debug_mode() -> None:
             subprocess.run(darwin_open_debug_log, check=True)
 
         elif system == "Windows":
-            windows_open_debug_log = (
-                'start cmd /c "powershell -NoExit -c '
-                'Get-Content -Wait "$env:TEMP\\aniworld.log""'
-            )
+            windows_open_debug_log = [
+                "cmd",
+                "/c",
+                'start',
+                'cmd',
+                '/c',
+                'powershell -NoExit -c Get-Content -Wait "$env:TEMP\\aniworld.log"'
+            ]
             logging.debug("Running Command: %s", windows_open_debug_log)
-            subprocess.run(windows_open_debug_log, shell=True, check=True)
+            # shell=True required for start command in windows? 
+            # Actually 'start' is a shell built-in.
+            # To avoid shell=True we invoked cmd /c start ...
+            subprocess.run(windows_open_debug_log, shell=False, check=True)
 
         elif system == "Linux":
             _open_terminal_with_command("tail -f -n +1 /tmp/aniworld.log")

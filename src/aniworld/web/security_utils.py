@@ -66,25 +66,23 @@ def validate_custom_path(custom_path: str, base_allowed_dir: str = None) -> str:
                 # Normalize blocked path
                 try:
                     blocked_path = Path(blocked).resolve()
-                    blocked_str = str(blocked_path)
                     
-                    if str(path_obj) == blocked_str or str(path_obj).startswith(str(blocked_path) + os.sep):
-                        raise ValueError(f"Path is in a blocked system directory: {blocked}")
-                        
-                    # Also check simple string matching for cases where resolve() might be tricky 
-                    # (e.g. non-existent paths on different OS)
-                    if path_str_lower.startswith(str(blocked).lower()):
+                    # Use commonpath to see if path is inside blocked path
+                    if os.path.commonpath([path_obj, blocked_path]) == str(blocked_path):
                          raise ValueError(f"Path is in a blocked system directory: {blocked}")
-                         
-                except ValueError as ve:
-                    raise ve
-                except Exception:
-                    # Ignore resolution errors for paths not on this OS
+
+                except (ValueError, OSError):
+                    # Fallback for simple string check if path logic resolution fails
+                    if path_str_lower.startswith(str(blocked).lower()):
+                         raise ValueError(f"Path is in a blocked system directory (fallback): {blocked}")
                     continue
         else:
             # Enforce base directory restriction (stricter mode)
             base_obj = Path(base_allowed_dir).resolve()
-            if not str(path_obj).startswith(str(base_obj)):
+            try:
+                # This checks if path_obj is inside base_obj
+                path_obj.relative_to(base_obj)
+            except ValueError:
                  raise ValueError(f"Path must be within {base_allowed_dir}")
                  
         return path_str
@@ -98,25 +96,46 @@ def sanitize_url(url: str) -> str:
     """
     Validate and sanitize a URL to prevent XSS.
     Allowed protocols: http, https
+    Checks for user credentials and dangerous patterns.
     """
     if not url:
         return ""
         
     try:
+        # Prevent javascript:/vbscript:/data: explicitly first (before parsing)
+        url_lower = url.lower().strip()
+        if url_lower.startswith(('javascript:', 'vbscript:', 'data:')):
+            return ""
+
         parsed = urlparse(url)
         if parsed.scheme not in ('http', 'https'):
             return ""
             
+        # Reject URLs with credentials (username:password@host)
+        if parsed.username or parsed.password:
+            return ""
+            
         # Basic sanitization of special characters that could be used for injection
-        # Current major browsers encode these anyway, but good for safety
         clean_url = url.replace('"', '%22').replace("'", '%27').replace('<', '%3C').replace('>', '%3E')
         
         return clean_url
     except Exception:
         return ""
 
-def validate_csrf_token(token: str) -> bool:
+def validate_csrf_token(token: str, session_token: str = None) -> bool:
     """
-    Validate CSRF token (placeholder for future implementation)
+    Validate CSRF token.
+    Current implementation requires a token to be present for state-changing requests if auth is enabled.
     """
+    # If no token provided, failed
+    if not token:
+        return False
+        
+    # TODO: Implement strict per-session CSRF token verification (HMAC)
+    # For now, we enforce that a token exists and matches a basic pattern
+    # Real implementations should compare this against a value stored in the user's session
+    
+    if len(token) < 32:
+        return False
+        
     return True

@@ -5,7 +5,7 @@ import sys
 from typing import Dict, Optional
 from urllib.parse import urlparse
 
-from ...config import DEFAULT_REQUEST_TIMEOUT
+from ...config import DEFAULT_REQUEST_TIMEOUT, REQUEST_VERIFY
 
 # Setup module logger
 logger = logging.getLogger(__name__)
@@ -69,7 +69,7 @@ def _make_request(
             response = requests.head(
                 url,
                 allow_redirects=allow_redirects,
-                verify=False,
+                verify=REQUEST_VERIFY,
                 timeout=DEFAULT_REQUEST_TIMEOUT,
                 headers=headers or {},
             )
@@ -77,14 +77,14 @@ def _make_request(
             response = requests.post(
                 url,
                 headers=headers or {},
-                verify=False,
+                verify=REQUEST_VERIFY,
                 timeout=DEFAULT_REQUEST_TIMEOUT,
             )
         else:
             response = requests.get(
                 url,
                 headers=headers or {},
-                verify=False,
+                verify=REQUEST_VERIFY,
                 timeout=DEFAULT_REQUEST_TIMEOUT,
             )
 

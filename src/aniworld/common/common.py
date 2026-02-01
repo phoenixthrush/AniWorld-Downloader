@@ -60,7 +60,12 @@ def _run_command(
     quiet: bool = True,
     shell: bool = False,
 ) -> bool:
-    """Run shell command with error handling."""
+    """
+    Run shell command with error handling.
+    
+    WARNING: Avoid using shell=True if possible to prevent shell injection.
+    If shell=True is necessary, ensure all arguments are properly sanitized.
+    """
     try:
         stdout = subprocess.DEVNULL if quiet else None
         stderr = subprocess.DEVNULL if quiet else None
@@ -242,11 +247,18 @@ def _install_with_package_manager(package: str) -> bool:
 
     install_cmd = PACKAGE_MANAGERS[pm].format(package)
     logging.info("Installing %s using %s...", package, pm)
+    cmd_parts = install_cmd.split()
+    
+    # If the command contains shell operators, we might still need shell=True
+    # But usually package managers don't use && in simple install strings defined in constants
+    # The constants are: "sudo apt install {}", etc.
+    # We should split them safely.
+    
+    use_shell = any(op in install_cmd for op in ["&&", "||", ";", ">", "|"])
+    
     return _run_command(
-        install_cmd.split()
-        if not any(op in install_cmd for op in ["&&", "||", ";"])
-        else [install_cmd],
-        shell=True,
+        [install_cmd] if use_shell else cmd_parts,
+        shell=use_shell,
     )
 
 

@@ -84,11 +84,8 @@ logging.getLogger("charset_normalizer").setLevel(logging.WARNING)
 logging.getLogger().setLevel(logging.WARNING)
 logging.getLogger("bs4.dammit").setLevel(logging.ERROR)
 
-urllib3.disable_warnings(InsecureRequestWarning)
-
-#########################################################################################
-# Default Configuration Constants
-#########################################################################################
+# Global TLS Verification setting
+REQUEST_VERIFY = os.getenv("ANIWORLD_INSECURE", "false").lower() != "true"
 
 DEFAULT_REQUEST_TIMEOUT = 30
 
