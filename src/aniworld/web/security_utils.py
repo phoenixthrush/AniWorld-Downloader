@@ -43,7 +43,8 @@ def validate_custom_path(custom_path: str, base_allowed_dir: str = None) -> str:
     Args:
         custom_path: The path provided by user
         base_allowed_dir: Optional base directory that custom_path must be within.
-                          If provided, STRICT validation (relative_to) is enforced.
+                          If provided, STRICT validation (relative_to) is enforced
+                          by resolving the path relative to this base directory.
                           If None, checks against BLOCKED_PATHS (legacy/less strict).
                           
     Returns:
@@ -52,29 +53,42 @@ def validate_custom_path(custom_path: str, base_allowed_dir: str = None) -> str:
     Raises:
         ValueError: If path is invalid, blocked, or outside base directory
     """
+    if custom_path is None:
+        return None
+
+    # Normalize simple whitespace-only inputs
+    custom_path = str(custom_path).strip()
     if not custom_path:
         return None
         
     try:
-        # Pre-check for dangerous patterns before resolution to help static analysis
+        # Reject obvious path traversal sequences early
         if "../" in custom_path or "..\\" in custom_path:
-            # We will still resolve it correctly below, but this check flags unrelated traversal attempts
-            pass
+            raise ValueError("Path traversal sequences are not allowed in custom paths.")
 
-        # Resolve to absolute path to handle ../ traversal
-        # strict=False allows checking paths that don't exist yet (for creation)
-        path_obj = Path(custom_path).resolve()
-        path_str = str(path_obj)
-        
-        # 1. Strict Mode: If base_allowed_dir is provided, enforce containment
+        # Disallow absolute paths provided directly by the user; they must always be
+        # resolved relative to a trusted base directory.
+        user_path_obj = Path(custom_path)
+        if user_path_obj.is_absolute():
+            raise ValueError("Absolute paths are not allowed for custom paths.")
+
+        # 1. Strict Mode: If base_allowed_dir is provided, resolve relative to it
         if base_allowed_dir:
             base_obj = Path(base_allowed_dir).resolve()
+            # Build the candidate path under the trusted base directory, then resolve.
+            path_obj = (base_obj / user_path_obj).resolve()
             try:
                 # This checks if path_obj is inside base_obj
                 # is_relative_to is Python 3.9+, use relative_to with try/except for broader compat
                 path_obj.relative_to(base_obj)
             except ValueError:
-                 raise ValueError(f"Path must be within authorized directory: {base_allowed_dir}")
+                raise ValueError(f"Path must be within authorized directory: {base_allowed_dir}")
+        else:
+            # Legacy/less strict mode: still normalize, but relative to CWD and with
+            # traversal and absolute path already disallowed above.
+            path_obj = user_path_obj.resolve()
+
+        path_str = str(path_obj)
         
         # 2. Blocklist Check: Even in strict mode, ensure we aren't targeting sensitive system paths 
         # (Defense in depth, in case base dir configuration is weak)
@@ -95,12 +109,12 @@ def validate_custom_path(custom_path: str, base_allowed_dir: str = None) -> str:
                 
                 # Check if path is inside blocked path (case-insensitive for safety)
                 if str(common).lower() == str(blocked_path).lower():
-                        raise ValueError(f"Path is in a blocked system directory: {blocked}")
+                    raise ValueError(f"Path is in a blocked system directory: {blocked}")
 
             except (ValueError, OSError):
                 # Fallback for simple string check if path logic resolution fails
                 if path_str_lower.startswith(str(blocked).lower()):
-                     raise ValueError(f"Path is in a blocked system directory (fallback): {blocked}")
+                    raise ValueError(f"Path is in a blocked system directory (fallback): {blocked}")
                 continue
                  
         return path_str
