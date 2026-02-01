@@ -7,9 +7,10 @@ import threading
 import time
 import logging
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from .database import UserDatabase
 from .download_manager import DownloadQueueManager
+from .security_utils import validate_custom_path
 
 
 class SyncManager:
@@ -93,7 +94,7 @@ class SyncManager:
             check_interval_hours = job["check_interval"]
             next_check = last_checked + timedelta(hours=check_interval_hours)
 
-            return datetime.now() >= next_check
+            return datetime.now(timezone.utc) >= next_check
 
         except Exception as e:
             logging.error(f"Error checking if job is due: {e}")
@@ -125,7 +126,13 @@ class SyncManager:
                     return
 
                 # Determine local directory
-                base_path = job.get("custom_path")
+                base_path = None
+                if job.get("custom_path"):
+                    try:
+                        base_path = validate_custom_path(str(job["custom_path"]))
+                    except ValueError as e:
+                        logging.warning(f"Invalid custom path in sync job: {e}")
+                
                 if not base_path:
                     # Fallback to default download dir
                     if hasattr(config, 'DOWNLOAD_DIR'):

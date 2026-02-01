@@ -14,6 +14,7 @@ from flask import Flask, render_template, jsonify, request, session, redirect, u
 from .. import config
 from .database import UserDatabase
 from .download_manager import get_download_manager
+from .security_utils import validate_custom_path, SYSTEM_USER_ID, validate_csrf_token
 
 
 class WebApp:
@@ -194,7 +195,8 @@ class WebApp:
                         "session_token",
                         session_token,
                         httponly=True,
-                        secure=False,
+                        secure=request.is_secure,
+                        samesite="Lax",
                         max_age=30 * 24 * 60 * 60,
                     )
                     return response
@@ -682,6 +684,11 @@ class WebApp:
                 custom_path = data.get("custom_path")
                 if custom_path:
                     custom_path = custom_path.strip() or None
+                    if custom_path:
+                        try:
+                            custom_path = validate_custom_path(custom_path)
+                        except ValueError as e:
+                            return jsonify({"success": False, "error": str(e)}), 400
                 else:
                     custom_path = None
                 keep_updated = data.get("keep_updated", False)
@@ -735,7 +742,7 @@ class WebApp:
                     language=language,
                     provider=provider,
                     total_episodes=total_episodes,
-                    created_by=current_user["id"] if current_user else None,
+                    created_by=current_user["id"] if current_user else SYSTEM_USER_ID,
                     custom_path=custom_path,
                 )
 
@@ -755,7 +762,7 @@ class WebApp:
                             language=language,
                             provider=provider,
                             custom_path=custom_path,
-                            created_by=current_user["id"] if current_user else None,
+                            created_by=current_user["id"] if current_user else SYSTEM_USER_ID,
                         )
                         logging.info(f"Created sync job {sync_job_id} for {anime_title}")
                     except Exception as e:
@@ -1027,6 +1034,11 @@ class WebApp:
                 custom_path = data.get("custom_path")
                 if custom_path:
                     custom_path = custom_path.strip() or None
+                    if custom_path:
+                        try:
+                            custom_path = validate_custom_path(custom_path)
+                        except ValueError as e:
+                            return jsonify({"success": False, "error": str(e)}), 400
                 else:
                     custom_path = None
                     
@@ -1078,7 +1090,7 @@ class WebApp:
                     language=language,
                     provider=provider,
                     custom_path=custom_path,
-                    created_by=current_user["id"] if current_user else None,
+                    created_by=current_user["id"] if current_user else SYSTEM_USER_ID,
                 )
 
                 if sync_job_id:
@@ -1149,6 +1161,20 @@ class WebApp:
                 ), 400
 
             try:
+                # Check ownership
+                job = self.db.get_sync_job(sync_job_id)
+                if not job:
+                    return jsonify({"success": False, "error": "Sync job not found"}), 404
+
+                if self.auth_enabled:
+                    session_token = request.cookies.get("session_token")
+                    current_user = self.db.get_user_by_session(session_token)
+                    if current_user:
+                        is_owner = job["created_by"] == current_user["id"]
+                        is_admin = current_user.get("is_admin", False)
+                        if not is_owner and not is_admin:
+                             return jsonify({"success": False, "error": "Forbidden: You don't own this sync job"}), 403
+
                 data = request.get_json()
 
                 check_interval = data.get("check_interval")
@@ -1216,6 +1242,20 @@ class WebApp:
                 ), 400
 
             try:
+                # Check ownership
+                job = self.db.get_sync_job(sync_job_id)
+                if not job:
+                    return jsonify({"success": False, "error": "Sync job not found"}), 404
+
+                if self.auth_enabled:
+                    session_token = request.cookies.get("session_token")
+                    current_user = self.db.get_user_by_session(session_token)
+                    if current_user:
+                        is_owner = job["created_by"] == current_user["id"]
+                        is_admin = current_user.get("is_admin", False)
+                        if not is_owner and not is_admin:
+                             return jsonify({"success": False, "error": "Forbidden: You don't own this sync job"}), 403
+
                 success = self.db.delete_sync_job(sync_job_id)
 
                 if success:

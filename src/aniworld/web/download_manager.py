@@ -9,6 +9,7 @@ import logging
 from typing import Optional
 from datetime import datetime
 from .database import UserDatabase
+from .security_utils import validate_custom_path
 
 
 class DownloadQueueManager:
@@ -263,8 +264,12 @@ class DownloadQueueManager:
             
             # Override with custom path if provided in job
             if job.get("custom_path"):
-                download_dir = str(job["custom_path"])
-                logging.info(f"Using custom download path: {download_dir}")
+                try:
+                    download_dir = validate_custom_path(str(job["custom_path"]))
+                    logging.info(f"Using custom download path: {download_dir}")
+                except ValueError as e:
+                    logging.error(f"Invalid custom path in job {queue_id}: {e}")
+                    # Fallback to default download_dir
 
 
             for anime in anime_list:

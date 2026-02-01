@@ -1,6 +1,16 @@
 // AniWorld Downloader Web Interface JavaScript
 
 document.addEventListener('DOMContentLoaded', function () {
+    // Security helper
+    function sanitizeUrl(url) {
+        if (!url) return '';
+        const lower = url.toLowerCase();
+        if (lower.startsWith('javascript:') || lower.startsWith('vbscript:') || lower.startsWith('data:')) {
+            return '';
+        }
+        return url.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
     console.log('AniWorld Downloader Web Interface loaded');
 
     // Get UI elements
@@ -434,7 +444,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // Upgrade image resolution from 150x225 to 220x330 for better quality
             coverUrl = coverUrl.replace("150x225", "220x330");
 
-            coverStyle = `style="background-image: url('${coverUrl}')"`;
+            coverStyle = `style="background-image: url('${sanitizeUrl(coverUrl)}') "`;
         }
 
         card.innerHTML = `
@@ -1280,7 +1290,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         card.innerHTML = `
             <div class="home-anime-cover">
-                <img src="${coverUrl}" alt="${escapeHtml(anime.name)}" loading="lazy"
+                <img src="${sanitizeUrl(coverUrl)}" alt="${escapeHtml(anime.name)}" loading="lazy"
                      onerror="this.src='${defaultCover}'">
             </div>
             <div class="home-anime-title" title="${escapeHtml(anime.name)}">
