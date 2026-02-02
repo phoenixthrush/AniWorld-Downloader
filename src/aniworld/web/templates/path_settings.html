@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Path Settings - AniWorld Downloader</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <!-- Animated Background -->
+    <div class="background-container">
+        <div class="cloud"></div>
+        <div class="cloud"></div>
+        <div class="cloud"></div>
+        <div class="cloud"></div>
+        <div class="cloud"></div>
+        <!-- Particle System -->
+        <div class="particles">
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+        </div>
+    </div>
+
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <h1>AniWorld Downloader - Path Settings</h1>
+                <span class="version" id="version-display">Loading...</span>
+            </div>
+            <div class="nav-actions">
+                <a href="{{ url_for('index') }}" class="nav-btn" title="Back to Main">
+                    <i class="fas fa-home"></i>
+                </a>
+                {% if auth_enabled and user %}
+                <div class="user-dropdown">
+                    <button class="nav-btn user-btn" id="user-dropdown-btn" title="User Settings">
+                        <i class="fas fa-user"></i>
+                        <span class="username">{{ user.username }}</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="dropdown-menu" id="user-dropdown-menu">
+                        <button class="dropdown-item" id="theme-toggle-dropdown">
+                            <i id="theme-icon-dropdown" class="fas fa-moon"></i> Toggle Theme
+                        </button>
+                        <a href="{{ url_for('settings') }}" class="dropdown-item">
+                            <i class="fas fa-cog"></i> Settings
+                        </a>
+                        <button class="dropdown-item logout-btn" id="logout-btn">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="settings-container">
+            <!-- Path Management Section -->
+            <div class="settings-section">
+                <h2><i class="fas fa-folder-open"></i> Manage Download Paths</h2>
+
+                <!-- Add Path Form -->
+                <div class="add-user-form">
+                    <h3>Add New Custom Path</h3>
+                    <form id="addPathForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="pathName">Path Name</label>
+                                <input type="text" id="pathName" placeholder="e.g. My Anime Drive" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="pathValue">Folder Path</label>
+                                <input type="text" id="pathValue" placeholder="e.g. D:\Anime" required>
+                            </div>
+                            <div class="form-group button-group">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-plus"></i> Add Path
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Paths List -->
+                <div class="users-list">
+                    <h3>Existing Custom Paths</h3>
+                    <div class="table-container">
+                        <table class="users-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Path</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pathsTableBody">
+                                <!-- Paths will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Edit Path Modal -->
+            <div id="edit-path-modal" class="modal-overlay" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Edit Custom Path</h3>
+                        <button id="close-edit-path-modal" class="close-btn">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="editPathForm">
+                            <input type="hidden" id="editPathId">
+                            <div class="form-group">
+                                <label for="editPathName">Path Name</label>
+                                <input type="text" id="editPathName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="editPathValue">Folder Path</label>
+                                <input type="text" id="editPathValue" required>
+                            </div>
+                            <div class="form-group button-group" style="margin-top: 1.5rem;">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Save Changes
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="cancel-edit-path">
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    </div>
+
+    <!-- Success/Error Messages -->
+    <div id="message-container" class="message-container"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Theme handling
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.body.setAttribute('data-theme', savedTheme);
+
+            // Load version info
+            loadVersionInfo();
+
+            // Load paths initially
+            loadPaths();
+
+            // Edit Modal Elements
+            const editModal = document.getElementById('edit-path-modal');
+            const closeEditModalBtn = document.getElementById('close-edit-path-modal');
+            const cancelEditBtn = document.getElementById('cancel-edit-path');
+            const editPathForm = document.getElementById('editPathForm');
+
+            // Close modal functions
+            const closeEditModal = () => {
+                if (editModal) editModal.style.display = 'none';
+            };
+
+            if (closeEditModalBtn) closeEditModalBtn.addEventListener('click', closeEditModal);
+            if (cancelEditBtn) cancelEditBtn.addEventListener('click', closeEditModal);
+            if (editModal) {
+                window.addEventListener('click', (e) => {
+                    if (e.target === editModal) closeEditModal();
+                });
+            }
+
+            // Update Handler
+            if (editPathForm) {
+                editPathForm.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+
+                    const pathId = document.getElementById('editPathId').value;
+                    const name = document.getElementById('editPathName').value;
+                    const path = document.getElementById('editPathValue').value;
+
+                    try {
+                        const response = await fetch(`/api/paths/${pathId}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-Token': getCsrfToken()
+                            },
+                            body: JSON.stringify({ name, path })
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            showMessage(data.message, 'success');
+                            closeEditModal();
+                            loadPaths();
+                        } else {
+                            showMessage(data.error, 'error');
+                        }
+                    } catch (error) {
+                        showMessage('Failed to update path: ' + error.message, 'error');
+                    }
+                });
+            }
+
+            // User dropdown functionality (only if auth enabled)
+            const userDropdownBtn = document.getElementById('user-dropdown-btn');
+            const userDropdownMenu = document.getElementById('user-dropdown-menu');
+            const themeToggleDropdown = document.getElementById('theme-toggle-dropdown');
+            const themeIconDropdown = document.getElementById('theme-icon-dropdown');
+
+            if (userDropdownBtn && userDropdownMenu) {
+                userDropdownBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    userDropdownMenu.classList.toggle('show');
+                });
+
+                document.addEventListener('click', function () {
+                    userDropdownMenu.classList.remove('show');
+                });
+
+                userDropdownMenu.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                });
+            }
+
+            // Logout functionality
+            const logoutBtn = document.getElementById('logout-btn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', async function () {
+                    try {
+                        const response = await fetch('/logout', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            }
+                        });
+
+                        const data = await response.json();
+                        if (data.success) {
+                            window.location.href = data.redirect;
+                        }
+                    } catch (error) {
+                        showMessage('Logout failed: ' + error.message, 'error');
+                    }
+                });
+            }
+
+            // Theme toggle
+            if (themeToggleDropdown && themeIconDropdown) {
+                updateDropdownThemeIcon(savedTheme);
+
+                themeToggleDropdown.addEventListener('click', function () {
+                    const currentTheme = document.body.getAttribute('data-theme');
+                    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+                    document.body.setAttribute('data-theme', newTheme);
+                    localStorage.setItem('theme', newTheme);
+                    updateDropdownThemeIcon(newTheme);
+                });
+
+                function updateDropdownThemeIcon(theme) {
+                    if (theme === 'dark') {
+                        themeIconDropdown.className = 'fas fa-sun';
+                    } else {
+                        themeIconDropdown.className = 'fas fa-moon';
+                    }
+                }
+            }
+
+
+            async function loadVersionInfo() {
+                try {
+                    const response = await fetch('/api/info');
+                    const data = await response.json();
+
+                    const versionDisplay = document.getElementById('version-display');
+                    if (versionDisplay && data.version) {
+                        versionDisplay.textContent = `v${data.version}`;
+                    }
+                } catch (error) {
+                    console.error('Failed to load version info:', error);
+                }
+            }
+
+            // Add Path Form
+            const addPathForm = document.getElementById('addPathForm');
+            if (addPathForm) {
+                addPathForm.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+
+                    const name = document.getElementById('pathName').value;
+                    const path = document.getElementById('pathValue').value;
+
+                    try {
+                        const response = await fetch('/api/paths', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                // If needed for CSRF
+                                'X-CSRF-Token': getCsrfToken()
+                            },
+                            body: JSON.stringify({ name, path })
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            showMessage(data.message, 'success');
+                            addPathForm.reset();
+                            loadPaths();
+                        } else {
+                            showMessage(data.error, 'error');
+                        }
+                    } catch (error) {
+                        showMessage('Failed to add path: ' + error.message, 'error');
+                    }
+                });
+            }
+
+            // Delete and Edit Path Functionality
+            document.addEventListener('click', async function (e) {
+                // Delete
+                if (e.target.closest('.delete-path')) {
+                    const button = e.target.closest('.delete-path');
+                    const pathId = button.dataset.pathId;
+                    const pathName = button.dataset.pathName;
+
+                    if (confirm(`Are you sure you want to delete path "${pathName}"?`)) {
+                        try {
+                            const response = await fetch(`/api/paths/${pathId}`, {
+                                method: 'DELETE',
+                                headers: {
+                                    'X-CSRF-Token': getCsrfToken()
+                                }
+                            });
+
+                            const data = await response.json();
+
+                            if (data.success) {
+                                showMessage(data.message, 'success');
+                                loadPaths();
+                            } else {
+                                showMessage(data.error, 'error');
+                            }
+                        } catch (error) {
+                            showMessage('Failed to delete path: ' + error.message, 'error');
+                        }
+                    }
+                }
+
+                // Edit
+                if (e.target.closest('.edit-path')) {
+                    const button = e.target.closest('.edit-path');
+                    const pathId = button.dataset.pathId;
+                    const pathName = button.dataset.pathName;
+                    const pathValue = button.dataset.pathValue;
+
+                    document.getElementById('editPathId').value = pathId;
+                    document.getElementById('editPathName').value = pathName;
+                    document.getElementById('editPathValue').value = pathValue;
+
+                    if (editModal) editModal.style.display = 'flex';
+                }
+            });
+
+            async function loadPaths() {
+                try {
+                    const response = await fetch('/api/paths');
+                    const data = await response.json();
+
+                    if (data.success) {
+                        updatePathsTable(data.paths);
+                    }
+                } catch (error) {
+                    console.error('Failed to load paths:', error);
+                    showMessage('Failed to load paths', 'error');
+                }
+            }
+
+            function updatePathsTable(paths) {
+                const tbody = document.getElementById('pathsTableBody');
+
+                if (paths.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No custom paths defined</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = paths.map(p => `
+                    <tr>
+                        <td><strong>${p.name}</strong></td>
+                        <td><code class="path-display">${p.path}</code></td>
+                        <td>${p.created_at ? p.created_at.substring(0, 19) : 'N/A'}</td>
+                        <td class="action-buttons">
+                            <button class="btn btn-sm btn-info edit-path" 
+                                data-path-id="${p.id}" 
+                                data-path-name="${p.name}"
+                                data-path-value="${p.path}" 
+                                title="Edit Path">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger delete-path" data-path-id="${p.id}" data-path-name="${p.name}" title="Delete Path">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            function getCsrfToken() {
+                console.log('PathSettings: Document Cookie:', document.cookie);
+                const match = document.cookie.match(/(^|;)\s*csrf_token=([^;]+)/);
+                const token = match ? match[2] : '';
+                console.log('PathSettings: Extracted CSRF Token:', token);
+                return token;
+            }
+
+            function showMessage(message, type) {
+                const container = document.getElementById('message-container');
+                const messageEl = document.createElement('div');
+                messageEl.className = `message ${type}`;
+                messageEl.innerHTML = `
+                    <span>${message}</span>
+                    <button class="message-close">&times;</button>
+                `;
+
+                container.appendChild(messageEl);
+
+                setTimeout(() => {
+                    if (messageEl.parentNode) {
+                        messageEl.parentNode.removeChild(messageEl);
+                    }
+                }, 5000);
+
+                messageEl.querySelector('.message-close').addEventListener('click', () => {
+                    if (messageEl.parentNode) {
+                        messageEl.parentNode.removeChild(messageEl);
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>

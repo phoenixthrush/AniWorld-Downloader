@@ -13,9 +13,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // CSRF Helper
     function getCsrfToken() {
+        console.log('Document Cookie:', document.cookie);
         // Double-Submit Cookie Pattern: Read token from cookie
         const match = document.cookie.match(/(^|;)\s*csrf_token=([^;]+)/);
-        return match ? match[2] : '';
+        const token = match ? match[2] : '';
+        console.log('Extracted CSRF Token:', token);
+        return token;
     }
 
     console.log('AniWorld Downloader Web Interface loaded');
@@ -73,6 +76,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Check for active downloads on page load
     checkQueueStatus();
     loadAvailableProviders();
+    loadCustomPaths();
 
     // Load popular and new anime on page load
     loadPopularAndNewAnime();
@@ -145,38 +149,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Browse button functionality
-    const browseBtn = document.getElementById('browse-path-btn');
-    if (browseBtn) {
-        browseBtn.addEventListener('click', function () {
-            const originalText = browseBtn.innerHTML;
-            browseBtn.disabled = true;
-            browseBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
-            fetch('/api/browse-directory', {
-                method: 'POST'
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const customPathInput = document.getElementById('custom-path-input');
-                        if (customPathInput) {
-                            customPathInput.value = data.path;
-                        }
-                    } else if (data.message && data.message !== 'No directory selected') {
-                        showNotification(data.message, 'info');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error browsing directory:', error);
-                    showNotification('Failed to open directory picker', 'error');
-                })
-                .finally(() => {
-                    browseBtn.disabled = false;
-                    browseBtn.innerHTML = originalText;
-                });
-        });
-    }
+    // Browse button functionality removed
+    // Custom paths are now loaded via API
 
     // Edit Sync Job Modal functionality
     const editSyncModal = document.getElementById('edit-sync-modal');
@@ -205,7 +179,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!window.currentEditingJobId) return;
 
                 const interval = document.getElementById('edit-interval-select').value;
-                const path = document.getElementById('edit-custom-path-input').value;
+                const path = document.getElementById('edit-custom-path-select').value;
                 const enabled = document.getElementById('edit-enabled-checkbox').checked;
 
                 saveEditSyncBtn.disabled = true;
@@ -289,6 +263,43 @@ document.addEventListener('DOMContentLoaded', function () {
         // This will be called from showDownloadModal with site-specific logic
         // Default providers for initial load (aniworld.to)
         populateProviderDropdown('aniworld.to');
+    }
+
+    async function loadCustomPaths() {
+        try {
+            const response = await fetch('/api/paths');
+            const data = await response.json();
+            if (data.success) {
+                const paths = data.paths;
+                const dropdowns = [
+                    document.getElementById('custom-path-select'),
+                    document.getElementById('edit-custom-path-select')
+                ];
+
+                dropdowns.forEach(dropdown => {
+                    if (!dropdown) return;
+
+                    // Save current selection if any
+                    const currentVal = dropdown.value;
+
+                    // Clear existing (but keep default option)
+                    dropdown.innerHTML = dropdown.id === 'edit-custom-path-select'
+                        ? '<option value="">Default Path</option>'
+                        : '<option value="">Select a path...</option>';
+
+                    paths.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.path;
+                        opt.textContent = p.name;
+                        dropdown.appendChild(opt);
+                    });
+
+                    if (currentVal) dropdown.value = currentVal;
+                });
+            }
+        } catch (e) {
+            console.error("Failed to load custom paths", e);
+        }
     }
 
     function populateProviderDropdown(site) {
@@ -991,8 +1002,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const intervalSelect = document.getElementById('interval-select');
         const checkInterval = intervalSelect ? intervalSelect.value : 24;
         const useCustomPath = pathCustom ? pathCustom.checked : false;
-        const customPathInput = document.getElementById('custom-path-input');
-        const customPath = useCustomPath && customPathInput ? customPathInput.value.trim() : '';
+        const customPathSelect = document.getElementById('custom-path-select');
+        const customPath = useCustomPath && customPathSelect ? customPathSelect.value : '';
 
         // Create request payload and log it
         const requestPayload = {
@@ -1228,6 +1239,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
                 `}
                 <div class="queue-item-details">
+                    ${window.currentUser && window.currentUser.is_admin ? `<span class="queue-user-badge" style="margin-right: 8px; font-weight: bold;"><i class="fas fa-user" style="font-size: 0.9em;"></i> ${escapeHtml(item.created_by_username || 'System')}</span>` : ''}
                     ${escapeHtml(item.current_episode || (item.status === 'completed' ? 'Download completed' : 'Waiting in queue'))}
                 </div>
             `;
@@ -1477,6 +1489,7 @@ document.addEventListener('DOMContentLoaded', function () {
             <td>${formatDate(job.last_found_new)}</td>
             <td>${job.last_episode_count || 0}</td>
             <td><span class="sync-status ${statusClass}">${statusText}</span></td>
+            ${window.currentUser && window.currentUser.is_admin ? `<td>${escapeHtml(job.created_by_username || 'System')}</td>` : ''}
             <td class="sync-actions">
                 <button class="action-btn edit-btn" onclick="editSyncJob(${job.id})" title="Edit">
                     <i class="fas fa-edit"></i>

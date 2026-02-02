@@ -53,6 +53,14 @@
                     class="nav-btn github-btn" title="View on GitHub">
                     <i class="fab fa-github"></i>
                 </a>
+
+                {% if not (auth_enabled and user) %}
+                <a href="{{ url_for('path_settings') }}" class="nav-btn tab-nav-btn" title="Path Settings">
+                    <i class="fas fa-folder-plus"></i>
+                    <span class="tab-label">Path Settings</span>
+                </a>
+                {% endif %}
+
                 {% if not (auth_enabled and user) %}
                 <button id="theme-toggle" class="nav-btn theme-toggle" title="Toggle light/dark mode">
                     <i id="theme-icon" class="fas fa-moon"></i>
@@ -72,6 +80,11 @@
                         <a href="{{ url_for('settings') }}" class="dropdown-item">
                             <i class="fas fa-cog"></i> Settings
                         </a>
+                        {% if user.is_admin %}
+                        <a href="{{ url_for('path_settings') }}" class="dropdown-item">
+                            <i class="fas fa-folder-cog"></i> Path Settings
+                        </a>
+                        {% endif %}
                         <button class="dropdown-item logout-btn" id="logout-btn">
                             <i class="fas fa-sign-out-alt"></i> Logout
                         </button>
@@ -207,6 +220,9 @@
                                     <th>Last Found New</th>
                                     <th>Episodes</th>
                                     <th>Status</th>
+                                    {% if user and user.is_admin %}
+                                    <th>User</th>
+                                    {% endif %}
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -291,17 +307,10 @@
                     </div>
 
                     <div class="setting-group" id="custom-path-group" style="display: none;">
-                        <label for="custom-path-input"><strong>Custom Path:</strong></label>
-                        <div class="path-input-group">
-                            <input type="text" id="custom-path-input" class="custom-path-input"
-                                placeholder="Enter custom download path...">
-                            <button type="button" id="browse-path-btn" class="browse-btn"
-                                title="Note: Browse button is for reference. Please enter path manually.">
-                                <i class="fas fa-folder-open"></i> Browse
-                            </button>
-                        </div>
-                        <small class="path-hint">Enter the full path where you want to save downloads (e.g.,
-                            /downloads/anime or C:\Downloads\Anime)</small>
+                        <label for="custom-path-select"><strong>Custom Path:</strong></label>
+                        <select id="custom-path-select" class="provider-dropdown">
+                            <option value="">Select a path...</option>
+                        </select>
                     </div>
                 </div>
 
@@ -364,10 +373,10 @@
                     </div>
 
                     <div class="setting-group">
-                        <label for="edit-custom-path-input"><strong>Custom Path:</strong></label>
-                        <input type="text" id="edit-custom-path-input" class="custom-path-input"
-                            placeholder="Leave empty for standard path...">
-                        <small class="path-hint">Enter the full path or leave empty for standard path</small>
+                        <label for="edit-custom-path-select"><strong>Custom Path:</strong></label>
+                        <select id="edit-custom-path-select" class="provider-dropdown">
+                            <option value="">Default Path</option>
+                        </select>
                     </div>
 
                     <div class="setting-group">
@@ -387,7 +396,14 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v={{ version }}"></script>
+    <script>
+        // Inject user info
+        window.currentUser = {
+            is_admin: {{ 'true' if user and user.is_admin else 'false' }},
+        username: "{{ user.username if user else '' }}"
+        };
+    </script>
     {% if auth_enabled and user %}
     <script>
         // Authentication-specific JavaScript

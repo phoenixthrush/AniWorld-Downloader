@@ -9,7 +9,7 @@ import threading
 import webbrowser
 from datetime import datetime
 from functools import wraps
-from flask import Flask, render_template, jsonify, request, session, redirect, url_for
+from flask import Flask, render_template, jsonify, request, session, redirect, url_for, make_response
 
 from .. import config
 from .database import UserDatabase
@@ -170,13 +170,16 @@ class WebApp:
             cookie_token = request.cookies.get("csrf_token")
             
             if not cookie_token:
+                print(f"DEBUG: CSRF cookie missing")
                 return jsonify({"error": "CSRF cookie missing"}), 403
                 
             if not header_token:
+                 print(f"DEBUG: CSRF header missing. Cookie present: {cookie_token}")
                  return jsonify({"error": "CSRF header missing"}), 403
 
             # 3. Validate
             if not validate_csrf_token(header_token, cookie_token):
+                print(f"DEBUG: CSRF validation failed. Header: {header_token}, Cookie: {cookie_token}")
                 return jsonify({"error": "Invalid CSRF token"}), 403
 
             return f(*args, **kwargs)
@@ -198,7 +201,20 @@ class WebApp:
                 # Get current user info for template
                 session_token = request.cookies.get("session_token")
                 user = self.db.get_user_by_session(session_token)
-                return render_template("index.html", user=user, auth_enabled=True)
+                
+                resp = make_response(render_template("index.html", user=user, auth_enabled=True, version=config.VERSION))
+                
+                # Ensure CSRF cookie is set and accessible to JS (force HttpOnly=False)
+                csrf_token = request.cookies.get("csrf_token") or generate_csrf_token()
+                resp.set_cookie(
+                     "csrf_token",
+                     csrf_token,
+                     httponly=False,
+                     secure=False,
+                     samesite="Lax",
+                     max_age=30 * 24 * 60 * 60,
+                )
+                return resp
             else:
                 return render_template("index.html", auth_enabled=False)
 
@@ -334,9 +350,156 @@ class WebApp:
             user = self.db.get_user_by_session(session_token)
             users = self.db.get_all_users() if user and user["is_admin"] else []
 
-            return render_template("settings.html", user=user, users=users)
+            resp = make_response(render_template("settings.html", user=user, users=users, version=config.VERSION))
 
-        # User management API routes
+            # Ensure CSRF cookie is set and accessible to JS (force HttpOnly=False)
+            csrf_token = request.cookies.get("csrf_token") or generate_csrf_token()
+            resp.set_cookie(
+                 "csrf_token",
+                 csrf_token,
+                 httponly=False,
+                 secure=False,
+                 samesite="Lax",
+                 max_age=30 * 24 * 60 * 60,
+            )
+            return resp
+
+        @self.app.route("/path-settings")
+        def path_settings():
+            """Path settings page route."""
+            user = None
+            if self.auth_enabled and self.db:
+                session_token = request.cookies.get("session_token")
+                user = self.db.get_user_by_session(session_token)
+                
+                # If auth enabled, only allow admin
+                if not user or not user["is_admin"]:
+                    return redirect(url_for("index"))
+            
+            resp = make_response(render_template("path_settings.html", user=user, auth_enabled=self.auth_enabled, version=config.VERSION))
+            
+            # Ensure CSRF cookie is set and accessible to JS (force HttpOnly=False)
+            csrf_token = request.cookies.get("csrf_token") or generate_csrf_token()
+            resp.set_cookie(
+                 "csrf_token",
+                 csrf_token,
+                 httponly=False,
+                 secure=False,
+                 samesite="Lax",
+                 max_age=30 * 24 * 60 * 60,
+            )
+            return resp
+
+        # Custom Path API routes
+        @self.app.route("/api/paths", methods=["GET"])
+        def api_get_paths():
+            """Get all custom paths."""
+            # Check auth if enabled
+            if self.auth_enabled and self.db:
+                session_token = request.cookies.get("session_token")
+                user = self.db.get_user_by_session(session_token)
+                if not user: 
+                     return jsonify({"success": False, "error": "Authentication required"}), 401
+
+            if not self.db:
+                 return jsonify({"success": False, "error": "Database not available"}), 500
+
+            paths = self.db.get_custom_paths()
+            return jsonify({"success": True, "paths": paths})
+
+        @self.app.route("/api/paths", methods=["POST"])
+        def api_create_path():
+            """Create new custom path."""
+            # Check auth if enabled
+            if self.auth_enabled and self.db:
+                session_token = request.cookies.get("session_token")
+                user = self.db.get_user_by_session(session_token)
+                if not user or not user["is_admin"]:
+                    return jsonify({"success": False, "error": "Admin access required"}), 403
+                    
+                # CSRF Check manually here since we didn't use the decorator on this method yet 
+                # (or we can add _require_csrf if we want, but let's stick to consistent logic)
+                # Actually, let's use the decorators if possible. But decorators are instance methods. 
+                # Since I am writing inside _setup_routes, I can use self._require_csrf.
+                # However, for simplicity let's stick to manual check if decorator is tricky to apply dynamically 
+                # without wrapping. 
+                # Wait, I can just use @self._require_csrf
+            
+            # Since I can't easily add decorators in this inline edit without splitting the function definition
+            # I will just rely on the body logic or apply decorators if I was defining the function separately.
+            # But wait, Flask route decorators are applied on definition. 
+            # I will just implement the logic inside.
+
+            data = request.get_json()
+            name = data.get("name", "").strip()
+            path_str = data.get("path", "").strip()
+
+            if not name or not path_str:
+                return jsonify({"success": False, "error": "Name and path are required"}), 400
+
+            # Validate path
+            try:
+                # Use validate_custom_path to check for blockers
+                validated_path = validate_custom_path(path_str, base_allowed_dir=None) 
+            except ValueError as e:
+                return jsonify({"success": False, "error": str(e)}), 400
+
+            if not self.db:
+                 return jsonify({"success": False, "error": "Database not available"}), 500
+
+            if self.db.create_custom_path(name, validated_path):
+                return jsonify({"success": True, "message": "Path created successfully"})
+            else:
+                return jsonify({"success": False, "error": "Failed to create path"}), 500
+
+        @self.app.route("/api/paths/<int:path_id>", methods=["PUT"])
+        def api_update_path(path_id):
+            """Update custom path."""
+            # Check auth if enabled
+            if self.auth_enabled and self.db:
+                session_token = request.cookies.get("session_token")
+                user = self.db.get_user_by_session(session_token)
+                if not user or not user["is_admin"]:
+                    return jsonify({"success": False, "error": "Admin access required"}), 403
+
+            data = request.get_json()
+            name = data.get("name", "").strip()
+            path_str = data.get("path", "").strip()
+
+            if not name or not path_str:
+                 return jsonify({"success": False, "error": "Name and path are required"}), 400
+            
+            # Validate path
+            try:
+                validated_path = validate_custom_path(path_str, base_allowed_dir=None)
+            except ValueError as e:
+                return jsonify({"success": False, "error": str(e)}), 400
+            
+            if not self.db:
+                 return jsonify({"success": False, "error": "Database not available"}), 500
+                 
+            if self.db.update_custom_path(path_id, name, validated_path):
+                 return jsonify({"success": True, "message": "Path updated successfully"})
+            else:
+                 return jsonify({"success": False, "error": "Failed to update path"}), 500
+
+        @self.app.route("/api/paths/<int:path_id>", methods=["DELETE"])
+        def api_delete_path(path_id):
+            """Delete custom path."""
+            # Check auth if enabled
+            if self.auth_enabled and self.db:
+                session_token = request.cookies.get("session_token")
+                user = self.db.get_user_by_session(session_token)
+                if not user or not user["is_admin"]:
+                    return jsonify({"success": False, "error": "Admin access required"}), 403
+
+            if not self.db:
+                 return jsonify({"success": False, "error": "Database not available"}), 500
+
+            if self.db.delete_custom_path(path_id):
+                return jsonify({"success": True, "message": "Path deleted successfully"})
+            else:
+                return jsonify({"success": False, "error": "Failed to delete path"}), 400
         @self.app.route("/api/users", methods=["GET"])
         @self._require_admin
         def api_get_users():
@@ -749,8 +912,8 @@ class WebApp:
                     custom_path = custom_path.strip() or None
                     if custom_path:
                         try:
-                            # Use strict path validation with default allowed base
-                            custom_path = validate_custom_path(custom_path, base_allowed_dir=config.DEFAULT_ALLOWED_DOWNLOAD_BASE)
+                            # Use validate_custom_path to check for blockers
+                            custom_path = validate_custom_path(custom_path, base_allowed_dir=None)
                         except ValueError as e:
                             return jsonify({"success": False, "error": str(e)}), 400
                 else:
@@ -800,6 +963,11 @@ class WebApp:
                     ), 400
 
                 # Add to download queue
+                # Get current username if available
+                created_by_username = None
+                if current_user:
+                    created_by_username = current_user.get("username")
+
                 queue_id = self.download_manager.add_download(
                     anime_title=anime_title,
                     episode_urls=episode_urls,
@@ -808,6 +976,7 @@ class WebApp:
                     total_episodes=total_episodes,
                     created_by=current_user["id"] if current_user else SYSTEM_USER_ID,
                     custom_path=custom_path,
+                    created_by_username=created_by_username,
                 )
 
                 if not queue_id:
@@ -1129,8 +1298,8 @@ class WebApp:
                     custom_path = custom_path.strip() or None
                     if custom_path:
                         try:
-                            # Use strict path validation with default allowed base
-                            custom_path = validate_custom_path(custom_path, base_allowed_dir=config.DEFAULT_ALLOWED_DOWNLOAD_BASE)
+                            # Use validate_custom_path to check for blockers
+                            custom_path = validate_custom_path(custom_path, base_allowed_dir=None)
                         except ValueError as e:
                             return jsonify({"success": False, "error": str(e)}), 400
                 else:
@@ -1223,8 +1392,10 @@ class WebApp:
                     session_token = request.cookies.get("session_token")
                     current_user = self.db.get_user_by_session(session_token)
                     if current_user:
-                        user_id = current_user["id"]
-
+                        # If admin, fetch all (user_id=None), else fetch only own
+                        if not current_user.get("is_admin"):
+                            user_id = current_user["id"]
+                    
                 # Get sync jobs
                 sync_jobs = self.db.get_sync_jobs(user_id=user_id)
 

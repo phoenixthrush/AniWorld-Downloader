@@ -89,6 +89,16 @@ class UserDatabase:
                 )
             """)
 
+            # Create custom_paths table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS custom_paths (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    path TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
             # Note: download_queue table removed - download status now handled in memory
 
             conn.commit()
@@ -588,17 +598,22 @@ class UserDatabase:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
 
-                query = "SELECT * FROM sync_jobs WHERE 1=1"
+                query = """
+                    SELECT s.*, u.username 
+                    FROM sync_jobs s
+                    LEFT JOIN users u ON s.created_by = u.id
+                    WHERE 1=1
+                """
                 params = []
 
                 if user_id is not None:
-                    query += " AND created_by = ?"
+                    query += " AND s.created_by = ?"
                     params.append(user_id)
 
                 if enabled_only:
-                    query += " AND enabled = 1"
+                    query += " AND s.enabled = 1"
 
-                query += " ORDER BY created_at DESC"
+                query += " ORDER BY s.created_at DESC"
 
                 cursor.execute(query, params)
 
@@ -619,6 +634,7 @@ class UserDatabase:
                             "created_at": row[10],
                             "enabled": bool(row[11]),
                             "created_by": row[12],
+                            "created_by_username": row[13] if len(row) > 13 else "System",
                         }
                     )
 
@@ -643,7 +659,12 @@ class UserDatabase:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT * FROM sync_jobs WHERE id = ?", (sync_job_id,))
+                cursor.execute("""
+                    SELECT s.*, u.username 
+                    FROM sync_jobs s
+                    LEFT JOIN users u ON s.created_by = u.id
+                    WHERE s.id = ?
+                """, (sync_job_id,))
 
                 row = cursor.fetchone()
                 if row:
@@ -661,6 +682,7 @@ class UserDatabase:
                         "created_at": row[10],
                         "enabled": bool(row[11]),
                         "created_by": row[12],
+                        "created_by_username": row[13] if len(row) > 13 else "System",
                     }
 
                 return None
@@ -794,6 +816,114 @@ class UserDatabase:
 
             logging.error(f"Failed to update sync job check status: {e}")
             return False
+
+    # Custom Path Management Methods
+
+    def create_custom_path(self, name: str, path: str) -> Optional[int]:
+        """
+        Create a new custom path.
+
+        Args:
+            name: Name of the path (label)
+            path: The actual system path
+
+        Returns:
+            ID of created path if successful, None otherwise
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO custom_paths (name, path)
+                    VALUES (?, ?)
+                """,
+                    (name, path),
+                )
+                conn.commit()
+                return cursor.lastrowid
+        except Exception as e:
+            import logging
+            logging.error(f"Failed to create custom path: {e}")
+            return None
+
+    def get_custom_paths(self) -> List[Dict]:
+        """
+        Get all custom paths.
+
+        Returns:
+            List of custom path dictionaries
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT id, name, path, created_at FROM custom_paths ORDER BY name")
+                
+                paths = []
+                for row in cursor.fetchall():
+                    paths.append({
+                        "id": row[0],
+                        "name": row[1],
+                        "path": row[2],
+                        "created_at": row[3]
+                    })
+                return paths
+        except Exception as e:
+            import logging
+            logging.error(f"Failed to get custom paths: {e}")
+            return []
+
+    def update_custom_path(self, path_id: int, name: str, path: str) -> bool:
+        """
+        Update a custom path.
+
+        Args:
+            path_id: ID of the path to update
+            name: New name
+            path: New path
+
+        Returns:
+            True if updated, False otherwise
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    UPDATE custom_paths 
+                    SET name = ?, path = ?
+                    WHERE id = ?
+                """,
+                    (name, path, path_id),
+                )
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            import logging
+            logging.error(f"Failed to update custom path: {e}")
+            return False
+
+    def delete_custom_path(self, path_id: int) -> bool:
+        """
+        Delete a custom path.
+
+        Args:
+            path_id: ID of the path to delete
+
+        Returns:
+            True if deleted, False otherwise
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM custom_paths WHERE id = ?", (path_id,))
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            import logging
+            logging.error(f"Failed to delete custom path: {e}")
+            return False
+
 
     def delete_sync_job(self, sync_job_id: int) -> bool:
         """

@@ -409,6 +409,31 @@
     font-size: 0.8rem;
 }
 
+.btn-info {
+    background: #4299e1;
+    color: white;
+}
+
+.btn-info:hover {
+    background: #3182ce;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: var(--button-secondary-bg);
+    color: var(--button-secondary-text);
+}
+
+.btn-secondary:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
 .table-container {
     overflow-x: auto;
 }

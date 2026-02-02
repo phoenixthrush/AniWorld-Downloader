@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
+
 <body>
     <!-- Animated Background -->
     <div class="background-container">
@@ -66,7 +68,8 @@
                 <h2><i class="fas fa-user"></i> User Information</h2>
                 <div class="user-info">
                     <p><strong>Username:</strong> {{ user.username }}</p>
-                    <p><strong>Role:</strong> {{ 'Original Administrator' if user.is_original_admin else ('Administrator' if user.is_admin else 'User') }}</p>
+                    <p><strong>Role:</strong> {{ 'Original Administrator' if user.is_original_admin else
+                        ('Administrator' if user.is_admin else 'User') }}</p>
                 </div>
             </div>
 
@@ -148,15 +151,18 @@
                                 <tr data-user-id="{{ u.id }}">
                                     <td>{{ u.username }}</td>
                                     <td>
-                                        <span class="role-badge {{ 'original-admin' if u.is_original_admin else ('admin' if u.is_admin else 'user') }}">
-                                            {{ 'Original Admin' if u.is_original_admin else ('Admin' if u.is_admin else 'User') }}
+                                        <span
+                                            class="role-badge {{ 'original-admin' if u.is_original_admin else ('admin' if u.is_admin else 'user') }}">
+                                            {{ 'Original Admin' if u.is_original_admin else ('Admin' if u.is_admin else
+                                            'User') }}
                                         </span>
                                     </td>
                                     <td>{{ u.created_at[:19] if u.created_at else 'N/A' }}</td>
                                     <td>{{ u.last_login[:19] if u.last_login else 'Never' }}</td>
                                     <td>
                                         {% if u.id != user.id and not u.is_original_admin %}
-                                        <button class="btn btn-sm btn-danger delete-user" data-user-id="{{ u.id }}" data-username="{{ u.username }}">
+                                        <button class="btn btn-sm btn-danger delete-user" data-user-id="{{ u.id }}"
+                                            data-username="{{ u.username }}">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                         {% elif u.is_original_admin %}
@@ -180,7 +186,16 @@
     <div id="message-container" class="message-container"></div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
+            // CSRF Helper
+            function getCsrfToken() {
+                console.log('Settings: Document Cookie:', document.cookie);
+                const match = document.cookie.match(/(^|;)\s*csrf_token=([^;]+)/);
+                const token = match ? match[2] : '';
+                console.log('Settings: Extracted CSRF Token:', token);
+                return token;
+            }
+
             // Theme handling
             const savedTheme = localStorage.getItem('theme') || 'dark';
             document.body.setAttribute('data-theme', savedTheme);
@@ -195,18 +210,18 @@
             const themeIconDropdown = document.getElementById('theme-icon-dropdown');
 
             if (userDropdownBtn && userDropdownMenu) {
-                userDropdownBtn.addEventListener('click', function(e) {
+                userDropdownBtn.addEventListener('click', function (e) {
                     e.stopPropagation();
                     userDropdownMenu.classList.toggle('show');
                 });
 
                 // Close dropdown when clicking outside
-                document.addEventListener('click', function() {
+                document.addEventListener('click', function () {
                     userDropdownMenu.classList.remove('show');
                 });
 
                 // Prevent dropdown from closing when clicking inside it
-                userDropdownMenu.addEventListener('click', function(e) {
+                userDropdownMenu.addEventListener('click', function (e) {
                     e.stopPropagation();
                 });
             }
@@ -215,7 +230,7 @@
             if (themeToggleDropdown && themeIconDropdown) {
                 updateDropdownThemeIcon(savedTheme);
 
-                themeToggleDropdown.addEventListener('click', function() {
+                themeToggleDropdown.addEventListener('click', function () {
                     const currentTheme = document.body.getAttribute('data-theme');
                     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
 
@@ -250,7 +265,7 @@
             // Change password form
             const changePasswordForm = document.getElementById('changePasswordForm');
             if (changePasswordForm) {
-                changePasswordForm.addEventListener('submit', async function(e) {
+                changePasswordForm.addEventListener('submit', async function (e) {
                     e.preventDefault();
 
                     const currentPassword = document.getElementById('currentPassword').value;
@@ -272,6 +287,7 @@
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
+                                'X-CSRF-Token': getCsrfToken()
                             },
                             body: JSON.stringify({
                                 current_password: currentPassword,
@@ -294,12 +310,13 @@
             }
 
             // Logout functionality
-            document.getElementById('logout-btn').addEventListener('click', async function() {
+            document.getElementById('logout-btn').addEventListener('click', async function () {
                 try {
                     const response = await fetch('/logout', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
+                            'X-CSRF-Token': getCsrfToken()
                         }
                     });
 
@@ -315,7 +332,7 @@
             // Add user form
             const addUserForm = document.getElementById('addUserForm');
             if (addUserForm) {
-                addUserForm.addEventListener('submit', async function(e) {
+                addUserForm.addEventListener('submit', async function (e) {
                     e.preventDefault();
 
                     const username = document.getElementById('newUsername').value;
@@ -327,6 +344,7 @@
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
+                                'X-CSRF-Token': getCsrfToken()
                             },
                             body: JSON.stringify({ username, password, is_admin: isAdmin })
                         });
@@ -347,7 +365,7 @@
             }
 
             // Delete user functionality
-            document.addEventListener('click', async function(e) {
+            document.addEventListener('click', async function (e) {
                 if (e.target.closest('.delete-user')) {
                     const button = e.target.closest('.delete-user');
                     const userId = button.dataset.userId;
@@ -356,7 +374,10 @@
                     if (confirm(`Are you sure you want to delete user "${username}"?`)) {
                         try {
                             const response = await fetch(`/api/users/${userId}`, {
-                                method: 'DELETE'
+                                method: 'DELETE',
+                                headers: {
+                                    'X-CSRF-Token': getCsrfToken()
+                                }
                             });
 
                             const data = await response.json();
@@ -392,7 +413,7 @@
                 const tbody = document.getElementById('usersTableBody');
                 const currentUserId = {{ user.id }};
 
-                tbody.innerHTML = users.map(u => `
+            tbody.innerHTML = users.map(u => `
                     <tr data-user-id="${u.id}">
                         <td>${u.username}</td>
                         <td>
@@ -404,17 +425,17 @@
                         <td>${u.last_login ? u.last_login.substring(0, 19) : 'Never'}</td>
                         <td>
                             ${u.id !== currentUserId && !u.is_original_admin ?
-                                `<button class="btn btn-sm btn-danger delete-user" data-user-id="${u.id}" data-username="${u.username}">
+                    `<button class="btn btn-sm btn-danger delete-user" data-user-id="${u.id}" data-username="${u.username}">
                                     <i class="fas fa-trash"></i>
                                 </button>` :
-                                (u.is_original_admin ? '<span class="text-muted">(Protected)</span>' : '<span class="text-muted">(Current User)</span>')
-                            }
+                    (u.is_original_admin ? '<span class="text-muted">(Protected)</span>' : '<span class="text-muted">(Current User)</span>')
+                }
                         </td>
                     </tr>
                 `).join('');
-            }
+        }
 
-            function showMessage(message, type) {
+        function showMessage(message, type) {
                 const container = document.getElementById('message-container');
                 const messageEl = document.createElement('div');
                 messageEl.className = `message ${type}`;
@@ -442,4 +463,5 @@
         });
     </script>
 </body>
+
 </html>

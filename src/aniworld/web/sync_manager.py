@@ -129,7 +129,7 @@ class SyncManager:
                 base_path = None
                 if job.get("custom_path"):
                     try:
-                        base_path = validate_custom_path(str(job["custom_path"]), base_allowed_dir=config.DEFAULT_ALLOWED_DOWNLOAD_BASE)
+                        base_path = validate_custom_path(str(job["custom_path"]), base_allowed_dir=None)
                     except ValueError as e:
                         logging.warning(f"Invalid custom path in sync job: {e}")
                 

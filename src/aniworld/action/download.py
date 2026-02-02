@@ -274,7 +274,11 @@ def _execute_download(
         return False
 
 
-def download(anime: Anime, web_progress_callback: Optional[Callable] = None) -> None:
+def download(
+    anime: Anime,
+    web_progress_callback: Optional[Callable] = None,
+    output_dir: Optional[str] = None,
+) -> None:
     """Download all episodes of an anime."""
     sanitized_anime_title = sanitize_filename(anime.title)
 
@@ -297,7 +301,10 @@ def download(anime: Anime, web_progress_callback: Optional[Callable] = None) -> 
 
         # Generate output path
         output_file = _get_output_filename(anime, episode, sanitized_anime_title)
-        output_path = Path(arguments.output_dir) / sanitized_anime_title / output_file
+
+        # Use provided output_dir or fall back to arguments.output_dir
+        base_dir = Path(output_dir) if output_dir else Path(arguments.output_dir)
+        output_path = base_dir / sanitized_anime_title / output_file
 
         # Ensure output directory exists
         output_path.parent.mkdir(parents=True, exist_ok=True)

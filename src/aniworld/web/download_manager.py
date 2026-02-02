@@ -68,6 +68,7 @@ class DownloadQueueManager:
         total_episodes: int,
         created_by: int = None,
         custom_path: str = None,
+        created_by_username: str = None,
     ) -> int:
         """Add a download to the queue"""
         with self._queue_lock:
@@ -88,6 +89,7 @@ class DownloadQueueManager:
                 "current_episode_progress": 0.0,  # Progress within current episode (0-100)
                 "error_message": "",
                 "created_by": created_by,
+                "created_by_username": created_by_username,
                 "custom_path": custom_path,  # Custom download path
                 "created_at": datetime.now(),
                 "started_at": None,
@@ -137,7 +139,8 @@ class DownloadQueueManager:
                             "created_at": download["created_at"].isoformat()
                             if download["created_at"]
                             else None,
-                            "created_by": download.get("created_by")
+                            "created_by": download.get("created_by"),
+                            "created_by_username": download.get("created_by_username", "System"),
                         }
                     )
 
@@ -172,7 +175,8 @@ class DownloadQueueManager:
                         "completed_at": download["completed_at"].isoformat()
                         if download["completed_at"]
                         else None,
-                        "created_by": download.get("created_by")
+                        "created_by": download.get("created_by"),
+                        "created_by_username": download.get("created_by_username", "System"),
                     }
                 )
                 count += 1
@@ -301,7 +305,7 @@ class DownloadQueueManager:
             # Override with custom path if provided in job
             if job.get("custom_path"):
                 try:
-                    download_dir = validate_custom_path(str(job["custom_path"]), base_allowed_dir=config.DEFAULT_ALLOWED_DOWNLOAD_BASE)
+                    download_dir = validate_custom_path(str(job["custom_path"]), base_allowed_dir=None)
                     logging.info(f"Using custom download path: {download_dir}")
                 except ValueError as e:
                     logging.error(f"Invalid custom path in job {queue_id}: {e}")
@@ -458,7 +462,7 @@ class DownloadQueueManager:
                             # Import and call the new download function with progress callback
                             from ..action.download import download
 
-                            download(temp_anime, web_progress_callback)
+                            download(temp_anime, web_progress_callback, output_dir=download_dir)
 
                             # Count files after download
                             files_after = 0
