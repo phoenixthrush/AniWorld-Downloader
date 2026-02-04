@@ -1444,7 +1444,7 @@ class WebApp:
                 data = request.get_json()
 
                 check_interval = data.get("check_interval")
-                custom_path = data.get("custom_path")
+                custom_path = data.get("custom_path", "NOT_PROVIDED")  # Use sentinel value
                 enabled = data.get("enabled")
                 language = data.get("language")
                 provider = data.get("provider")
@@ -1473,14 +1473,23 @@ class WebApp:
                     except (ValueError, TypeError):
                         return jsonify({"success": False, "error": "Invalid interval format"}), 400
 
+                # Convert sentinel value back to None for database
+                if custom_path == "NOT_PROVIDED":
+                    custom_path_to_save = None  # Don't update this field
+                    update_custom_path = False
+                else:
+                    custom_path_to_save = custom_path  # Update to this value (could be None for default)
+                    update_custom_path = True
+
                 # Update sync job
                 success = self.db.update_sync_job(
                     sync_job_id=sync_job_id,
                     check_interval=check_interval,
-                    custom_path=custom_path,
+                    custom_path=custom_path_to_save if update_custom_path else None,
                     enabled=enabled,
                     language=language,
                     provider=provider,
+                    update_custom_path=update_custom_path,  # New parameter
                 )
 
                 if success:

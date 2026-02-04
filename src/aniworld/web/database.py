@@ -701,6 +701,7 @@ class UserDatabase:
         enabled: bool = None,
         language: str = None,
         provider: str = None,
+        update_custom_path: bool = False,
     ) -> bool:
         """
         Update a sync job.
@@ -712,6 +713,7 @@ class UserDatabase:
             enabled: New enabled status (optional)
             language: New language preference (optional)
             provider: New provider preference (optional)
+            update_custom_path: If True, update custom_path even if it's None (optional)
 
         Returns:
             True if updated successfully, False otherwise
@@ -727,7 +729,8 @@ class UserDatabase:
                     updates.append("check_interval = ?")
                     params.append(check_interval)
 
-                if custom_path is not None:
+                # Only update custom_path if explicitly requested OR if it has a value
+                if update_custom_path or custom_path is not None:
                     updates.append("custom_path = ?")
                     params.append(custom_path)
 

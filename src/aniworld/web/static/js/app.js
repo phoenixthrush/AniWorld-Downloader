@@ -1482,8 +1482,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const statusClass = job.enabled ? 'enabled' : 'disabled';
         const statusText = job.enabled ? 'Enabled' : 'Disabled';
 
-        // Format download path - show "Default" or the custom path
-        const downloadPath = job.custom_path ? escapeHtml(job.custom_path) : 'Default';
+        // Format download path - show "Default" if custom_path is null, empty, or whitespace
+        const downloadPath = (job.custom_path && job.custom_path.trim()) ? escapeHtml(job.custom_path) : 'Default';
 
         row.innerHTML = `
             <td>${escapeHtml(job.anime_title)}</td>
@@ -1527,7 +1527,31 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (titleEl) titleEl.textContent = job.anime_title;
         if (intervalEl) intervalEl.value = job.check_interval;
-        if (pathEl) pathEl.value = job.custom_path || '';
+
+        // Ensure the current custom path is available in the dropdown
+        if (pathEl && job.custom_path) {
+            // Check if the current path exists in the dropdown options
+            let pathExists = false;
+            for (let i = 0; i < pathEl.options.length; i++) {
+                if (pathEl.options[i].value === job.custom_path) {
+                    pathExists = true;
+                    break;
+                }
+            }
+
+            // If the path doesn't exist, add it as a temporary option
+            if (!pathExists) {
+                const tempOption = document.createElement('option');
+                tempOption.value = job.custom_path;
+                tempOption.textContent = `${job.custom_path} (current)`;
+                pathEl.appendChild(tempOption);
+            }
+
+            pathEl.value = job.custom_path;
+        } else if (pathEl) {
+            pathEl.value = '';
+        }
+
         if (enabledEl) enabledEl.checked = job.enabled;
 
         if (modal) modal.style.display = 'flex';
