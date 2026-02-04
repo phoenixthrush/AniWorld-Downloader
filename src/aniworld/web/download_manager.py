@@ -289,6 +289,7 @@ class DownloadQueueManager:
             # Download logic
             successful_downloads = 0
             failed_downloads = 0
+            skipped_downloads = 0  # Track episodes that already exist
             current_episode_index = 0
 
             # Get download directory - prioritize custom_path from job
@@ -483,9 +484,10 @@ class DownloadQueueManager:
                                     current_episode_progress=100.0,
                                 )
                             else:
-                                failed_downloads += 1
-                                logging.warning(
-                                    f"Failed to download: {episode_info} - No new files created"
+                                # No new files created - episode was skipped (already exists)
+                                skipped_downloads += 1
+                                logging.info(
+                                    f"Skipped (already exists): {episode_info}"
                                 )
 
                         except KeyboardInterrupt:
@@ -512,18 +514,27 @@ class DownloadQueueManager:
                     current_episode_index += 1
 
             # Final status update
-            total_attempted = successful_downloads + failed_downloads
-            if successful_downloads == 0 and failed_downloads > 0:
+            total_attempted = successful_downloads + failed_downloads + skipped_downloads
+            
+            if successful_downloads == 0 and skipped_downloads > 0 and failed_downloads == 0:
+                # All episodes were skipped (already downloaded)
+                status = "completed"
+                error_msg = f"All {skipped_downloads} episode(s) already downloaded."
+            elif successful_downloads == 0 and failed_downloads > 0:
+                # No successful downloads and some failures
                 status = "failed"
                 error_msg = f"Download failed: No episodes downloaded out of {failed_downloads} attempted."
             elif failed_downloads > 0:
-                status = "completed"  # Partial success still counts as completed
-                error_msg = f"Partially completed: {successful_downloads}/{total_attempted} episodes downloaded."
-            else:
+                # Partial success
                 status = "completed"
-                error_msg = (
-                    f"Successfully downloaded {successful_downloads} episode(s)."
-                )
+                error_msg = f"Partially completed: {successful_downloads}/{total_attempted} episodes downloaded ({skipped_downloads} skipped, {failed_downloads} failed)."
+            else:
+                # All successful (or all skipped)
+                status = "completed"
+                if skipped_downloads > 0:
+                    error_msg = f"Successfully downloaded {successful_downloads} episode(s), {skipped_downloads} already existed."
+                else:
+                    error_msg = f"Successfully downloaded {successful_downloads} episode(s)."
 
             self._update_download_status(
                 queue_id,

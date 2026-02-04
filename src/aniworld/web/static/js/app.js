@@ -1482,12 +1482,16 @@ document.addEventListener('DOMContentLoaded', function () {
         const statusClass = job.enabled ? 'enabled' : 'disabled';
         const statusText = job.enabled ? 'Enabled' : 'Disabled';
 
+        // Format download path - show "Default" or the custom path
+        const downloadPath = job.custom_path ? escapeHtml(job.custom_path) : 'Default';
+
         row.innerHTML = `
             <td>${escapeHtml(job.anime_title)}</td>
             <td>Every ${job.check_interval}h</td>
             <td>${formatDate(job.last_checked)}</td>
             <td>${formatDate(job.last_found_new)}</td>
             <td>${job.last_episode_count || 0}</td>
+            <td>${downloadPath}</td>
             <td><span class="sync-status ${statusClass}">${statusText}</span></td>
             ${window.currentUser && window.currentUser.is_admin ? `<td>${escapeHtml(job.created_by_username || 'System')}</td>` : ''}
             <td class="sync-actions">
@@ -1517,7 +1521,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const titleEl = document.getElementById('edit-sync-title');
         const intervalEl = document.getElementById('edit-interval-select');
-        const pathEl = document.getElementById('edit-custom-path-input');
+        const pathEl = document.getElementById('edit-custom-path-select');
         const enabledEl = document.getElementById('edit-enabled-checkbox');
         const modal = document.getElementById('edit-sync-modal');
 

@@ -783,6 +783,11 @@ class UserDatabase:
             True if updated successfully, False otherwise
         """
         try:
+            from datetime import datetime, timezone
+            
+            # Use UTC timestamp to match _is_job_due() comparison
+            current_time_utc = datetime.now(timezone.utc).isoformat()
+            
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
 
@@ -790,22 +795,22 @@ class UserDatabase:
                     cursor.execute(
                         """
                         UPDATE sync_jobs
-                        SET last_checked = CURRENT_TIMESTAMP,
-                            last_found_new = CURRENT_TIMESTAMP,
+                        SET last_checked = ?,
+                            last_found_new = ?,
                             last_episode_count = ?
                         WHERE id = ?
                     """,
-                        (last_episode_count, sync_job_id),
+                        (current_time_utc, current_time_utc, last_episode_count, sync_job_id),
                     )
                 else:
                     cursor.execute(
                         """
                         UPDATE sync_jobs
-                        SET last_checked = CURRENT_TIMESTAMP,
+                        SET last_checked = ?,
                             last_episode_count = ?
                         WHERE id = ?
                     """,
-                        (last_episode_count, sync_job_id),
+                        (current_time_utc, last_episode_count, sync_job_id),
                     )
 
                 conn.commit()
