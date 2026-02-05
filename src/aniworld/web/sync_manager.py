@@ -116,6 +116,27 @@ class SyncManager:
                 import re
                 from .. import config
                 from ..action.common import sanitize_filename
+                from ..common.common import _ANIME_DATA_CACHE
+
+                # CRITICAL FIX: Clear cache for this series to get fresh episode count
+                # Extract slug from series URL
+                if "/anime/stream/" in job["series_url"]:
+                    slug = job["series_url"].split("/anime/stream/")[-1].rstrip("/")
+                elif "/serie/stream/" in job["series_url"]:
+                    slug = job["series_url"].split("/serie/stream/")[-1].rstrip("/")
+                else:
+                    slug = None
+                
+                if slug:
+                    # Remove any trailing path components (staffel, episode, etc.)
+                    slug = slug.split("/")[0]
+                    
+                    # Clear cache entries for this series
+                    cache_keys_to_clear = [f"seasons_{slug}", f"movies_{slug}"]
+                    for cache_key in cache_keys_to_clear:
+                        if cache_key in _ANIME_DATA_CACHE:
+                            del _ANIME_DATA_CACHE[cache_key]
+                            logging.debug(f"Cleared cache for key: {cache_key}")
 
                 # Get all episode URLs with S/E mapping
                 # Returns list of tuples: (season, episode, url, is_movie)
@@ -124,6 +145,8 @@ class SyncManager:
                 if not all_episodes:
                     logging.warning(f"No episodes found for {job['anime_title']}")
                     return
+
+                logging.info(f"Found {len(all_episodes)} total episode(s) online for {job['anime_title']}")
 
                 # Determine local directory
                 base_path = None
@@ -161,6 +184,8 @@ class SyncManager:
                             if movie_match:
                                 local_episodes.add((0, int(movie_match.group(1)), True))
                                 continue
+
+                logging.info(f"Found {len(local_episodes)} episode(s) locally for {job['anime_title']}")
 
                 # Identifiy missing episodes
                 missing_urls = []
