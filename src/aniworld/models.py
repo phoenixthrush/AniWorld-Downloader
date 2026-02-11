@@ -649,25 +649,48 @@ class Episode:
 
         return self._html_cache
 
+    @lru_cache(maxsize=32)
     def _get_episode_titles_from_html(self) -> Tuple[str, str]:
         """
-        Extract episode titles from HTML.
+        Extract German and English episode titles from HTML with caching.
 
         Returns:
-            Tuple of (german_title, english_title)
+            Tuple of (German Title, English Title)
         """
         try:
             episode_soup = BeautifulSoup(self.html.content, "html.parser")
-
+            
+            # --- Method 1: Traditional AniWorld Structure ---
             german_title_div = episode_soup.find("span", class_="episodeGermanTitle")
             english_title_div = episode_soup.find("small", class_="episodeEnglishTitle")
 
-            german_title = (
-                german_title_div.get_text(strip=True) if german_title_div else ""
-            )
-            english_title = (
-                english_title_div.get_text(strip=True) if english_title_div else ""
-            )
+            german_title = ""
+            english_title = ""
+
+            if german_title_div:
+                german_title = german_title_div.get_text(strip=True)
+            if english_title_div:
+                english_title = english_title_div.get_text(strip=True)
+
+            # --- Method 2: S.TO New Structure (h2 header) ---
+            if not german_title and not english_title:
+                # Example: <h2 class="h4 mb-1">S01E01: (Meet The Gallaghers)</h2>
+                # Or sometimes just the title.
+                h2_title = episode_soup.find("h2", class_="h4 mb-1")
+                if h2_title:
+                    full_text = h2_title.get_text(strip=True)
+                    # Try to remove SxxExx: prefix
+                    # Regex to match S\d+E\d+:\s*
+                    clean_text = re.sub(r'^S\d+E\d+:\s*', '', full_text).strip()
+                    # Remove surrounding parenthesis if present
+                    if clean_text.startswith("(") and clean_text.endswith(")"):
+                        clean_text = clean_text[1:-1].strip()
+                    
+                    # Assume this is the English title if only one is present, 
+                    # or treat as German if we can't distinguish.
+                    # Usually S.TO puts the main title there.
+                    english_title = clean_text
+                    german_title = clean_text # Fallback to same title
 
             return german_title, english_title
 
@@ -753,23 +776,42 @@ class Episode:
         """
         try:
             episode_soup = BeautifulSoup(self.html.content, "html.parser")
+            language_codes = set()
+            
+            # --- Method 1: Traditional changeLanguageBox (AniWorld) ---
             change_language_box = episode_soup.find("div", class_="changeLanguageBox")
 
-            if not change_language_box:
+            if change_language_box:
+                img_tags = change_language_box.find_all("img")
+                for img in img_tags:
+                    lang_key = img.get("data-lang-key")
+                    if lang_key and lang_key.isdigit():
+                        language_codes.add(int(lang_key))
+            
+            # --- Method 2: Button-based structure (S.TO) ---
+            # If no languages found yet, check for buttons with data-lang-key OR data-language-id
+            if not language_codes:
+                # Try data-lang-key first
+                buttons = episode_soup.find_all("button", attrs={"data-lang-key": True})
+                if not buttons:
+                    # Try data-language-id
+                    buttons = episode_soup.find_all("button", attrs={"data-language-id": True})
+                
+                for btn in buttons:
+                    lang_key = btn.get("data-lang-key")
+                    if not lang_key:
+                        lang_key = btn.get("data-language-id")
+                        
+                    if lang_key and lang_key.isdigit():
+                        language_codes.add(int(lang_key))
+
+            if not language_codes:
                 logging.warning(
-                    "No language selection box found for episode: %s", self.link
+                    "No language selection found for episode: %s", self.link
                 )
                 return []
 
-            language_codes = []
-            img_tags = change_language_box.find_all("img")
-
-            for img in img_tags:
-                lang_key = img.get("data-lang-key")
-                if lang_key and lang_key.isdigit():
-                    language_codes.append(int(lang_key))
-
-            return sorted(language_codes)
+            return sorted(list(language_codes))
 
         except Exception as err:
             logging.error("Error extracting language codes: %s", err)
@@ -798,28 +840,62 @@ class Episode:
             soup = BeautifulSoup(self.html.content, "html.parser")
             providers = {}
 
+            # --- Method 1: Traditional List Items (AniWorld) ---
             episode_links = soup.find_all(
                 "li", class_=lambda x: x and x.startswith("episodeLink")
             )
 
-            if not episode_links:
+            if episode_links:
+                for link in episode_links:
+                    provider_data = self._extract_provider_data(link)
+                    if provider_data:
+                        provider_name, lang_key, redirect_url = provider_data
+
+                        if provider_name not in providers:
+                            providers[provider_name] = {}
+
+                        providers[provider_name][lang_key] = redirect_url
+            
+            # --- Method 2: Button-based structure (S.TO) ---
+            if not providers:
+                # Look for buttons with data-play-url (which contains the redirect path usually encoded/prefixed)
+                # In the new S.TO structure, the data-play-url is like /r?t=...
+                # And data-provider-name="VOE", data-language-id="2" (or we use data-lang-key if available on button or parent)
+                
+                # Based on failed_episode.html:
+                # <button ... data-play-url="/r?t=..." data-provider-name="VOE" data-lang-key="2" ...>
+                # Wait, the HTML showed data-language-id="2". Let's check if there is data-lang-key.
+                # In failed_episode.html line 438: data-language-id="2".
+                # But my _get_available_languages fix looked for data-lang-key? 
+                # Let's check failed_episode.html again.
+                # Line 438: data-language-id="2". 
+                # But wait, looking at the image inside the button:
+                # Code might need to be robust to both. 
+                
+                buttons = soup.find_all("button", attrs={"data-play-url": True})
+                for btn in buttons:
+                    provider_name = btn.get("data-provider-name")
+                    redirect_path = btn.get("data-play-url")
+                    
+                    # Try to get language key from data-lang-key OR data-language-id
+                    lang_key_str = btn.get("data-lang-key")
+                    if not lang_key_str:
+                         lang_key_str = btn.get("data-language-id") # S.TO seems to use this
+                    
+                    if provider_name and redirect_path and lang_key_str and lang_key_str.isdigit():
+                        lang_key = int(lang_key_str)
+                        redirect_url = f"{self.base_url}{redirect_path}"
+                        
+                        if provider_name not in providers:
+                            providers[provider_name] = {}
+                        
+                        providers[provider_name][lang_key] = redirect_url
+
+            if not providers:
                 raise ValueError(
                     f"No streams available for episode: {self.link}\n"
                     "Try again later or check in the community chat."
                 )
-
-            for link in episode_links:
-                provider_data = self._extract_provider_data(link)
-                if provider_data:
-                    provider_name, lang_key, redirect_url = provider_data
-
-                    if provider_name not in providers:
-                        providers[provider_name] = {}
-
-                    providers[provider_name][lang_key] = redirect_url
-
-            if not providers:
-                raise ValueError(f"Could not extract providers from {self.link}")
 
             logging.debug(
                 'Available providers for "%s":\n%s',
@@ -1433,8 +1509,9 @@ def get_anime_title_from_html(
     try:
         soup = BeautifulSoup(html.content, "html.parser")
 
+        title_div = None
         # Site-specific title extraction
-        if site == S_TO:
+        if site == S_TO or site == "s.to":
             # S_TO uses: <div class="series-title"><h1><span>Title</span></h1>...</div>
             title_div = soup.find("div", class_="series-title")
             if title_div:
@@ -1459,6 +1536,23 @@ def get_anime_title_from_html(
 
             # Fallback to div text
             return title_div.get_text(strip=True)
+            
+        # Fallback for new designs (e.g. S.TO 2024 update)
+        # Example: <h1 class="h2 fw-bold mb-1">Shameless UK</h1>
+        h1_title = soup.find("h1", class_="h2")
+        if h1_title:
+                return h1_title.get_text(strip=True)
+        
+        # Last resort: Parse from <title> tag
+        # Example: <title>Shameless UK S01E01 | S.to</title>
+        if soup.title:
+            title_text = soup.title.get_text(strip=True)
+            # Remove suffix " | S.to"
+            if " | " in title_text:
+                title_text = title_text.split(" | ")[0]
+            # Remove " SxxExx" suffix if present (e.g. Shameless UK S01E01)
+            title_text = re.sub(r' S\d+E\d+.*', '', title_text).strip()
+            return title_text
 
         return ""
 

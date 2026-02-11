@@ -502,12 +502,25 @@ def get_season_episode_count(slug: str, link: str = ANIWORLD_TO) -> Dict[int, in
         if S_TO not in link:
             base_url = f"{ANIWORLD_TO}/anime/stream/{slug}/"
         else:
+            # base_url = f"{S_TO}/serie/stream/{slug}/"
             base_url = f"{S_TO}/serie/stream/{slug}/"
         response = _make_request(base_url)
         soup = BeautifulSoup(response.content, "html.parser")
 
         season_meta = soup.find("meta", itemprop="numberOfSeasons")
-        number_of_seasons = int(season_meta["content"]) if season_meta else 0
+        if season_meta:
+            number_of_seasons = int(season_meta["content"])
+        else:
+            # Fallback: Try to find season links
+            season_nav = soup.find("nav", id="season-nav")
+            if season_nav:
+                season_links = season_nav.find_all("a", attrs={"data-season-pill": True})
+                if season_links:
+                    number_of_seasons = max([int(link["data-season-pill"]) for link in season_links])
+                else:
+                    number_of_seasons = 0
+            else:
+                number_of_seasons = 0
 
         episode_counts = {}
         for season in range(1, number_of_seasons + 1):

@@ -154,16 +154,37 @@ def fetch_anime_list(url: str) -> List[Dict]:
     """
     try:
         clean_text = _cached_search_request(url)
-
         # First attempt: direct JSON parsing
         try:
             decoded_data = json.loads(html.unescape(clean_text))
+            
+            # Handle S.TO style response {"shows": [...]}
+            if isinstance(decoded_data, dict) and "shows" in decoded_data:
+                results = decoded_data["shows"]
+                # Normalize S.TO results
+                for item in results:
+                    if "url" in item and "link" not in item:
+                        # Extract slug from url (e.g. /serie/shameless -> shameless)
+                        item["link"] = item["url"].split("/")[-1]
+                return results
+
             return decoded_data if isinstance(decoded_data, list) else []
         except json.JSONDecodeError:
             # Second attempt: clean problematic characters
             cleaned_text = _clean_json_text(clean_text)
             try:
                 decoded_data = json.loads(cleaned_text)
+                
+                # Handle S.TO style response {"shows": [...]}
+                if isinstance(decoded_data, dict) and "shows" in decoded_data:
+                    results = decoded_data["shows"]
+                    # Normalize S.TO results
+                    for item in results:
+                        if "url" in item and "link" not in item:
+                            # Extract slug from url (e.g. /serie/shameless -> shameless)
+                            item["link"] = item["url"].split("/")[-1]
+                    return results
+
                 return decoded_data if isinstance(decoded_data, list) else []
             except json.JSONDecodeError as err:
                 logging.error("Failed to parse JSON after cleaning: %s", err)

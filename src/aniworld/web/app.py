@@ -754,7 +754,7 @@ class WebApp:
                         # Search both sites using existing fetch_anime_list function
                         aniworld_url = f"{config.ANIWORLD_TO}/ajax/seriesSearch?keyword={quote(keyword)}"
                         sto_url = (
-                            f"{config.S_TO}/ajax/seriesSearch?keyword={quote(keyword)}"
+                            f"{config.S_TO}/api/search/suggest?term={quote(keyword)}"
                         )
 
                         # Fetch from both sites
@@ -788,6 +788,12 @@ class WebApp:
                         # Add s.to results, but skip duplicates
                         for anime in sto_results:
                             slug = anime.get("link", "")
+                            
+                            # Fix: s.to API returns links with /serie/ prefix, but we need just the slug
+                            if slug.startswith("/serie/"):
+                                slug = slug.replace("/serie/", "", 1)
+                                anime["link"] = slug
+
                             if slug and slug not in seen_slugs:
                                 anime["site"] = "s.to"
                                 anime["base_url"] = config.S_TO
@@ -800,8 +806,10 @@ class WebApp:
                     elif site == "s.to":
                         # Single site search - s.to
                         search_url = (
-                            f"{config.S_TO}/ajax/seriesSearch?keyword={quote(keyword)}"
+                            f"{config.S_TO}/api/search/suggest?term={quote(keyword)}"
                         )
+                        logging.info(search_url)
+                        logging.info(fetch_anime_list(search_url))
                         try:
                             results = fetch_anime_list(search_url)
                             for anime in results:
@@ -830,6 +838,7 @@ class WebApp:
 
                 # Use wrapper function
                 results = search_anime_wrapper(query, site)
+                logging.info(results)
 
                 # Process results - simplified without episode fetching
                 processed_results = []
