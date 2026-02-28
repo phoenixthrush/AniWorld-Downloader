@@ -108,6 +108,26 @@ GLOBAL_SESSION = Session(
     },
 )
 
+DEFAULT_REQUEST_TIMEOUT = int(os.getenv("ANIWORLD_REQUEST_TIMEOUT", "30"))
+
+class _SessionWithTimeout(Session):
+    def __init__(self, session: Session, default_timeout: int):
+        self._session = session
+        self._default_timeout = default_timeout
+
+    def get(self, *args, **kwargs):
+        if "timeout" not in kwargs:
+            kwargs["timeout"] = self._default_timeout
+        return self._session.get(*args, **kwargs)
+    
+    def head(self, *args, **kwargs):
+        if "timeout" not in kwargs:
+            kwargs["timeout"] = self._default_timeout
+        return self._session.head(*args, **kwargs)
+    
+    def __getattr__(self, name):
+        return getattr(self._session, name)
+
 logger.debug("Config initialized successfully")
 
 # -----------------------------
