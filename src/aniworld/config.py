@@ -128,6 +128,9 @@ class _SessionWithTimeout(Session):
     def __getattr__(self, name):
         return getattr(self._session, name)
 
+# Wrap GLOBAL_SESSION with timeout handling
+GLOBAL_SESSION = _SessionWithTimeout(GLOBAL_SESSION, DEFAULT_REQUEST_TIMEOUT)
+
 logger.debug("Config initialized successfully")
 
 # -----------------------------
