@@ -1,7 +1,6 @@
 import re
 
 from ...config import ANIWORLD_SEASON_PATTERN, GLOBAL_SESSION, logger
-from niquests import RequestException
 from .episode import AniworldEpisode
 
 
@@ -77,12 +76,7 @@ class AniworldSeason:
     def _html(self):
         if self.__html is None:
             logger.debug(f"fetching ({self.url})...")
-            try:
-                resp = GLOBAL_SESSION.get(self.url)
-                resp.raise_for_status()
-            except RequestException as e:
-                logger.warning(f"failed to fetch aniworld season page {self.url}: {e}")
-                raise
+            resp = GLOBAL_SESSION.get(self.url)
             self.__html = resp.text
         return self.__html
 

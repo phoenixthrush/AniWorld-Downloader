@@ -2,7 +2,6 @@ import re
 from urllib.parse import urljoin
 
 from ...config import GLOBAL_SESSION, SERIENSTREAM_SERIES_PATTERN, logger
-from niquests import RequestException
 from ..common import clean_title
 
 
@@ -166,12 +165,7 @@ class SerienstreamSeries:
     def _html(self):
         if self.__html is None:
             logger.debug(f"fetching ({self.url})...")
-            try:
-                resp = GLOBAL_SESSION.get(self.url)
-                resp.raise_for_status()
-            except RequestException as e:
-                logger.warning(f"failed to fetch series page {self.url}: {e}")
-                raise
+            resp = GLOBAL_SESSION.get(self.url)
             self.__html = resp.text
         return self.__html
 
