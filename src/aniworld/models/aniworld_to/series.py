@@ -1,3 +1,4 @@
+import os
 import re
 from html import unescape
 
@@ -41,7 +42,7 @@ class AniworldSeries:
         syncplay()
     """
 
-    def __init__(self, url: str):
+    def __init__(self, url: str, min_seasion: int=0, min_episode: int=0):
         if not self.is_valid_aniworld_series_url(url):
             raise ValueError(f"Invalid AniWorld series URL: {url}")
 
@@ -68,6 +69,9 @@ class AniworldSeries:
 
         self.__seasons = None
         self.__season_count = None
+
+        self.__min_seasons = min_seasion
+        self.__min_episode = min_episode
 
         self.__html = None
 
@@ -695,12 +699,19 @@ class AniworldSeries:
             if url in seen:
                 continue
             seen.add(url)
-            seasons.append(AniworldSeason(url, series=self))
+            season = AniworldSeason(url, series=self, min_seasion=self.__min_seasons, min_episode=self.__min_episode)
+            if season.season_number >= self.__min_seasons:
+                seasons.append(season)
 
         logger.debug(f"Found {len([s for s in seasons if not s.are_movies])} seasons")
 
         if self.has_movies:
-            seasons.append(AniworldSeason(f"{self.url}/filme", series=self))
+            if os.environ["ANIWORLD_INCLUDE_MOVIES"] == "1":
+                seasons.append(AniworldSeason(f"{self.url}/filme", series=self))
+            else:
+                season = AniworldSeason(f"{self.url}/filme", series=self, min_seasion=self.__min_seasons, min_episode=self.__min_episode)
+                if season.season_number >= self.__min_seasons:
+                    seasons.append(season)
 
         seasons.sort(key=lambda s: (s.are_movies, s.season_number or 0))
 

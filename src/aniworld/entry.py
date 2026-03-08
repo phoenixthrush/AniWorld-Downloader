@@ -9,6 +9,7 @@ from .logger import get_logger
 from .menu import app
 from .providers import resolve_provider
 from .search import search
+from .models.aniworld_to.series import AniworldSeries
 
 merge_env(
     Path(__file__).resolve().parent / ".env.example",
@@ -119,15 +120,24 @@ def aniworld():
         # If multiple URLs are provided (e.g., via --episode-file), process them directly
         if args.episode_file and args.url:
             for url in args.url:
-                provider = resolve_provider(url)
-                if provider.episode_pattern.fullmatch(url):
-                    obj = provider.episode_cls(url=url)
-                elif provider.season_pattern and provider.season_pattern.fullmatch(url):
-                    obj = provider.season_cls(url=url)
-                elif provider.series_pattern and provider.series_pattern.fullmatch(url):
-                    obj = provider.series_cls(url=url)
+                if isinstance(url, str):
+                    provider = resolve_provider(url)
+                    if provider.episode_pattern.fullmatch(url):
+                        obj = provider.episode_cls(url=url)
+                    elif provider.season_pattern and provider.season_pattern.fullmatch(url):
+                        obj = provider.season_cls(url=url)
+                    elif provider.series_pattern and provider.series_pattern.fullmatch(url):
+                        obj = provider.series_cls(url=url)
+                    else:
+                        raise ValueError(f"Invalid URL for provider: {url}")
+                elif len(url) == 4:
+                    provider = resolve_provider(url[0])
+                    if provider.series_pattern and provider.series_pattern.fullmatch(url[0]):
+                        obj = provider.series_cls(url=url[0], min_seasion=url[2], min_episode=url[3])
+                    else:
+                        raise ValueError(f"Invalid URL format: {url}")
                 else:
-                    raise ValueError(f"Invalid URL for provider: {url}")
+                    raise ValueError(f"Invalid URL format: {url}")
                 run_action(obj, action)
             return 0
 

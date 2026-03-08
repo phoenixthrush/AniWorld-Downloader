@@ -12,6 +12,7 @@ const statusBar = document.getElementById('statusBar');
 const statusText = document.getElementById('statusText');
 const downloadAllBtn = document.getElementById('downloadAllBtn');
 const downloadSelectedBtn = document.getElementById('downloadSelectedBtn');
+const addEpisodeFileBtn = document.getElementById('addEpisodeFileBtn');
 const randomBtn = document.getElementById('randomBtn');
 const browseDiv = document.getElementById('browse');
 const newAnimesGrid = document.getElementById('newAnimesGrid');
@@ -498,6 +499,7 @@ async function startDownload(all) {
 
   downloadAllBtn.disabled = true;
   downloadSelectedBtn.disabled = true;
+  addEpisodeFileBtn.disabled = true;
   try {
     const dlBody = {
       episodes,
@@ -527,6 +529,49 @@ async function startDownload(all) {
   } finally {
     downloadAllBtn.disabled = false;
     downloadSelectedBtn.disabled = false;
+    addEpisodeFileBtn.disabled = false;
+  }
+}
+
+async function addEpisodeFile() {
+  const episodes = getSelectedEpisodeUrls();
+  
+  const language = languageSelect.value;
+  const provider = providerSelect.value;
+
+  downloadAllBtn.disabled = true;
+  downloadSelectedBtn.disabled = true;
+  addEpisodeFileBtn.disabled = true;
+  try {
+    const watchBody = {
+      episodes,
+      language,
+      provider,
+      title: currentSeriesTitle,
+      series_url: currentSeriesUrl
+    };
+    if (customPathSelect && customPathSelect.value) {
+      dlBody.custom_path_id = parseInt(customPathSelect.value);
+    }
+    const resp = await fetch('/api/addEpisodeFile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(watchBody)
+    });
+    const data = await resp.json();
+    if (data.error) {
+      showToast(data.error);
+      return;
+    }
+
+    showToast('Added to episode list');
+    if (typeof loadQueue === 'function') loadQueue();
+  } catch (e) {
+    showToast('Download request failed: ' + e.message);
+  } finally {
+    downloadAllBtn.disabled = false;
+    downloadSelectedBtn.disabled = false;
+    addEpisodeFileBtn.disabled = false;
   }
 }
 
@@ -608,5 +653,6 @@ async function startDownloadAllLangs() {
     downloadAllLangsBtn.disabled = false;
     downloadAllBtn.disabled = false;
     downloadSelectedBtn.disabled = false;
+    addEpisodeFileBtn.disabled = false;
   }
 }

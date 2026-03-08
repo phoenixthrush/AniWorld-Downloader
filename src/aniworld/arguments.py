@@ -360,7 +360,12 @@ def parse_args():
         try:
             with open(args.episode_file, "r") as f:
                 for line in f:
-                    u = line.strip()
+                    u = line.strip().strip('\n').split('\t')
+                    if len(u) == 4:
+                        u[2] = int(u[2])
+                        u[3] = int(u[3])
+                    else:
+                        u = ''.join(u)
                     if u:
                         args.url.append(u)
             logger.debug(f"Loaded {len(args.url)} URLs from {args.episode_file}")

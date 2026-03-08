@@ -30,7 +30,7 @@ class AniworldSeason:
         syncplay()
     """
 
-    def __init__(self, url, series=None):
+    def __init__(self, url, series=None, min_seasion: int=0, min_episode: int=0):
         if not self.is_valid_aniworld_season_url(url):
             raise ValueError(f"Invalid AniWorld season URL: {url}")
 
@@ -42,6 +42,9 @@ class AniworldSeason:
         self.__season_number = None
         self.__episode_count = None
         self.__episodes = None
+
+        self.__min_seasons = min_seasion
+        self.__min_episode = min_episode
 
         self.__html = None
 
@@ -289,16 +292,19 @@ class AniworldSeason:
             if ep_url:
                 # For movies, ep_num might be None, but we can still create the episode object
                 # The AniworldEpisode class should handle None episode_number appropriately
-                episodes.append(
-                    AniworldEpisode(
-                        series=self.series,
-                        season=self,
-                        url=ep_url,
-                        episode_number=ep_num,
-                        title_de=title_de,
-                        title_en=title_en,
-                    )
-                )
+                if self.season_number >= self.__min_seasons:
+                    if self.season_number != self.__min_seasons or (self.season_number == self.__min_seasons and ep_num >= self.__min_episode):
+                        print("movie:" + str(self.are_movies) + ", season: " + str(self.season_number) + ", episode: " + str(ep_num)+ ", min_season: " + str(self.__min_seasons) + ", min_episode: " + str(self.__min_episode))
+                        episodes.append(
+                            AniworldEpisode(
+                                series=self.series,
+                                season=self,
+                                url=ep_url,
+                                episode_number=ep_num,
+                                title_de=title_de,
+                                title_en=title_en,
+                            )
+                        )
 
             pos = tr_end
 

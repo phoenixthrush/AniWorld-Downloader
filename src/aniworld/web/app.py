@@ -2,6 +2,7 @@ import json
 import re
 import threading
 import time
+import os
 
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_wtf.csrf import CSRFProtect
@@ -10,6 +11,7 @@ from ..config import LANG_KEY_MAP, LANG_LABELS, SUPPORTED_PROVIDERS
 from ..extractors import provider_functions
 from ..logger import get_logger
 from ..providers import resolve_provider
+from ..arguments import parse_args
 from ..search import (
     fetch_new_animes,
     fetch_new_series,
@@ -611,6 +613,78 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             custom_path_id=custom_path_id,
         )
         return jsonify({"queue_id": queue_id})
+
+    @app.route("/api/addEpisodeFile", methods=["POST"])
+    def api_addEpisodeFile():
+        data = request.get_json(silent=True) or {}
+        episodes = data.get("episodes", [])
+        language = data.get("language", "German Dub")
+        provider = data.get("provider", "VOE")
+        title = data.get("title", "Unknown")
+        series_url = data.get("series_url", "")
+
+        args = parse_args()
+        if not args.episode_file:
+            return jsonify({"error": "No episode file defined"}), 400
+
+        start_at = (0, 0)
+        if episodes:
+            all_seasion_episode_combinations = []
+            for url in episodes:
+                provider = resolve_provider(url)
+                if provider.episode_pattern.fullmatch(url):
+                    obj = provider.episode_cls(url=url)
+                elif provider.season_pattern and provider.season_pattern.fullmatch(url):
+                    obj = provider.season_cls(url=url)
+                elif provider.series_pattern and provider.series_pattern.fullmatch(url):
+                    obj = provider.series_cls(url=url)
+                else:
+                    return jsonify({"error": f"Invalid URL for provider: {url}"}), 400
+                
+                all_seasion_episode_combinations.append((obj.season.season_number, obj.episode_number))
+                start_at = sorted(all_seasion_episode_combinations)[0]
+
+        try:
+            entry = (series_url, language, start_at[0], start_at[1])
+            entry = [str(x) for x in entry]
+            
+            alle_zeilen = []
+            eintrag_gefunden = False
+            muss_speichern = False
+
+            if os.path.exists(args.episode_file):
+                with open(args.episode_file, 'r', encoding='utf-8') as datei:
+                    for zeile in datei:
+                        elemente = zeile.strip('\n').split('\t')
+                        if len(elemente) == 4:
+                            alle_zeilen.append(elemente)
+
+            for i, zeile in enumerate(alle_zeilen):
+                if zeile[0] == entry[0] and zeile[1] == entry[1]:
+                    eintrag_gefunden = True
+                    
+                    kombi_alt = (int(zeile[2]), int(zeile[3]))
+                    
+                    if start_at < kombi_alt:
+                        alle_zeilen[i] = entry
+                        muss_speichern = True
+                    else:
+                        return jsonify({"error": "Existing entry has lower episode - seasion combination"}), 400
+                    break
+
+            if not eintrag_gefunden:
+                alle_zeilen.append(entry)
+                muss_speichern = True
+
+            if muss_speichern:
+                with open(args.episode_file, 'w', encoding='utf-8') as datei:
+                    for zeile in alle_zeilen:
+                        datei.write("\t".join(zeile) + "\n")
+
+        except Exception as e:
+            return jsonify({"error": "Failed to write episode file"}), 400
+
+        return jsonify({"ok": True})
 
     @app.route("/api/queue")
     def api_queue():
