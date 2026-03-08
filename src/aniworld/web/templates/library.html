@@ -1,12 +1,12 @@
-{% extends "base.html" %}
-{% block title %}Library — AniWorld Downloader{% endblock %}
-{% block content %}
+{% extends "base.html" %} {% block title %}Library — AniWorld Downloader{%
+endblock %} {% block content %}
 <div class="library-container">
   <h1>Library</h1>
   <div id="libraryList" class="library-list"></div>
 </div>
-{% endblock %}
-{% block scripts %}
-<script>var libraryCanDelete = {{ 'true' if not auth_enabled or (current_user and current_user.role == 'admin') else 'false' }};</script>
+{% endblock %} {% block scripts %}
+<script>
+  var libraryCanDelete = {{ 'true' if not auth_enabled or (current_user and current_user.role == 'admin') else 'false' }};
+</script>
 <script src="{{ url_for('static', filename='library.js') }}"></script>
 {% endblock %}

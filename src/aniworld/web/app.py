@@ -22,22 +22,34 @@ from ..search import (
 )
 from ..search import query as aniworld_query
 from .db import (
+    add_autosync_job,
     add_custom_path,
     add_to_queue,
     cancel_queue_item,
     clear_completed,
+    delete_completed_queue_item,
+    find_autosync_by_url,
+    get_autosync_job,
+    get_autosync_jobs,
     get_custom_path_by_id,
     get_custom_paths,
+    get_general_stats,
     get_next_queued,
     get_queue,
+    get_queue_stats,
     get_running,
+    get_sync_stats,
+    init_autosync_db,
     init_custom_paths_db,
     init_queue_db,
     is_queue_cancelled,
+    is_series_queued_or_running,
     move_queue_item,
+    remove_autosync_job,
     remove_custom_path,
     remove_from_queue,
     set_queue_status,
+    update_autosync_job,
     update_queue_errors,
     update_queue_progress,
 )
@@ -71,9 +83,30 @@ _STO_SERIES_LINK_PATTERN = re.compile(
     r"^/serie/(stream/)?[a-zA-Z0-9\-]+/?$", re.IGNORECASE
 )
 
+
 # Queue worker state
 _queue_worker_started = False
 _queue_lock = threading.Lock()
+
+# Auto-sync worker state
+_autosync_worker_started = False
+
+# Track jobs currently being synced to prevent duplicate runs
+_syncing_jobs = set()
+_syncing_jobs_lock = threading.Lock()
+
+# Schedule intervals in seconds
+SYNC_SCHEDULE_MAP = {
+    "1min": 60,
+    "30min": 1800,
+    "1h": 3600,
+    "2h": 7200,
+    "4h": 14400,
+    "8h": 28800,
+    "12h": 43200,
+    "16h": 57600,
+    "24h": 86400,
+}
 
 
 def _queue_worker():
@@ -98,6 +131,8 @@ def _queue_worker():
             import os
 
             lang_sep = os.environ.get("ANIWORLD_LANG_SEPARATION", "0") == "1"
+            if item.get("source") == "sync:all_langs":
+                lang_sep = True
             selected_path = None
 
             from pathlib import Path
@@ -169,6 +204,7 @@ def _queue_worker():
                     "failed" if errors and len(errors) == len(episodes) else "completed"
                 )
                 set_queue_status(item["id"], status)
+
         except Exception as e:
             logger.error(f"Queue worker error: {e}", exc_info=True)
             time.sleep(3)
@@ -194,6 +230,226 @@ def _ensure_queue_worker():
         conn.close()
 
     thread = threading.Thread(target=_queue_worker, daemon=True)
+    thread.start()
+
+
+def _run_autosync_for_job(job):
+    """Check a single autosync job for new/missing episodes and queue them."""
+    import os
+    from datetime import datetime
+    from pathlib import Path
+
+    job_id = job["id"]
+    with _syncing_jobs_lock:
+        if job_id in _syncing_jobs:
+            logger.info("Auto-sync skipped job %d — already running", job_id)
+            return
+        _syncing_jobs.add(job_id)
+
+    try:
+        prov = resolve_provider(job["series_url"])
+        series = prov.series_cls(url=job["series_url"])
+
+        lang_sep = os.environ.get("ANIWORLD_LANG_SEPARATION", "0") == "1"
+        # Only use lang_sep for "All Languages" when the global setting is enabled;
+        # otherwise scan root directory to avoid phantom missing-episode detection.
+        if job.get("language") == "All Languages" and not lang_sep:
+            logger.warning(
+                "Auto-sync job '%s' uses 'All Languages' but lang_separation is off — scanning root.",
+                job.get("title", "?"),
+            )
+
+        lang_folder_map = {
+            "German Dub": "german-dub",
+            "English Sub": "english-sub",
+            "German Sub": "german-sub",
+            "English Dub": "english-dub",
+        }
+
+        target_languages = []
+        if job.get("language") == "All Languages":
+            disable_eng_sub = os.environ.get("ANIWORLD_DISABLE_ENGLISH_SUB", "0") == "1"
+            for lang in lang_folder_map.keys():
+                if disable_eng_sub and lang == "English Sub":
+                    continue
+                target_languages.append(lang)
+        else:
+            target_languages.append(job["language"])
+
+        total_new_queued = 0
+        total_episodes_found = 0
+
+        for target_lang in target_languages:
+            job_lang_folder = lang_folder_map.get(
+                target_lang, target_lang.lower().replace(" ", "-")
+            )
+
+            raw = os.environ.get("ANIWORLD_DOWNLOAD_PATH", "")
+            if raw:
+                dl_base = Path(raw).expanduser()
+                if not dl_base.is_absolute():
+                    dl_base = Path.home() / dl_base
+            else:
+                dl_base = Path.home() / "Downloads"
+
+            scan_roots = [dl_base]
+            for cp in get_custom_paths():
+                cp_path = Path(cp["path"]).expanduser()
+                if not cp_path.is_absolute():
+                    cp_path = Path.home() / cp_path
+                scan_roots.append(cp_path)
+
+            # Build set of downloaded (season, episode) on disk
+            downloaded_eps = set()
+            title_clean = (
+                getattr(series, "title_cleaned", None) or getattr(series, "title", "")
+            ).lower()
+            if title_clean:
+                ep_re = re.compile(r"S(\d{2})E(\d{2,3})", re.IGNORECASE)
+                all_bases = []
+                for root in scan_roots:
+                    if lang_sep:
+                        all_bases.append(root / job_lang_folder)
+                    else:
+                        all_bases.append(root)
+                for base in all_bases:
+                    if not base.is_dir():
+                        continue
+                    for folder in base.iterdir():
+                        if not folder.is_dir() or not folder.name.lower().startswith(
+                            title_clean
+                        ):
+                            continue
+                        for f in folder.rglob("*"):
+                            if f.is_file():
+                                m = ep_re.search(f.name)
+                                if m:
+                                    downloaded_eps.add(
+                                        (int(m.group(1)), int(m.group(2)))
+                                    )
+
+            # Collect all episode URLs that are NOT yet downloaded
+            missing_episodes = []
+            lang_total_found = 0
+            for season in series.seasons:
+                season_obj = prov.season_cls(url=season.url, series=series)
+                for ep in season_obj.episodes:
+                    # Depending on provider, might need to pre-filter by language here
+                    # But the downloader expects full episode URLs and it will pick the right language within them.
+                    lang_total_found += 1
+                    key = (ep.season.season_number, ep.episode_number)
+                    if key not in downloaded_eps:
+                        missing_episodes.append(ep.url)
+
+            # In "All Languages" mode we want to make sure the specific language is actually
+            # available on this episode before downloading? For VOE/Vidoza, it downloads what is chosen.
+            # If a language isn't available, the extractor fails, which is fine (handled in queue).
+            # But the queue item will contain episodes.
+
+            # We use max of lang_total_found for updating stats (usually they are same across languages)
+            if lang_total_found > total_episodes_found:
+                total_episodes_found = lang_total_found
+
+            if missing_episodes:
+                # Skip if series is already queued or running for THIS language
+                if is_series_queued_or_running(job["series_url"], language=target_lang):
+                    logger.info(
+                        "Auto-sync skipped '%s' (%s) — already queued/running",
+                        job["title"],
+                        target_lang,
+                    )
+                    continue
+
+                total_new_queued += len(missing_episodes)
+                add_to_queue(
+                    title=job["title"],
+                    series_url=job["series_url"],
+                    episodes=missing_episodes,
+                    language=target_lang,
+                    provider=job["provider"],
+                    username=job.get("added_by"),
+                    custom_path_id=job.get("custom_path_id"),
+                    source="sync:all_langs"
+                    if job.get("language") == "All Languages"
+                    else "sync",
+                )
+                logger.info(
+                    "Auto-sync queued %d episodes for '%s' (%s)",
+                    len(missing_episodes),
+                    job["title"],
+                    target_lang,
+                )
+
+        now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        update_fields = {
+            "last_check": now_str,
+            "episodes_found": total_episodes_found,
+        }
+
+        if total_new_queued > 0:
+            update_fields["last_new_found"] = now_str
+
+        update_autosync_job(job["id"], **update_fields)
+    except Exception as e:
+        logger.error("Auto-sync failed for '%s': %s", job.get("title", "?"), e)
+        from datetime import datetime
+
+        update_autosync_job(
+            job["id"],
+            last_check=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        )
+    finally:
+        with _syncing_jobs_lock:
+            _syncing_jobs.discard(job_id)
+
+
+def _autosync_worker():
+    """Background thread that periodically syncs all enabled autosync jobs.
+
+    Uses short-polling (every 10 s) and checks each job's last_check
+    against the configured interval so that schedule changes take effect
+    immediately instead of blocking in a long sleep.
+    """
+    import os
+    from datetime import datetime, timedelta
+
+    while True:
+        try:
+            schedule_key = os.environ.get("ANIWORLD_SYNC_SCHEDULE", "0")
+            interval = SYNC_SCHEDULE_MAP.get(schedule_key, 0)
+            if not interval:
+                time.sleep(10)
+                continue
+
+            now = datetime.utcnow()
+            jobs = get_autosync_jobs()
+            for job in jobs:
+                if not job.get("enabled"):
+                    continue
+                # Per-job check: only run if enough time has elapsed
+                last_check = job.get("last_check")
+                if last_check:
+                    try:
+                        last_dt = datetime.strptime(last_check, "%Y-%m-%d %H:%M:%S")
+                    except (ValueError, TypeError):
+                        last_dt = datetime.min
+                    if now < last_dt + timedelta(seconds=interval):
+                        continue
+                _run_autosync_for_job(job)
+
+            time.sleep(10)
+        except Exception as e:
+            logger.error("Auto-sync worker error: %s", e, exc_info=True)
+            time.sleep(30)
+
+
+def _ensure_autosync_worker():
+    """Start the auto-sync worker thread once."""
+    global _autosync_worker_started
+    if _autosync_worker_started:
+        return
+    _autosync_worker_started = True
+    thread = threading.Thread(target=_autosync_worker, daemon=True)
     thread.start()
 
 
@@ -301,10 +557,18 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 "app_version": app_version,
             }
 
-    # Initialize download queue and custom paths (works with or without auth)
+    # Initialize download queue, custom paths and autosync (works with or without auth)
     init_queue_db()
     init_custom_paths_db()
-    _ensure_queue_worker()
+    init_autosync_db()
+
+    # In debug mode, Flask's reloader runs this in both the parent and child
+    # process. Only start workers in the child (actual server) process
+    # to avoid duplicate ffmpeg downloads.
+    _debug = os.getenv("ANIWORLD_DEBUG_MODE", "0") == "1"
+    if not _debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        _ensure_queue_worker()
+        _ensure_autosync_worker()
 
     @app.after_request
     def _set_security_headers(response):
@@ -314,6 +578,19 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             "Referrer-Policy", "strict-origin-when-cross-origin"
         )
         return response
+
+    @app.before_request
+    def _enforce_json_content_type():
+        """Reject non-JSON POST/PUT/DELETE on API routes to prevent form-based CSRF bypass."""
+        if request.method in ("POST", "PUT", "DELETE") and request.path.startswith(
+            "/api/"
+        ):
+            if request.content_length and request.content_length > 0:
+                ct = request.content_type or ""
+                if not ct.startswith("application/json"):
+                    return jsonify(
+                        {"error": "Content-Type must be application/json"}
+                    ), 415
 
     @app.route("/")
     def index():
@@ -609,7 +886,12 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         custom_path_id = data.get("custom_path_id")
 
         queue_id = add_to_queue(
-            title, series_url, episodes, language, provider, username,
+            title,
+            series_url,
+            episodes,
+            language,
+            provider,
+            username,
             custom_path_id=custom_path_id,
         )
         return jsonify({"queue_id": queue_id})
@@ -688,8 +970,11 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
     @app.route("/api/queue")
     def api_queue():
+        from ..models.common.common import get_ffmpeg_progress
+
         items = get_queue()
-        return jsonify({"items": items})
+        ffmpeg_pct = get_ffmpeg_progress()
+        return jsonify({"items": items, "ffmpeg_progress": ffmpeg_pct})
 
     @app.route("/api/queue/<int:queue_id>", methods=["DELETE"])
     def api_queue_remove(queue_id):
@@ -843,19 +1128,25 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             resolved = str(Path.home() / "Downloads")
         lang_separation = os.environ.get("ANIWORLD_LANG_SEPARATION", "0")
         disable_english_sub = os.environ.get("ANIWORLD_DISABLE_ENGLISH_SUB", "0")
+        sync_schedule = os.environ.get("ANIWORLD_SYNC_SCHEDULE", "0")
+        sync_language = os.environ.get("ANIWORLD_SYNC_LANGUAGE", "German Dub")
+        sync_provider = os.environ.get("ANIWORLD_SYNC_PROVIDER", "VOE")
         return jsonify(
             {
                 "download_path": resolved,
                 "lang_separation": lang_separation,
                 "disable_english_sub": disable_english_sub,
+                "sync_schedule": sync_schedule,
+                "sync_language": sync_language,
+                "sync_provider": sync_provider,
             }
         )
 
     @app.route("/api/settings", methods=["PUT"])
     def api_settings_update():
         data = request.get_json(silent=True) or {}
-        download_path = data.get("download_path", "").strip()
-        os.environ["ANIWORLD_DOWNLOAD_PATH"] = download_path
+        if "download_path" in data:
+            os.environ["ANIWORLD_DOWNLOAD_PATH"] = str(data["download_path"]).strip()
         if "lang_separation" in data:
             os.environ["ANIWORLD_LANG_SEPARATION"] = (
                 "1" if data["lang_separation"] else "0"
@@ -864,6 +1155,22 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             os.environ["ANIWORLD_DISABLE_ENGLISH_SUB"] = (
                 "1" if data["disable_english_sub"] else "0"
             )
+        if "sync_schedule" in data:
+            sched = str(data["sync_schedule"])
+            if sched != "0" and sched not in SYNC_SCHEDULE_MAP:
+                return jsonify({"error": f"Invalid sync_schedule: {sched}"}), 400
+            os.environ["ANIWORLD_SYNC_SCHEDULE"] = sched
+        if "sync_language" in data:
+            lang = str(data["sync_language"])
+            valid_langs = set(LANG_LABELS.values()) | {"All Languages"}
+            if lang not in valid_langs:
+                return jsonify({"error": f"Invalid sync_language: {lang}"}), 400
+            os.environ["ANIWORLD_SYNC_LANGUAGE"] = lang
+        if "sync_provider" in data:
+            prov = str(data["sync_provider"])
+            if prov not in WORKING_PROVIDERS:
+                return jsonify({"error": f"Invalid sync_provider: {prov}"}), 400
+            os.environ["ANIWORLD_SYNC_PROVIDER"] = prov
         return jsonify({"ok": True})
 
     @app.route("/api/custom-paths")
@@ -886,6 +1193,154 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         remove_custom_path(path_id)
         return jsonify({"ok": True})
 
+    # ===== Auto-Sync Page =====
+
+    @app.route("/autosync")
+    def autosync_page():
+        return render_template("autosync.html")
+
+    # ===== Auto-Sync API =====
+
+    def _get_current_user_info():
+        """Return (username, is_admin) for the current request."""
+        if not auth_enabled:
+            return None, True  # no auth → treat as admin
+        user = get_current_user()
+        if not user:
+            return None, False
+        username = (
+            user.get("username")
+            if isinstance(user, dict)
+            else getattr(user, "username", None)
+        )
+        role = (
+            user.get("role")
+            if isinstance(user, dict)
+            else getattr(user, "role", "user")
+        )
+        return username, role == "admin"
+
+    @app.route("/api/autosync")
+    def api_autosync_list():
+        username, is_admin = _get_current_user_info()
+        # Admins see all jobs; regular users see only their own
+        jobs = get_autosync_jobs(username=None if is_admin else username)
+        return jsonify({"jobs": jobs})
+
+    @app.route("/api/autosync", methods=["POST"])
+    def api_autosync_create():
+        data = request.get_json(silent=True) or {}
+        title = (data.get("title") or "").strip()
+        series_url = (data.get("series_url") or "").strip()
+        language = data.get("language", "German Dub")
+        provider = data.get("provider", "VOE")
+        custom_path_id = data.get("custom_path_id")
+
+        if not title or not series_url:
+            return jsonify({"error": "title and series_url are required"}), 400
+
+        existing = find_autosync_by_url(series_url)
+        if existing:
+            return jsonify(
+                {"error": "A sync job for this series already exists", "job": existing}
+            ), 409
+
+        username, _ = _get_current_user_info()
+        job_id = add_autosync_job(
+            title=title,
+            series_url=series_url,
+            language=language,
+            provider=provider,
+            custom_path_id=custom_path_id,
+            added_by=username,
+        )
+        return jsonify({"ok": True, "id": job_id})
+
+    @app.route("/api/autosync/<int:job_id>", methods=["PUT"])
+    def api_autosync_update(job_id):
+        job = get_autosync_job(job_id)
+        if not job:
+            return jsonify({"error": "Job not found"}), 404
+        username, is_admin = _get_current_user_info()
+        if not is_admin and job.get("added_by") != username:
+            return jsonify({"error": "Not authorized to edit this job"}), 403
+        data = request.get_json(silent=True) or {}
+        allowed = {"language", "provider", "enabled", "custom_path_id"}
+        filtered = {k: v for k, v in data.items() if k in allowed}
+        update_autosync_job(job_id, **filtered)
+        return jsonify({"ok": True})
+
+    @app.route("/api/autosync/<int:job_id>", methods=["DELETE"])
+    def api_autosync_delete(job_id):
+        job = get_autosync_job(job_id)
+        if not job:
+            return jsonify({"error": "Job not found"}), 404
+        username, is_admin = _get_current_user_info()
+        if not is_admin and job.get("added_by") != username:
+            return jsonify({"error": "Not authorized to delete this job"}), 403
+        ok, err = remove_autosync_job(job_id)
+        if not ok:
+            return jsonify({"error": err}), 404
+        return jsonify({"ok": True})
+
+    @app.route("/api/autosync/<int:job_id>/sync", methods=["POST"])
+    def api_autosync_trigger(job_id):
+        job = get_autosync_job(job_id)
+        if not job:
+            return jsonify({"error": "Job not found"}), 404
+        username, is_admin = _get_current_user_info()
+        if not is_admin and job.get("added_by") != username:
+            return jsonify({"error": "Not authorized"}), 403
+        with _syncing_jobs_lock:
+            if job_id in _syncing_jobs:
+                return jsonify({"error": "Sync already running for this job"}), 409
+        threading.Thread(target=_run_autosync_for_job, args=(job,), daemon=True).start()
+        return jsonify({"ok": True, "message": "Sync started"})
+
+    @app.route("/api/autosync/check", methods=["GET"])
+    def api_autosync_check():
+        """Check if a sync job exists for a given series URL."""
+        url = request.args.get("url", "").strip()
+        if not url:
+            return jsonify({"exists": False})
+        job = find_autosync_by_url(url)
+        if not job:
+            return jsonify({"exists": False})
+        # Only expose job details to the owner or admins
+        username, is_admin = _get_current_user_info()
+        if not is_admin and job.get("added_by") != username:
+            return jsonify({"exists": False})
+        return jsonify({"exists": True, "job": job})
+
+    # ===== Stats API =====
+
+    @app.route("/api/stats/sync")
+    def api_stats_sync():
+        stats = get_sync_stats()
+        # Compute next_run_at from last check + schedule interval
+        schedule_key = os.environ.get("ANIWORLD_SYNC_SCHEDULE", "0")
+        interval = SYNC_SCHEDULE_MAP.get(schedule_key, 0)
+        stats["schedule"] = schedule_key
+        stats["next_run_at"] = None
+        if interval and stats.get("last_check"):
+            from datetime import datetime, timedelta
+
+            try:
+                last = datetime.strptime(stats["last_check"], "%Y-%m-%d %H:%M:%S")
+                nxt = last + timedelta(seconds=interval)
+                stats["next_run_at"] = nxt.strftime("%Y-%m-%d %H:%M:%S")
+            except Exception:
+                pass
+        return jsonify(stats)
+
+    @app.route("/api/stats/queue")
+    def api_stats_queue():
+        return jsonify(get_queue_stats())
+
+    @app.route("/api/stats/general")
+    def api_stats_general():
+        return jsonify(get_general_stats())
+
     @app.route("/api/library")
     def api_library():
         from pathlib import Path
@@ -901,7 +1356,17 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         lang_sep = os.environ.get("ANIWORLD_LANG_SEPARATION", "0") == "1"
         lang_folders = ["german-dub", "english-sub", "german-sub", "english-dub"]
         ep_re = re.compile(r"S(\d{2})E(\d{2,3})", re.IGNORECASE)
-        video_exts = {".mkv", ".mp4", ".avi", ".webm", ".flv", ".mov", ".wmv", ".m4v", ".ts"}
+        video_exts = {
+            ".mkv",
+            ".mp4",
+            ".avi",
+            ".webm",
+            ".flv",
+            ".mov",
+            ".wmv",
+            ".m4v",
+            ".ts",
+        }
 
         # Build list of (label, custom_path_id, base_path) to scan
         scan_targets = [("Default", None, dl_base)]
@@ -947,7 +1412,12 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                         for e in entry["seasons"][skey]
                     ):
                         entry["seasons"][skey].append(
-                            {"episode": enum, "file": f.name, "size": fsize, "is_video": is_video}
+                            {
+                                "episode": enum,
+                                "file": f.name,
+                                "size": fsize,
+                                "is_video": is_video,
+                            }
                         )
                         entry["total_size"] += fsize
 
@@ -978,26 +1448,32 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 for lf in lang_folders:
                     lf_titles = _scan_base(base_path / lf)
                     if lf_titles:
-                        loc_lang_folders.append({
-                            "name": lf,
-                            "titles": lf_titles,
-                        })
+                        loc_lang_folders.append(
+                            {
+                                "name": lf,
+                                "titles": lf_titles,
+                            }
+                        )
                 if loc_lang_folders:
-                    locations.append({
-                        "label": label,
-                        "custom_path_id": cp_id,
-                        "lang_folders": loc_lang_folders,
-                        "titles": None,
-                    })
+                    locations.append(
+                        {
+                            "label": label,
+                            "custom_path_id": cp_id,
+                            "lang_folders": loc_lang_folders,
+                            "titles": None,
+                        }
+                    )
             else:
                 loc_titles = _scan_base(base_path)
                 if loc_titles:
-                    locations.append({
-                        "label": label,
-                        "custom_path_id": cp_id,
-                        "lang_folders": None,
-                        "titles": loc_titles,
-                    })
+                    locations.append(
+                        {
+                            "label": label,
+                            "custom_path_id": cp_id,
+                            "lang_folders": None,
+                            "titles": loc_titles,
+                        }
+                    )
 
         return jsonify({"lang_sep": lang_sep, "locations": locations})
 
@@ -1013,7 +1489,13 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         custom_path_id = data.get("custom_path_id")  # int or null
 
         # Security: reject dangerous folder names
-        if not folder or ".." in folder or "/" in folder or "\\" in folder or "\x00" in folder:
+        if (
+            not folder
+            or ".." in folder
+            or "/" in folder
+            or "\\" in folder
+            or "\x00" in folder
+        ):
             return jsonify({"error": "Invalid folder name"}), 400
 
         # Resolve base path from custom_path_id or default
@@ -1068,9 +1550,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                         rf"S{int(season):02d}E{int(episode):03d}(?!\d)", re.IGNORECASE
                     )
                 else:
-                    pat = re.compile(
-                        rf"S{int(season):02d}E\d{{2,3}}", re.IGNORECASE
-                    )
+                    pat = re.compile(rf"S{int(season):02d}E\d{{2,3}}", re.IGNORECASE)
 
                 for f in list(title_path.rglob("*")):
                     if f.is_file() and pat.search(f.name):
@@ -1104,8 +1584,16 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
         # Endpoints that require admin instead of just login
         _admin_only = {
-            "settings_page", "api_settings", "api_settings_update", "api_library_delete",
-            "api_custom_paths_add", "api_custom_paths_delete",
+            "settings_page",
+            "api_settings",
+            "api_settings_update",
+            "api_library_delete",
+            "api_custom_paths_add",
+            "api_custom_paths_delete",
+            "api_autosync_create",
+            "api_autosync_update",
+            "api_autosync_delete",
+            "api_autosync_trigger",
         }
 
         # Wrap all non-auth, non-static view functions with login_required
@@ -1161,10 +1649,14 @@ def start_web_ui(
     url = f"http://{display_host}:{port}"
     print(f"Starting AniWorld Web UI on {url}")
 
-    if open_browser:
-        threading.Timer(0.5, webbrowser.open, args=(url,)).start()
-
     debug = os.getenv("ANIWORLD_DEBUG_MODE", "0") == "1"
+
+    # In debug mode, Flask's reloader spawns a child process that re-executes
+    # this function. Only open the browser in the parent (reloader) process
+    # to avoid opening it twice.
+    is_reloader_child = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
+    if open_browser and not is_reloader_child:
+        threading.Timer(0.5, webbrowser.open, args=(url,)).start()
 
     if debug:
         app.run(host=host, port=port, debug=True)

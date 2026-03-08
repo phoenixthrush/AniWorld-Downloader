@@ -1,6 +1,5 @@
-{% extends "base.html" %}
-{% block title %}Settings — AniWorld Downloader{% endblock %}
-{% block content %}
+{% extends "base.html" %} {% block title %}Settings — AniWorld Downloader{%
+endblock %} {% block content %}
 <div class="settings-container">
   <h1>Settings</h1>
 
@@ -10,9 +9,9 @@
 
     {% if not force_sso %}
     <h3 class="settings-subtitle">Add User</h3>
-    <div class="add-user-row" style="margin-bottom:16px">
-      <input type="text" id="newUsername" placeholder="Username">
-      <input type="password" id="newPassword" placeholder="Password">
+    <div class="add-user-row" style="margin-bottom: 16px">
+      <input type="text" id="newUsername" placeholder="Username" />
+      <input type="password" id="newPassword" placeholder="Password" />
       <select id="newRole">
         <option value="user">User</option>
         <option value="admin">Admin</option>
@@ -40,44 +39,165 @@
   <div class="settings-section">
     <h2>Custom Paths</h2>
     <h3 class="settings-subtitle">Add Path</h3>
-    <div class="add-user-row" style="margin-bottom:16px">
-      <input type="text" id="newPathName" placeholder="Name (e.g. NAS)">
-      <input type="text" id="newPathValue" placeholder="/mnt/nas/anime">
+    <div class="add-user-row" style="margin-bottom: 16px">
+      <input type="text" id="newPathName" placeholder="Name (e.g. NAS)" />
+      <input type="text" id="newPathValue" placeholder="/mnt/nas/anime" />
       <button onclick="addCustomPath()">Add</button>
     </div>
     <table class="user-table" id="customPathsTable">
       <thead>
-        <tr><th>Name</th><th>Path</th><th>Actions</th></tr>
+        <tr>
+          <th>Name</th>
+          <th>Path</th>
+          <th>Actions</th>
+        </tr>
       </thead>
       <tbody id="customPathsBody"></tbody>
     </table>
   </div>
 
   <div class="settings-notice">
-    Changes made below are temporary and will be reset when AniWorld Downloader is restarted. To make settings persist, set them in your .env file at <code>{{ env_path }}</code>.
+    Changes made below are temporary and will be reset when AniWorld Downloader
+    is restarted. To make settings persist, set them in your .env file at
+    <code>{{ env_path }}</code>.
   </div>
 
+  <div class="settings-section">
+    <h2>Auto-Sync Defaults</h2>
+    <div class="settings-row" style="gap: 10px; flex-wrap: wrap">
+      <div style="flex: 1; min-width: 140px">
+        <label
+          style="
+            font-size: 0.78rem;
+            color: #6b7280;
+            margin-bottom: 4px;
+            display: block;
+          "
+          >Schedule</label
+        >
+        <select
+          id="syncSchedule"
+          onchange="saveSyncSchedule()"
+          class="sync-select"
+        >
+          <option value="0">Disabled</option>
+          <option value="1min">1 min (Debug)</option>
+          <option value="30min">30 min</option>
+          <option value="1h">1 hour</option>
+          <option value="2h">2 hours</option>
+          <option value="4h">4 hours</option>
+          <option value="8h">8 hours</option>
+          <option value="12h">12 hours</option>
+          <option value="16h">16 hours</option>
+          <option value="24h">24 hours</option>
+        </select>
+      </div>
+      <div style="flex: 1; min-width: 140px">
+        <label
+          style="
+            font-size: 0.78rem;
+            color: #6b7280;
+            margin-bottom: 4px;
+            display: block;
+          "
+          >Default Language</label
+        >
+        <select
+          id="syncLanguage"
+          onchange="saveSyncDefaults()"
+          class="sync-select"
+        >
+          <option>German Dub</option>
+          <option>English Sub</option>
+          <option>German Sub</option>
+        </select>
+      </div>
+      <div style="flex: 1; min-width: 140px">
+        <label
+          style="
+            font-size: 0.78rem;
+            color: #6b7280;
+            margin-bottom: 4px;
+            display: block;
+          "
+          >Default Provider</label
+        >
+        <select
+          id="syncProvider"
+          onchange="saveSyncDefaults()"
+          class="sync-select"
+        >
+          <option>VOE</option>
+          <option>Vidmoly</option>
+          <option>Vidoza</option>
+        </select>
+      </div>
+    </div>
+    <div class="settings-hint">
+      How often Auto-Sync checks for new episodes. Language and provider are
+      defaults used when creating new sync jobs.
+    </div>
+  </div>
   <div class="settings-section">
     <h2>Settings</h2>
     <h3 class="settings-subtitle">Download Path</h3>
     <div class="settings-row">
-      <input type="text" id="downloadPath" placeholder="/path/to/downloads">
+      <input type="text" id="downloadPath" placeholder="/path/to/downloads" />
       <button onclick="saveDownloadPath()">Save</button>
     </div>
-    <div class="settings-hint">Changes take effect immediately for new downloads</div>
-    <label class="settings-checkbox" style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:.88rem;color:#c8cad0;cursor:pointer">
-      <input type="checkbox" id="langSeparation" onchange="saveLangSeparation()" style="accent-color:#2563eb;cursor:pointer">
+    <div class="settings-hint">
+      Changes take effect immediately for new downloads
+    </div>
+    <label
+      class="settings-checkbox"
+      style="
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 14px;
+        font-size: 0.88rem;
+        color: #c8cad0;
+        cursor: pointer;
+      "
+    >
+      <input
+        type="checkbox"
+        id="langSeparation"
+        onchange="saveLangSeparation()"
+        style="accent-color: #2563eb; cursor: pointer"
+      />
       Separate languages into folders
     </label>
-    <div class="settings-hint">When enabled, downloads are organized into subfolders by language (e.g. german-dub/, english-sub/)</div>
-    <label class="settings-checkbox" style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:.88rem;color:#c8cad0;cursor:pointer">
-      <input type="checkbox" id="disableEnglishSub" onchange="saveDisableEnglishSub()" style="accent-color:#2563eb;cursor:pointer">
+    <div class="settings-hint">
+      When enabled, downloads are organized into subfolders by language (e.g.
+      german-dub/, english-sub/)
+    </div>
+    <label
+      class="settings-checkbox"
+      style="
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 14px;
+        font-size: 0.88rem;
+        color: #c8cad0;
+        cursor: pointer;
+      "
+    >
+      <input
+        type="checkbox"
+        id="disableEnglishSub"
+        onchange="saveDisableEnglishSub()"
+        style="accent-color: #2563eb; cursor: pointer"
+      />
       Disable English Sub downloads
     </label>
-    <div class="settings-hint">When enabled, English Sub is hidden from the language selector and cannot be downloaded</div>
+    <div class="settings-hint">
+      When enabled, English Sub is hidden from the language selector and cannot
+      be downloaded
+    </div>
   </div>
 </div>
-{% endblock %}
-{% block scripts %}
+{% endblock %} {% block scripts %}
 <script src="{{ url_for('static', filename='settings.js') }}"></script>
 {% endblock %}

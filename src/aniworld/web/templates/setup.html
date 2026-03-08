@@ -1,29 +1,54 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Setup — AniWorld Downloader</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-<div class="auth-container">
-  <h1>AniWorld Downloader</h1>
-  <h2>First-Time Setup</h2>
-  <p class="auth-info">No admin account exists yet. Create the first admin account to get started.</p>
-  {% if error %}
-  <div class="auth-error">{{ error }}</div>
-  {% endif %}
-  <form method="post" action="{{ url_for('auth.setup') }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="text" name="username" placeholder="Admin username" required autofocus>
-    <input type="password" name="password" placeholder="Password (min 8 chars)" required>
-    <input type="password" name="confirm" placeholder="Confirm password" required>
-    <button type="submit">Create Admin Account</button>
-  </form>
-</div>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Setup — AniWorld Downloader</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
+    <div class="auth-container">
+      <h1>AniWorld Downloader</h1>
+      <h2>First-Time Setup</h2>
+      <p class="auth-info">
+        No admin account exists yet. Create the first admin account to get
+        started.
+      </p>
+      {% if error %}
+      <div class="auth-error">{{ error }}</div>
+      {% endif %}
+      <form method="post" action="{{ url_for('auth.setup') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <input
+          type="text"
+          name="username"
+          placeholder="Admin username"
+          required
+          autofocus
+        />
+        <input
+          type="password"
+          name="password"
+          placeholder="Password (min 8 chars)"
+          required
+        />
+        <input
+          type="password"
+          name="confirm"
+          placeholder="Confirm password"
+          required
+        />
+        <button type="submit">Create Admin Account</button>
+      </form>
+    </div>
+  </body>
 </html>

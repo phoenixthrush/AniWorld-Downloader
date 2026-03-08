@@ -117,11 +117,11 @@ SUPPORTED_PROVIDERS = (
     "VOE",
     "Vidmoly",
     "Vidoza",
-    #"Doodstream",
-    #"Filemoon",
-    #"LoadX",
-    #"Luluvdo",
-    #"Streamtape",
+    # "Doodstream",
+    "Filemoon",
+    # "LoadX",
+    # "Luluvdo",
+    # "Streamtape",
 )
 
 PROVIDER_HEADERS_D = {
@@ -266,6 +266,12 @@ SERIENSTREAM_EPISODE_PATTERN = re.compile(
     r"/?$",
     re.IGNORECASE,
 )
+
+HIANIME_SERIES_PATTERN = re.compile(r"", re.IGNORECASE)
+
+HIANIME_SEASON_PATTERN = re.compile(r"", re.IGNORECASE)
+
+HIANIME_EPISODE_PATTERN = re.compile(r"", re.IGNORECASE)
 
 # -----------------------------
 # Directories

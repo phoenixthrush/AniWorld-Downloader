@@ -180,7 +180,8 @@ class AniworldEpisode:
     @property
     def _base_folder(self):
         if self.__base_folder is None:
-            parts = NAMING_TEMPLATE.split("/")
+            naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
+            parts = naming_template.split("/")
             if len(parts) <= 1:
                 self.__base_folder = Path(self.selected_path)
             else:
@@ -198,7 +199,8 @@ class AniworldEpisode:
     @property
     def _folder_path(self):
         if self.__folder_path is None:
-            parts = NAMING_TEMPLATE.split("/")
+            naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
+            parts = naming_template.split("/")
             if len(parts) <= 2:
                 # No season subfolder (template is "file" or "folder/file")
                 self.__folder_path = self._base_folder
@@ -217,8 +219,9 @@ class AniworldEpisode:
     @property
     def _file_name(self):
         if self.__file_name is None:
+            naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
             try:
-                file_template = NAMING_TEMPLATE.split("/")[-1]
+                file_template = naming_template.split("/")[-1]
             except IndexError:
                 file_template = f"{self.series.title_cleaned} S{self.season.season_number:02d}E{self.episode_number:03d}.mkv"
 
@@ -247,8 +250,9 @@ class AniworldEpisode:
     @property
     def _file_extension(self):
         if self.__file_extension is None:
+            naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
             try:
-                file_part = NAMING_TEMPLATE.split("/")[-1]
+                file_part = naming_template.split("/")[-1]
                 if "." in file_part:
                     ext = file_part.rsplit(".", 1)[-1]
                     self.__file_extension = ext if ext else "mkv"
@@ -368,6 +372,14 @@ class AniworldEpisode:
             self.__selected_path = str(path)
         return self.__selected_path
 
+    @selected_path.setter
+    def selected_path(self, value):
+        self.__selected_path_param = value
+        self.__selected_path = None
+        self.__base_folder = None
+        self.__folder_path = None
+        self.__episode_path = None
+
     @property
     def selected_language(self):
         if self.__selected_language is None:
@@ -375,6 +387,18 @@ class AniworldEpisode:
                 "ANIWORLD_LANGUAGE", "German Dub"
             )
         return self.__selected_language
+
+    @selected_language.setter
+    def selected_language(self, value):
+        self.__selected_language_param = value
+        self.__selected_language = None
+        self.__redirect_url = None
+        self.__provider_url = None
+        self.__is_downloaded = None
+        self.__base_folder = None
+        self.__folder_path = None
+        self.__episode_path = None
+        self.__file_name = None
 
     @property
     def selected_provider(self):

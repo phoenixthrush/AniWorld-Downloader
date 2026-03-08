@@ -1,40 +1,51 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Login — AniWorld Downloader</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-<div class="auth-container">
-  <h1>AniWorld Downloader</h1>
-  <h2>Login</h2>
-  {% if error %}
-  <div class="auth-error">{{ error }}</div>
-  {% endif %}
-
-  {% if not force_sso %}
-  <form method="post" action="{{ url_for('auth.login') }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="text" name="username" placeholder="Username" required autofocus>
-    <input type="password" name="password" placeholder="Password" required>
-    <button type="submit">Log In</button>
-  </form>
-  {% endif %}
-
-  {% if oidc_enabled and not force_sso %}
-  <div class="auth-divider"><span>or</span></div>
-  {% endif %}
-
-  {% if oidc_enabled %}
-  <a href="{{ url_for('auth.oidc_login') }}" class="sso-button">
-    Sign in with {{ oidc_display_name }}
-  </a>
-  {% endif %}
-</div>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login — AniWorld Downloader</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
+    <div class="auth-container">
+      <h1>AniWorld Downloader</h1>
+      <h2>Login</h2>
+      {% if error %}
+      <div class="auth-error">{{ error }}</div>
+      {% endif %} {% if not force_sso %}
+      <form method="post" action="{{ url_for('auth.login') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <input
+          type="text"
+          name="username"
+          placeholder="Username"
+          required
+          autofocus
+        />
+        <input
+          type="password"
+          name="password"
+          placeholder="Password"
+          required
+        />
+        <button type="submit">Log In</button>
+      </form>
+      {% endif %} {% if oidc_enabled and not force_sso %}
+      <div class="auth-divider"><span>or</span></div>
+      {% endif %} {% if oidc_enabled %}
+      <a href="{{ url_for('auth.oidc_login') }}" class="sso-button">
+        Sign in with {{ oidc_display_name }}
+      </a>
+      {% endif %}
+    </div>
+  </body>
 </html>

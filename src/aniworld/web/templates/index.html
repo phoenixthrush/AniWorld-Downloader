@@ -1,19 +1,25 @@
-{% extends "base.html" %}
-{% block content %}
+{% extends "base.html" %} {% block content %}
 <div class="container">
   <h1 id="pageHeading">AniWorld Downloader</h1>
   <div class="site-switch">
     <span class="site-label active" id="labelAniworld">AniWorld</span>
     <label class="switch">
-      <input type="checkbox" id="siteToggle" onchange="toggleSite()">
+      <input type="checkbox" id="siteToggle" onchange="toggleSite()" />
       <span class="slider"></span>
     </label>
     <span class="site-label" id="labelSto">S.TO</span>
   </div>
   <div class="search-bar">
-    <input type="text" id="searchInput" placeholder="Search for anime..." autofocus>
+    <input
+      type="text"
+      id="searchInput"
+      placeholder="Search for anime..."
+      autofocus
+    />
     <button id="searchBtn" onclick="doSearch()">Search</button>
-    <button class="btn-random" id="randomBtn" onclick="doRandom()">Random</button>
+    <button class="btn-random" id="randomBtn" onclick="doRandom()">
+      Random
+    </button>
   </div>
   <div class="spinner" id="searchSpinner">Searching...</div>
   <div class="results" id="results"></div>
@@ -26,11 +32,11 @@
       <h2 class="browse-heading">Popular Animes</h2>
       <div class="browse-grid" id="popularAnimesGrid"></div>
     </div>
-    <div class="browse-section" id="newSeriesSection" style="display:none">
+    <div class="browse-section" id="newSeriesSection" style="display: none">
       <h2 class="browse-heading">New Series</h2>
       <div class="browse-grid" id="newSeriesGrid"></div>
     </div>
-    <div class="browse-section" id="popularSeriesSection" style="display:none">
+    <div class="browse-section" id="popularSeriesSection" style="display: none">
       <h2 class="browse-heading">Popular Series</h2>
       <div class="browse-grid" id="popularSeriesGrid"></div>
     </div>
@@ -41,7 +47,7 @@
   <div class="modal" id="modal">
     <button class="close" onclick="closeModal()">&times;</button>
     <div class="modal-header">
-      <img id="modalPoster" src="" alt="">
+      <img id="modalPoster" src="" alt="" />
       <div class="modal-meta">
         <h2 id="modalTitle"></h2>
         <div class="genres" id="modalGenres"></div>
@@ -60,17 +66,30 @@
         <option value="{{ p }}">{{ p }}</option>
         {% endfor %}
       </select>
-      <select id="customPathSelect" style="display:none">
+      <select id="customPathSelect" style="display: none">
         <option value="">Default</option>
       </select>
     </div>
     <script>
-      window.ANIWORLD_LANGS = {{ lang_labels|tojson }};
-      window.STO_LANGS = {{ sto_lang_labels|tojson }};
+      window.ANIWORLD_LANGS = {{ lang_labels | tojson }};
+      window.STO_LANGS = {{ sto_lang_labels | tojson }};
     </script>
     <div class="episodes-header">
       <h3>Episodes</h3>
-      <label class="select-all-label"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"> Select All</label>
+      <div style="display: flex; align-items: center; gap: 16px">
+        <label class="select-all-label"
+          ><input
+            type="checkbox"
+            id="autoSyncCheck"
+            onchange="toggleAutoSync()"
+          />
+          Keep Updated (Auto-Sync)</label
+        >
+        <label class="select-all-label"
+          ><input type="checkbox" id="selectAll" onchange="toggleSelectAll()" />
+          Select All</label
+        >
+      </div>
     </div>
     <div class="season-accordion" id="seasonAccordion"></div>
     <div class="spinner" id="episodeSpinner">Loading episodes...</div>
@@ -78,14 +97,38 @@
       <span id="statusText"></span>
     </div>
     <div class="modal-actions">
-      <button class="btn-download-selected" id="downloadSelectedBtn" onclick="startDownload(false)">Download Selected</button>
-      <button class="btn-download-all" id="downloadAllBtn" onclick="startDownload(true)">Download All</button>
-      <button class="btn-download-selected" id="addEpisodeFileBtn" onclick="addEpisodeFile()">Add to Episode List</button>
-      <button class="btn-download-all-langs" id="downloadAllLangsBtn" onclick="startDownloadAllLangs()" style="display:none">Download All Languages</button>
+      <button
+        class="btn-download-selected"
+        id="downloadSelectedBtn"
+        onclick="startDownload(false)"
+      >
+        Download Selected
+      </button>
+      <button
+        class="btn-download-all"
+        id="downloadAllBtn"
+        onclick="startDownload(true)"
+      >
+        Download All
+      </button>
+      <button 
+        class="btn-download-selected" 
+        id="addEpisodeFileBtn" 
+        onclick="addEpisodeFile()"
+      >
+        Add to Episode List
+      </button>
+      <button
+        class="btn-download-all-langs"
+        id="downloadAllLangsBtn"
+        onclick="startDownloadAllLangs()"
+        style="display: none"
+      >
+        Download All Languages
+      </button>
     </div>
   </div>
 </div>
-{% endblock %}
-{% block scripts %}
+{% endblock %} {% block scripts %}
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 {% endblock %}

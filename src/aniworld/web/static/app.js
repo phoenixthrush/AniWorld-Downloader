@@ -1,74 +1,79 @@
-const searchInput = document.getElementById('searchInput');
-const searchBtn = document.getElementById('searchBtn');
-const searchSpinner = document.getElementById('searchSpinner');
-const resultsDiv = document.getElementById('results');
-const overlay = document.getElementById('overlay');
-const languageSelect = document.getElementById('languageSelect');
-const providerSelect = document.getElementById('providerSelect');
-const seasonAccordion = document.getElementById('seasonAccordion');
-const episodeSpinner = document.getElementById('episodeSpinner');
-const selectAllCb = document.getElementById('selectAll');
-const statusBar = document.getElementById('statusBar');
-const statusText = document.getElementById('statusText');
-const downloadAllBtn = document.getElementById('downloadAllBtn');
-const downloadSelectedBtn = document.getElementById('downloadSelectedBtn');
-const addEpisodeFileBtn = document.getElementById('addEpisodeFileBtn');
-const randomBtn = document.getElementById('randomBtn');
-const browseDiv = document.getElementById('browse');
-const newAnimesGrid = document.getElementById('newAnimesGrid');
-const popularAnimesGrid = document.getElementById('popularAnimesGrid');
-const newAnimesSection = document.getElementById('newAnimesSection');
-const popularAnimesSection = document.getElementById('popularAnimesSection');
-const newSeriesGrid = document.getElementById('newSeriesGrid');
-const popularSeriesGrid = document.getElementById('popularSeriesGrid');
-const newSeriesSection = document.getElementById('newSeriesSection');
-const popularSeriesSection = document.getElementById('popularSeriesSection');
+const searchInput = document.getElementById("searchInput");
+const searchBtn = document.getElementById("searchBtn");
+const searchSpinner = document.getElementById("searchSpinner");
+const resultsDiv = document.getElementById("results");
+const overlay = document.getElementById("overlay");
+const languageSelect = document.getElementById("languageSelect");
+const providerSelect = document.getElementById("providerSelect");
+const seasonAccordion = document.getElementById("seasonAccordion");
+const episodeSpinner = document.getElementById("episodeSpinner");
+const selectAllCb = document.getElementById("selectAll");
+const autoSyncCheck = document.getElementById("autoSyncCheck");
+const statusBar = document.getElementById("statusBar");
+const statusText = document.getElementById("statusText");
+const downloadAllBtn = document.getElementById("downloadAllBtn");
+const downloadSelectedBtn = document.getElementById("downloadSelectedBtn");
+const addEpisodeFileBtn = document.getElementById("addEpisodeFileBtn");
+const randomBtn = document.getElementById("randomBtn");
+const browseDiv = document.getElementById("browse");
+const newAnimesGrid = document.getElementById("newAnimesGrid");
+const popularAnimesGrid = document.getElementById("popularAnimesGrid");
+const newAnimesSection = document.getElementById("newAnimesSection");
+const popularAnimesSection = document.getElementById("popularAnimesSection");
+const newSeriesGrid = document.getElementById("newSeriesGrid");
+const popularSeriesGrid = document.getElementById("popularSeriesGrid");
+const newSeriesSection = document.getElementById("newSeriesSection");
+const popularSeriesSection = document.getElementById("popularSeriesSection");
 
 let currentSeasons = [];
-let currentSeriesTitle = '';
-let currentSeriesUrl = '';
+let currentSeriesTitle = "";
+let currentSeriesUrl = "";
 // Provider data per language label
 let availableProviders = null;
 // Static list of providers rendered into the template
-const staticProviders = Array.from(providerSelect.options).map(o => o.value);
+const staticProviders = Array.from(providerSelect.options).map((o) => o.value);
 
 // Site toggle state
-let currentSite = 'aniworld';
+let currentSite = "aniworld";
 
 // Downloaded folders cache
 let downloadedFolders = [];
 
 // Custom paths select
-const customPathSelect = document.getElementById('customPathSelect');
+const customPathSelect = document.getElementById("customPathSelect");
 
 async function loadCustomPaths() {
   if (!customPathSelect) return;
   try {
-    const resp = await fetch('/api/custom-paths');
+    const resp = await fetch("/api/custom-paths");
     const data = await resp.json();
     const paths = data.paths || [];
     // Remove old custom options (keep "Default")
     while (customPathSelect.options.length > 1) customPathSelect.remove(1);
     if (paths.length) {
-      paths.forEach(function(p) {
-        const opt = document.createElement('option');
+      paths.forEach(function (p) {
+        const opt = document.createElement("option");
         opt.value = p.id;
         opt.textContent = p.name;
         customPathSelect.appendChild(opt);
       });
-      customPathSelect.style.display = '';
+      customPathSelect.style.display = "";
     } else {
-      customPathSelect.style.display = 'none';
+      customPathSelect.style.display = "none";
     }
-  } catch (e) { /* best-effort */ }
+  } catch (e) {
+    /* best-effort */
+  }
 }
 
 async function loadDownloadedFolders() {
   try {
-    const resp = await fetch('/api/downloaded-folders');
+    const resp = await fetch("/api/downloaded-folders");
     const data = await resp.json();
     downloadedFolders = data.folders || [];
-  } catch (e) { /* best-effort */ }
+  } catch (e) {
+    /* best-effort */
+  }
 }
 
 let stoLoadedAt = 0;
@@ -77,72 +82,92 @@ async function loadStoBrowse() {
   stoLoadedAt = Date.now();
   try {
     const [newResp, popResp] = await Promise.all([
-      fetch('/api/new-series'),
-      fetch('/api/popular-series'),
+      fetch("/api/new-series"),
+      fetch("/api/popular-series"),
     ]);
     await loadDownloadedFolders();
     const newData = await newResp.json();
     const popData = await popResp.json();
     if (newData.results) renderBrowseCards(newSeriesGrid, newData.results);
     if (popData.results) renderBrowseCards(popularSeriesGrid, popData.results);
-  } catch (e) { stoLoadedAt = 0; }
+  } catch (e) {
+    stoLoadedAt = 0;
+  }
 }
 
 function showBrowseSections() {
-  const isAniworld = currentSite === 'aniworld';
-  browseDiv.style.display = '';
-  newAnimesSection.style.display = isAniworld ? '' : 'none';
-  popularAnimesSection.style.display = isAniworld ? '' : 'none';
-  newSeriesSection.style.display = isAniworld ? 'none' : '';
-  popularSeriesSection.style.display = isAniworld ? 'none' : '';
+  const isAniworld = currentSite === "aniworld";
+  browseDiv.style.display = "";
+  newAnimesSection.style.display = isAniworld ? "" : "none";
+  popularAnimesSection.style.display = isAniworld ? "" : "none";
+  newSeriesSection.style.display = isAniworld ? "none" : "";
+  popularSeriesSection.style.display = isAniworld ? "none" : "";
   if (isAniworld) loadAniworldBrowse();
   else loadStoBrowse();
 }
 
 function normalizeQuotes(s) {
-  return s.replace(/[\u2018\u2019\u2032\u0060]/g, "'").replace(/[\u201C\u201D\u201E]/g, '"');
+  return s
+    .replace(/[\u2018\u2019\u2032\u0060]/g, "'")
+    .replace(/[\u201C\u201D\u201E]/g, '"');
 }
 
 function isDownloaded(title) {
   if (!downloadedFolders.length || !title) return false;
-  const clean = normalizeQuotes(unesc(title).replace(/\s*\(.*$/, '').trim().toLowerCase());
-  return downloadedFolders.some(f => normalizeQuotes(f.toLowerCase()).startsWith(clean));
+  const clean = normalizeQuotes(
+    unesc(title)
+      .replace(/\s*\(.*$/, "")
+      .trim()
+      .toLowerCase(),
+  );
+  return downloadedFolders.some((f) =>
+    normalizeQuotes(f.toLowerCase()).startsWith(clean),
+  );
 }
 
 function addDownloadedBadge(card, title) {
   if (isDownloaded(title)) {
-    const badge = document.createElement('div');
-    badge.className = 'downloaded-badge';
-    card.style.position = 'relative';
+    const badge = document.createElement("div");
+    badge.className = "downloaded-badge";
+    card.style.position = "relative";
     card.appendChild(badge);
   }
 }
 
 function toggleSite() {
-  const toggle = document.getElementById('siteToggle');
-  currentSite = toggle.checked ? 'sto' : 'aniworld';
-  localStorage.setItem('selectedSite', currentSite);
+  const toggle = document.getElementById("siteToggle");
+  currentSite = toggle.checked ? "sto" : "aniworld";
+  localStorage.setItem("selectedSite", currentSite);
 
   // Update labels
-  document.getElementById('labelAniworld').classList.toggle('active', !toggle.checked);
-  document.getElementById('labelSto').classList.toggle('active', toggle.checked);
+  document
+    .getElementById("labelAniworld")
+    .classList.toggle("active", !toggle.checked);
+  document
+    .getElementById("labelSto")
+    .classList.toggle("active", toggle.checked);
 
   // Update heading
-  const heading = document.getElementById('pageHeading');
-  if (heading) heading.textContent = toggle.checked ? 'SerienStream Downloader' : 'AniWorld Downloader';
+  const heading = document.getElementById("pageHeading");
+  if (heading)
+    heading.textContent = toggle.checked
+      ? "SerienStream Downloader"
+      : "AniWorld Downloader";
 
   // Update search placeholder
-  searchInput.placeholder = toggle.checked ? 'Search for series...' : 'Search for anime...';
+  searchInput.placeholder = toggle.checked
+    ? "Search for series..."
+    : "Search for anime...";
 
   // Clear search results
-  resultsDiv.innerHTML = '';
-  searchInput.value = '';
+  resultsDiv.innerHTML = "";
+  searchInput.value = "";
 
   // Toggle browse sections per site
   showBrowseSections();
 
   // Toggle Random button
-  randomBtn.style.display = toggle.checked ? 'none' : '';
+  randomBtn.style.display = toggle.checked ? "none" : "";
 
   // Update language dropdown
   rebuildLanguageSelect();
@@ -152,10 +177,21 @@ function toggleSite() {
 }
 
 function rebuildLanguageSelect() {
-  const langs = currentSite === 'sto' ? (window.STO_LANGS || {}) : (window.ANIWORLD_LANGS || {});
-  languageSelect.innerHTML = '';
+  const langs =
+    currentSite === "sto"
+      ? window.STO_LANGS || {}
+      : window.ANIWORLD_LANGS || {};
+  languageSelect.innerHTML = "";
+
+  if (langSeparationEnabled) {
+    const opt = document.createElement("option");
+    opt.value = "All Languages";
+    opt.textContent = "All Languages";
+    languageSelect.appendChild(opt);
+  }
+
   for (const [key, label] of Object.entries(langs)) {
-    const opt = document.createElement('option');
+    const opt = document.createElement("option");
     opt.value = label;
     opt.textContent = label;
     languageSelect.appendChild(opt);
@@ -164,36 +200,37 @@ function rebuildLanguageSelect() {
 
 // Restore site toggle state from localStorage
 (function syncSiteToggle() {
-  const toggle = document.getElementById('siteToggle');
-  const saved = localStorage.getItem('selectedSite');
-  if (saved === 'sto') toggle.checked = true;
+  const toggle = document.getElementById("siteToggle");
+  const saved = localStorage.getItem("selectedSite");
+  if (saved === "sto") toggle.checked = true;
   if (toggle && toggle.checked) {
-    currentSite = 'sto';
-    document.getElementById('labelAniworld').classList.remove('active');
-    document.getElementById('labelSto').classList.add('active');
-    const heading = document.getElementById('pageHeading');
-    if (heading) heading.textContent = 'SerienStream Downloader';
-    searchInput.placeholder = 'Search for series...';
-    showBrowseSections();
-    randomBtn.style.display = 'none';
+    currentSite = "sto";
+    document.getElementById("labelAniworld").classList.remove("active");
+    document.getElementById("labelSto").classList.add("active");
+    const heading = document.getElementById("pageHeading");
+    if (heading) heading.textContent = "SerienStream Downloader";
+    searchInput.placeholder = "Search for series...";
+    randomBtn.style.display = "none";
     rebuildLanguageSelect();
   }
 })();
 
-searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
-searchInput.addEventListener('input', () => {
+searchInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") doSearch();
+});
+searchInput.addEventListener("input", () => {
   if (!searchInput.value.trim()) {
-    resultsDiv.innerHTML = '';
+    resultsDiv.innerHTML = "";
     showBrowseSections();
   }
 });
-languageSelect.addEventListener('change', updateProviderDropdown);
+languageSelect.addEventListener("change", updateProviderDropdown);
 
 function renderBrowseCards(grid, items) {
-  grid.innerHTML = '';
-  items.forEach(item => {
-    const card = document.createElement('div');
-    card.className = 'browse-card';
+  grid.innerHTML = "";
+  items.forEach((item) => {
+    const card = document.createElement("div");
+    card.className = "browse-card";
     card.onclick = () => openSeries(item.url);
     card.innerHTML =
       `<img src="${esc(item.poster_url)}" alt="">` +
@@ -212,145 +249,172 @@ async function loadAniworldBrowse() {
   aniLoadedAt = Date.now();
   try {
     const [newResp, popResp] = await Promise.all([
-      fetch('/api/new-animes'),
-      fetch('/api/popular-animes'),
+      fetch("/api/new-animes"),
+      fetch("/api/popular-animes"),
     ]);
     await loadDownloadedFolders();
     const newData = await newResp.json();
     const popData = await popResp.json();
     if (newData.results) renderBrowseCards(newAnimesGrid, newData.results);
     if (popData.results) renderBrowseCards(popularAnimesGrid, popData.results);
-  } catch (e) { aniLoadedAt = 0; }
+  } catch (e) {
+    aniLoadedAt = 0;
+  }
 }
-loadAniworldBrowse();
+showBrowseSections();
 
 async function doSearch() {
   const keyword = searchInput.value.trim();
   if (!keyword) return;
   searchBtn.disabled = true;
-  searchSpinner.style.display = 'block';
-  resultsDiv.innerHTML = '';
-  browseDiv.style.display = 'none';
+  searchSpinner.style.display = "block";
+  resultsDiv.innerHTML = "";
+  browseDiv.style.display = "none";
   try {
-    const resp = await fetch('/api/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keyword, site: currentSite })
+    const resp = await fetch("/api/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ keyword, site: currentSite }),
     });
     const data = await resp.json();
     renderResults(data.results || []);
   } catch (e) {
-    showToast('Search failed: ' + e.message);
+    showToast("Search failed: " + e.message);
   } finally {
     searchBtn.disabled = false;
-    searchSpinner.style.display = 'none';
+    searchSpinner.style.display = "none";
   }
 }
 
 async function doRandom() {
-  if (currentSite === 'sto') {
-    showToast('Random is not available for S.TO');
+  if (currentSite === "sto") {
+    showToast("Random is not available for S.TO");
     return;
   }
   randomBtn.disabled = true;
   try {
-    const resp = await fetch('/api/random');
+    const resp = await fetch("/api/random");
     const data = await resp.json();
-    if (data.error) { showToast(data.error); return; }
+    if (data.error) {
+      showToast(data.error);
+      return;
+    }
     openSeries(data.url);
   } catch (e) {
-    showToast('Failed to fetch random anime: ' + e.message);
+    showToast("Failed to fetch random anime: " + e.message);
   } finally {
     randomBtn.disabled = false;
   }
 }
 
 function renderResults(results) {
-  resultsDiv.innerHTML = '';
+  resultsDiv.innerHTML = "";
   if (!results.length) {
-    resultsDiv.innerHTML = '<div style="width:100%;text-align:center;color:#888;padding:40px">No results found.</div>';
+    resultsDiv.innerHTML =
+      '<div style="width:100%;text-align:center;color:#888;padding:40px">No results found.</div>';
     return;
   }
-  results.forEach(r => {
-    const card = document.createElement('div');
-    card.className = 'card';
+  results.forEach((r) => {
+    const card = document.createElement("div");
+    card.className = "card";
     card.onclick = () => openSeries(r.url);
     card.innerHTML = `<img src="" alt="" data-url="${esc(r.url)}"><div class="info"><div class="title">${esc(r.title)}</div></div>`;
     addDownloadedBadge(card, r.title);
     resultsDiv.appendChild(card);
-    loadPoster(r.url, card.querySelector('img'));
+    loadPoster(r.url, card.querySelector("img"));
   });
 }
 
 async function loadPoster(url, imgEl) {
   try {
-    const resp = await fetch('/api/series?url=' + encodeURIComponent(url));
+    const resp = await fetch("/api/series?url=" + encodeURIComponent(url));
     const data = await resp.json();
     if (data.poster_url) imgEl.src = data.poster_url;
-  } catch (e) { /* ignore poster load failure */ }
+  } catch (e) {
+    /* ignore poster load failure */
+  }
 }
 
 async function openSeries(url) {
-  overlay.style.display = 'block';
-  document.getElementById('modalPoster').src = '';
-  document.getElementById('modalTitle').textContent = 'Loading...';
-  document.getElementById('modalGenres').textContent = '';
-  document.getElementById('modalYear').textContent = '';
-  document.getElementById('modalDesc').textContent = '';
-  seasonAccordion.innerHTML = '';
-  statusBar.classList.remove('active');
+  overlay.style.display = "block";
+  document.getElementById("modalPoster").src = "";
+  document.getElementById("modalTitle").textContent = "Loading...";
+  document.getElementById("modalGenres").textContent = "";
+  document.getElementById("modalYear").textContent = "";
+  document.getElementById("modalDesc").textContent = "";
+  seasonAccordion.innerHTML = "";
+  statusBar.classList.remove("active");
   availableProviders = null;
   currentSeriesUrl = url;
-  currentSeriesTitle = '';
+  currentSeriesTitle = "";
+  await checkLangSeparation();
   rebuildLanguageSelect();
   resetProviderDropdown();
-  checkLangSeparation();
   loadCustomPaths();
 
   try {
     const [seriesResp, seasonsResp] = await Promise.all([
-      fetch('/api/series?url=' + encodeURIComponent(url)),
-      fetch('/api/seasons?url=' + encodeURIComponent(url))
+      fetch("/api/series?url=" + encodeURIComponent(url)),
+      fetch("/api/seasons?url=" + encodeURIComponent(url)),
     ]);
     const seriesData = await seriesResp.json();
     const seasonsData = await seasonsResp.json();
 
-    currentSeriesTitle = seriesData.title || 'Unknown';
-    document.getElementById('modalTitle').textContent = currentSeriesTitle;
-    if (seriesData.poster_url) document.getElementById('modalPoster').src = seriesData.poster_url;
-    document.getElementById('modalGenres').textContent = (seriesData.genres || []).join(', ');
-    document.getElementById('modalYear').textContent = seriesData.release_year || '';
-    document.getElementById('modalDesc').textContent = seriesData.description || '';
+    currentSeriesTitle = seriesData.title || "Unknown";
+    document.getElementById("modalTitle").textContent = currentSeriesTitle;
+    if (seriesData.poster_url)
+      document.getElementById("modalPoster").src = seriesData.poster_url;
+    document.getElementById("modalGenres").textContent = (
+      seriesData.genres || []
+    ).join(", ");
+    document.getElementById("modalYear").textContent =
+      seriesData.release_year || "";
+    document.getElementById("modalDesc").textContent =
+      seriesData.description || "";
 
     currentSeasons = seasonsData.seasons || [];
     buildAccordion(currentSeasons);
+
+    // Check if auto-sync exists for this series
+    if (autoSyncCheck) {
+      autoSyncCheck.checked = false;
+      try {
+        const syncResp = await fetch(
+          "/api/autosync/check?url=" + encodeURIComponent(url),
+        );
+        const syncData = await syncResp.json();
+        autoSyncCheck.checked = !!syncData.exists;
+      } catch (e) {
+        /* ignore */
+      }
+    }
   } catch (e) {
-    showToast('Failed to load series: ' + e.message);
+    showToast("Failed to load series: " + e.message);
   }
 }
 
 function buildAccordion(seasons) {
-  seasonAccordion.innerHTML = '';
-  episodeSpinner.style.display = 'block';
+  seasonAccordion.innerHTML = "";
+  episodeSpinner.style.display = "block";
   selectAllCb.checked = false;
 
   // Fetch all seasons' episodes in parallel
   const fetches = seasons.map((s, i) =>
-    fetch('/api/episodes?url=' + encodeURIComponent(s.url))
-      .then(r => r.json())
-      .then(data => ({ index: i, episodes: data.episodes || [] }))
-      .catch(() => ({ index: i, episodes: [] }))
+    fetch("/api/episodes?url=" + encodeURIComponent(s.url))
+      .then((r) => r.json())
+      .then((data) => ({ index: i, episodes: data.episodes || [] }))
+      .catch(() => ({ index: i, episodes: [] })),
   );
 
-  Promise.all(fetches).then(results => {
-    episodeSpinner.style.display = 'none';
+  Promise.all(fetches).then((results) => {
+    episodeSpinner.style.display = "none";
     let firstProviderUrl = null;
 
     results.sort((a, b) => a.index - b.index);
     results.forEach(({ index, episodes }) => {
       const season = seasons[index];
-      const section = document.createElement('div');
-      section.className = 'season-section';
+      const section = document.createElement("div");
+      section.className = "season-section";
       section.dataset.seasonIndex = index;
 
       const label = season.are_movies
@@ -358,25 +422,30 @@ function buildAccordion(seasons) {
         : `Season ${season.season_number} (${episodes.length} episodes)`;
 
       // Header
-      const allDownloaded = episodes.length > 0 && episodes.every(ep => ep.downloaded);
-      const seasonDlIcon = allDownloaded ? '<span class="season-downloaded" title="All episodes downloaded">&#10003;</span>' : '';
-      const header = document.createElement('div');
-      header.className = 'season-header' + (index === 0 ? ' expanded' : '');
+      const allDownloaded =
+        episodes.length > 0 && episodes.every((ep) => ep.downloaded);
+      const seasonDlIcon = allDownloaded
+        ? '<span class="season-downloaded" title="All episodes downloaded">&#10003;</span>'
+        : "";
+      const header = document.createElement("div");
+      header.className = "season-header" + (index === 0 ? " expanded" : "");
       header.innerHTML =
         `<div class="season-label"><span class="season-arrow">&#9654;</span> ${esc(label)}${seasonDlIcon}</div>` +
         `<label class="season-all-label" onclick="event.stopPropagation()"><input type="checkbox" onchange="toggleSeasonAll(this, ${index})"> All</label>`;
-      header.addEventListener('click', () => toggleSeason(index));
+      header.addEventListener("click", () => toggleSeason(index));
 
       // Body
-      const body = document.createElement('div');
-      body.className = 'season-body' + (index === 0 ? ' expanded' : '');
-      body.id = 'seasonBody-' + index;
+      const body = document.createElement("div");
+      body.className = "season-body" + (index === 0 ? " expanded" : "");
+      body.id = "seasonBody-" + index;
 
-      episodes.forEach(ep => {
-        const div = document.createElement('div');
-        div.className = 'episode-item';
-        const title = ep.title_en || ep.title_de || '';
-        const dlIcon = ep.downloaded ? '<span class="ep-downloaded" title="Downloaded">&#10003;</span>' : '';
+      episodes.forEach((ep) => {
+        const div = document.createElement("div");
+        div.className = "episode-item";
+        const title = ep.title_en || ep.title_de || "";
+        const dlIcon = ep.downloaded
+          ? '<span class="ep-downloaded" title="Downloaded">&#10003;</span>'
+          : "";
         div.innerHTML = `<input type="checkbox" value="${esc(ep.url)}" data-season="${index}"><span class="ep-num">E${ep.episode_number}</span>${dlIcon}<span class="ep-title">${esc(title)}</span>`;
         body.appendChild(div);
       });
@@ -398,43 +467,61 @@ function buildAccordion(seasons) {
 }
 
 function toggleSeason(index) {
-  const section = seasonAccordion.querySelector(`[data-season-index="${index}"]`);
+  const section = seasonAccordion.querySelector(
+    `[data-season-index="${index}"]`,
+  );
   if (!section) return;
-  const header = section.querySelector('.season-header');
-  const body = section.querySelector('.season-body');
-  header.classList.toggle('expanded');
-  body.classList.toggle('expanded');
+  const header = section.querySelector(".season-header");
+  const body = section.querySelector(".season-body");
+  header.classList.toggle("expanded");
+  body.classList.toggle("expanded");
 }
 
 function toggleSeasonAll(checkbox, seasonIndex) {
-  const body = document.getElementById('seasonBody-' + seasonIndex);
+  const body = document.getElementById("seasonBody-" + seasonIndex);
   if (!body) return;
-  body.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = checkbox.checked);
+  body
+    .querySelectorAll("input[type=checkbox]")
+    .forEach((cb) => (cb.checked = checkbox.checked));
   syncSelectAll();
 }
 
 function toggleSelectAll() {
   const checked = selectAllCb.checked;
-  seasonAccordion.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = checked);
+  seasonAccordion
+    .querySelectorAll("input[type=checkbox]")
+    .forEach((cb) => (cb.checked = checked));
 }
 
 function syncSelectAll() {
-  const all = seasonAccordion.querySelectorAll('.episode-item input[type=checkbox]');
-  const checked = seasonAccordion.querySelectorAll('.episode-item input[type=checkbox]:checked');
+  const all = seasonAccordion.querySelectorAll(
+    ".episode-item input[type=checkbox]",
+  );
+  const checked = seasonAccordion.querySelectorAll(
+    ".episode-item input[type=checkbox]:checked",
+  );
   selectAllCb.checked = all.length > 0 && all.length === checked.length;
 }
 
 function getAllEpisodeUrls() {
-  return Array.from(seasonAccordion.querySelectorAll('.episode-item input[type=checkbox]')).map(cb => cb.value);
+  return Array.from(
+    seasonAccordion.querySelectorAll(".episode-item input[type=checkbox]"),
+  ).map((cb) => cb.value);
 }
 
 function getSelectedEpisodeUrls() {
-  return Array.from(seasonAccordion.querySelectorAll('.episode-item input[type=checkbox]:checked')).map(cb => cb.value);
+  return Array.from(
+    seasonAccordion.querySelectorAll(
+      ".episode-item input[type=checkbox]:checked",
+    ),
+  ).map((cb) => cb.value);
 }
 
 async function fetchProviders(episodeUrl) {
   try {
-    const resp = await fetch('/api/providers?url=' + encodeURIComponent(episodeUrl));
+    const resp = await fetch(
+      "/api/providers?url=" + encodeURIComponent(episodeUrl),
+    );
     const data = await resp.json();
     if (data.providers) {
       availableProviders = data.providers;
@@ -446,9 +533,9 @@ async function fetchProviders(episodeUrl) {
 }
 
 function resetProviderDropdown() {
-  providerSelect.innerHTML = '';
-  staticProviders.forEach(p => {
-    const opt = document.createElement('option');
+  providerSelect.innerHTML = "";
+  staticProviders.forEach((p) => {
+    const opt = document.createElement("option");
     opt.value = p;
     opt.textContent = p;
     providerSelect.appendChild(opt);
@@ -462,17 +549,17 @@ function updateProviderDropdown() {
   const lang = languageSelect.value;
   const providers = availableProviders[lang];
 
-  providerSelect.innerHTML = '';
+  providerSelect.innerHTML = "";
   if (providers && providers.length) {
-    providers.forEach(p => {
-      const opt = document.createElement('option');
+    providers.forEach((p) => {
+      const opt = document.createElement("option");
       opt.value = p;
       opt.textContent = p;
       providerSelect.appendChild(opt);
     });
   } else {
-    staticProviders.forEach(p => {
-      const opt = document.createElement('option');
+    staticProviders.forEach((p) => {
+      const opt = document.createElement("option");
       opt.value = p;
       opt.textContent = p;
       providerSelect.appendChild(opt);
@@ -483,8 +570,8 @@ function updateProviderDropdown() {
 
 function selectDefaultProvider() {
   for (const opt of providerSelect.options) {
-    if (opt.value === 'VOE') {
-      providerSelect.value = 'VOE';
+    if (opt.value === "VOE") {
+      providerSelect.value = "VOE";
       return;
     }
   }
@@ -492,7 +579,10 @@ function selectDefaultProvider() {
 
 async function startDownload(all) {
   const episodes = all ? getAllEpisodeUrls() : getSelectedEpisodeUrls();
-  if (!episodes.length) { showToast(all ? 'No episodes available.' : 'No episodes selected.'); return; }
+  if (!episodes.length) {
+    showToast(all ? "No episodes available." : "No episodes selected.");
+    return;
+  }
 
   const language = languageSelect.value;
   const provider = providerSelect.value;
@@ -506,15 +596,15 @@ async function startDownload(all) {
       language,
       provider,
       title: currentSeriesTitle,
-      series_url: currentSeriesUrl
+      series_url: currentSeriesUrl,
     };
     if (customPathSelect && customPathSelect.value) {
       dlBody.custom_path_id = parseInt(customPathSelect.value);
     }
-    const resp = await fetch('/api/download', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(dlBody)
+    const resp = await fetch("/api/download", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dlBody),
     });
     const data = await resp.json();
     if (data.error) {
@@ -522,10 +612,52 @@ async function startDownload(all) {
       return;
     }
 
-    showToast('Added to download queue');
-    if (typeof loadQueue === 'function') loadQueue();
+    showToast("Added to download queue");
+    if (typeof loadQueue === "function") loadQueue();
   } catch (e) {
-    showToast('Download request failed: ' + e.message);
+    showToast("Download request failed: " + e.message);
+  } finally {
+    downloadAllBtn.disabled = false;
+    downloadSelectedBtn.disabled = false;
+    addEpisodeFileBtn.disabled = false;
+  }
+}
+
+async function addEpisodeFile() {
+  const episodes = getSelectedEpisodeUrls();
+  
+  const language = languageSelect.value;
+  const provider = providerSelect.value;
+
+  downloadAllBtn.disabled = true;
+  downloadSelectedBtn.disabled = true;
+  addEpisodeFileBtn.disabled = true;
+  try {
+    const watchBody = {
+      episodes,
+      language,
+      provider,
+      title: currentSeriesTitle,
+      series_url: currentSeriesUrl,
+    };
+    if (customPathSelect && customPathSelect.value) {
+      dlBody.custom_path_id = parseInt(customPathSelect.value);
+    }
+    const resp = await fetch("/api/download", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dlBody),
+    });
+    const data = await resp.json();
+    if (data.error) {
+      showToast(data.error);
+      return;
+    }
+
+    showToast("Added to download queue");
+    if (typeof loadQueue === "function") loadQueue();
+  } catch (e) {
+    showToast("Download request failed: " + e.message);
   } finally {
     downloadAllBtn.disabled = false;
     downloadSelectedBtn.disabled = false;
@@ -576,47 +708,142 @@ async function addEpisodeFile() {
 }
 
 function closeModal() {
-  overlay.style.display = 'none';
+  overlay.style.display = "none";
+  if (autoSyncCheck) autoSyncCheck.checked = false;
 }
-function closeModalOutside(e) { if (e.target === overlay) closeModal(); }
+function closeModalOutside(e) {
+  if (e.target === overlay) closeModal();
+}
+
+// Auto-Sync toggle from modal checkbox
+async function toggleAutoSync() {
+  if (!autoSyncCheck) return;
+  if (autoSyncCheck.checked) {
+    // Select all episodes
+    selectAllCb.checked = true;
+    toggleSelectAll();
+    // Create sync job
+    try {
+      const body = {
+        title: currentSeriesTitle,
+        series_url: currentSeriesUrl,
+        language: languageSelect.value,
+        provider: providerSelect.value,
+      };
+      if (customPathSelect && customPathSelect.value) {
+        body.custom_path_id = parseInt(customPathSelect.value);
+      }
+      const resp = await fetch("/api/autosync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        showToast('Auto-Sync enabled for "' + currentSeriesTitle + '"');
+      } else if (resp.status === 409 && data.job) {
+        // Job already exists — update it with current modal settings
+        const updateBody = {
+          language: languageSelect.value,
+          provider: providerSelect.value,
+          custom_path_id:
+            customPathSelect && customPathSelect.value
+              ? parseInt(customPathSelect.value)
+              : null,
+        };
+        const putResp = await fetch("/api/autosync/" + data.job.id, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updateBody),
+        });
+        const putData = await putResp.json();
+        if (putData.ok) {
+          showToast('Auto-Sync updated for "' + currentSeriesTitle + '"');
+        } else {
+          showToast(putData.error || "Failed to update sync job");
+        }
+      } else if (data.error) {
+        showToast(data.error);
+      }
+    } catch (e) {
+      showToast("Failed to create sync job");
+      autoSyncCheck.checked = false;
+    }
+  } else {
+    // Remove sync job
+    try {
+      const resp = await fetch(
+        "/api/autosync/check?url=" + encodeURIComponent(currentSeriesUrl),
+      );
+      const data = await resp.json();
+      if (data.exists && data.job) {
+        const delResp = await fetch("/api/autosync/" + data.job.id, {
+          method: "DELETE",
+        });
+        const delData = await delResp.json();
+        if (delData.ok) {
+          showToast('Auto-Sync disabled for "' + currentSeriesTitle + '"');
+        } else {
+          showToast(delData.error || "Failed to remove sync job");
+          autoSyncCheck.checked = true;
+        }
+      }
+    } catch (e) {
+      showToast("Failed to remove sync job");
+      autoSyncCheck.checked = true;
+    }
+  }
+}
 
 function showToast(msg) {
-  const t = document.getElementById('toast');
+  const t = document.getElementById("toast");
   t.textContent = msg;
-  t.style.display = 'block';
-  setTimeout(() => t.style.display = 'none', 4000);
+  t.style.display = "block";
+  setTimeout(() => (t.style.display = "none"), 4000);
 }
 
 function unesc(s) {
-  const d = document.createElement('textarea');
-  d.innerHTML = s || '';
+  const d = document.createElement("textarea");
+  d.innerHTML = s || "";
   return d.value;
 }
 
 function esc(s) {
-  const d = document.createElement('div');
+  const d = document.createElement("div");
   d.textContent = unesc(s);
   return d.innerHTML;
 }
 
 let langSeparationEnabled = false;
-const downloadAllLangsBtn = document.getElementById('downloadAllLangsBtn');
+const downloadAllLangsBtn = document.getElementById("downloadAllLangsBtn");
+let defaultSyncLanguage = "German Dub";
 
 async function checkLangSeparation() {
   try {
-    const resp = await fetch('/api/settings');
+    const resp = await fetch("/api/settings");
     const data = await resp.json();
-    langSeparationEnabled = data.lang_separation === '1';
-    if (downloadAllLangsBtn) {
-      downloadAllLangsBtn.style.display = langSeparationEnabled ? '' : 'none';
+    langSeparationEnabled = data.lang_separation === "1";
+    if (data.sync_language) {
+      defaultSyncLanguage = data.sync_language;
     }
-  } catch (e) { /* ignore */ }
+    if (downloadAllLangsBtn) {
+      downloadAllLangsBtn.style.display = langSeparationEnabled ? "" : "none";
+    }
+  } catch (e) {
+    /* ignore */
+  }
 }
 
 async function startDownloadAllLangs() {
   const episodes = getAllEpisodeUrls();
-  if (!episodes.length) { showToast('No episodes available.'); return; }
-  if (!availableProviders) { showToast('Provider data not loaded yet.'); return; }
+  if (!episodes.length) {
+    showToast("No episodes available.");
+    return;
+  }
+  if (!availableProviders) {
+    showToast("Provider data not loaded yet.");
+    return;
+  }
 
   downloadAllLangsBtn.disabled = true;
   downloadAllBtn.disabled = true;
@@ -626,29 +853,29 @@ async function startDownloadAllLangs() {
   try {
     for (const [lang, providers] of Object.entries(availableProviders)) {
       if (!providers.length) continue;
-      const provider = providers.includes('VOE') ? 'VOE' : providers[0];
+      const provider = providers.includes("VOE") ? "VOE" : providers[0];
       const dlBody = {
         episodes,
         language: lang,
         provider,
         title: currentSeriesTitle,
-        series_url: currentSeriesUrl
+        series_url: currentSeriesUrl,
       };
       if (customPathSelect && customPathSelect.value) {
         dlBody.custom_path_id = parseInt(customPathSelect.value);
       }
-      const resp = await fetch('/api/download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dlBody)
+      const resp = await fetch("/api/download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dlBody),
       });
       const data = await resp.json();
       if (!data.error) queued++;
     }
-    showToast('Queued downloads for ' + queued + ' language(s)');
-    if (typeof loadQueue === 'function') loadQueue();
+    showToast("Queued downloads for " + queued + " language(s)");
+    if (typeof loadQueue === "function") loadQueue();
   } catch (e) {
-    showToast('Failed to queue downloads: ' + e.message);
+    showToast("Failed to queue downloads: " + e.message);
   } finally {
     downloadAllLangsBtn.disabled = false;
     downloadAllBtn.disabled = false;
