@@ -294,7 +294,6 @@ class AniworldSeason:
                 # The AniworldEpisode class should handle None episode_number appropriately
                 if self.season_number >= self.__min_seasons:
                     if self.season_number != self.__min_seasons or (self.season_number == self.__min_seasons and ep_num >= self.__min_episode):
-                        print("movie:" + str(self.are_movies) + ", season: " + str(self.season_number) + ", episode: " + str(ep_num)+ ", min_season: " + str(self.__min_seasons) + ", min_episode: " + str(self.__min_episode))
                         episodes.append(
                             AniworldEpisode(
                                 series=self.series,
