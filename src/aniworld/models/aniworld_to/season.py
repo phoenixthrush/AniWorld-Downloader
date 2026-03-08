@@ -30,7 +30,13 @@ class AniworldSeason:
         syncplay()
     """
 
-    def __init__(self, url, series=None, min_seasion: int=0, min_episode: int=0):
+    def __init__(self, 
+                 url, 
+                 series=None, 
+                 min_seasion: int=0, 
+                 min_episode: int=0,
+                 selected_language=None,
+                 ):
         if not self.is_valid_aniworld_season_url(url):
             raise ValueError(f"Invalid AniWorld season URL: {url}")
 
@@ -45,6 +51,7 @@ class AniworldSeason:
 
         self.__min_seasons = min_seasion
         self.__min_episode = min_episode
+        self.__selected_language = selected_language
 
         self.__html = None
 
@@ -302,6 +309,7 @@ class AniworldSeason:
                                 episode_number=ep_num,
                                 title_de=title_de,
                                 title_en=title_en,
+                                selected_language=self.__selected_language,
                             )
                         )
 

@@ -42,7 +42,11 @@ class AniworldSeries:
         syncplay()
     """
 
-    def __init__(self, url: str, min_seasion: int=0, min_episode: int=0):
+    def __init__(self, 
+                 url: str, 
+                 min_seasion: int=0, 
+                 min_episode: int=0,
+                 selected_language=None,):
         if not self.is_valid_aniworld_series_url(url):
             raise ValueError(f"Invalid AniWorld series URL: {url}")
 
@@ -71,7 +75,8 @@ class AniworldSeries:
         self.__season_count = None
 
         self.__min_seasons = min_seasion
-        self.__min_episode = min_episode
+        self.__min_episode = min_episode        
+        self.__selected_language = selected_language
 
         self.__html = None
 
@@ -699,7 +704,7 @@ class AniworldSeries:
             if url in seen:
                 continue
             seen.add(url)
-            season = AniworldSeason(url, series=self, min_seasion=self.__min_seasons, min_episode=self.__min_episode)
+            season = AniworldSeason(url, series=self, min_seasion=self.__min_seasons, min_episode=self.__min_episode, selected_language=self.__selected_language)
             if season.season_number >= self.__min_seasons:
                 seasons.append(season)
 
@@ -709,7 +714,7 @@ class AniworldSeries:
             if os.environ["ANIWORLD_INCLUDE_MOVIES"] == "1":
                 seasons.append(AniworldSeason(f"{self.url}/filme", series=self))
             else:
-                season = AniworldSeason(f"{self.url}/filme", series=self, min_seasion=self.__min_seasons, min_episode=self.__min_episode)
+                season = AniworldSeason(f"{self.url}/filme", series=self, min_seasion=self.__min_seasons, min_episode=self.__min_episode, selected_language=self.__selected_language)
                 if season.season_number >= self.__min_seasons:
                     seasons.append(season)
 

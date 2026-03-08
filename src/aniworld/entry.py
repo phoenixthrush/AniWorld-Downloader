@@ -133,7 +133,7 @@ def aniworld():
                 elif len(url) == 4:
                     provider = resolve_provider(url[0])
                     if provider.series_pattern and provider.series_pattern.fullmatch(url[0]):
-                        obj = provider.series_cls(url=url[0], min_seasion=url[2], min_episode=url[3])
+                        obj = provider.series_cls(url=url[0], min_seasion=url[2], min_episode=url[3], selected_language=url[1])
                     else:
                         raise ValueError(f"Invalid URL format: {url}")
                 else:
