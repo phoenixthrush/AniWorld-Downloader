@@ -20,6 +20,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Default download directory used by the application
 ENV ANIWORLD_DOWNLOAD_PATH=/app/Downloads
 
+# Default sync directory used by the application
+ENV ANIWORLD_SYNC_PATH=/app/Sync
+
 # Copy packaging metadata first to maximize Docker layer cache hits for dependency installs
 COPY pyproject.toml /app/
 COPY README.md LICENSE MANIFEST.in /app/

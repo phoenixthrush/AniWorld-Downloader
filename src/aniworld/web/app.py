@@ -282,20 +282,27 @@ def _run_autosync_for_job(job):
                 target_lang, target_lang.lower().replace(" ", "-")
             )
 
-            raw = os.environ.get("ANIWORLD_DOWNLOAD_PATH", "")
-            if raw:
-                dl_base = Path(raw).expanduser()
-                if not dl_base.is_absolute():
-                    dl_base = Path.home() / dl_base
+            sync_raw = os.environ.get("ANIWORLD_SYNC_PATH", "")
+            if sync_raw:
+                sync_base = Path(sync_raw).expanduser()
+                if not sync_base.is_absolute():
+                    sync_base = Path.home() / sync_base
+            else:
+                sync_base = Path.home() / "Downloads"
+
+            dl_raw = os.environ.get("ANIWORLD_DOWNLOAD_PATH", "")
+            if dl_raw:
+                dl_base = Path(dl_raw).expanduser()
             else:
                 dl_base = Path.home() / "Downloads"
 
-            scan_roots = [dl_base]
+            scan_roots = [sync_base, dl_base]
             for cp in get_custom_paths():
                 cp_path = Path(cp["path"]).expanduser()
                 if not cp_path.is_absolute():
                     cp_path = Path.home() / cp_path
-                scan_roots.append(cp_path)
+                if cp_path not in scan_roots:
+                    scan_roots.append(cp_path)
 
             # Build set of downloaded (season, episode) on disk
             downloaded_eps = set()
@@ -730,16 +737,16 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             lang_sep = os.environ.get("ANIWORLD_LANG_SEPARATION", "0") == "1"
             lang_folders = ["german-dub", "english-sub", "german-sub", "english-dub"]
 
-            raw = os.environ.get("ANIWORLD_DOWNLOAD_PATH", "")
+            raw = os.environ.get("ANIWORLD_SYNC_PATH", "")
             if raw:
-                dl_base = Path(raw).expanduser()
-                if not dl_base.is_absolute():
-                    dl_base = Path.home() / dl_base
+                sync_base = Path(raw).expanduser()
+                if not sync_base.is_absolute():
+                    sync_base = Path.home() / sync_base
             else:
-                dl_base = Path.home() / "Downloads"
+                sync_base = Path.home() / "Downloads"
 
             # Collect all scan roots: default + custom paths
-            scan_roots = [dl_base]
+            scan_roots = [sync_base]
             for cp in get_custom_paths():
                 cp_path = Path(cp["path"]).expanduser()
                 if not cp_path.is_absolute():
@@ -1073,6 +1080,8 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         data = request.get_json(silent=True) or {}
         if "download_path" in data:
             os.environ["ANIWORLD_DOWNLOAD_PATH"] = str(data["download_path"]).strip()
+        if "sync_path" in data:
+            os.environ["ANIWORLD_SYNC_PATH"] = str(data["sync_path"]).strip()
         if "lang_separation" in data:
             os.environ["ANIWORLD_LANG_SEPARATION"] = (
                 "1" if data["lang_separation"] else "0"

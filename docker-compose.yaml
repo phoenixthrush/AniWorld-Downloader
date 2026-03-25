@@ -7,13 +7,16 @@ services:
     volumes:
       # Persist downloads on the host so they survive container recreation.
       - ./Downloads:/app/Downloads
+      - ./Sync:/app/Sync
       # Persist application config and auth database across restarts.
       - aniworld-data:/home/aniworld/.aniworld
 
     # NOTE: Create ./Downloads before running: mkdir -p Downloads
     # Docker creates missing bind-mount directories as root, causing permission errors.
 
-    # environment:
+    environment:
+      - ANIWORLD_DOWNLOAD_PATH=/app/Downloads
+      - ANIWORLD_SYNC_PATH=/app/Sync
     # --- General settings (uncomment the environment block to customise) ---
     #   ANIWORLD_LANGUAGE: "German Dub"               # Default language (German Dub | English Sub | German Sub | English Dub)
     #   ANIWORLD_PROVIDER: "VOE"                      # Default streaming provider

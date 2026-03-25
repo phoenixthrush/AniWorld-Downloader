@@ -137,6 +137,10 @@ endblock %} {% block content %}
       How often Auto-Sync checks for new episodes. Language and provider are
       defaults used when creating new sync jobs.
     </div>
+    <div class="settings-row">
+      <input type="text" id="syncPath" placeholder="/path/to/sync" />
+        <button onclick="saveSyncPath()">Save</button>
+    </div>
   </div>
   <div class="settings-section">
     <h2>Settings</h2>

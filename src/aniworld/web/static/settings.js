@@ -6,11 +6,15 @@ const syncScheduleSelect = document.getElementById("syncSchedule");
 const syncLanguageSelect = document.getElementById("syncLanguage");
 const syncProviderSelect = document.getElementById("syncProvider");
 
+//Sync path settings
+const syncPathInput = document.getElementById("syncPath");
+
 async function loadSettings() {
   try {
     const resp = await fetch("/api/settings");
     const data = await resp.json();
     downloadPathInput.value = data.download_path || "";
+    syncPathInput.value = data.sync_path || "";
     if (langSeparationCb)
       langSeparationCb.checked = data.lang_separation === "1";
     if (disableEnglishSubCb)
@@ -104,6 +108,25 @@ async function saveDisableEnglishSub() {
     );
   } catch (e) {
     showToast("Failed to save setting: " + e.message);
+  }
+}
+
+async function saveSyncPath() {
+  const sync_path = syncPathInput.value.trim();
+  try {
+    const resp = await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sync_path }),
+    });
+    const data = await resp.json();
+    if (data.error) {
+      showToast(data.error);
+      return;
+    }
+    showToast("Sync path saved");
+  } catch (e) {
+    showToast("Failed to save settings: " + e.message);
   }
 }
 
