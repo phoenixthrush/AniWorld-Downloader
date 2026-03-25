@@ -282,25 +282,28 @@ def _run_autosync_for_job(job):
                 target_lang, target_lang.lower().replace(" ", "-")
             )
 
-            sync_raw = os.environ.get("ANIWORLD_SYNC_PATH", "")
-            if sync_raw:
-                sync_base = Path(sync_raw).expanduser()
-                if not sync_base.is_absolute():
-                    sync_base = Path.home() / sync_base
-            else:
-                sync_base = Path.home() / "Downloads"
-
             dl_raw = os.environ.get("ANIWORLD_DOWNLOAD_PATH", "")
             if dl_raw:
                 dl_base = Path(dl_raw).expanduser()
             else:
                 dl_base = Path.home() / "Downloads"
 
-            scan_roots = [sync_base, dl_base]
+            scan_roots = [dl_base]
+
+            sync_raw = os.environ.get("ANIWORLD_SYNC_PATH", "")
+            if sync_raw:
+                sync_base = Path(sync_raw).expanduser()
+                if not sync_base.is_absolute():
+                    sync_base = Path.home() / sync_base
+                
+                if sync_base not in scan_roots:
+                    scan_roots.append(sync_base)
+
             for cp in get_custom_paths():
                 cp_path = Path(cp["path"]).expanduser()
                 if not cp_path.is_absolute():
                     cp_path = Path.home() / cp_path
+                
                 if cp_path not in scan_roots:
                     scan_roots.append(cp_path)
 
