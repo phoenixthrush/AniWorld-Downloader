@@ -29,6 +29,8 @@ let currentSeriesTitle = "";
 let currentSeriesUrl = "";
 // Provider data per language label
 let availableProviders = null;
+// Custom provider URL overrides: episodeUrl -> custom VOE/provider URL
+let episodeUrlOverrides = {};
 // Static list of providers rendered into the template
 const staticProviders = Array.from(providerSelect.options).map((o) => o.value);
 
@@ -344,6 +346,7 @@ async function openSeries(url) {
   seasonAccordion.innerHTML = "";
   statusBar.classList.remove("active");
   availableProviders = null;
+  episodeUrlOverrides = {};
   currentSeriesUrl = url;
   currentSeriesTitle = "";
   await checkLangSeparation();
@@ -445,7 +448,7 @@ function buildAccordion(seasons) {
         const dlIcon = ep.downloaded
           ? '<span class="ep-downloaded" title="Downloaded">&#10003;</span>'
           : "";
-        div.innerHTML = `<input type="checkbox" value="${esc(ep.url)}" data-season="${index}"><span class="ep-num">E${ep.episode_number}</span>${dlIcon}<span class="ep-title">${esc(title)}</span>`;
+        div.innerHTML = `<input type="checkbox" value="${esc(ep.url)}" data-season="${index}"><span class="ep-num">E${ep.episode_number}</span>${dlIcon}<span class="ep-title">${esc(title)}</span><button class="ep-url-btn" title="Custom provider URL" onclick="openUrlOverride(event, '${esc(ep.url)}')">&#128279;</button><span class="ep-url-indicator" id="ep-override-${btoa(ep.url).replace(/=/g,'')}"></span>`;
         body.appendChild(div);
       });
 
@@ -599,6 +602,14 @@ async function startDownload(all) {
     if (customPathSelect && customPathSelect.value) {
       dlBody.custom_path_id = parseInt(customPathSelect.value);
     }
+    // Only include overrides for episodes that are actually being downloaded
+    const relevantOverrides = {};
+    episodes.forEach((u) => {
+      if (episodeUrlOverrides[u]) relevantOverrides[u] = episodeUrlOverrides[u];
+    });
+    if (Object.keys(relevantOverrides).length) {
+      dlBody.url_overrides = relevantOverrides;
+    }
     const resp = await fetch("/api/download", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -626,6 +637,63 @@ function closeModal() {
 }
 function closeModalOutside(e) {
   if (e.target === overlay) closeModal();
+}
+
+function openUrlOverride(event, epUrl) {
+  event.stopPropagation();
+  const safeKey = btoa(epUrl).replace(/=/g, "");
+
+  // Toggle: if panel already open for this episode, close it
+  const existing = document.getElementById("ep-override-panel-" + safeKey);
+  if (existing) { existing.remove(); return; }
+
+  // Close any other open panels first
+  document.querySelectorAll(".ep-override-panel").forEach((p) => p.remove());
+
+  const epItem = event.target.closest(".episode-item");
+  if (!epItem) return;
+
+  const panel = document.createElement("div");
+  panel.className = "ep-override-panel";
+  panel.id = "ep-override-panel-" + safeKey;
+
+  const current = episodeUrlOverrides[epUrl] || "";
+  panel.innerHTML =
+    `<input class="ep-override-input" type="text" placeholder="Provider URL (e.g. https://voe.sx/e/...)" value="${esc(current)}">` +
+    `<button class="ep-override-save">Save</button>` +
+    `<button class="ep-override-clear">Remove</button>`;
+
+  // Insert right after the episode item
+  epItem.insertAdjacentElement("afterend", panel);
+
+  const inputEl = panel.querySelector(".ep-override-input");
+  inputEl.focus();
+  inputEl.select();
+
+  function save() {
+    const trimmed = inputEl.value.trim();
+    const indicator = document.getElementById("ep-override-" + safeKey);
+    if (trimmed) {
+      episodeUrlOverrides[epUrl] = trimmed;
+      if (indicator) { indicator.textContent = "\uD83D\uDD17"; indicator.title = trimmed; }
+    } else {
+      delete episodeUrlOverrides[epUrl];
+      if (indicator) { indicator.textContent = ""; indicator.title = ""; }
+    }
+    panel.remove();
+  }
+
+  panel.querySelector(".ep-override-save").addEventListener("click", save);
+  panel.querySelector(".ep-override-clear").addEventListener("click", () => {
+    delete episodeUrlOverrides[epUrl];
+    const indicator = document.getElementById("ep-override-" + safeKey);
+    if (indicator) { indicator.textContent = ""; indicator.title = ""; }
+    panel.remove();
+  });
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") save();
+    if (e.key === "Escape") panel.remove();
+  });
 }
 
 // Auto-Sync toggle from modal checkbox

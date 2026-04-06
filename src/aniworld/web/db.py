@@ -272,6 +272,13 @@ def init_queue_db():
             conn.execute("ALTER TABLE download_queue ADD COLUMN captcha_url TEXT")
         except Exception:
             pass  # column already exists
+        # Add url_overrides column (migration for existing DBs)
+        try:
+            conn.execute(
+                "ALTER TABLE download_queue ADD COLUMN url_overrides TEXT NOT NULL DEFAULT '{}'"
+            )
+        except Exception:
+            pass  # column already exists
         conn.commit()
     finally:
         conn.close()
@@ -286,14 +293,15 @@ def add_to_queue(
     username=None,
     custom_path_id=None,
     source="manual",
+    url_overrides=None,
 ):
     import json
 
     conn = get_db()
     try:
         cur = conn.execute(
-            "INSERT INTO download_queue (title, series_url, episodes, total_episodes, language, provider, username, custom_path_id, source) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO download_queue (title, series_url, episodes, total_episodes, language, provider, username, custom_path_id, source, url_overrides) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 title,
                 series_url,
@@ -304,6 +312,7 @@ def add_to_queue(
                 username,
                 custom_path_id,
                 source,
+                json.dumps(url_overrides or {}),
             ),
         )
         row_id = cur.lastrowid

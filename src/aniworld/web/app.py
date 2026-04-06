@@ -175,6 +175,12 @@ def _queue_worker():
 
             from ..playwright import captcha as _captcha_mod
 
+            url_overrides = {}
+            try:
+                url_overrides = json.loads(item.get("url_overrides") or "{}")
+            except Exception:
+                pass
+
             for i, ep_url in enumerate(episodes):
                 update_queue_progress(item["id"], i, ep_url)
                 try:
@@ -187,6 +193,17 @@ def _queue_worker():
                     if selected_path:
                         ep_kwargs["selected_path"] = selected_path
                     episode = prov.episode_cls(**ep_kwargs)
+                    # Inject custom provider URL override if set for this episode
+                    override_url = url_overrides.get(ep_url)
+                    if override_url:
+                        try:
+                            episode._AniworldEpisode__provider_url = override_url
+                        except AttributeError:
+                            pass
+                        try:
+                            episode._SerienstreamEpisode__provider_url = override_url
+                        except AttributeError:
+                            pass
                     _captcha_mod._local.queue_id = item["id"]
                     try:
                         episode.download()
@@ -896,6 +913,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 )
 
         custom_path_id = data.get("custom_path_id")
+        url_overrides = data.get("url_overrides") or {}
 
         queue_id = add_to_queue(
             title,
@@ -905,6 +923,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             provider,
             username,
             custom_path_id=custom_path_id,
+            url_overrides=url_overrides,
         )
         return jsonify({"queue_id": queue_id})
 
