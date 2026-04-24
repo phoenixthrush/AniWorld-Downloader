@@ -495,6 +495,13 @@ def _get_version():
         return ""
 
 
+def _proxy_image_url(url: str) -> str:
+    if not url:
+        return url
+    from urllib.parse import quote
+    return f"/api/proxy-image?url={quote(url, safe='')}"
+
+
 def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     import os
 
@@ -714,7 +721,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             return jsonify(
                 {
                     "title": series.title,
-                    "poster_url": poster,
+                    "poster_url": _proxy_image_url(poster),
                     "description": getattr(series, "description", ""),
                     "genres": getattr(series, "genres", []),
                     "release_year": getattr(series, "release_year", ""),
@@ -1056,6 +1063,25 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             return jsonify({"url": url})
         return jsonify({"error": "Failed to fetch random anime"}), 500
 
+    @app.route("/api/proxy-image")
+    def api_proxy_image():
+        from flask import Response
+        target = request.args.get("url", "").strip()
+        if not target or not target.startswith(("http://", "https://")):
+            return "", 400
+        try:
+            resp = requests.get(target, timeout=10, stream=True)
+            resp.raise_for_status()
+            content_type = resp.headers.get("Content-Type", "image/jpeg")
+            return Response(
+                resp.iter_content(chunk_size=8192),
+                content_type=content_type,
+                headers={"Cache-Control": "public, max-age=3600"},
+            )
+        except Exception as e:
+            logger.warning(f"Image proxy failed for {target}: {e}")
+            return "", 502
+
     # TTL cache for browse endpoints so long-running instances stay fresh
     import time as _time
 
@@ -1077,28 +1103,32 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         results = _cached_browse("new_animes", fetch_new_animes)
         if results is None:
             return jsonify({"error": "Failed to fetch new animes"}), 500
-        return jsonify({"results": results})
+        proxied = [{**r, "poster_url": _proxy_image_url(r.get("poster_url", ""))} for r in results]
+        return jsonify({"results": proxied})
 
     @app.route("/api/popular-animes")
     def api_popular_animes():
         results = _cached_browse("popular_animes", fetch_popular_animes)
         if results is None:
             return jsonify({"error": "Failed to fetch popular animes"}), 500
-        return jsonify({"results": results})
+        proxied = [{**r, "poster_url": _proxy_image_url(r.get("poster_url", ""))} for r in results]
+        return jsonify({"results": proxied})
 
     @app.route("/api/new-series")
     def api_new_series():
         results = _cached_browse("new_series", fetch_new_series)
         if results is None:
             return jsonify({"error": "Failed to fetch new series"}), 500
-        return jsonify({"results": results})
+        proxied = [{**r, "poster_url": _proxy_image_url(r.get("poster_url", ""))} for r in results]
+        return jsonify({"results": proxied})
 
     @app.route("/api/popular-series")
     def api_popular_series():
         results = _cached_browse("popular_series", fetch_popular_series)
         if results is None:
             return jsonify({"error": "Failed to fetch popular series"}), 500
-        return jsonify({"results": results})
+        proxied = [{**r, "poster_url": _proxy_image_url(r.get("poster_url", ""))} for r in results]
+        return jsonify({"results": proxied})
 
     @app.route("/api/downloaded-folders")
     def api_downloaded_folders():
