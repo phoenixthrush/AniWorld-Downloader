@@ -59,6 +59,17 @@ def get_mpv_windows_url(v3: bool = False) -> str:
 
 
 # -----------------------------
+# FFmpeg
+# -----------------------------
+def get_ffmpeg_windows_url() -> str:
+    """Get the latest Windows FFmpeg full-build ZIP URL from BtbN/FFmpeg-Builds."""
+    repo = "BtbN/FFmpeg-Builds"
+    pattern = r"ffmpeg-master-latest-win64-gpl\.zip$"
+    urls = fetch_github_asset_urls(repo, pattern)
+    return urls[0] if urls else None
+
+
+# -----------------------------
 # Syncplay
 # -----------------------------
 def get_syncplay_release_url() -> List[str]:
@@ -130,6 +141,11 @@ class DependencyManager:
             url = get_mpv_windows_url()
             dep_info["url"] = url
 
+        # Lazy resolution for FFmpeg Windows URL
+        if name == "ffmpeg" and PLATFORM == "Windows" and not url:
+            url = get_ffmpeg_windows_url()
+            dep_info["url"] = url
+
         local_path = self.install_folder / Path(url).name if url else None
 
         # Local folder
@@ -139,11 +155,11 @@ class DependencyManager:
 
         # Package manager
         if self._install_with_package_manager(name):
-            if local_path.exists():
-                return local_path
             sys_path_after = shutil.which(name)
             if sys_path_after:
                 return Path(sys_path_after)
+            if local_path and local_path.exists():
+                return local_path
 
         # Download fallback
         self.logger.debug(f"Downloading {name} for {PLATFORM} from {url}...")
