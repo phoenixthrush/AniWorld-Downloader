@@ -3,15 +3,17 @@ import random
 import re
 import time
 import warnings
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import niquests
 from urllib3.exceptions import InsecureRequestWarning
 
 try:
-    from ...config import DEFAULT_USER_AGENT
+    from ...config import DEFAULT_USER_AGENT, GLOBAL_SESSION
+    from ...playwright.captcha import solve_captcha
 except ImportError:
-    from aniworld.config import DEFAULT_USER_AGENT
+    from aniworld.config import DEFAULT_USER_AGENT, GLOBAL_SESSION
+    from aniworld.playwright.captcha import solve_captcha
 
 warnings.simplefilter("ignore", InsecureRequestWarning)
 
@@ -20,7 +22,7 @@ warnings.simplefilter("ignore", InsecureRequestWarning)
 # -----------------------------
 DOODSTREAM_BASE_URL = "https://dood.li"
 RANDOM_STRING_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-PASS_MD5_PATTERN = r"\$\.get\('([^']*\/pass_md5\/[^']*)'"
+PASS_MD5_PATTERN = r"\$\.get\([\"']([^\"']*\/pass_md5\/[^\"']*)[\"']"
 TOKEN_PATTERN = r"token=([a-zA-Z0-9]+)"
 
 
@@ -32,6 +34,9 @@ def _get_headers(referer=None):
     return {
         "User-Agent": DEFAULT_USER_AGENT,
         "Referer": referer or f"{DOODSTREAM_BASE_URL}/",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Accept-Encoding": "gzip, deflate",
     }
 
 
@@ -51,9 +56,27 @@ def _generate_random_string(length=10):
 def _get_embed_page(embed_url, headers=None):
     """Fetch HTML content of the embed page."""
     headers = headers or _get_headers()
-    resp = niquests.get(embed_url, headers=headers, verify=False)
+    resp = GLOBAL_SESSION.get(embed_url, headers=headers, verify=False)
+    html = resp.text
+    if "Just a moment..." in html and "cloudflare" in html.lower():
+        logging.warning(f"Cloudflare challenge on Doodstream — solving via browser: {resp.url}")
+        solve_captcha(embed_url)
+        resp = GLOBAL_SESSION.get(embed_url, headers=headers, verify=False)
+        html = resp.text
+        if "Just a moment..." in html and "cloudflare" in html.lower():
+            raise ValueError(
+                f"Doodstream Cloudflare challenge unsolvable: {resp.url}"
+            )
     resp.raise_for_status()
-    return resp.text
+    return html
+
+
+def _get_base_url(url):
+    """Return the scheme/netloc base URL for the active Doodstream mirror."""
+    parsed = urlparse(url)
+    if not parsed.scheme or not parsed.netloc:
+        return DOODSTREAM_BASE_URL
+    return f"{parsed.scheme}://{parsed.netloc}"
 
 
 def _get_pass_md5_url(embed_html, embed_url):
@@ -62,7 +85,7 @@ def _get_pass_md5_url(embed_html, embed_url):
         PASS_MD5_PATTERN, embed_html, "pass_md5 URL", embed_url
     )
     if not pass_md5_url.startswith("http"):
-        pass_md5_url = urljoin(DOODSTREAM_BASE_URL, pass_md5_url)
+        pass_md5_url = urljoin(_get_base_url(embed_url), pass_md5_url)
     return pass_md5_url
 
 
@@ -80,13 +103,15 @@ def get_direct_link_from_doodstream(embed_url):
         raise ValueError("Embed URL cannot be empty")
 
     logging.info(f"Extracting Doodstream direct link from: {embed_url}")
-    headers = _get_headers(embed_url)
+    base_url = _get_base_url(embed_url)
+    embed_headers = _get_headers(f"{base_url}/")
+    md5_headers = _get_headers(embed_url)
 
-    embed_html = _get_embed_page(embed_url, headers)
+    embed_html = _get_embed_page(embed_url, embed_headers)
     pass_md5_url = _get_pass_md5_url(embed_html, embed_url)
     token = _get_token(embed_html, embed_url)
 
-    md5_resp = niquests.get(pass_md5_url, headers=headers, verify=False)
+    md5_resp = GLOBAL_SESSION.get(pass_md5_url, headers=md5_headers, verify=False)
     md5_resp.raise_for_status()
     video_base_url = md5_resp.text.strip()
     if not video_base_url:

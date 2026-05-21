@@ -254,7 +254,7 @@ async function openEditModal(id) {
     });
     langSelect.value = job.language || "German Dub";
 
-    document.getElementById("editProvider").value = job.provider || "VOE";
+    document.getElementById("editProvider").value = job.provider || "Auto";
     document.getElementById("editEnabled").value = job.enabled ? "1" : "0";
 
     // Populate path dropdown

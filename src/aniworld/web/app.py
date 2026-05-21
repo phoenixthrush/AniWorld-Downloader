@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import threading
 import time
@@ -7,9 +8,19 @@ import requests
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_wtf.csrf import CSRFProtect
 
-from ..config import LANG_KEY_MAP, LANG_LABELS, SUPPORTED_PROVIDERS
+from ..config import (
+    AUTO_PROVIDER,
+    LANG_KEY_MAP,
+    LANG_LABELS,
+    SUPPORTED_PROVIDERS,
+    get_max_parallel_downloads,
+)
 from ..extractors import provider_functions
 from ..logger import get_logger
+from ..models.common.common import (
+    clear_ffmpeg_progress_queue_id,
+    set_ffmpeg_progress_queue_id,
+)
 from ..providers import resolve_provider
 from ..search import (
     fetch_new_animes,
@@ -75,6 +86,7 @@ def _get_working_providers():
 
 
 WORKING_PROVIDERS = _get_working_providers()
+PROVIDER_OPTIONS = (AUTO_PROVIDER,) + WORKING_PROVIDERS
 
 # Only match series-level links: /anime/stream/<slug> (no season/episode)
 _SERIES_LINK_PATTERN = re.compile(r"^/anime/stream/[a-zA-Z0-9\-]+/?$", re.IGNORECASE)
@@ -135,20 +147,26 @@ def _fetch_public_ip():
     raise RuntimeError(last_error or "Failed to resolve public IP")
 
 
-def _queue_worker():
-    """Single global worker that processes one download at a time."""
+def _queue_worker(worker_id=1):
+    """Process queued downloads. Multiple workers may run in parallel."""
     while True:
         try:
             item = None
             with _queue_lock:
-                if not get_running():
-                    item = get_next_queued()
-                    if item:
-                        set_queue_status(item["id"], "running")
+                item = get_next_queued()
+                if item:
+                    set_queue_status(item["id"], "running")
 
             if not item:
                 time.sleep(3)
                 continue
+
+            logger.info(
+                "Queue worker %s started item %s (%s)",
+                worker_id,
+                item["id"],
+                item["title"],
+            )
 
             episodes = json.loads(item["episodes"])
             errors = []
@@ -214,12 +232,15 @@ def _queue_worker():
                         ep_kwargs["selected_path"] = selected_path
                     episode = prov.episode_cls(**ep_kwargs)
                     _captcha_mod._local.queue_id = item["id"]
+                    set_ffmpeg_progress_queue_id(item["id"])
                     try:
                         episode.download()
                     finally:
                         _captcha_mod._local.queue_id = None
+                        clear_ffmpeg_progress_queue_id()
                 except Exception as e:
                     _captcha_mod._local.queue_id = None
+                    clear_ffmpeg_progress_queue_id()
                     logger.error(f"Download failed for {ep_url}: {e}")
                     errors.append({"url": ep_url, "error": str(e)})
                     update_queue_errors(item["id"], json.dumps(errors))
@@ -244,7 +265,7 @@ def _queue_worker():
 
 
 def _ensure_queue_worker():
-    """Start the queue worker thread once."""
+    """Start queue worker threads once."""
     global _queue_worker_started
     if _queue_worker_started:
         return
@@ -262,8 +283,16 @@ def _ensure_queue_worker():
     finally:
         conn.close()
 
-    thread = threading.Thread(target=_queue_worker, daemon=True)
-    thread.start()
+    worker_count = get_max_parallel_downloads()
+    for worker_id in range(1, worker_count + 1):
+        thread = threading.Thread(
+            target=_queue_worker,
+            args=(worker_id,),
+            daemon=True,
+            name=f"aniworld-queue-{worker_id}",
+        )
+        thread.start()
+    logger.info("Started %d queue worker(s)", worker_count)
 
 
 def _run_autosync_for_job(job):
@@ -640,7 +669,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             "index.html",
             lang_labels=LANG_LABELS,
             sto_lang_labels=sto_lang_labels,
-            supported_providers=WORKING_PROVIDERS,
+            supported_providers=PROVIDER_OPTIONS,
             default_web_language=default_web_language,
         )
 
@@ -877,7 +906,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                         continue
                     working = [p for p in providers.keys() if p in WORKING_PROVIDERS]
                     if working:
-                        provider_info[label] = working
+                        provider_info[label] = [AUTO_PROVIDER] + working
             else:
                 # s.to: plain dict with (Audio, Subtitles) enum tuple keys
                 sto_label_map = {
@@ -890,7 +919,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                         continue
                     working = [p for p in providers.keys() if p in WORKING_PROVIDERS]
                     if working:
-                        provider_info[label] = working
+                        provider_info[label] = [AUTO_PROVIDER] + working
 
             return jsonify({"providers": provider_info})
         except Exception as e:
@@ -944,6 +973,17 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
         items = get_queue()
         ffmpeg_pct = get_ffmpeg_progress()
+        for item in items:
+            item["ffmpeg_progress"] = ffmpeg_pct.get(
+                str(item["id"]),
+                {
+                    "percent": 0.0,
+                    "time": "",
+                    "speed": "",
+                    "bandwidth": "",
+                    "active": False,
+                },
+            )
         return jsonify({"items": items, "ffmpeg_progress": ffmpeg_pct})
 
     @app.route("/api/queue/<int:queue_id>", methods=["DELETE"])
@@ -1154,7 +1194,8 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         disable_english_sub = os.environ.get("ANIWORLD_DISABLE_ENGLISH_SUB", "0")
         sync_schedule = os.environ.get("ANIWORLD_SYNC_SCHEDULE", "0")
         sync_language = os.environ.get("ANIWORLD_SYNC_LANGUAGE", "German Dub")
-        sync_provider = os.environ.get("ANIWORLD_SYNC_PROVIDER", "VOE")
+        sync_provider = os.environ.get("ANIWORLD_SYNC_PROVIDER", AUTO_PROVIDER)
+        max_parallel_downloads = str(get_max_parallel_downloads())
         return jsonify(
             {
                 "download_path": resolved,
@@ -1163,6 +1204,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 "sync_schedule": sync_schedule,
                 "sync_language": sync_language,
                 "sync_provider": sync_provider,
+                "max_parallel_downloads": max_parallel_downloads,
             }
         )
 
@@ -1201,9 +1243,13 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             os.environ["ANIWORLD_SYNC_LANGUAGE"] = lang
         if "sync_provider" in data:
             prov = str(data["sync_provider"])
-            if prov not in WORKING_PROVIDERS:
+            if prov not in PROVIDER_OPTIONS:
                 return jsonify({"error": f"Invalid sync_provider: {prov}"}), 400
             os.environ["ANIWORLD_SYNC_PROVIDER"] = prov
+        if "max_parallel_downloads" in data:
+            os.environ["ANIWORLD_MAX_PARALLEL_DOWNLOADS"] = str(
+                data["max_parallel_downloads"]
+            )
         return jsonify({"ok": True})
 
     @app.route("/api/custom-paths")

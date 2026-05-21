@@ -113,19 +113,63 @@ logger.debug("Config initialized successfully")
 # -----------------------------
 # Provider Stuff
 # -----------------------------
+AUTO_PROVIDER = "Auto"
+
 SUPPORTED_PROVIDERS = (
     "VOE",
     "Vidmoly",
     "Vidoza",
-    # "Doodstream",
+    "Doodstream",
     # "Filemoon",
     # "LoadX",
     # "Luluvdo",
     # "Streamtape",
 )
 
+PROVIDER_CHOICES = (AUTO_PROVIDER,) + SUPPORTED_PROVIDERS
+
+
+def get_provider_order():
+    """Return the provider order used by automatic provider selection."""
+    raw = os.getenv("ANIWORLD_PROVIDER_ORDER", "").strip()
+    if raw:
+        requested = [p.strip() for p in raw.split(",") if p.strip()]
+    else:
+        requested = list(SUPPORTED_PROVIDERS)
+
+    ordered = []
+    for provider in requested:
+        if provider in SUPPORTED_PROVIDERS and provider not in ordered:
+            ordered.append(provider)
+
+    for provider in SUPPORTED_PROVIDERS:
+        if provider not in ordered:
+            ordered.append(provider)
+
+    return tuple(ordered)
+
+
+def get_max_parallel_downloads():
+    """Return a bounded number of queue workers for the Web UI."""
+    raw = os.getenv("ANIWORLD_MAX_PARALLEL_DOWNLOADS", "2").strip()
+    try:
+        value = int(raw)
+    except ValueError:
+        logger.warning(
+            f"Invalid ANIWORLD_MAX_PARALLEL_DOWNLOADS={raw!r}, falling back to 2"
+        )
+        value = 2
+    return max(1, min(value, 8))
+
+
 PROVIDER_HEADERS_D = {
-    "Vidmoly": {"Referer": "https://vidmoly.biz"},
+    "Vidmoly": {
+        "User-Agent": DEFAULT_USER_AGENT,
+        "Referer": "https://vidmoly.biz/",
+        "Origin": "https://vidmoly.biz",
+        "Accept": "*/*",
+        "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
+    },
     "Doodstream": {"Referer": "https://dood.li/"},
     "VOE": {
         "User-Agent": DEFAULT_USER_AGENT,
@@ -147,7 +191,11 @@ PROVIDER_HEADERS_D = {
 }
 
 PROVIDER_HEADERS_W = {
-    "Vidmoly": {"Referer": "https://vidmoly.biz"},
+    "Vidmoly": {
+        "User-Agent": DEFAULT_USER_AGENT,
+        "Referer": "https://vidmoly.biz/",
+        "Origin": "https://vidmoly.biz",
+    },
     "Doodstream": {"Referer": "https://dood.li/"},
     "VOE": {"User-Agent": DEFAULT_USER_AGENT},
     "Luluvdo": {"User-Agent": LULUVDO_USER_AGENT},

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import npyscreen
 
-from .config import INVERSE_LANG_KEY_MAP, LANG_LABELS, VERSION, logger
+from .config import AUTO_PROVIDER, INVERSE_LANG_KEY_MAP, LANG_LABELS, VERSION, logger
 from .providers import resolve_provider
 
 
@@ -54,7 +54,10 @@ def _extract_menu_providers(provider_data: dict) -> list[str]:
         if isinstance(providers_map, dict):
             provider_names.update(str(p) for p in providers_map.keys())
 
-    return sorted(provider_names)
+    providers = sorted(provider_names)
+    if providers:
+        return [AUTO_PROVIDER] + [p for p in providers if p != AUTO_PROVIDER]
+    return providers
 
 
 # ============================================================

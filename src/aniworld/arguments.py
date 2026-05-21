@@ -8,7 +8,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from .anime4k import anime4k
-from .config import ACTION_METHODS, LANG_LABELS, SUPPORTED_PROVIDERS, VERSION
+from .config import ACTION_METHODS, LANG_LABELS, PROVIDER_CHOICES, VERSION
 from .logger import get_logger
 
 logger = get_logger(__name__)
@@ -138,7 +138,7 @@ def parse_args():
     playback.add_argument(
         "-p",
         "--provider",
-        choices=sorted(SUPPORTED_PROVIDERS),
+        choices=sorted(PROVIDER_CHOICES),
         help="Choose provider",
     )
 

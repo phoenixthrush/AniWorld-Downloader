@@ -684,6 +684,12 @@ function updateProviderDropdown() {
 
 function selectDefaultProvider() {
   for (const opt of providerSelect.options) {
+    if (opt.value === "Auto") {
+      providerSelect.value = "Auto";
+      return;
+    }
+  }
+  for (const opt of providerSelect.options) {
     if (opt.value === "VOE") {
       providerSelect.value = "VOE";
       return;
@@ -891,7 +897,7 @@ async function startDownloadAllLangs() {
   try {
     for (const [lang, providers] of Object.entries(availableProviders)) {
       if (!providers.length) continue;
-      const provider = providers.includes("VOE") ? "VOE" : providers[0];
+      const provider = providers.includes("Auto") ? "Auto" : providers[0];
       const dlBody = {
         episodes,
         language: lang,

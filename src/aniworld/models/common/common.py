@@ -8,6 +8,7 @@ import subprocess
 import sys
 import threading as _threading
 from typing import Tuple
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 import ffmpeg
 
@@ -15,27 +16,37 @@ from ...autodeps import DependencyManager
 
 try:
     from ...autodeps import get_player_path, get_syncplay_path
+    from ...extractors import provider_functions
     from ...config import (
+        AUTO_PROVIDER,
         INVERSE_LANG_LABELS,
         LANG_CODE_MAP,
         LANG_KEY_MAP,
+        GLOBAL_SESSION,
         PROVIDER_HEADERS_D,
         PROVIDER_HEADERS_W,
+        SUPPORTED_PROVIDERS,
         Audio,
         Subtitles,
+        get_provider_order,
         get_video_codec,
         logger,
     )
 except ImportError:
     from aniworld.autodeps import get_player_path, get_syncplay_path
+    from aniworld.extractors import provider_functions
     from aniworld.config import (
+        AUTO_PROVIDER,
         INVERSE_LANG_LABELS,
         LANG_CODE_MAP,
         LANG_KEY_MAP,
+        GLOBAL_SESSION,
         PROVIDER_HEADERS_D,
         PROVIDER_HEADERS_W,
+        SUPPORTED_PROVIDERS,
         Audio,
         Subtitles,
+        get_provider_order,
         get_video_codec,
         logger,
     )
@@ -142,21 +153,218 @@ def _remove_empty_dirs(folder_path, base_folder):
         pass
 
 
-# Thread-safe global for current ffmpeg download progress (used by web UI)
+def _reset_provider_cache(episode):
+    for attr in list(vars(episode)):
+        if attr.endswith("__redirect_url") or attr.endswith("__provider_url"):
+            setattr(episode, attr, None)
+
+
+def _set_selected_provider(episode, provider):
+    """Set the selected provider on episode classes with name-mangled fields."""
+    for attr in list(vars(episode)):
+        if attr.endswith("__selected_provider_param"):
+            setattr(episode, attr, provider)
+        elif attr.endswith("__selected_provider"):
+            setattr(episode, attr, None)
+    _reset_provider_cache(episode)
+
+
+def _language_values(language):
+    try:
+        return tuple(part.value for part in language)
+    except (TypeError, AttributeError):
+        return language
+
+
+def _language_matches(left, right):
+    return left == right or _language_values(left) == _language_values(right)
+
+
+def _language_for_provider_lookup(episode):
+    if hasattr(episode, "_normalize_language"):
+        return episode._normalize_language(episode.selected_language)
+
+    key = INVERSE_LANG_LABELS.get(episode.selected_language)
+    if key is not None:
+        return LANG_KEY_MAP[key]
+
+    return episode.selected_language
+
+
+def _provider_map_for_language(episode):
+    language = _language_for_provider_lookup(episode)
+    provider_data = episode.provider_data
+    data = provider_data._data if hasattr(provider_data, "_data") else provider_data
+
+    for key, providers in data.items():
+        if _language_matches(key, language):
+            return providers or {}
+
+    try:
+        return provider_data.get(language) or {}
+    except AttributeError:
+        return {}
+
+
+def _is_implemented_provider(provider):
+    return f"get_direct_link_from_{provider.lower()}" in provider_functions
+
+
+def _auto_provider_candidates(episode):
+    available = _provider_map_for_language(episode)
+    ordered = get_provider_order()
+
+    candidates = [
+        provider
+        for provider in ordered
+        if provider in available and _is_implemented_provider(provider)
+    ]
+
+    if not candidates:
+        candidates = [
+            provider
+            for provider in available
+            if provider in SUPPORTED_PROVIDERS and _is_implemented_provider(provider)
+        ]
+
+    if not candidates:
+        raise ValueError(
+            f"No implemented providers are available for {episode.selected_language}"
+        )
+
+    return candidates
+
+
+def _provider_candidates_for_download(episode):
+    requested = episode.selected_provider
+    if requested == AUTO_PROVIDER:
+        return _auto_provider_candidates(episode)
+    return [requested]
+
+
+def _cleanup_temp_files(episode):
+    for suffix in (
+        ".temp_full.mkv",
+        ".temp_audio.mkv",
+        ".temp_video.mkv",
+        ".new.mkv",
+        ".vidmoly_master.m3u8",
+    ):
+        temp = episode._episode_path.with_suffix(suffix)
+        if temp.exists():
+            temp.unlink()
+
+    for temp in episode._episode_path.parent.glob(
+        f"{episode._episode_path.stem}.vidmoly_*.m3u8"
+    ):
+        temp.unlink()
+
+
+def _append_query_if_missing(url, query):
+    if not query:
+        return url
+
+    parsed = urlsplit(url)
+    if parsed.query:
+        return url
+
+    return urlunsplit(
+        (parsed.scheme, parsed.netloc, parsed.path, query, parsed.fragment)
+    )
+
+
+def _materialize_vidmoly_variant_playlist(playlist_url, playlist_path, headers, query):
+    """Write a local Vidmoly variant playlist with signed segment URLs."""
+    resp = GLOBAL_SESSION.get(playlist_url, headers=headers, timeout=30)
+    resp.raise_for_status()
+    playlist = resp.text
+    if "#EXTM3U" not in playlist[:100]:
+        return playlist_url
+
+    parsed = urlsplit(playlist_url)
+    query = parsed.query or query
+    lines = []
+    for line in playlist.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            lines.append(line)
+            continue
+
+        segment_url = urljoin(playlist_url, stripped)
+        lines.append(_append_query_if_missing(segment_url, query))
+
+    playlist_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return playlist_path.name
+
+
+def _materialize_vidmoly_master_playlist(stream_url, playlist_path, headers):
+    """Write local Vidmoly playlists so FFmpeg keeps signed child/segment URLs."""
+    parsed_master = urlsplit(stream_url)
+    if parsed_master.scheme not in ("http", "https") or ".m3u8" not in parsed_master.path:
+        return stream_url
+
+    resp = GLOBAL_SESSION.get(stream_url, headers=headers, timeout=30)
+    resp.raise_for_status()
+    playlist = resp.text
+    if "#EXTM3U" not in playlist[:100]:
+        return stream_url
+
+    lines = []
+    variant_index = 0
+    for line in playlist.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            lines.append(line)
+            continue
+
+        child_url = urljoin(stream_url, stripped)
+        child_url = _append_query_if_missing(child_url, parsed_master.query)
+
+        if ".m3u8" in urlsplit(child_url).path:
+            variant_path = playlist_path.with_name(
+                f"{playlist_path.stem}_variant_{variant_index}.m3u8"
+            )
+            lines.append(
+                _materialize_vidmoly_variant_playlist(
+                    child_url, variant_path, headers, parsed_master.query
+                )
+            )
+            variant_index += 1
+        else:
+            lines.append(_append_query_if_missing(child_url, parsed_master.query))
+
+    playlist_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return str(playlist_path)
+
+
+# Thread-safe FFmpeg progress by queue item (used by web UI)
 _ffmpeg_progress_lock = _threading.Lock()
-_ffmpeg_progress = {
-    "percent": 0.0,
-    "time": "",
-    "speed": "",
-    "bandwidth": "",
-    "active": False,
-}
+_ffmpeg_progress = {}
+_ffmpeg_local = _threading.local()
+
+
+def _empty_ffmpeg_progress(active=False):
+    return {"percent": 0.0, "time": "", "speed": "", "bandwidth": "", "active": active}
+
+
+def set_ffmpeg_progress_queue_id(queue_id):
+    """Associate FFmpeg progress in the current thread with a queue item."""
+    _ffmpeg_local.queue_id = queue_id
+
+
+def clear_ffmpeg_progress_queue_id():
+    """Clear queue association for FFmpeg progress in the current thread."""
+    queue_id = getattr(_ffmpeg_local, "queue_id", None)
+    _ffmpeg_local.queue_id = None
+    if queue_id is not None:
+        with _ffmpeg_progress_lock:
+            _ffmpeg_progress[str(queue_id)] = _empty_ffmpeg_progress(active=False)
 
 
 def get_ffmpeg_progress():
-    """Return a snapshot of the current ffmpeg download progress."""
+    """Return a snapshot of FFmpeg progress keyed by queue item id."""
     with _ffmpeg_progress_lock:
-        return dict(_ffmpeg_progress)
+        return {key: dict(value) for key, value in _ffmpeg_progress.items()}
 
 
 def _parse_ffmpeg_time(time_str):
@@ -172,7 +380,7 @@ def _parse_ffmpeg_time(time_str):
 
 def _print_cli_progress(percent, time_str, speed_str, label=""):
     """Print a simple CLI progress bar without ANSI colors."""
-    if not sys.stderr.isatty():
+    if not sys.stderr.isatty() or _threading.current_thread() is not _threading.main_thread():
         return
     bar_width = 30
     filled = int(bar_width * percent / 100)
@@ -199,7 +407,10 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
     )
 
     debug_mode = os.getenv("ANIWORLD_DEBUG_MODE", "0") == "1"
-    is_tty = sys.stderr.isatty()
+    is_tty = (
+        sys.stderr.isatty()
+        and _threading.current_thread() is _threading.main_thread()
+    )
 
     # Regex to extract progress indicators from ffmpeg status lines
     _RE_FRAME = re.compile(r"frame=\s*(\d+)")
@@ -255,11 +466,10 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
     last_size_ts = None
     last_change = time.monotonic()
     total_duration = 0.0
+    progress_key = str(getattr(_ffmpeg_local, "queue_id", None) or "global")
 
     with _ffmpeg_progress_lock:
-        _ffmpeg_progress.update(
-            percent=0.0, time="", speed="", bandwidth="", active=True
-        )
+        _ffmpeg_progress[progress_key] = _empty_ffmpeg_progress(active=True)
 
     try:
         while True:
@@ -326,16 +536,19 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
                     elapsed = _parse_ffmpeg_time(cur_time_str)
                     percent = min((elapsed / total_duration) * 100, 100.0)
 
-                # Update global progress for web UI
+                # Update this queue item's progress for the Web UI.
                 with _ffmpeg_progress_lock:
-                    prev_bw = _ffmpeg_progress.get("bandwidth", "")
-                    _ffmpeg_progress.update(
+                    current_progress = _ffmpeg_progress.get(
+                        progress_key, _empty_ffmpeg_progress(active=True)
+                    )
+                    current_progress.update(
                         percent=round(percent, 1),
                         time=cur_time_str,
                         speed=cur_speed_str,
-                        bandwidth=cur_bw_str or prev_bw,
+                        bandwidth=cur_bw_str or current_progress.get("bandwidth", ""),
                         active=True,
                     )
+                    _ffmpeg_progress[progress_key] = current_progress
 
                 if debug_mode:
                     logger.info(f"[FFmpeg Progress] {line_str}")
@@ -371,9 +584,7 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
 
     finally:
         with _ffmpeg_progress_lock:
-            _ffmpeg_progress.update(
-                percent=0.0, time="", speed="", bandwidth="", active=False
-            )
+            _ffmpeg_progress[progress_key] = _empty_ffmpeg_progress(active=False)
 
     reader_thread.join(timeout=5)
     process.wait()
@@ -387,192 +598,210 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
         raise RuntimeError(f"ffmpeg error (rc={process.returncode}): {detail}")
 
 
+def _download_once_with_current_provider(self):
+    check = check_downloaded(self._episode_path)
+
+    headers = PROVIDER_HEADERS_D.get(self.selected_provider, {})
+    input_kwargs = {
+        "reconnect": 1,
+        "reconnect_streamed": 1,
+        "reconnect_delay_max": 300,  # wait up to 5 min for connection recovery
+    }
+    if headers:
+        header_list = [f"{k}: {v}" for k, v in headers.items()]
+        input_kwargs["headers"] = "\r\n".join(header_list) + "\r\n"
+
+    url = (getattr(self, "url", "") or "").lower()
+    is_serienstream = ("serienstream.to" in url) or ("s.to" in url)
+
+    if is_serienstream and hasattr(self, "_normalize_language"):
+        audio_enum, sub_enum = self._normalize_language(self.selected_language)
+        audio_code = {"German": "deu", "English": "eng"}.get(
+            getattr(audio_enum, "value", None)
+        )
+        if not audio_code:
+            raise ValueError(f"Unsupported audio language for serienstream.to: {audio_enum}")
+        wants_clean_video = True
+        sub_video_code = None
+    else:
+        selected_key = INVERSE_LANG_LABELS[self.selected_language]
+        audio_enum, sub_enum = LANG_KEY_MAP[selected_key]
+
+        audio_code = LANG_CODE_MAP[audio_enum]
+        wants_clean_video = sub_enum == Subtitles.NONE
+        sub_video_code = None if wants_clean_video else LANG_CODE_MAP[sub_enum]
+
+    has_video = bool(check["video_langs"])
+    has_audio = audio_code in check["audio_langs"]
+
+    need_audio = not has_audio
+    if not has_video:
+        need_video = True
+    elif not wants_clean_video:
+        need_video = sub_video_code not in check["video_langs"]
+    else:
+        need_video = False
+
+    if not need_audio and not need_video:
+        logger.debug(f"[SKIPPED] {self._file_name}")
+        return
+
+    os.makedirs(self._folder_path, exist_ok=True)
+
+    stream_url = self.stream_url
+    if self.selected_provider == "Vidmoly":
+        stream_url = _materialize_vidmoly_master_playlist(
+            stream_url,
+            self._episode_path.with_suffix(".vidmoly_master.m3u8"),
+            headers,
+        )
+        if stream_url.endswith(".vidmoly_master.m3u8"):
+            for option in (
+                "headers",
+                "reconnect",
+                "reconnect_streamed",
+                "reconnect_delay_max",
+            ):
+                input_kwargs.pop(option, None)
+            input_kwargs["protocol_whitelist"] = "file,http,https,tcp,tls,crypto,data"
+
+    # Label for CLI progress bar (e.g. "Title S01E001")
+    ep_label = os.path.splitext(self._file_name)[0] if self._file_name else ""
+
+    full_stream_needed = need_audio and need_video
+
+    temp_audio = self._episode_path.with_suffix(".temp_audio.mkv")
+    temp_video = self._episode_path.with_suffix(".temp_video.mkv")
+    temp_full = self._episode_path.with_suffix(".temp_full.mkv")
+
+    if full_stream_needed:
+        logger.debug(
+            f"[DOWNLOADING] full preset with {self.selected_provider} "
+            "(audio + video together)"
+        )
+
+        stream_metadata = {"metadata:s:a:0": f"language={audio_code}"}
+        if (not wants_clean_video) and sub_video_code:
+            stream_metadata["metadata:s:v:0"] = f"language={sub_video_code}"
+
+        video_codec = get_video_codec()
+        _run_ffmpeg_with_progress(
+            ffmpeg.input(stream_url, **input_kwargs).output(
+                str(temp_full),
+                vcodec=video_codec,
+                acodec=video_codec,
+                **stream_metadata,
+            ),
+            label=ep_label,
+        )
+
+        if self._episode_path.exists():
+            inputs = [
+                ffmpeg.input(str(self._episode_path)),
+                ffmpeg.input(str(temp_full)),
+            ]
+            output_path = self._episode_path.with_suffix(".new.mkv")
+            _run_ffmpeg_with_progress(ffmpeg.output(*inputs, str(output_path), c="copy"))
+            os.replace(output_path, self._episode_path)
+        else:
+            os.replace(temp_full, self._episode_path)
+
+        if temp_full.exists():
+            temp_full.unlink()
+        _cleanup_temp_files(self)
+        return
+
+    if need_audio:
+        logger.debug(f"[DOWNLOADING] audio stream with {self.selected_provider}")
+        video_codec = get_video_codec()
+        _run_ffmpeg_with_progress(
+            ffmpeg.input(stream_url, **input_kwargs).output(
+                str(temp_audio),
+                acodec=video_codec,
+                map="0:a:0?",
+                **{"metadata:s:a:0": f"language={audio_code}"},
+            ),
+            label=ep_label,
+        )
+
+    if need_video:
+        logger.debug(f"[DOWNLOADING] video stream with {self.selected_provider}")
+        video_codec = get_video_codec()
+        _run_ffmpeg_with_progress(
+            ffmpeg.input(stream_url, **input_kwargs).output(
+                str(temp_video),
+                vcodec=video_codec,
+                map="0:v:0?",
+                **(
+                    {}
+                    if wants_clean_video
+                    else {"metadata:s:v:0": f"language={sub_video_code}"}
+                ),
+            ),
+            label=ep_label,
+        )
+
+    logger.debug("[MUXING] combining streams")
+    inputs = (
+        [ffmpeg.input(str(self._episode_path))]
+        if self._episode_path.exists()
+        else []
+    )
+
+    if need_audio:
+        inputs.append(ffmpeg.input(str(temp_audio)))
+    if need_video:
+        inputs.append(ffmpeg.input(str(temp_video)))
+
+    output_path = self._episode_path.with_suffix(".new.mkv")
+    _run_ffmpeg_with_progress(ffmpeg.output(*inputs, str(output_path), c="copy"))
+    os.replace(output_path, self._episode_path)
+
+    _cleanup_temp_files(self)
+
+
 def download(self):
-    """Download required audio/video streams for an episode (AniWorld + s.to) with retry logic."""
+    """Download required audio/video streams with retry and optional provider fallback."""
     if platform.system() == "Windows":
         manager = DependencyManager()
         manager.fetch_binary("ffmpeg")
 
+    requested_provider = self.selected_provider
+    auto_provider = requested_provider == AUTO_PROVIDER
+    provider_candidates = _provider_candidates_for_download(self)
     max_retries = 3
-    attempt = 0
+    last_error = None
 
-    while attempt < max_retries:
-        try:
-            attempt += 1
-            check = check_downloaded(self._episode_path)
+    for provider in provider_candidates:
+        _set_selected_provider(self, provider)
+        if auto_provider:
+            logger.info(f"[AUTO PROVIDER] Trying {provider}")
 
-            headers = PROVIDER_HEADERS_D.get(self.selected_provider, {})
-            input_kwargs = {
-                "reconnect": 1,
-                "reconnect_streamed": 1,
-                "reconnect_delay_max": 300,  # wait up to 5 min for connection recovery
-            }
-            if headers:
-                header_list = [f"{k}: {v}" for k, v in headers.items()]
-                input_kwargs["headers"] = "\r\n".join(header_list) + "\r\n"
-
-            url = (getattr(self, "url", "") or "").lower()
-            is_serienstream = ("serienstream.to" in url) or ("s.to" in url)
-
-            if is_serienstream and hasattr(self, "_normalize_language"):
-                audio_enum, sub_enum = self._normalize_language(self.selected_language)
-                audio_code = {"German": "deu", "English": "eng"}.get(
-                    getattr(audio_enum, "value", None)
-                )
-                if not audio_code:
-                    raise ValueError(
-                        f"Unsupported audio language for serienstream.to: {audio_enum}"
-                    )
-                wants_clean_video = True
-                sub_video_code = None
-            else:
-                selected_key = INVERSE_LANG_LABELS[self.selected_language]
-                audio_enum, sub_enum = LANG_KEY_MAP[selected_key]
-
-                audio_code = LANG_CODE_MAP[audio_enum]
-                wants_clean_video = sub_enum == Subtitles.NONE
-                sub_video_code = None if wants_clean_video else LANG_CODE_MAP[sub_enum]
-
-            has_video = bool(check["video_langs"])
-            has_audio = audio_code in check["audio_langs"]
-
-            need_audio = not has_audio
-            if not has_video:
-                need_video = True
-            elif not wants_clean_video:
-                need_video = sub_video_code not in check["video_langs"]
-            else:
-                need_video = False
-
-            if not need_audio and not need_video:
-                logger.debug(f"[SKIPPED] {self._file_name}")
+        for attempt in range(1, max_retries + 1):
+            try:
+                _download_once_with_current_provider(self)
+                if auto_provider:
+                    logger.info(f"[AUTO PROVIDER] Using {provider}")
                 return
-
-            os.makedirs(self._folder_path, exist_ok=True)
-
-            # Label for CLI progress bar (e.g. "Title S01E001")
-            ep_label = os.path.splitext(self._file_name)[0] if self._file_name else ""
-
-            full_stream_needed = need_audio and need_video
-
-            temp_audio = self._episode_path.with_suffix(".temp_audio.mkv")
-            temp_video = self._episode_path.with_suffix(".temp_video.mkv")
-            temp_full = self._episode_path.with_suffix(".temp_full.mkv")
-
-            if full_stream_needed:
-                logger.debug("[DOWNLOADING] full preset (audio + video together)")
-
-                stream_metadata = {"metadata:s:a:0": f"language={audio_code}"}
-                if (not wants_clean_video) and sub_video_code:
-                    stream_metadata["metadata:s:v:0"] = f"language={sub_video_code}"
-
-                video_codec = get_video_codec()
-                _run_ffmpeg_with_progress(
-                    ffmpeg.input(self.stream_url, **input_kwargs).output(
-                        str(temp_full),
-                        vcodec=video_codec,
-                        acodec=video_codec,
-                        **stream_metadata,
-                    ),
-                    label=ep_label,
+            except Exception as e:
+                last_error = e
+                _cleanup_temp_files(self)
+                logger.error(
+                    f"Download attempt {attempt}/{max_retries} with "
+                    f"{self.selected_provider} failed: {e}"
                 )
-
-                if self._episode_path.exists():
-                    inputs = [
-                        ffmpeg.input(str(self._episode_path)),
-                        ffmpeg.input(str(temp_full)),
-                    ]
-                    output_path = self._episode_path.with_suffix(".new.mkv")
-                    _run_ffmpeg_with_progress(
-                        ffmpeg.output(*inputs, str(output_path), c="copy")
-                    )
-                    os.replace(output_path, self._episode_path)
-                else:
-                    os.replace(temp_full, self._episode_path)
-
-                if temp_full.exists():
-                    temp_full.unlink()
-                return
-
-            if need_audio:
-                logger.debug("[DOWNLOADING] audio stream")
-                video_codec = get_video_codec()
-                _run_ffmpeg_with_progress(
-                    ffmpeg.input(self.stream_url, **input_kwargs).output(
-                        str(temp_audio),
-                        acodec=video_codec,
-                        map="0:a:0?",
-                        **{"metadata:s:a:0": f"language={audio_code}"},
-                    ),
-                    label=ep_label,
-                )
-
-            if need_video:
-                logger.debug("[DOWNLOADING] video stream")
-                video_codec = get_video_codec()
-                _run_ffmpeg_with_progress(
-                    ffmpeg.input(self.stream_url, **input_kwargs).output(
-                        str(temp_video),
-                        vcodec=video_codec,
-                        map="0:v:0?",
-                        **(
-                            {}
-                            if wants_clean_video
-                            else {"metadata:s:v:0": f"language={sub_video_code}"}
-                        ),
-                    ),
-                    label=ep_label,
-                )
-
-            logger.debug("[MUXING] combining streams")
-            inputs = (
-                [ffmpeg.input(str(self._episode_path))]
-                if self._episode_path.exists()
-                else []
-            )
-
-            if need_audio:
-                inputs.append(ffmpeg.input(str(temp_audio)))
-            if need_video:
-                inputs.append(ffmpeg.input(str(temp_video)))
-
-            output_path = self._episode_path.with_suffix(".new.mkv")
-            _run_ffmpeg_with_progress(
-                ffmpeg.output(*inputs, str(output_path), c="copy")
-            )
-            os.replace(output_path, self._episode_path)
-
-            for f in (temp_audio, temp_video):
-                if f.exists():
-                    f.unlink()
-
-            # If download succeeds, exit loop
-            break
-
-        except Exception as e:
-            # Clean up temp files from failed attempt
-            for suffix in (
-                ".temp_full.mkv",
-                ".temp_audio.mkv",
-                ".temp_video.mkv",
-                ".new.mkv",
-            ):
-                temp = self._episode_path.with_suffix(suffix)
-                if temp.exists():
-                    temp.unlink()
-
-            logger.error(f"Download attempt {attempt}/{max_retries} failed: {e}")
-            if attempt >= max_retries:
-                _remove_empty_dirs(self._folder_path, self._base_folder)
-                raise
-            else:
-                # Reset cached URL properties so retry resolves fresh URLs
-                for attr in list(vars(self)):
-                    if attr.endswith("__redirect_url") or attr.endswith(
-                        "__provider_url"
-                    ):
-                        setattr(self, attr, None)
+                if attempt >= max_retries:
+                    break
+                _reset_provider_cache(self)
                 logger.debug("Retrying download...")
+
+        if auto_provider:
+            logger.warning(f"[AUTO PROVIDER] {provider} failed, trying next provider")
+
+    _remove_empty_dirs(self._folder_path, self._base_folder)
+    if last_error:
+        raise last_error
+    raise RuntimeError("Download failed: no provider candidates available")
 
 
 def watch(self):
