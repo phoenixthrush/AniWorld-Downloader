@@ -190,6 +190,8 @@ function renderQueue(items) {
             "%" +
             (bw ? " @ " + bw : "") +
             ")";
+        } else if (isRunning && seInfo) {
+          epDetail += " (Preparing...)";
         }
         label = epDetail;
       }
