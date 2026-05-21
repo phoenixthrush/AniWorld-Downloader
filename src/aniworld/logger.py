@@ -35,6 +35,7 @@ class ColorFormatter(logging.Formatter):
         )
 
         record.msg = f"{MSG_COLOR}{record.getMessage()}{RESET}"
+        record.args = None
 
         formatted = super().format(record)
 

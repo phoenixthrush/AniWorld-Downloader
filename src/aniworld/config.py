@@ -93,7 +93,15 @@ LULUVDO_USER_AGENT = (
     "Mozilla/5.0 (Android 15; Mobile; rv:132.0) Gecko/132.0 Firefox/132.0"
 )
 
-GLOBAL_SESSION = Session(
+class _RobustSession(Session):
+    def request(self, method, url, **kwargs):
+        try:
+            return super().request(method, url, **kwargs)
+        except AttributeError:
+            return super().request(method, url, **kwargs)
+
+
+GLOBAL_SESSION = _RobustSession(
     resolver=["doh+google://"],
     headers={
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",

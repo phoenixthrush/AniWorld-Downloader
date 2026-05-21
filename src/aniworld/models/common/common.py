@@ -1,5 +1,6 @@
 import getpass
 import hashlib
+import json
 import os
 import platform
 import re
@@ -7,8 +8,9 @@ import shlex
 import subprocess
 import sys
 import threading as _threading
+from pathlib import Path
 from typing import Tuple
-from urllib.parse import urljoin, urlsplit, urlunsplit
+from urllib.parse import urljoin, urlparse, urlsplit, urlunsplit
 
 import ffmpeg
 
@@ -53,6 +55,43 @@ except ImportError:
 
 # Precompile regex for forbidden filename characters
 FORBIDDEN_CHARS = re.compile(r'[<>:"/\\|?*]')
+
+# ---------------------------------------------------------------------------
+# Provider cache — remembers the last working provider per anime series
+# ---------------------------------------------------------------------------
+_PROVIDER_CACHE_PATH = Path.home() / ".aniworld" / "provider_cache.json"
+_provider_cache: dict[str, str] = {}
+_provider_cache_lock = _threading.Lock()
+
+try:
+    if _PROVIDER_CACHE_PATH.exists():
+        with _PROVIDER_CACHE_PATH.open("r", encoding="utf-8") as _f:
+            _provider_cache = json.load(_f)
+except Exception:
+    _provider_cache = {}
+
+
+def _series_key(episode) -> str:
+    url = getattr(episode, "url", "") or ""
+    parsed = urlparse(url)
+    _STOP = {"staffel-", "episode-", "filme", "film-", "season-"}
+    parts = []
+    for part in parsed.path.split("/"):
+        if not part:
+            continue
+        if any(part.startswith(sw) or part == sw for sw in _STOP):
+            break
+        parts.append(part)
+    return f"{parsed.netloc}:{'/'.join(parts)}"
+
+
+def _save_provider_cache() -> None:
+    try:
+        _PROVIDER_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with _PROVIDER_CACHE_PATH.open("w", encoding="utf-8") as f:
+            json.dump(_provider_cache, f, indent=2)
+    except Exception:
+        pass
 
 
 def clean_title(title: str) -> str:
@@ -772,6 +811,17 @@ def download(self):
     max_retries = 3
     last_error = None
 
+    if auto_provider:
+        series_key = _series_key(self)
+        with _provider_cache_lock:
+            cached = _provider_cache.get(series_key)
+        if cached and cached in provider_candidates:
+            provider_candidates = [cached] + [p for p in provider_candidates if p != cached]
+            logger.info(f"[AUTO PROVIDER] Cached provider for this anime: {cached}")
+    else:
+        series_key = None
+        cached = None
+
     for provider in provider_candidates:
         _set_selected_provider(self, provider)
         if auto_provider:
@@ -782,6 +832,10 @@ def download(self):
                 _download_once_with_current_provider(self)
                 if auto_provider:
                     logger.info(f"[AUTO PROVIDER] Using {provider}")
+                    if series_key and _provider_cache.get(series_key) != provider:
+                        with _provider_cache_lock:
+                            _provider_cache[series_key] = provider
+                        _save_provider_cache()
                 return
             except Exception as e:
                 last_error = e
@@ -797,6 +851,11 @@ def download(self):
 
         if auto_provider:
             logger.warning(f"[AUTO PROVIDER] {provider} failed, trying next provider")
+            if series_key and cached == provider:
+                with _provider_cache_lock:
+                    _provider_cache.pop(series_key, None)
+                _save_provider_cache()
+                logger.info(f"[AUTO PROVIDER] Cleared cached provider for this anime")
 
     _remove_empty_dirs(self._folder_path, self._base_folder)
     if last_error:
