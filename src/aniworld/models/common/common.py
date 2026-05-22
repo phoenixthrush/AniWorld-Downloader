@@ -281,6 +281,17 @@ def _provider_candidates_for_download(episode):
     return [requested]
 
 
+def _safe_unlink(path, retries=6, delay=0.5):
+    for i in range(retries):
+        try:
+            path.unlink()
+            return
+        except OSError:
+            if i < retries - 1:
+                import time
+                time.sleep(delay)
+
+
 def _cleanup_temp_files(episode):
     for suffix in (
         ".temp_full.mkv",
@@ -292,12 +303,12 @@ def _cleanup_temp_files(episode):
     ):
         temp = episode._episode_path.with_suffix(suffix)
         if temp.exists():
-            temp.unlink()
+            _safe_unlink(temp)
 
     for temp in episode._episode_path.parent.glob(
         f"{episode._episode_path.stem}.vidmoly_*.m3u8"
     ):
-        temp.unlink()
+        _safe_unlink(temp)
 
 
 def _try_aria2c_download(url, output_path, headers) -> bool:
