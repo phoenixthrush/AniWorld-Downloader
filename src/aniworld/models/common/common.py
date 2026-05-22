@@ -17,7 +17,7 @@ import ffmpeg
 from ...autodeps import DependencyManager
 
 try:
-    from ...autodeps import get_player_path, get_syncplay_path
+    from ...autodeps import get_aria2c_path, get_player_path, get_syncplay_path
     from ...extractors import provider_functions
     from ...config import (
         AUTO_PROVIDER,
@@ -35,7 +35,7 @@ try:
         logger,
     )
 except ImportError:
-    from aniworld.autodeps import get_player_path, get_syncplay_path
+    from aniworld.autodeps import get_aria2c_path, get_player_path, get_syncplay_path
     from aniworld.extractors import provider_functions
     from aniworld.config import (
         AUTO_PROVIDER,
@@ -297,6 +297,29 @@ def _cleanup_temp_files(episode):
         f"{episode._episode_path.stem}.vidmoly_*.m3u8"
     ):
         temp.unlink()
+
+
+def _try_aria2c_download(url, output_path, headers) -> bool:
+    """Download url with aria2c (16 connections). Returns True on success."""
+    try:
+        aria2c = str(get_aria2c_path())
+    except Exception:
+        return False
+    cmd = [
+        aria2c,
+        "--max-connection-per-server=16",
+        "--split=16",
+        "--allow-overwrite=true",
+        "--auto-file-renaming=false",
+        "--quiet=true",
+        "--out", output_path.name,
+        "--dir", str(output_path.parent),
+    ]
+    for k, v in headers.items():
+        cmd += ["--header", f"{k}: {v}"]
+    cmd.append(url)
+    result = subprocess.run(cmd)
+    return result.returncode == 0 and output_path.exists()
 
 
 def _append_query_if_missing(url, query):
@@ -688,6 +711,17 @@ def _download_once_with_current_provider(self):
     os.makedirs(self._folder_path, exist_ok=True)
 
     stream_url = self.stream_url
+    aria2c_temp = None
+    if self.selected_provider == "Doodstream":
+        temp_dl = self._episode_path.with_suffix(".temp_dood.mp4")
+        if _try_aria2c_download(stream_url, temp_dl, headers):
+            logger.debug("[Doodstream] aria2c download complete — using local file")
+            aria2c_temp = temp_dl
+            stream_url = str(temp_dl)
+            input_kwargs = {}
+        else:
+            logger.debug("[Doodstream] aria2c not available — falling back to ffmpeg")
+
     if self.selected_provider == "Vidmoly":
         stream_url = _materialize_vidmoly_master_playlist(
             stream_url,
@@ -797,6 +831,8 @@ def _download_once_with_current_provider(self):
     os.replace(output_path, self._episode_path)
 
     _cleanup_temp_files(self)
+    if aria2c_temp and aria2c_temp.exists():
+        aria2c_temp.unlink()
 
 
 def download(self):

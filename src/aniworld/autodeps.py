@@ -106,6 +106,11 @@ deps = {
         "Linux": {"package": "ffmpeg"},
         "Darwin": {"package": "ffmpeg"},
     },
+    "aria2c": {
+        "Windows": {"package": "aria2.aria2"},
+        "Linux": {"package": "aria2"},
+        "Darwin": {"package": "aria2"},
+    },
 }
 
 
@@ -210,6 +215,11 @@ class DependencyManager:
 # -----------------------------
 # Player paths
 # -----------------------------
+def get_aria2c_path() -> Path:
+    manager = DependencyManager()
+    return manager.fetch_binary("aria2c")
+
+
 def get_player_path() -> Path:
     manager = DependencyManager()
     use_iina = os.getenv("ANIWORLD_USE_IINA") == "1"
