@@ -95,6 +95,7 @@ LULUVDO_USER_AGENT = (
 
 class _RobustSession(Session):
     def request(self, method, url, **kwargs):
+        kwargs.setdefault("timeout", 30)
         try:
             return super().request(method, url, **kwargs)
         except AttributeError:

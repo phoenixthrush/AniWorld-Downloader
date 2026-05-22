@@ -17,7 +17,7 @@ import ffmpeg
 from ...autodeps import DependencyManager
 
 try:
-    from ...autodeps import get_player_path, get_syncplay_path
+    from ...autodeps import get_aria2c_path, get_player_path, get_syncplay_path
     from ...extractors import provider_functions
     from ...config import (
         AUTO_PROVIDER,
@@ -35,7 +35,7 @@ try:
         logger,
     )
 except ImportError:
-    from aniworld.autodeps import get_player_path, get_syncplay_path
+    from aniworld.autodeps import get_aria2c_path, get_player_path, get_syncplay_path
     from aniworld.extractors import provider_functions
     from aniworld.config import (
         AUTO_PROVIDER,
@@ -288,6 +288,7 @@ def _cleanup_temp_files(episode):
         ".temp_video.mkv",
         ".new.mkv",
         ".vidmoly_master.m3u8",
+        ".temp_dood.mp4",
     ):
         temp = episode._episode_path.with_suffix(suffix)
         if temp.exists():
@@ -297,6 +298,77 @@ def _cleanup_temp_files(episode):
         f"{episode._episode_path.stem}.vidmoly_*.m3u8"
     ):
         temp.unlink()
+
+
+def _try_aria2c_download(url, output_path, headers) -> bool:
+    """Download url with aria2c (16 connections) and stream progress. Returns True on success."""
+    try:
+        aria2c = str(get_aria2c_path())
+    except Exception:
+        return False
+
+    cmd = [
+        aria2c,
+        "--max-connection-per-server=16",
+        "--split=16",
+        "--allow-overwrite=true",
+        "--auto-file-renaming=false",
+        "--console-log-level=warn",
+        "--summary-interval=1",
+        "--out", output_path.name,
+        "--dir", str(output_path.parent),
+    ]
+    for k, v in headers.items():
+        cmd += ["--header", f"{k}: {v}"]
+    cmd.append(url)
+
+    progress_key = str(getattr(_ffmpeg_local, "queue_id", None) or "global")
+    _RE_PCT = re.compile(r"\((\d+)%\)")
+    _RE_DL = re.compile(r"DL:([0-9.]+)(GiB|MiB|KiB|B)")
+
+    process = subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        universal_newlines=False,
+    )
+
+    with _ffmpeg_progress_lock:
+        _ffmpeg_progress[progress_key] = _empty_ffmpeg_progress(active=True)
+
+    buf = bytearray()
+    try:
+        while True:
+            char = process.stdout.read(1)
+            if not char:
+                break
+            if char in (b"\r", b"\n"):
+                if buf:
+                    line = buf.decode("utf-8", errors="replace")
+                    buf.clear()
+                    pct_m = _RE_PCT.search(line)
+                    if pct_m:
+                        pct = float(pct_m.group(1))
+                        bw = ""
+                        dl_m = _RE_DL.search(line)
+                        if dl_m:
+                            val, unit = float(dl_m.group(1)), dl_m.group(2)
+                            mb = val * 1024 if unit == "GiB" else val if unit == "MiB" else val / 1024
+                            bw = f"{mb:.1f} MB/s"
+                        with _ffmpeg_progress_lock:
+                            _ffmpeg_progress[progress_key] = {
+                                "percent": round(pct, 1),
+                                "time": "",
+                                "speed": "",
+                                "bandwidth": bw,
+                                "active": True,
+                            }
+            else:
+                buf.extend(char)
+    finally:
+        with _ffmpeg_progress_lock:
+            _ffmpeg_progress[progress_key] = _empty_ffmpeg_progress(active=False)
+
+    process.wait()
+    return process.returncode == 0 and output_path.exists()
 
 
 def _append_query_if_missing(url, query):
@@ -686,8 +758,20 @@ def _download_once_with_current_provider(self):
         return
 
     os.makedirs(self._folder_path, exist_ok=True)
+    _cleanup_temp_files(self)
 
     stream_url = self.stream_url
+    aria2c_temp = None
+    if self.selected_provider == "Doodstream":
+        temp_dl = self._episode_path.with_suffix(".temp_dood.mp4")
+        if _try_aria2c_download(stream_url, temp_dl, headers):
+            logger.debug("[Doodstream] aria2c download complete — using local file")
+            aria2c_temp = temp_dl
+            stream_url = str(temp_dl)
+            input_kwargs = {}
+        else:
+            logger.debug("[Doodstream] aria2c not available — falling back to ffmpeg")
+
     if self.selected_provider == "Vidmoly":
         stream_url = _materialize_vidmoly_master_playlist(
             stream_url,
