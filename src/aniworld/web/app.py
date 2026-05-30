@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import threading
 import time
@@ -7,7 +8,13 @@ import requests
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_wtf.csrf import CSRFProtect
 
-from ..config import LANG_KEY_MAP, LANG_LABELS, SUPPORTED_PROVIDERS
+from ..config import (
+    LANG_KEY_MAP,
+    LANG_LABELS,
+    SUPPORTED_PROVIDERS,
+    get_provider_fallback_order,
+    parse_provider_order,
+)
 from ..extractors import provider_functions
 from ..logger import get_logger
 from ..providers import resolve_provider
@@ -1184,7 +1191,13 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         disable_english_sub = os.environ.get("ANIWORLD_DISABLE_ENGLISH_SUB", "0")
         sync_schedule = os.environ.get("ANIWORLD_SYNC_SCHEDULE", "0")
         sync_language = os.environ.get("ANIWORLD_SYNC_LANGUAGE", "German Dub")
-        sync_provider = os.environ.get("ANIWORLD_SYNC_PROVIDER", "VOE")
+        provider_fallback_order = list(get_provider_fallback_order(WORKING_PROVIDERS))
+        sync_provider = os.environ.get(
+            "ANIWORLD_SYNC_PROVIDER",
+            provider_fallback_order[0] if provider_fallback_order else "VOE",
+        )
+        if sync_provider not in WORKING_PROVIDERS and provider_fallback_order:
+            sync_provider = provider_fallback_order[0]
         return jsonify(
             {
                 "download_path": resolved,
@@ -1193,6 +1206,8 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 "sync_schedule": sync_schedule,
                 "sync_language": sync_language,
                 "sync_provider": sync_provider,
+                "provider_fallback_order": provider_fallback_order,
+                "available_providers": list(WORKING_PROVIDERS),
             }
         )
 
@@ -1234,6 +1249,45 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             if prov not in WORKING_PROVIDERS:
                 return jsonify({"error": f"Invalid sync_provider: {prov}"}), 400
             os.environ["ANIWORLD_SYNC_PROVIDER"] = prov
+        if "provider_fallback_order" in data:
+            raw_order = data["provider_fallback_order"]
+            if isinstance(raw_order, list):
+                requested_order = [str(provider).strip() for provider in raw_order]
+            else:
+                requested_order = [
+                    provider.strip() for provider in str(raw_order).split(",")
+                ]
+
+            requested_order = [provider for provider in requested_order if provider]
+            if not requested_order:
+                return jsonify({"error": "provider_fallback_order cannot be empty"}), 400
+
+            invalid = [
+                provider
+                for provider in requested_order
+                if provider not in WORKING_PROVIDERS
+            ]
+            if invalid:
+                invalid_list = ", ".join(sorted(dict.fromkeys(invalid)))
+                return (
+                    jsonify(
+                        {
+                            "error": "Invalid provider_fallback_order entries: "
+                            + invalid_list
+                        }
+                    ),
+                    400,
+                )
+
+            if len(set(requested_order)) != len(requested_order):
+                return jsonify({"error": "provider_fallback_order contains duplicates"}), 400
+
+            os.environ["ANIWORLD_PROVIDER_FALLBACK_ORDER"] = ",".join(
+                parse_provider_order(
+                    ",".join(requested_order),
+                    allowed_providers=WORKING_PROVIDERS,
+                )
+            )
         return jsonify({"ok": True})
 
     @app.route("/api/custom-paths")

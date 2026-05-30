@@ -124,6 +124,73 @@ SUPPORTED_PROVIDERS = (
     # "Streamtape",
 )
 
+
+def parse_provider_order(value, allowed_providers=None):
+    allowed = tuple(dict.fromkeys(allowed_providers or SUPPORTED_PROVIDERS))
+    if not allowed:
+        return tuple()
+
+    if not value:
+        return allowed
+
+    ordered = []
+    seen = set()
+
+    if isinstance(value, (list, tuple, set)):
+        raw_values = value
+    else:
+        raw_values = str(value).split(",")
+
+    for raw_provider in raw_values:
+        provider = raw_provider.strip()
+        if provider and provider in allowed and provider not in seen:
+            ordered.append(provider)
+            seen.add(provider)
+
+    for provider in allowed:
+        if provider not in seen:
+            ordered.append(provider)
+
+    return tuple(ordered)
+
+
+def get_provider_fallback_order(allowed_providers=None):
+    return parse_provider_order(
+        os.getenv("ANIWORLD_PROVIDER_FALLBACK_ORDER", ""),
+        allowed_providers=allowed_providers,
+    )
+
+
+def build_provider_attempt_order(
+    selected_provider, available_providers, fallback_order=None
+):
+    available = tuple(
+        dict.fromkeys(
+            str(provider).strip()
+            for provider in available_providers
+            if str(provider).strip()
+        )
+    )
+    if not available:
+        return (selected_provider,) if selected_provider else tuple()
+
+    ordered = []
+    seen = set()
+
+    if selected_provider and selected_provider in available:
+        ordered.append(selected_provider)
+        seen.add(selected_provider)
+
+    if fallback_order is None:
+        fallback_order = get_provider_fallback_order(allowed_providers=available)
+
+    for provider in parse_provider_order(fallback_order, allowed_providers=available):
+        if provider not in seen:
+            ordered.append(provider)
+            seen.add(provider)
+
+    return tuple(ordered)
+
 PROVIDER_HEADERS_D = {
     "Vidmoly": {"Referer": "https://vidmoly.biz"},
     "Doodstream": {"Referer": "https://dood.li/"},

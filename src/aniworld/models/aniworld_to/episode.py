@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 
 from ...config import (
     ANIWORLD_EPISODE_PATTERN,
+    build_provider_attempt_order,
     GLOBAL_SESSION,
     LANG_KEY_MAP,
     LANG_LABELS,
@@ -147,7 +148,7 @@ class AniworldEpisode:
     @property
     def redirect_url(self):
         if self.__redirect_url is None:
-            link = self.provider_link(self.__get_language(), self.selected_provider)
+            link = self.provider_link(self.selected_language, self.selected_provider)
             if link is None:
                 raise ValueError(
                     f"Language '{self.selected_language}' with provider "
@@ -421,6 +422,13 @@ class AniworldEpisode:
             )
         return self.__selected_provider
 
+    @selected_provider.setter
+    def selected_provider(self, value):
+        self.__selected_provider_param = value
+        self.__selected_provider = None
+        self.__redirect_url = None
+        self.__provider_url = None
+
     ###
 
     @property
@@ -499,7 +507,7 @@ class AniworldEpisode:
         Get the provider URL for a given language and provider name.
 
         Args:
-            language: tuple (Audio, Subtitles). Defaults to self.selected_language.
+            language: tuple (Audio, Subtitles) or str. Defaults to self.selected_language.
             provider: str, provider name. Defaults to self.selected_provider.
 
         Returns:
@@ -507,35 +515,49 @@ class AniworldEpisode:
         """
         if language is None:
             language = self.selected_language
+        language = self._normalize_language(language)
         if provider is None:
             provider = self.selected_provider
 
-        # Find matching key by comparing enum values instead of instances
-        # This handles cases where enum instances might be different due to import/identity issues
-        matching_key = None
-        for key in self.provider_data._data.keys():
-            if key[0].value == language[0].value and key[1].value == language[1].value:
-                matching_key = key
-                break
-
-        # Use matching key if found, otherwise try direct lookup
-        if matching_key:
-            provider_dict = self.provider_data._data[matching_key]
-        else:
-            provider_dict = self.provider_data.get(language)
-            if not provider_dict:
-                return None
-
+        provider_dict = self.__provider_dict_for_language(language)
+        if not provider_dict:
+            return None
         return provider_dict.get(provider)
 
-    def __get_language(self):
-        # Look up the key in LANG_LABELS by value
-        key = next(
-            (k for k, v in LANG_LABELS.items() if v == self.selected_language), None
+    def available_providers(self, language=None):
+        if language is None:
+            language = self.selected_language
+        language = self._normalize_language(language)
+        provider_dict = self.__provider_dict_for_language(language)
+        return tuple(provider_dict.keys()) if provider_dict else tuple()
+
+    def provider_attempt_order(self):
+        return build_provider_attempt_order(
+            self.selected_provider,
+            self.available_providers(),
         )
-        if key is None:
-            return "Unknown"
-        return LANG_KEY_MAP[key]
+
+    def _normalize_language(self, language):
+        if isinstance(language, tuple) and len(language) == 2:
+            return language
+
+        if isinstance(language, str):
+            key = next((k for k, v in LANG_LABELS.items() if v == language), None)
+            if key is not None:
+                return LANG_KEY_MAP[key]
+
+        raise ValueError(f"Unsupported AniWorld language selection: {language}")
+
+    def __provider_dict_for_language(self, language):
+        if not (isinstance(language, tuple) and len(language) == 2):
+            return None
+
+        for key in self.provider_data._data.keys():
+            if key[0].value == language[0].value and key[1].value == language[1].value:
+                return self.provider_data._data[key]
+
+        provider_dict = self.provider_data.get(language)
+        return provider_dict or None
 
     # Episode actions are implemented in aniworld.models.common.common
     download = episode_download

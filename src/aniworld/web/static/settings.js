@@ -5,9 +5,12 @@ const disableEnglishSubCb = document.getElementById("disableEnglishSub");
 const syncScheduleSelect = document.getElementById("syncSchedule");
 const syncLanguageSelect = document.getElementById("syncLanguage");
 const syncProviderSelect = document.getElementById("syncProvider");
+const providerFallbackOrderEl = document.getElementById("providerFallbackOrder");
 const publicIpValue = document.getElementById("publicIpValue");
 const publicIpMeta = document.getElementById("publicIpMeta");
 const refreshPublicIpBtn = document.getElementById("refreshPublicIpBtn");
+let availableProviders = [];
+let providerFallbackOrder = [];
 
 async function loadSettings() {
   try {
@@ -28,8 +31,11 @@ async function loadSettings() {
     }
     updateSyncLanguageDropdown(isLangSep, currentSyncLang);
 
-    if (syncProviderSelect && data.sync_provider)
-      syncProviderSelect.value = data.sync_provider;
+    availableProviders = Array.isArray(data.available_providers)
+      ? data.available_providers
+      : [];
+    updateSyncProviderDropdown(availableProviders, data.sync_provider);
+    renderProviderFallbackOrder(data.provider_fallback_order || availableProviders);
   } catch (e) {
     showToast("Failed to load settings: " + e.message);
   }
@@ -85,6 +91,88 @@ function updateSyncLanguageDropdown(isLangSep, currentValue) {
     syncLanguageSelect.appendChild(opt);
   });
   if (currentValue) syncLanguageSelect.value = currentValue;
+}
+
+function updateSyncProviderDropdown(providers, currentValue) {
+  if (!syncProviderSelect) return;
+  syncProviderSelect.innerHTML = "";
+  providers.forEach((provider) => {
+    const opt = document.createElement("option");
+    opt.value = provider;
+    opt.textContent = provider;
+    syncProviderSelect.appendChild(opt);
+  });
+  if (currentValue && providers.includes(currentValue)) {
+    syncProviderSelect.value = currentValue;
+  } else if (providers.length) {
+    syncProviderSelect.value = providers[0];
+  }
+}
+
+function renderProviderFallbackOrder(order) {
+  if (!providerFallbackOrderEl) return;
+
+  const normalized = Array.isArray(order) ? order.filter(Boolean) : [];
+  providerFallbackOrder = normalized.filter((provider) =>
+    availableProviders.includes(provider),
+  );
+
+  availableProviders.forEach((provider) => {
+    if (!providerFallbackOrder.includes(provider)) {
+      providerFallbackOrder.push(provider);
+    }
+  });
+
+  providerFallbackOrderEl.innerHTML = "";
+  if (!providerFallbackOrder.length) {
+    providerFallbackOrderEl.textContent = "No providers available";
+    return;
+  }
+
+  providerFallbackOrder.forEach((provider, index) => {
+    const row = document.createElement("div");
+    row.style.display = "flex";
+    row.style.alignItems = "center";
+    row.style.justifyContent = "space-between";
+    row.style.gap = "12px";
+    row.style.padding = "8px 0";
+    row.style.borderBottom = "1px solid rgba(255,255,255,.06)";
+
+    const label = document.createElement("span");
+    label.textContent = `${index + 1}. ${provider}`;
+
+    const controls = document.createElement("div");
+    controls.style.display = "flex";
+    controls.style.gap = "8px";
+
+    const up = document.createElement("button");
+    up.type = "button";
+    up.textContent = "Up";
+    up.disabled = index === 0;
+    up.onclick = () => moveProviderFallback(index, -1);
+
+    const down = document.createElement("button");
+    down.type = "button";
+    down.textContent = "Down";
+    down.disabled = index === providerFallbackOrder.length - 1;
+    down.onclick = () => moveProviderFallback(index, 1);
+
+    controls.appendChild(up);
+    controls.appendChild(down);
+    row.appendChild(label);
+    row.appendChild(controls);
+    providerFallbackOrderEl.appendChild(row);
+  });
+}
+
+function moveProviderFallback(index, direction) {
+  const nextIndex = index + direction;
+  if (nextIndex < 0 || nextIndex >= providerFallbackOrder.length) return;
+  const updated = providerFallbackOrder.slice();
+  [updated[index], updated[nextIndex]] = [updated[nextIndex], updated[index]];
+  providerFallbackOrder = updated;
+  renderProviderFallbackOrder(providerFallbackOrder);
+  saveProviderFallbackOrder();
 }
 
 async function saveDisableEnglishSub() {
@@ -188,6 +276,21 @@ async function saveSyncDefaults() {
     else showToast("Failed to save defaults");
   } catch (e) {
     showToast("Failed to save defaults: " + e.message);
+  }
+}
+
+async function saveProviderFallbackOrder() {
+  try {
+    const resp = await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider_fallback_order: providerFallbackOrder }),
+    });
+    const data = await resp.json();
+    if (data.ok) showToast("Provider fallback order saved");
+    else showToast(data.error || "Failed to save provider fallback order");
+  } catch (e) {
+    showToast("Failed to save provider fallback order: " + e.message);
   }
 }
 

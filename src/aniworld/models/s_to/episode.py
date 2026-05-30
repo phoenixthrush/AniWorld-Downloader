@@ -5,6 +5,7 @@ from html import unescape
 from pathlib import Path
 
 from ...config import (
+    build_provider_attempt_order,
     GLOBAL_SESSION,
     NAMING_TEMPLATE,
     SERIENSTREAM_EPISODE_PATTERN,
@@ -268,6 +269,13 @@ class SerienstreamEpisode:
                 "ANIWORLD_PROVIDER", "VOE"
             )
         return self.__selected_provider
+
+    @selected_provider.setter
+    def selected_provider(self, value):
+        self.__selected_provider_param = value
+        self.__selected_provider = None
+        self.__redirect_url = None
+        self.__provider_url = None
 
     @property
     def redirect_url(self):
@@ -551,18 +559,7 @@ class SerienstreamEpisode:
         if provider is None:
             provider = self.selected_provider
 
-        provider_dict = self.provider_data.get(language)
-
-        if not provider_dict:
-            # Try fallback (by value in tuple): sometimes enums mismatch, fallback to value match
-            for key, pdict in self.provider_data.items():
-                if (
-                    key[0].value == language[0].value
-                    and key[1].value == language[1].value
-                ):
-                    provider_dict = pdict
-                    break
-
+        provider_dict = self.__provider_dict_for_language(language)
         if not provider_dict:
             raise ValueError(f"No provider data found for language: {language}")
 
@@ -572,6 +569,29 @@ class SerienstreamEpisode:
             return url
 
         raise ValueError(f"Provider '{provider}' not found for language: {language}.")
+
+    def available_providers(self, language=None):
+        if language is None:
+            language = self.selected_language
+        provider_dict = self.__provider_dict_for_language(self._normalize_language(language))
+        return tuple(provider_dict.keys()) if provider_dict else tuple()
+
+    def provider_attempt_order(self):
+        return build_provider_attempt_order(
+            self.selected_provider,
+            self.available_providers(),
+        )
+
+    def __provider_dict_for_language(self, language):
+        provider_dict = self.provider_data.get(language)
+        if provider_dict:
+            return provider_dict
+
+        for key, pdict in self.provider_data.items():
+            if key[0].value == language[0].value and key[1].value == language[1].value:
+                return pdict
+
+        return None
 
     # -----------------------------
     # PUBLIC METHODS
