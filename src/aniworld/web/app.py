@@ -83,6 +83,56 @@ def _get_working_providers():
 
 WORKING_PROVIDERS = _get_working_providers()
 
+ANIWORLD_LANGUAGE_BADGE_ORDER = (
+    "German Dub",
+    "German Sub",
+    "English Dub",
+    "English Sub",
+)
+
+STO_LANGUAGE_BADGE_ORDER = (
+    "German Dub",
+    "English Dub",
+)
+
+
+def _episode_language_labels(provider_data):
+    labels = []
+    seen = set()
+
+    if hasattr(provider_data, "_data"):
+        lang_tuple_to_label = {}
+        for key, (audio, subtitles) in LANG_KEY_MAP.items():
+            label = LANG_LABELS.get(key)
+            if label:
+                lang_tuple_to_label[(audio.value, subtitles.value)] = label
+
+        for (audio, subtitles), providers in provider_data._data.items():
+            label = lang_tuple_to_label.get((audio.value, subtitles.value))
+            if not label or label in seen or not providers:
+                continue
+            labels.append(label)
+            seen.add(label)
+
+        order = ANIWORLD_LANGUAGE_BADGE_ORDER
+    else:
+        sto_label_map = {
+            ("German", "None"): "German Dub",
+            ("English", "None"): "English Dub",
+        }
+        for (audio, subtitles), providers in provider_data.items():
+            label = sto_label_map.get((audio.value, subtitles.value))
+            if not label or label in seen or not providers:
+                continue
+            labels.append(label)
+            seen.add(label)
+
+        order = STO_LANGUAGE_BADGE_ORDER
+
+    sort_order = {label: index for index, label in enumerate(order)}
+    labels.sort(key=lambda label: (sort_order.get(label, len(sort_order)), label))
+    return labels
+
 # Only match series-level links: /anime/stream/<slug> (no season/episode)
 _SERIES_LINK_PATTERN = re.compile(r"^/anime/stream/[a-zA-Z0-9\-]+/?$", re.IGNORECASE)
 
@@ -846,6 +896,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                     ep.season.season_number,
                     ep.episode_number,
                 ) in downloaded_eps
+                available_languages = _episode_language_labels(ep.provider_data)
 
                 episodes_data.append(
                     {
@@ -854,6 +905,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                         "title_de": getattr(ep, "title_de", ""),
                         "title_en": getattr(ep, "title_en", ""),
                         "downloaded": downloaded,
+                        "available_languages": available_languages,
                     }
                 )
             return jsonify({"episodes": episodes_data})

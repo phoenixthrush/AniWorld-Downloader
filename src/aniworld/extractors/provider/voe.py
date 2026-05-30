@@ -82,7 +82,9 @@ def extract_voe_source_from_html(html):
             if encoded_text.startswith('"') and encoded_text.endswith('"'):
                 encoded_text = encoded_text[1:-1]
             try:
-                decoded = decode_voe_string(encoded_text.encode().decode("unicode_escape"))
+                decoded = decode_voe_string(
+                    encoded_text.encode().decode("unicode_escape")
+                )
                 source = decoded.get("source")
                 if source:
                     return source
@@ -140,7 +142,9 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
             # Add delay between retries
             if attempt > 0:
                 wait_time = 2**attempt  # Exponential backoff: 2, 4, 8 seconds
-                logger.warning(f"Retry attempt {attempt + 1}/{max_retries}, waiting {wait_time}s...")
+                logger.warning(
+                    f"Retry attempt {attempt + 1}/{max_retries}, waiting {wait_time}s..."
+                )
                 time.sleep(wait_time)
 
             # First request to VOE
@@ -162,7 +166,7 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
             # Try extracting source directly from the VOE embed page first
             source = extract_voe_source_from_html(html)
             if source:
-                logger.warning(f"VOE source extracted on attempt {attempt + 1}")
+                logger.info(f"VOE source extracted on attempt {attempt + 1}")
                 return source
 
             # Fallback: follow the redirect URL embedded in the page
@@ -175,7 +179,9 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
                     try:
                         if redirect_attempt > 0:
                             wait_time = 2**redirect_attempt
-                            logger.warning(f"Redirect retry {redirect_attempt + 1}/{max_retries}, waiting {wait_time}s...")
+                            logger.warning(
+                                f"Redirect retry {redirect_attempt + 1}/{max_retries}, waiting {wait_time}s..."
+                            )
                             time.sleep(wait_time)
 
                         resp = GLOBAL_SESSION.get(
@@ -204,7 +210,7 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
             if not source:
                 raise ValueError("No VOE video source found in page.")
 
-            logger.warning(f"VOE source extracted on attempt {attempt + 1}")
+            logger.info(f"VOE source extracted on attempt {attempt + 1}")
             return source
 
         except (niquests.RequestException, Exception) as err:

@@ -398,6 +398,13 @@ h1 {
   font-weight: 700;
   letter-spacing: -0.01em;
 }
+.modal-meta h2 a {
+  color: inherit;
+  text-decoration: none;
+}
+.modal-meta h2 a:hover {
+  text-decoration: underline;
+}
 .modal-meta .genres {
   font-size: 0.8rem;
   color: #6ea8fe;
@@ -548,6 +555,54 @@ h1 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.episode-item .ep-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+.episode-item .ep-language-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.episode-item .ep-language-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.episode-item .ep-language-badge.badge-german-dub {
+  color: #dbeafe;
+  background: rgba(37, 99, 235, 0.2);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+}
+.episode-item .ep-language-badge.badge-german-sub {
+  color: #fef3c7;
+  background: rgba(217, 119, 6, 0.18);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+}
+.episode-item .ep-language-badge.badge-english-dub {
+  color: #dcfce7;
+  background: rgba(22, 163, 74, 0.18);
+  border: 1px solid rgba(74, 222, 128, 0.25);
+}
+.episode-item .ep-language-badge.badge-english-sub {
+  color: #fce7f3;
+  background: rgba(190, 24, 93, 0.18);
+  border: 1px solid rgba(244, 114, 182, 0.25);
+}
+.episode-item .ep-language-badge.badge-default {
+  color: #e5e7eb;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 /* Status bar */

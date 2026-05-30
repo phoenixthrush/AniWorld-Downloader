@@ -422,7 +422,8 @@ async function openSeries(url) {
     if (openToken !== currentOpenSeriesToken) return;
 
     currentSeriesTitle = seriesData.title || "Unknown";
-    document.getElementById("modalTitle").textContent = currentSeriesTitle;
+    const titleEl = document.getElementById("modalTitle");
+    titleEl.innerHTML = `<a href="${currentSeriesUrl}" target="_blank" rel="noopener noreferrer">${currentSeriesTitle}</a>`;
     if (seriesData.poster_url)
       document.getElementById("modalPoster").src = seriesData.poster_url;
     document.getElementById("modalGenres").textContent = (
@@ -545,10 +546,11 @@ function renderSeasonEpisodes(index, episodes) {
     const div = document.createElement("div");
     div.className = "episode-item";
     const title = ep.title_en || ep.title_de || "";
+    const languageBadges = renderEpisodeLanguageBadges(ep.available_languages || []);
     const dlIcon = ep.downloaded
       ? '<span class="ep-downloaded" title="Downloaded">&#10003;</span>'
       : "";
-    div.innerHTML = `<input type="checkbox" value="${esc(ep.url)}" data-season="${index}"><span class="ep-num">E${ep.episode_number}</span>${dlIcon}<span class="ep-title">${esc(title)}</span>`;
+    div.innerHTML = `<input type="checkbox" value="${esc(ep.url)}" data-season="${index}"><span class="ep-num">E${ep.episode_number}</span>${dlIcon}<div class="ep-main"><span class="ep-title">${esc(title)}</span>${languageBadges}</div>`;
     body.appendChild(div);
   });
 
@@ -565,6 +567,37 @@ function renderSeasonEpisodes(index, episodes) {
   header.innerHTML =
     `<div class="season-label"><span class="season-arrow">&#9654;</span> ${esc(label)}${seasonDlIcon}</div>` +
     `<label class="season-all-label" onclick="event.stopPropagation()"><input type="checkbox" onchange="toggleSeasonAll(this, ${index})"> All</label>`;
+}
+
+function renderEpisodeLanguageBadges(labels) {
+  if (!labels.length) return "";
+  return `<span class="ep-language-badges">${labels
+    .map((label) => {
+      const display = getEpisodeLanguageBadgeText(label);
+      const cls = getEpisodeLanguageBadgeClass(label);
+      return `<span class="ep-language-badge ${cls}" title="${esc(label)}">${esc(display)}</span>`;
+    })
+    .join("")}</span>`;
+}
+
+function getEpisodeLanguageBadgeText(label) {
+  const badgeMap = {
+    "German Dub": "🇩🇪 Dub",
+    "German Sub": "🇯🇵🇩🇪 Sub",
+    "English Dub": "🇬🇧 Dub",
+    "English Sub": "🇯🇵🇬🇧 Sub",
+  };
+  return badgeMap[label] || label;
+}
+
+function getEpisodeLanguageBadgeClass(label) {
+  const classMap = {
+    "German Dub": "badge-german-dub",
+    "German Sub": "badge-german-sub",
+    "English Dub": "badge-english-dub",
+    "English Sub": "badge-english-sub",
+  };
+  return classMap[label] || "badge-default";
 }
 
 async function toggleSeason(index) {
@@ -639,10 +672,33 @@ async function fetchProviders(episodeUrl) {
     const data = await resp.json();
     if (data.providers) {
       availableProviders = data.providers;
+      filterLanguageSelectToAvailable();
       updateProviderDropdown();
     }
   } catch (e) {
     // If provider fetch fails, keep the static list
+  }
+}
+
+function filterLanguageSelectToAvailable() {
+  if (!availableProviders) return;
+  const availableLangs = Object.keys(availableProviders);
+  if (!availableLangs.length) return;
+
+  const previousValue = languageSelect.value;
+
+  for (const opt of Array.from(languageSelect.options)) {
+    if (opt.value === "All Languages") continue;
+    opt.hidden = !availableLangs.includes(opt.value);
+  }
+
+  // Keep selection if still valid, otherwise pick first available
+  const visibleOptions = Array.from(languageSelect.options).filter(
+    (opt) => !opt.hidden,
+  );
+  const stillValid = visibleOptions.some((opt) => opt.value === previousValue);
+  if (!stillValid && visibleOptions.length) {
+    languageSelect.value = visibleOptions[0].value;
   }
 }
 
