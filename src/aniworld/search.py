@@ -304,7 +304,9 @@ def _extract_series_cards(section_html):
             p = re.search(pat, inner)
             if p:
                 raw = p.group(1).strip()
-                poster_url = raw if raw.startswith("http") else f"http://186.2.175.5{raw}"
+                poster_url = (
+                    raw if raw.startswith("http") else f"http://186.2.175.5{raw}"
+                )
                 break
 
         if title or poster_url:

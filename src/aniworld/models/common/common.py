@@ -525,7 +525,9 @@ def download(self):
                 is_serienstream = ("serienstream.to" in url) or ("s.to" in url)
 
                 if is_serienstream and hasattr(self, "_normalize_language"):
-                    audio_enum, sub_enum = self._normalize_language(self.selected_language)
+                    audio_enum, sub_enum = self._normalize_language(
+                        self.selected_language
+                    )
                     audio_code = {"German": "deu", "English": "eng"}.get(
                         getattr(audio_enum, "value", None)
                     )
@@ -562,7 +564,9 @@ def download(self):
 
                 os.makedirs(self._folder_path, exist_ok=True)
 
-                ep_label = os.path.splitext(self._file_name)[0] if self._file_name else ""
+                ep_label = (
+                    os.path.splitext(self._file_name)[0] if self._file_name else ""
+                )
 
                 full_stream_needed = need_audio and need_video
 
@@ -577,9 +581,7 @@ def download(self):
 
                     stream_metadata = {"metadata:s:a:0": f"language={audio_code}"}
                     if (not wants_clean_video) and sub_video_code:
-                        stream_metadata["metadata:s:v:0"] = (
-                            f"language={sub_video_code}"
-                        )
+                        stream_metadata["metadata:s:v:0"] = f"language={sub_video_code}"
 
                     video_codec = get_video_codec()
                     _run_ffmpeg_with_progress(
@@ -680,9 +682,7 @@ def download(self):
                     f"{provider_name}: {e}"
                 )
                 if attempt < max_retries:
-                    logger.debug(
-                        f"Retrying download with provider {provider_name}..."
-                    )
+                    logger.debug(f"Retrying download with provider {provider_name}...")
                     continue
 
                 next_provider = None

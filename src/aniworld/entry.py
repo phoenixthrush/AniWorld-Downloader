@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 from pathlib import Path
@@ -17,6 +18,18 @@ merge_env(
 )
 
 logger = get_logger(__name__)
+
+
+def _enable_debug_logging_if_requested():
+    if "--debug" not in sys.argv and "-d" not in sys.argv:
+        return
+
+    os.environ["ANIWORLD_DEBUG_MODE"] = "1"
+    logger.setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.DEBUG)
+    for name in logging.Logger.manager.loggerDict:
+        logging.getLogger(name).setLevel(logging.DEBUG)
+    logger.debug("Early debug mode enabled")
 
 
 def set_terminal_title():
@@ -39,14 +52,15 @@ def run_action(obj, action: str):
 def aniworld():
     """Main entry point"""
     try:
+        _enable_debug_logging_if_requested()
         logger.debug("Starting...")
         logger.info("Starting AniWorld-Downloader...")
         set_terminal_title()
+        args = parse_args()
+
         logger.info("Checking dependencies...")
         ensure_patchright_chromium()
         logger.info("Dependencies OK")
-
-        args = parse_args()
 
         if args.web_ui:
             from .web import start_web_ui

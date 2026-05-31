@@ -3,12 +3,19 @@ import logging
 import os
 import sys
 
+from packaging.version import parse as parse_version
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
 from .anime4k import anime4k
-from .config import ACTION_METHODS, LANG_LABELS, SUPPORTED_PROVIDERS, VERSION
+from .config import (
+    ACTION_METHODS,
+    LANG_LABELS,
+    SUPPORTED_PROVIDERS,
+    VERSION,
+    get_latest_version,
+)
 from .logger import get_logger
 
 logger = get_logger(__name__)
@@ -404,18 +411,25 @@ def parse_args():
         sys.exit(0)
 
     if args.version:
-        # TODO: add logic
-        is_newest_version = True
-        latest_version = VERSION
-
-        version_message = (
-            "You are on the latest version."
-            if is_newest_version
-            else f"Your version is outdated.\nPlease update to the latest version (v.{latest_version})."
+        installed_version = VERSION or "unknown"
+        latest_version = get_latest_version()
+        is_latest = bool(
+            latest_version
+            and VERSION
+            and parse_version(VERSION) >= parse_version(latest_version)
         )
 
+        if not VERSION:
+            version_message = "Could not determine the installed version."
+        elif not latest_version:
+            version_message = "Could not check the latest version."
+        elif is_latest:
+            version_message = "You are on the latest version."
+        else:
+            version_message = f"Your version is outdated.\nPlease update to the latest version (v.{latest_version})."
+
         cowsay = Rf"""______________________________
-< AniWorld-Downloader v.{VERSION} >
+< AniWorld-Downloader v.{installed_version} >
 ------------------------------
     \   ^__^
      \  (oo)\_______

@@ -1,11 +1,14 @@
+import json
 import os
 import re
 from enum import Enum
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
+from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 import fake_useragent
-from niquests import RequestException, Session
+from niquests import Session
 from packaging.version import parse as parse_version
 
 from .env import merge_env
@@ -19,19 +22,34 @@ except PackageNotFoundError:
     VERSION = None
 
 
+def get_latest_version():
+    """Fetch the newest available version from PyPI."""
+    try:
+        logger.debug("Checking latest version on PyPI...")
+        request = Request(
+            "https://pypi.org/pypi/aniworld/json",
+            headers={"User-Agent": DEFAULT_USER_AGENT},
+        )
+        with urlopen(request, timeout=5) as response:
+            payload = json.load(response)
+        latest_version = payload["info"]["version"]
+        logger.debug(f"Latest PyPI version is {latest_version}")
+        return latest_version
+    except (URLError, TimeoutError, OSError, ValueError, KeyError) as exc:
+        logger.debug(f"Could not fetch latest version from PyPI: {exc}")
+        return None
+
+
 def is_newest_version() -> bool:
     """Checks if the installed version is the newest available on PyPI."""
     if not VERSION:
         return False
 
-    try:
-        response = GLOBAL_SESSION.get("https://pypi.org/pypi/aniworld/json")
-        response.raise_for_status()
-        latest_version = response.json()["info"]["version"]
-        return parse_version(VERSION) >= parse_version(latest_version)
-    except RequestException:
-        # Could not fetch PyPI info, assume not newest
+    latest_version = get_latest_version()
+    if not latest_version:
         return False
+
+    return parse_version(VERSION) >= parse_version(latest_version)
 
 
 # AniWorld configuration directory
@@ -190,6 +208,7 @@ def build_provider_attempt_order(
             seen.add(provider)
 
     return tuple(ordered)
+
 
 PROVIDER_HEADERS_D = {
     "Vidmoly": {"Referer": "https://vidmoly.biz"},

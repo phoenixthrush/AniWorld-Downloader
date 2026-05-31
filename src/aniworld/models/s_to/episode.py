@@ -573,7 +573,9 @@ class SerienstreamEpisode:
     def available_providers(self, language=None):
         if language is None:
             language = self.selected_language
-        provider_dict = self.__provider_dict_for_language(self._normalize_language(language))
+        provider_dict = self.__provider_dict_for_language(
+            self._normalize_language(language)
+        )
         return tuple(provider_dict.keys()) if provider_dict else tuple()
 
     def provider_attempt_order(self):

@@ -302,7 +302,7 @@ class SerienstreamSeries:
             parsed = urlparse(raw_url)
             path = parsed.path
             if parsed.query:
-                query = f"?{parsed.query}" 
+                query = f"?{parsed.query}"
             else:
                 query = ""
             return f"http://186.2.175.5{path}" + query

@@ -12,7 +12,7 @@ _active_sessions_lock = _threading.Lock()
 
 # Optional hooks set by app.py to avoid circular imports
 _on_captcha_start = None  # callable(queue_id: int, url: str)
-_on_captcha_end = None    # callable(queue_id: int)
+_on_captcha_end = None  # callable(queue_id: int)
 
 # Global captcha state for status polling
 _captcha_state_lock = _threading.Lock()
@@ -234,6 +234,7 @@ def _solve_captcha_cli(url: str) -> bool:
 
     from ..config import GLOBAL_SESSION
     from ..logger import get_logger
+
     logger = get_logger(__name__)
 
     with _captcha_lock:
@@ -241,10 +242,13 @@ def _solve_captcha_cli(url: str) -> bool:
         with _captcha_state_lock:
             _captcha_state = {"url": url, "started_at": _time.time(), "solved": False}
 
-        logger.warning(f"CAPTCHA detected for {url} — opening browser for manual solving")
+        logger.warning(
+            f"CAPTCHA detected for {url} — opening browser for manual solving"
+        )
 
         try:
             from ..autodeps import _ensure_xvfb
+
             _ensure_xvfb()
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=False)
@@ -363,6 +367,7 @@ def _solve_captcha_interactive(url: str, queue_id: int) -> bool:
 
     from ..config import GLOBAL_SESSION
     from ..logger import get_logger
+
     logger = get_logger(__name__)
 
     session = CaptchaSession()
@@ -378,6 +383,7 @@ def _solve_captcha_interactive(url: str, queue_id: int) -> bool:
     global _captcha_state
     try:
         from ..autodeps import _ensure_xvfb
+
         _ensure_xvfb()
         with sync_playwright() as p:
             # headless=False required for Cloudflare/Turnstile to work.
@@ -391,7 +397,11 @@ def _solve_captcha_interactive(url: str, queue_id: int) -> bool:
             page.goto(url)
 
             with _captcha_state_lock:
-                _captcha_state = {"url": url, "started_at": _time.time(), "solved": False}
+                _captcha_state = {
+                    "url": url,
+                    "started_at": _time.time(),
+                    "solved": False,
+                }
 
             solved = False
             turnstile_clicked = False
@@ -508,6 +518,7 @@ def _extract_iframe_url(page, current_url: str) -> str:
     """
     try:
         from urllib.parse import urlparse
+
         current_netloc = urlparse(current_url).netloc.lstrip("www.")
         for frame in page.frames:
             u = frame.url
@@ -524,6 +535,7 @@ def _extract_iframe_url(page, current_url: str) -> str:
 def playwright_get_page_url(url: str) -> str:
     solve_captcha(url)
     from ..config import GLOBAL_SESSION
+
     return GLOBAL_SESSION.get(url).url
 
 
@@ -532,6 +544,7 @@ def _inject_session_cookies(context, url: str) -> None:
     try:
         from ..config import GLOBAL_SESSION
         from urllib.parse import urlparse
+
         base = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
         cookies = [
             {"name": c.name, "value": c.value, "url": base}
@@ -560,6 +573,7 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str):
 
     from ..config import GLOBAL_SESSION
     from ..logger import get_logger
+
     logger = get_logger(__name__)
 
     queue_id = getattr(_local, "queue_id", None)
@@ -576,7 +590,11 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str):
 
     global _captcha_state
     try:
-        extra_args = ["--window-position=-32000,-32000", "--window-size=1280,720"] if queue_id is not None else []
+        extra_args = (
+            ["--window-position=-32000,-32000", "--window-size=1280,720"]
+            if queue_id is not None
+            else []
+        )
 
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=False, args=extra_args)
@@ -587,7 +605,11 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str):
             page = context.new_page()
 
             with _captcha_state_lock:
-                _captcha_state = {"url": episode_url, "started_at": _time.time(), "solved": False}
+                _captcha_state = {
+                    "url": episode_url,
+                    "started_at": _time.time(),
+                    "solved": False,
+                }
 
             logger.warning(f"Opening episode page for modal solving: {episode_url}")
             page.goto(episode_url, wait_until="domcontentloaded")
@@ -595,6 +617,7 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str):
             # Single poll loop: streams screenshots from the start, clicks
             # Turnstile checkbox, clicks Weiter once, then waits for result.
             from urllib.parse import urlparse as _urlparse
+
             final_url = None
             weiter_clicked = False
             turnstile_clicked = False
@@ -604,7 +627,9 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str):
                 # WebUI: stream screenshots + forward user clicks
                 if session_obj is not None:
                     try:
-                        session_obj._store_screenshot(page.screenshot(type="jpeg", quality=65))
+                        session_obj._store_screenshot(
+                            page.screenshot(type="jpeg", quality=65)
+                        )
                     except Exception:
                         pass
                     while not session_obj._click_queue.empty():
@@ -655,7 +680,10 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str):
                         if pg is not page:
                             pu = pg.url
                             if pu and pu not in ("about:blank", ""):
-                                if _urlparse(pu).netloc != _urlparse(episode_url).netloc:
+                                if (
+                                    _urlparse(pu).netloc
+                                    != _urlparse(episode_url).netloc
+                                ):
                                     final_url = pu
                                     break
                     if final_url:
@@ -674,7 +702,9 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str):
 
             if session_obj is not None:
                 try:
-                    session_obj._store_screenshot(page.screenshot(type="jpeg", quality=65))
+                    session_obj._store_screenshot(
+                        page.screenshot(type="jpeg", quality=65)
+                    )
                 except Exception:
                     pass
 
@@ -691,6 +721,7 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str):
 
     except Exception as e:
         from ..logger import get_logger
+
         get_logger(__name__).error(f"Fehler in solve_sto_modal: {e}", exc_info=True)
         with _captcha_state_lock:
             _captcha_state = None

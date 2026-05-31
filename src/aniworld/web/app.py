@@ -33,7 +33,6 @@ from .db import (
     add_to_queue,
     cancel_queue_item,
     clear_completed,
-    delete_completed_queue_item,
     find_autosync_by_url,
     get_autosync_job,
     get_autosync_jobs,
@@ -132,6 +131,7 @@ def _episode_language_labels(provider_data):
     sort_order = {label: index for index, label in enumerate(order)}
     labels.sort(key=lambda label: (sort_order.get(label, len(sort_order)), label))
     return labels
+
 
 # Only match series-level links: /anime/stream/<slug> (no season/episode)
 _SERIES_LINK_PATTERN = re.compile(r"^/anime/stream/[a-zA-Z0-9\-]+/?$", re.IGNORECASE)
@@ -325,7 +325,6 @@ def _ensure_queue_worker():
 
 def _run_autosync_for_job(job):
     """Check a single autosync job for new/missing episodes and queue them."""
-    import os
     from datetime import datetime
     from pathlib import Path
 
@@ -500,7 +499,6 @@ def _autosync_worker():
     against the configured interval so that schedule changes take effect
     immediately instead of blocking in a long sleep.
     """
-    import os
     from datetime import datetime, timedelta
 
     while True:
@@ -556,11 +554,11 @@ def _proxy_image_url(url: str) -> str:
     if not url:
         return url
     from urllib.parse import quote
+
     return f"/api/proxy-image?url={quote(url, safe='')}"
 
 
 def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
-    import os
 
     app = Flask(__name__)
     app_version = _get_version()
@@ -661,6 +659,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
     # Wire up captcha hooks so the Playwright module can signal the Web UI
     from ..playwright import captcha as _captcha_mod
+
     _captcha_mod._on_captcha_start = set_captcha_url
     _captcha_mod._on_captcha_end = clear_captcha_url
 
@@ -1125,6 +1124,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     @app.route("/api/proxy-image")
     def api_proxy_image():
         from flask import Response
+
         target = request.args.get("url", "").strip()
         if not target or not target.startswith(("http://", "https://")):
             return "", 400
@@ -1162,7 +1162,10 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         results = _cached_browse("new_animes", fetch_new_animes)
         if results is None:
             return jsonify({"error": "Failed to fetch new animes"}), 500
-        proxied = [{**r, "poster_url": _proxy_image_url(r.get("poster_url", ""))} for r in results]
+        proxied = [
+            {**r, "poster_url": _proxy_image_url(r.get("poster_url", ""))}
+            for r in results
+        ]
         return jsonify({"results": proxied})
 
     @app.route("/api/popular-animes")
@@ -1170,7 +1173,10 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         results = _cached_browse("popular_animes", fetch_popular_animes)
         if results is None:
             return jsonify({"error": "Failed to fetch popular animes"}), 500
-        proxied = [{**r, "poster_url": _proxy_image_url(r.get("poster_url", ""))} for r in results]
+        proxied = [
+            {**r, "poster_url": _proxy_image_url(r.get("poster_url", ""))}
+            for r in results
+        ]
         return jsonify({"results": proxied})
 
     @app.route("/api/new-series")
@@ -1178,7 +1184,10 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         results = _cached_browse("new_series", fetch_new_series)
         if results is None:
             return jsonify({"error": "Failed to fetch new series"}), 500
-        proxied = [{**r, "poster_url": _proxy_image_url(r.get("poster_url", ""))} for r in results]
+        proxied = [
+            {**r, "poster_url": _proxy_image_url(r.get("poster_url", ""))}
+            for r in results
+        ]
         return jsonify({"results": proxied})
 
     @app.route("/api/popular-series")
@@ -1186,7 +1195,10 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         results = _cached_browse("popular_series", fetch_popular_series)
         if results is None:
             return jsonify({"error": "Failed to fetch popular series"}), 500
-        proxied = [{**r, "poster_url": _proxy_image_url(r.get("poster_url", ""))} for r in results]
+        proxied = [
+            {**r, "poster_url": _proxy_image_url(r.get("poster_url", ""))}
+            for r in results
+        ]
         return jsonify({"results": proxied})
 
     @app.route("/api/downloaded-folders")
@@ -1312,7 +1324,9 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
             requested_order = [provider for provider in requested_order if provider]
             if not requested_order:
-                return jsonify({"error": "provider_fallback_order cannot be empty"}), 400
+                return jsonify(
+                    {"error": "provider_fallback_order cannot be empty"}
+                ), 400
 
             invalid = [
                 provider
@@ -1332,7 +1346,9 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 )
 
             if len(set(requested_order)) != len(requested_order):
-                return jsonify({"error": "provider_fallback_order contains duplicates"}), 400
+                return jsonify(
+                    {"error": "provider_fallback_order contains duplicates"}
+                ), 400
 
             os.environ["ANIWORLD_PROVIDER_FALLBACK_ORDER"] = ",".join(
                 parse_provider_order(
@@ -1801,7 +1817,6 @@ def start_web_ui(
     force_sso=False,
 ):
     """Start the Flask web UI server."""
-    import os
     import threading
     import webbrowser
 

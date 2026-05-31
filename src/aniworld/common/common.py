@@ -25,9 +25,7 @@ def _extract_github_asset_urls_from_html(html, asset_patterns):
         pattern = re.compile(pattern_str, re.IGNORECASE)
         for match in href_pattern.finditer(html):
             url = match.group(1)
-            full_url = (
-                f"{GITHUB_BASE_URL}{url}" if url.startswith("/") else url
-            )
+            full_url = f"{GITHUB_BASE_URL}{url}" if url.startswith("/") else url
             if pattern.search(full_url) and full_url not in matched_urls:
                 matched_urls.append(full_url)
 

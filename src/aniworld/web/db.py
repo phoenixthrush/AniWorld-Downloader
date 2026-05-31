@@ -542,19 +542,6 @@ def delete_completed_queue_item(queue_id):
         conn.close()
 
 
-def delete_completed_queue_item(queue_id):
-    """Delete a queue item only if its status is 'completed'. Used by auto-sync cleanup."""
-    conn = get_db()
-    try:
-        conn.execute(
-            "DELETE FROM download_queue WHERE id = ? AND status = 'completed'",
-            (queue_id,),
-        )
-        conn.commit()
-    finally:
-        conn.close()
-
-
 def clear_completed():
     conn = get_db()
     try:
