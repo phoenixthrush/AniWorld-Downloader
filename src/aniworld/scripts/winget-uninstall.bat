@@ -1,0 +1,1 @@
+winget uninstall mpv.net Syncplay.Syncplay Gyan.FFmpeg

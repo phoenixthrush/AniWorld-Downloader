@@ -2,8 +2,10 @@ import os
 import platform
 import shutil
 import subprocess
+import sys
+import zipfile
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 PLATFORM = platform.system()
 
@@ -90,19 +92,31 @@ def get_syncplay_windows_url() -> str:
 # -----------------------------
 deps = {
     "mpv": {
-        "Windows": {"package": "mpv.net", "url": None},
+        "Windows": {
+            "package": "mpv.net",
+            "url": None,
+            "binary_names": ["mpv.exe", "mpv"],
+        },
         "Linux": {"package": "mpv"},
         "Darwin": {"package": "mpv"},
     },
     "syncplay": {
-        "Windows": {"package": "Syncplay.Syncplay", "url": None},
+        "Windows": {
+            "package": "Syncplay.Syncplay",
+            "url": None,
+            "binary_names": ["Syncplay.exe", "syncplay.exe", "syncplay"],
+        },
         "Linux": {"package": "syncplay"},
         "Darwin": {"package": "syncplay"},
     },
     "iina": {"Darwin": {"package": "iina"}},
     "7z": {"Windows": {"url": "https://7-zip.org/a/7zr.exe"}},
     "ffmpeg": {
-        "Windows": {"package": "Gyan.FFmpeg", "url": None},
+        "Windows": {
+            "package": "Gyan.FFmpeg",
+            "url": None,
+            "binary_names": ["ffmpeg.exe", "ffmpeg"],
+        },
         "Linux": {"package": "ffmpeg"},
         "Darwin": {"package": "ffmpeg"},
     },
@@ -117,51 +131,121 @@ class DependencyManager:
 
     def __init__(self, install_folder=None):
         self.deps = deps
-        self.install_folder = Path(
+        configured_install_folder = (
             install_folder
-            or os.getenv("ANIWORLD_INSTALL_FOLDER", Path.home() / ".aniworld")
+            or os.getenv("ANIWORLD_INSTALL_FOLDER")
+            or (Path.home() / ".aniworld")
         )
+        configured_install_folder = Path(configured_install_folder).expanduser()
+        if not configured_install_folder.is_absolute():
+            configured_install_folder = Path.home() / configured_install_folder
+        self.install_folder = configured_install_folder.resolve()
         self.install_folder.mkdir(parents=True, exist_ok=True)
         self.logger = get_logger(__name__)
         self.logger.debug(f"Dependency folder: {self.install_folder}")
 
-    def fetch_binary(self, name: str) -> Path:
-        dep_info = self.deps.get(name, {}).get(PLATFORM, {})
+    def _prepend_to_path(self, binary_path: Path) -> None:
+        binary_dir = str(binary_path.parent)
+        current_path = os.environ.get("PATH", "")
+        path_entries = current_path.split(os.pathsep) if current_path else []
+        if binary_dir not in path_entries:
+            os.environ["PATH"] = (
+                binary_dir
+                if not current_path
+                else os.pathsep.join([binary_dir, current_path])
+            )
 
-        # System-wide first
-        sys_path = shutil.which(name)
-        if sys_path:
-            self.logger.debug(f"{name} found system-wide at {sys_path}")
-            return Path(sys_path)
+    def _find_binary_in_dir(
+        self, search_dir: Path, binary_names: list[str]
+    ) -> Optional[Path]:
+        for binary_name in binary_names:
+            direct_match = search_dir / binary_name
+            if direct_match.exists():
+                return direct_match
 
+            matches = sorted(
+                search_dir.rglob(binary_name),
+                key=lambda path: (len(path.parts), str(path).lower()),
+            )
+            if matches:
+                return matches[0]
+
+        return None
+
+    def _find_binary_on_path(self, name: str, dep_info: dict) -> Optional[Path]:
+        binary_names = [name, *(dep_info.get("binary_names") or [])]
+
+        for binary_name in dict.fromkeys(binary_names):
+            sys_path = shutil.which(binary_name)
+            if sys_path:
+                return Path(sys_path)
+
+        return None
+
+    def _find_local_binary(self, name: str, dep_info: dict) -> Optional[Path]:
+        binary_names = dep_info.get("binary_names") or [name]
+        binary_path = self._find_binary_in_dir(self.install_folder, binary_names)
+        if binary_path:
+            self._prepend_to_path(binary_path)
+        return binary_path
+
+    def _extract_archive(self, archive_path: Path) -> Path:
+        extract_dir = self.install_folder / archive_path.stem
+        extract_dir.mkdir(parents=True, exist_ok=True)
+
+        if archive_path.suffix.lower() == ".zip":
+            with zipfile.ZipFile(archive_path) as archive:
+                archive.extractall(extract_dir)
+            return extract_dir
+
+        if archive_path.suffix.lower() == ".7z":
+            seven_zip_path = self.fetch_binary("7z", prompt_user=False)
+            subprocess.run(
+                [
+                    str(seven_zip_path),
+                    "x",
+                    str(archive_path),
+                    f"-o{extract_dir}",
+                    "-y",
+                ],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return extract_dir
+
+        raise ValueError(f"Unsupported archive format: {archive_path}")
+
+    def _confirm_install(self, message: str, default: bool = True) -> bool:
+        if not sys.stdin or not sys.stdin.isatty():
+            return False
+
+        prompt = "[Y/n]" if default else "[y/N]"
+        reply = input(f"{message} {prompt} ").strip().lower()
+        if not reply:
+            return default
+        return reply in {"y", "yes"}
+
+    def _resolve_download_url(self, name: str, dep_info: dict) -> Optional[str]:
         url = dep_info.get("url")
 
-        # Lazy resolution for MPV Windows URL
         if name == "mpv" and PLATFORM == "Windows" and not url:
             url = get_mpv_windows_url()
             dep_info["url"] = url
 
-        # Lazy resolution for FFmpeg Windows URL
+        if name == "syncplay" and PLATFORM == "Windows" and not url:
+            url = get_syncplay_windows_url()
+            dep_info["url"] = url
+
         if name == "ffmpeg" and PLATFORM == "Windows" and not url:
             url = get_ffmpeg_windows_url()
             dep_info["url"] = url
 
-        local_path = self.install_folder / Path(url).name if url else None
+        return url
 
-        # Local folder
-        if local_path and local_path.exists():
-            self.logger.debug(f"{name} found in {self.install_folder}")
-            return local_path
+    def _download_binary(self, name: str, dep_info: dict, url: str) -> Path:
+        local_path = self.install_folder / Path(url).name
 
-        # Package manager
-        if self._install_with_package_manager(name):
-            sys_path_after = shutil.which(name)
-            if sys_path_after:
-                return Path(sys_path_after)
-            if local_path and local_path.exists():
-                return local_path
-
-        # Download fallback
         self.logger.debug(f"Downloading {name} for {PLATFORM} from {url}...")
         resp = GLOBAL_SESSION.get(url, stream=True)
         resp.raise_for_status()
@@ -173,7 +257,107 @@ class DependencyManager:
             local_path.chmod(0o755)
 
         self.logger.debug(f"{name} downloaded to {local_path}")
+        resolved_binary = self._resolve_local_binary(name, dep_info, local_path)
+        return resolved_binary or local_path
+
+    def _resolve_local_binary(
+        self, name: str, dep_info: dict, local_path: Optional[Path]
+    ):
+        if not local_path or not local_path.exists():
+            return None
+
+        binary_names = dep_info.get("binary_names") or [name]
+
+        if local_path.suffix.lower() in {".zip", ".7z"}:
+            extract_dir = self.install_folder / local_path.stem
+            binary_path = self._find_binary_in_dir(extract_dir, binary_names)
+
+            if not binary_path:
+                extract_dir = self._extract_archive(local_path)
+                binary_path = self._find_binary_in_dir(extract_dir, binary_names)
+
+            if not binary_path:
+                raise FileNotFoundError(
+                    f"Could not find {name} executable after extracting {local_path}"
+                )
+
+            self._prepend_to_path(binary_path)
+            return binary_path
+
+        if local_path.is_file():
+            self._prepend_to_path(local_path)
+
         return local_path
+
+    def fetch_binary(self, name: str, prompt_user: bool = True) -> Path:
+        dep_info = self.deps.get(name, {}).get(PLATFORM, {})
+
+        # System-wide first
+        sys_path = self._find_binary_on_path(name, dep_info)
+        if sys_path:
+            self.logger.debug(f"{name} found system-wide at {sys_path}")
+            return sys_path
+
+        local_binary = self._find_local_binary(name, dep_info)
+        if local_binary:
+            self.logger.debug(f"{name} found in {self.install_folder}")
+            return local_binary
+
+        url = self._resolve_download_url(name, dep_info)
+
+        local_path = self.install_folder / Path(url).name if url else None
+
+        # Local archive/file by resolved download URL
+        local_binary = self._resolve_local_binary(name, dep_info, local_path)
+        if local_binary:
+            self.logger.debug(f"{name} found in {self.install_folder}")
+            return local_binary
+
+        if not prompt_user:
+            if url:
+                return self._download_binary(name, dep_info, url)
+            raise FileNotFoundError(f"Could not locate {name} on PATH")
+
+        package_error = None
+        portable_error = None
+
+        if url:
+            if self._confirm_install(
+                f"{name} was not found on PATH. Install a portable copy into {self.install_folder} for this runtime?"
+            ):
+                try:
+                    return self._download_binary(name, dep_info, url)
+                except Exception as exc:
+                    portable_error = exc
+                    self.logger.warning(f"Portable install failed for {name}: {exc}")
+
+        pkg_name = dep_info.get("package")
+        if pkg_name and self._confirm_install(
+            f"{name} is still unavailable. Install it with the system package manager?"
+        ):
+            if self._install_with_package_manager(name):
+                sys_path_after = self._find_binary_on_path(name, dep_info)
+                if sys_path_after:
+                    return sys_path_after
+                package_error = FileNotFoundError(
+                    f"{name} was installed but is not available on PATH in the current runtime"
+                )
+            else:
+                package_error = RuntimeError(
+                    f"Package manager installation failed for {name}"
+                )
+
+        if portable_error:
+            raise portable_error
+        if package_error:
+            raise package_error
+
+        install_hint = (
+            f"{name} was not found on PATH. Re-run and accept the portable install prompt."
+            if url
+            else f"{name} was not found on PATH. Re-run and accept the package manager install prompt."
+        )
+        raise FileNotFoundError(install_hint)
 
     def _install_with_package_manager(self, name: str) -> bool:
         dep_info = self.deps.get(name, {}).get(PLATFORM, {})
@@ -243,8 +427,12 @@ def _ensure_xvfb():
     if not shutil.which("Xvfb"):
         _log.info("Xvfb not found — installing via apt...")
         try:
-            subprocess.run(["sudo", "apt-get", "install", "-y", "xvfb"],
-                           check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(
+                ["sudo", "apt-get", "install", "-y", "xvfb"],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
         except (subprocess.CalledProcessError, FileNotFoundError) as e:
             _log.warning(f"Could not install Xvfb: {e}")
             return
@@ -260,6 +448,7 @@ def _ensure_xvfb():
 def ensure_patchright_chromium():
     """Install the patchright Chromium browser if not already present."""
     import sys
+
     _log = get_logger(__name__)
     try:
         import patchright  # noqa: F401

@@ -7,7 +7,7 @@ import shlex
 import subprocess
 import sys
 import threading as _threading
-from typing import Tuple
+from typing import Optional, Tuple
 
 import ffmpeg
 
@@ -47,6 +47,50 @@ FORBIDDEN_CHARS = re.compile(r'[<>:"/\\|?*]')
 def clean_title(title: str) -> str:
     """Clean a string to make it safe for use as a filename."""
     return FORBIDDEN_CHARS.sub("", title).strip()
+
+
+def _quote_windows_cmd_arg(arg) -> str:
+    """Quote one argument for safe cmd.exe copy/paste."""
+    arg = str(arg)
+    if not arg:
+        return '""'
+
+    escaped = ['"']
+    backslashes = 0
+
+    for char in arg:
+        if char == "\\":
+            backslashes += 1
+            continue
+
+        if char == '"':
+            escaped.append("\\" * (backslashes * 2 + 1))
+            escaped.append('"')
+            backslashes = 0
+            continue
+
+        if backslashes:
+            escaped.append("\\" * backslashes)
+            backslashes = 0
+
+        escaped.append(char)
+
+    if backslashes:
+        escaped.append("\\" * (backslashes * 2))
+
+    escaped.append('"')
+    return "".join(escaped)
+
+
+def format_command_for_shell(cmd, windows: Optional[bool] = None) -> str:
+    """Format a subprocess argv list as a shell-safe copy/paste command."""
+    if windows is None:
+        windows = os.name == "nt"
+
+    if windows:
+        return " ".join(_quote_windows_cmd_arg(part) for part in cmd)
+
+    return shlex.join([str(part) for part in cmd])
 
 
 def check_downloaded(episode_path):
@@ -690,7 +734,7 @@ def watch(self):
         header_args = [f"{k}: {v}" for k, v in headers.items()]
         cmd.append("--http-header-fields=" + ",".join(header_args))
 
-    print(" ".join(cmd))
+    print(format_command_for_shell(cmd))
     subprocess.run(cmd)
 
 
@@ -777,7 +821,8 @@ def syncplay(self):
         header_args = [f"{k}: {v}" for k, v in headers.items()]
         cmd.append("--http-header-fields=" + ",".join(header_args))
 
-    logger.debug("\n" + shlex.join(cmd))
+    print(format_command_for_shell(cmd))
+    logger.debug("\n" + format_command_for_shell(cmd))
     subprocess.run(cmd)
 
 
