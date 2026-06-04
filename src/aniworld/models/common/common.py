@@ -1,5 +1,6 @@
 import getpass
 import hashlib
+import json
 import os
 import platform
 import re
@@ -7,7 +8,9 @@ import shlex
 import subprocess
 import sys
 import threading as _threading
+from pathlib import Path
 from typing import Optional, Tuple
+from urllib.parse import urlparse
 
 import ffmpeg
 
@@ -42,6 +45,84 @@ except ImportError:
 
 # Precompile regex for forbidden filename characters
 FORBIDDEN_CHARS = re.compile(r'[<>:"/\\|?*]')
+
+# Remember the last provider that worked for each series and try it first next time.
+_PROVIDER_CACHE_PATH = Path.home() / ".aniworld" / "provider_cache.json"
+_provider_cache: dict[str, str] = {}
+_provider_cache_lock = _threading.Lock()
+
+try:
+    if _PROVIDER_CACHE_PATH.exists():
+        with _PROVIDER_CACHE_PATH.open("r", encoding="utf-8") as _f:
+            _provider_cache = json.load(_f)
+except Exception as exc:
+    logger.debug(f"Could not load provider cache: {exc}")
+    _provider_cache = {}
+
+
+def _series_key(episode) -> str:
+    url = getattr(episode, "url", "") or ""
+    parsed = urlparse(url)
+    stop_prefixes = ("staffel-", "episode-", "film-", "season-")
+    stop_parts = {"filme"}
+    parts = []
+
+    for part in parsed.path.split("/"):
+        if not part:
+            continue
+        if part in stop_parts or any(
+            part.startswith(prefix) for prefix in stop_prefixes
+        ):
+            break
+        parts.append(part)
+
+    return f"{parsed.netloc}:{'/'.join(parts)}"
+
+
+def _save_provider_cache() -> None:
+    try:
+        _PROVIDER_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with _PROVIDER_CACHE_PATH.open("w", encoding="utf-8") as f:
+            json.dump(_provider_cache, f, indent=2)
+    except Exception as exc:
+        logger.debug(f"Could not save provider cache: {exc}")
+
+
+def _provider_order_with_cache(episode, provider_order):
+    provider_order = tuple(provider_order)
+    series_key = _series_key(episode)
+
+    with _provider_cache_lock:
+        cached_provider = _provider_cache.get(series_key)
+
+    if cached_provider and cached_provider in provider_order:
+        logger.info(f"Using cached provider for this series first: {cached_provider}")
+        provider_order = (cached_provider,) + tuple(
+            provider for provider in provider_order if provider != cached_provider
+        )
+
+    return provider_order, series_key, cached_provider
+
+
+def _remember_working_provider(series_key, provider_name):
+    if not series_key:
+        return
+    with _provider_cache_lock:
+        if _provider_cache.get(series_key) == provider_name:
+            return
+        _provider_cache[series_key] = provider_name
+    _save_provider_cache()
+
+
+def _clear_cached_provider(series_key, provider_name):
+    if not series_key:
+        return
+    with _provider_cache_lock:
+        if _provider_cache.get(series_key) != provider_name:
+            return
+        _provider_cache.pop(series_key, None)
+    _save_provider_cache()
+    logger.info(f"Cleared cached provider for this series: {provider_name}")
 
 
 def clean_title(title: str) -> str:
@@ -507,6 +588,9 @@ def download(self):
 
     max_retries = 3
     provider_order = _get_provider_attempt_order(self)
+    provider_order, series_key, cached_provider = _provider_order_with_cache(
+        self, provider_order
+    )
     provider_errors = {}
 
     for provider_index, provider_name in enumerate(provider_order):
@@ -566,6 +650,7 @@ def download(self):
                     need_video = False
 
                 if not need_audio and not need_video:
+                    _remember_working_provider(series_key, provider_name)
                     logger.debug(f"[SKIPPED] {self._file_name}")
                     return
 
@@ -616,6 +701,7 @@ def download(self):
 
                     if temp_full.exists():
                         temp_full.unlink()
+                    _remember_working_provider(series_key, provider_name)
                     return
 
                 if need_audio:
@@ -670,6 +756,7 @@ def download(self):
                     if f.exists():
                         f.unlink()
 
+                _remember_working_provider(series_key, provider_name)
                 return
 
             except Exception as e:
@@ -691,6 +778,8 @@ def download(self):
                 if attempt < max_retries:
                     logger.debug(f"Retrying download with provider {provider_name}...")
                     continue
+                if cached_provider == provider_name:
+                    _clear_cached_provider(series_key, provider_name)
 
                 next_provider = None
                 if provider_index + 1 < len(provider_order):
