@@ -677,7 +677,7 @@ def download(self):
                         temp.unlink()
 
                 provider_errors[provider_name] = e
-                logger.error(
+                logger.warning(
                     f"Download attempt {attempt}/{max_retries} failed for provider "
                     f"{provider_name}: {e}"
                 )
@@ -707,9 +707,9 @@ def watch(self):
 
     print(f"[WATCHING] {self._file_name}")
 
-    stream_url, provider_name = _resolve_stream_url_with_fallback(self, "Watch")
-    headers = PROVIDER_HEADERS_W.get(provider_name, {})
-    cmd = [str(get_player_path()), stream_url]
+    player_path = str(get_player_path())
+    provider_order = _get_provider_attempt_order(self)
+    provider_errors = {}
 
     # AniSkip: AniWorld only; ignore for s.to
     aniskip_enabled = os.getenv("ANIWORLD_ANISKIP", "0") == "1"
@@ -723,19 +723,66 @@ def watch(self):
 
         setup_aniskip()
         skip_flags = build_mpv_flags(skip_times).split()
-        cmd.extend(skip_flags)
         logger.debug(f"[SKIP TIMES FOUND]: {skip_flags}")
+    else:
+        skip_flags = []
 
-    cmd.extend(
-        ["--no-ytdl", "--fs", "--quiet", f"--force-media-title={self._file_name}"]
-    )
+    base_args = [
+        "--no-ytdl",
+        "--fs",
+        "--quiet",
+        f"--force-media-title={self._file_name}",
+    ]
 
-    if headers:
-        header_args = [f"{k}: {v}" for k, v in headers.items()]
-        cmd.append("--http-header-fields=" + ",".join(header_args))
+    for provider_index, provider_name in enumerate(provider_order):
+        _set_selected_provider(self, provider_name)
+        max_retries = 3
 
-    print(format_command_for_shell(cmd))
-    subprocess.run(cmd)
+        for attempt in range(1, max_retries + 1):
+            try:
+                _reset_provider_resolution_cache(self)
+                stream_url = self.stream_url
+                headers = PROVIDER_HEADERS_W.get(provider_name, {})
+                cmd = [player_path, stream_url]
+
+                if skip_flags:
+                    cmd.extend(skip_flags)
+
+                cmd.extend(base_args)
+
+                if headers:
+                    header_args = [f"{k}: {v}" for k, v in headers.items()]
+                    cmd.append("--http-header-fields=" + ",".join(header_args))
+
+                print(format_command_for_shell(cmd))
+                process = subprocess.run(cmd)
+                if process.returncode != 0:
+                    raise RuntimeError(f"player exited with code {process.returncode}")
+                return
+            except Exception as e:
+                provider_errors[provider_name] = e
+                logger.warning(
+                    f"Watch attempt {attempt}/{max_retries} failed for provider "
+                    f"{provider_name}: {e}"
+                )
+                if attempt < max_retries:
+                    logger.debug(f"Retrying watch with provider {provider_name}...")
+                    continue
+
+                next_provider = None
+                if provider_index + 1 < len(provider_order):
+                    next_provider = provider_order[provider_index + 1]
+                if next_provider:
+                    logger.warning(
+                        f"Falling back from provider {provider_name} to "
+                        f"{next_provider} for {getattr(self, 'url', 'episode')}"
+                    )
+
+    if provider_errors:
+        raise RuntimeError(
+            _build_provider_failure_message("Watch", provider_errors)
+        ) from list(provider_errors.values())[-1]
+    raise RuntimeError("Watch failed: no providers available")
 
 
 def syncplay(self):

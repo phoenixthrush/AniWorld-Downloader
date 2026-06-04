@@ -235,9 +235,23 @@ PROVIDER_HEADERS_D = {
 PROVIDER_HEADERS_W = {
     "Vidmoly": {"Referer": "https://vidmoly.biz"},
     "Doodstream": {"Referer": "https://dood.li/"},
-    "VOE": {"User-Agent": DEFAULT_USER_AGENT},
-    "Luluvdo": {"User-Agent": LULUVDO_USER_AGENT},
+    "VOE": {
+        "User-Agent": DEFAULT_USER_AGENT,
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Accept-Encoding": "gzip, deflate",
+        "Connection": "keep-alive",
+        "Referer": "https://voe.sx/",
+        "Origin": "https://voe.sx",
+    },
+    "LoadX": {"Accept": "*/*"},
     "Filemoon": {"User-Agent": DEFAULT_USER_AGENT, "Referer": "https://filemoon.to"},
+    "Luluvdo": {
+        "User-Agent": LULUVDO_USER_AGENT,
+        "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Origin": "https://luluvdo.com",
+        "Referer": "https://luluvdo.com/",
+    },
 }
 
 
