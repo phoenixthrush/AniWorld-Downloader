@@ -97,6 +97,19 @@ def get_video_codec():
     return VIDEO_CODEC_MAP[codec]
 
 
+def get_max_parallel_downloads():
+    """Return a bounded number of Web UI queue workers."""
+    raw = os.getenv("ANIWORLD_MAX_PARALLEL_DOWNLOADS", "2").strip()
+    try:
+        value = int(raw)
+    except ValueError:
+        logger.warning(
+            f"Invalid ANIWORLD_MAX_PARALLEL_DOWNLOADS={raw!r}, falling back to 2"
+        )
+        value = 2
+    return max(1, min(value, 8))
+
+
 # NIQUESTS
 
 try:

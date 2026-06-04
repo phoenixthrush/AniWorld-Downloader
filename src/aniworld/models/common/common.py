@@ -254,21 +254,34 @@ def _resolve_stream_url_with_fallback(self, action_name):
     raise RuntimeError(f"{action_name} failed: no providers available")
 
 
-# Thread-safe global for current ffmpeg download progress (used by web UI)
+# Thread-safe FFmpeg progress by queue item (used by web UI)
 _ffmpeg_progress_lock = _threading.Lock()
-_ffmpeg_progress = {
-    "percent": 0.0,
-    "time": "",
-    "speed": "",
-    "bandwidth": "",
-    "active": False,
-}
+_ffmpeg_progress = {}
+_ffmpeg_local = _threading.local()
+
+
+def _empty_ffmpeg_progress(active=False):
+    return {"percent": 0.0, "time": "", "speed": "", "bandwidth": "", "active": active}
+
+
+def set_ffmpeg_progress_queue_id(queue_id):
+    """Associate FFmpeg progress in the current thread with a queue item."""
+    _ffmpeg_local.queue_id = queue_id
+
+
+def clear_ffmpeg_progress_queue_id():
+    """Clear queue association for FFmpeg progress in the current thread."""
+    queue_id = getattr(_ffmpeg_local, "queue_id", None)
+    _ffmpeg_local.queue_id = None
+    if queue_id is not None:
+        with _ffmpeg_progress_lock:
+            _ffmpeg_progress[str(queue_id)] = _empty_ffmpeg_progress(active=False)
 
 
 def get_ffmpeg_progress():
-    """Return a snapshot of the current ffmpeg download progress."""
+    """Return a snapshot of FFmpeg progress keyed by queue item id."""
     with _ffmpeg_progress_lock:
-        return dict(_ffmpeg_progress)
+        return {key: dict(value) for key, value in _ffmpeg_progress.items()}
 
 
 def _parse_ffmpeg_time(time_str):
@@ -284,7 +297,10 @@ def _parse_ffmpeg_time(time_str):
 
 def _print_cli_progress(percent, time_str, speed_str, label=""):
     """Print a simple CLI progress bar without ANSI colors."""
-    if not sys.stderr.isatty():
+    if (
+        not sys.stderr.isatty()
+        or _threading.current_thread() is not _threading.main_thread()
+    ):
         return
     bar_width = 30
     filled = int(bar_width * percent / 100)
@@ -311,7 +327,10 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
     )
 
     debug_mode = os.getenv("ANIWORLD_DEBUG_MODE", "0") == "1"
-    is_tty = sys.stderr.isatty()
+    is_tty = (
+        sys.stderr.isatty()
+        and _threading.current_thread() is _threading.main_thread()
+    )
 
     # Regex to extract progress indicators from ffmpeg status lines
     _RE_FRAME = re.compile(r"frame=\s*(\d+)")
@@ -367,11 +386,10 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
     last_size_ts = None
     last_change = time.monotonic()
     total_duration = 0.0
+    progress_key = str(getattr(_ffmpeg_local, "queue_id", None) or "global")
 
     with _ffmpeg_progress_lock:
-        _ffmpeg_progress.update(
-            percent=0.0, time="", speed="", bandwidth="", active=True
-        )
+        _ffmpeg_progress[progress_key] = _empty_ffmpeg_progress(active=True)
 
     try:
         while True:
@@ -438,16 +456,19 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
                     elapsed = _parse_ffmpeg_time(cur_time_str)
                     percent = min((elapsed / total_duration) * 100, 100.0)
 
-                # Update global progress for web UI
+                # Update this queue item's progress for the Web UI.
                 with _ffmpeg_progress_lock:
-                    prev_bw = _ffmpeg_progress.get("bandwidth", "")
-                    _ffmpeg_progress.update(
+                    current_progress = _ffmpeg_progress.get(
+                        progress_key, _empty_ffmpeg_progress(active=True)
+                    )
+                    current_progress.update(
                         percent=round(percent, 1),
                         time=cur_time_str,
                         speed=cur_speed_str,
-                        bandwidth=cur_bw_str or prev_bw,
+                        bandwidth=cur_bw_str or current_progress.get("bandwidth", ""),
                         active=True,
                     )
+                    _ffmpeg_progress[progress_key] = current_progress
 
                 if debug_mode:
                     logger.info(f"[FFmpeg Progress] {line_str}")
@@ -483,9 +504,7 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
 
     finally:
         with _ffmpeg_progress_lock:
-            _ffmpeg_progress.update(
-                percent=0.0, time="", speed="", bandwidth="", active=False
-            )
+            _ffmpeg_progress[progress_key] = _empty_ffmpeg_progress(active=False)
 
     reader_thread.join(timeout=5)
     process.wait()

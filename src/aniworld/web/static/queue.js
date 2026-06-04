@@ -32,6 +32,20 @@ function closeQueueModal() {
 
 let lastFfmpegProgress = {};
 
+function getItemFfmpegProgress(item) {
+  if (!item) return {};
+  if (item.ffmpeg_progress) return item.ffmpeg_progress;
+  if (!lastFfmpegProgress) return {};
+
+  const byId = lastFfmpegProgress[String(item.id)];
+  if (byId) return byId;
+
+  // Compatibility with older API shape while the page is still cached.
+  if (lastFfmpegProgress.active !== undefined) return lastFfmpegProgress;
+
+  return {};
+}
+
 function formatBandwidth(bwStr) {
   if (!bwStr) return "";
   const trimmed = String(bwStr).trim();
@@ -104,6 +118,7 @@ function renderQueue(items) {
 
   let html = "";
   visible.forEach((item) => {
+    const ffmpegProgress = getItemFfmpegProgress(item);
     const isRunning = item.status === "running";
     const isActive =
       isRunning || (item.status === "cancelled" && item.current_url);
@@ -146,8 +161,8 @@ function renderQueue(items) {
 
       // Combine episode progress with in-episode ffmpeg progress
       let ffPct = 0;
-      if (isRunning && lastFfmpegProgress.active && item.total_episodes > 0) {
-        ffPct = (lastFfmpegProgress.percent || 0) / item.total_episodes;
+      if (isRunning && ffmpegProgress.active && item.total_episodes > 0) {
+        ffPct = (ffmpegProgress.percent || 0) / item.total_episodes;
       }
       const combinedPct = Math.min(Math.round(epPct + ffPct), 100);
 
@@ -167,14 +182,16 @@ function renderQueue(items) {
       } else {
         let epDetail = item.current_episode + "/" + item.total_episodes + " episodes";
         if (seInfo) epDetail += " - " + seInfo;
-        if (lastFfmpegProgress.active && lastFfmpegProgress.percent > 0) {
-          const bw = formatBandwidth(lastFfmpegProgress.bandwidth || "");
+        if (ffmpegProgress.active && ffmpegProgress.percent > 0) {
+          const bw = formatBandwidth(ffmpegProgress.bandwidth || "");
           epDetail +=
             " (" +
-            lastFfmpegProgress.percent +
+            ffmpegProgress.percent +
             "%" +
             (bw ? " @ " + bw : "") +
             ")";
+        } else if (isRunning && seInfo) {
+          epDetail += " (Preparing...)";
         }
         label = epDetail;
       }

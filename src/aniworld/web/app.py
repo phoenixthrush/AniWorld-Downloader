@@ -12,11 +12,16 @@ from ..config import (
     LANG_KEY_MAP,
     LANG_LABELS,
     SUPPORTED_PROVIDERS,
+    get_max_parallel_downloads,
     get_provider_fallback_order,
     parse_provider_order,
 )
 from ..extractors import provider_functions
 from ..logger import get_logger
+from ..models.common.common import (
+    clear_ffmpeg_progress_queue_id,
+    set_ffmpeg_progress_queue_id,
+)
 from ..providers import resolve_provider
 from ..search import (
     fetch_new_animes,
@@ -43,7 +48,6 @@ from .db import (
     get_next_queued,
     get_queue,
     get_queue_stats,
-    get_running,
     get_sync_stats,
     init_autosync_db,
     init_custom_paths_db,
@@ -192,20 +196,26 @@ def _fetch_public_ip():
     raise RuntimeError(last_error or "Failed to resolve public IP")
 
 
-def _queue_worker():
-    """Single global worker that processes one download at a time."""
+def _queue_worker(worker_id=1):
+    """Process queued downloads. Multiple workers may run in parallel."""
     while True:
         try:
             item = None
             with _queue_lock:
-                if not get_running():
-                    item = get_next_queued()
-                    if item:
-                        set_queue_status(item["id"], "running")
+                item = get_next_queued()
+                if item:
+                    set_queue_status(item["id"], "running")
 
             if not item:
                 time.sleep(3)
                 continue
+
+            logger.info(
+                "Queue worker %s started item %s (%s)",
+                worker_id,
+                item["id"],
+                item["title"],
+            )
 
             episodes = json.loads(item["episodes"])
             errors = []
@@ -271,11 +281,14 @@ def _queue_worker():
                         ep_kwargs["selected_path"] = selected_path
                     episode = prov.episode_cls(**ep_kwargs)
                     _captcha_mod._local.queue_id = item["id"]
+                    set_ffmpeg_progress_queue_id(item["id"])
                     try:
                         episode.download()
                     finally:
+                        clear_ffmpeg_progress_queue_id()
                         _captcha_mod._local.queue_id = None
                 except Exception as e:
+                    clear_ffmpeg_progress_queue_id()
                     _captcha_mod._local.queue_id = None
                     logger.error(f"Download failed for {ep_url}: {e}")
                     errors.append({"url": ep_url, "error": str(e)})
@@ -301,7 +314,7 @@ def _queue_worker():
 
 
 def _ensure_queue_worker():
-    """Start the queue worker thread once."""
+    """Start queue worker threads once."""
     global _queue_worker_started
     if _queue_worker_started:
         return
@@ -319,8 +332,16 @@ def _ensure_queue_worker():
     finally:
         conn.close()
 
-    thread = threading.Thread(target=_queue_worker, daemon=True)
-    thread.start()
+    worker_count = get_max_parallel_downloads()
+    for worker_id in range(1, worker_count + 1):
+        thread = threading.Thread(
+            target=_queue_worker,
+            args=(worker_id,),
+            daemon=True,
+            name=f"aniworld-queue-{worker_id}",
+        )
+        thread.start()
+    logger.info("Started %d queue worker(s)", worker_count)
 
 
 def _run_autosync_for_job(job):
@@ -1009,6 +1030,17 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
         items = get_queue()
         ffmpeg_pct = get_ffmpeg_progress()
+        empty_progress = {
+            "percent": 0.0,
+            "time": "",
+            "speed": "",
+            "bandwidth": "",
+            "active": False,
+        }
+        for item in items:
+            item["ffmpeg_progress"] = ffmpeg_pct.get(
+                str(item["id"]), empty_progress
+            )
         return jsonify({"items": items, "ffmpeg_progress": ffmpeg_pct})
 
     @app.route("/api/queue/<int:queue_id>", methods=["DELETE"])
