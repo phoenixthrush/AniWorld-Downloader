@@ -6,11 +6,11 @@ from urllib.parse import urlparse
 
 from ...config import (
     ANIWORLD_EPISODE_PATTERN,
-    build_provider_attempt_order,
     GLOBAL_SESSION,
     LANG_KEY_MAP,
     LANG_LABELS,
     NAMING_TEMPLATE,
+    build_provider_attempt_order,
     logger,
 )
 from ...extractors import provider_functions

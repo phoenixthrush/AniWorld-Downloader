@@ -48,7 +48,12 @@ donate = "https://github.com/sponsors/phoenixthrush"
 discord = "https://discord.com/invite/BfDvrKd8V5"
 
 [tool.setuptools.package-data]
-aniworld = ["web/templates/*.html", "web/static/*.css", "web/static/*.js"]
+aniworld = [
+  "web/templates/*.html",
+  "web/static/*.css",
+  "web/static/*.js",
+  "web/static/flags/*.svg",
+]
 
 [project.scripts]
 aniworld = "aniworld.__main__:main"

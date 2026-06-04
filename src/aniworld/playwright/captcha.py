@@ -1,7 +1,7 @@
-import threading as _threading
 import queue as _queue_module
-import time as _time
 import random as _random
+import threading as _threading
+import time as _time
 
 # Threading-local: set queue_id from the web worker to enable interactive mode
 _local = _threading.local()
@@ -542,8 +542,9 @@ def playwright_get_page_url(url: str) -> str:
 def _inject_session_cookies(context, url: str) -> None:
     """Copy GLOBAL_SESSION cookies into a patchright browser context."""
     try:
-        from ..config import GLOBAL_SESSION
         from urllib.parse import urlparse
+
+        from ..config import GLOBAL_SESSION
 
         base = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
         cookies = [

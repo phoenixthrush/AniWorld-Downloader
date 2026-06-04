@@ -14,28 +14,19 @@ endblock %} {% block content %}
 </div>
 
 <!-- Edit Modal -->
-<div
-  class="overlay"
-  id="editOverlay"
-  onclick="if (event.target === this) closeEditModal();"
->
+<div class="overlay" id="editOverlay" onclick="if (event.target === this) closeEditModal();">
   <div class="modal" id="editModal" style="max-width: 520px">
     <button class="close" onclick="closeEditModal()">&times;</button>
     <h2 style="color: #fff; margin-bottom: 4px">Edit Sync Job</h2>
-    <div
-      id="editJobTitle"
-      style="
+    <div id="editJobTitle" style="
         color: #6ea8fe;
         font-size: 0.9rem;
         margin-bottom: 18px;
         word-break: break-word;
-      "
-    ></div>
+      "></div>
     <input type="hidden" id="editJobId" />
     <div class="settings-row" style="margin-bottom: 12px">
-      <label style="color: #9ca3af; font-size: 0.85rem; min-width: 80px"
-        >Language</label
-      >
+      <label style="color: #9ca3af; font-size: 0.85rem; min-width: 80px">Language</label>
       <select id="editLanguage" class="sync-select">
         <option>German Dub</option>
         <option>English Sub</option>
@@ -43,9 +34,7 @@ endblock %} {% block content %}
       </select>
     </div>
     <div class="settings-row" style="margin-bottom: 12px">
-      <label style="color: #9ca3af; font-size: 0.85rem; min-width: 80px"
-        >Provider</label
-      >
+      <label style="color: #9ca3af; font-size: 0.85rem; min-width: 80px">Provider</label>
       <select id="editProvider" class="sync-select">
         <option>VOE</option>
         <option>Vidmoly</option>
@@ -53,26 +42,20 @@ endblock %} {% block content %}
       </select>
     </div>
     <div class="settings-row" style="margin-bottom: 12px">
-      <label style="color: #9ca3af; font-size: 0.85rem; min-width: 80px"
-        >Path</label
-      >
+      <label style="color: #9ca3af; font-size: 0.85rem; min-width: 80px">Path</label>
       <select id="editPath" class="sync-select">
         <option value="">Default</option>
       </select>
     </div>
     <div class="settings-row" style="margin-bottom: 18px">
-      <label style="color: #9ca3af; font-size: 0.85rem; min-width: 80px"
-        >Status</label
-      >
+      <label style="color: #9ca3af; font-size: 0.85rem; min-width: 80px">Status</label>
       <select id="editEnabled" class="sync-select">
         <option value="1">Enabled</option>
         <option value="0">Disabled</option>
       </select>
     </div>
     <div style="display: flex; justify-content: flex-end; gap: 10px">
-      <button
-        onclick="closeEditModal()"
-        style="
+      <button onclick="closeEditModal()" style="
           padding: 10px 20px;
           border-radius: 10px;
           border: 1px solid rgba(255, 255, 255, 0.1);
@@ -80,13 +63,10 @@ endblock %} {% block content %}
           color: #c8cad0;
           font-size: 0.85rem;
           cursor: pointer;
-        "
-      >
+        ">
         Cancel
       </button>
-      <button
-        onclick="saveEdit()"
-        style="
+      <button onclick="saveEdit()" style="
           padding: 10px 20px;
           border-radius: 10px;
           border: none;
@@ -95,8 +75,7 @@ endblock %} {% block content %}
           font-size: 0.85rem;
           font-weight: 600;
           cursor: pointer;
-        "
-      >
+        ">
         Save
       </button>
     </div>

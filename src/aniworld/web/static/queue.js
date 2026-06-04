@@ -202,7 +202,7 @@ function renderQueue(items) {
           typeof item.errors === "string"
             ? JSON.parse(item.errors)
             : item.errors;
-      } catch (e) {}
+      } catch (e) { }
       if (errors.length) {
         const errId = "qerr-" + item.id;
         let details = "";
@@ -244,8 +244,8 @@ function renderQueue(items) {
     } else if (item.status === "running") {
       const captchaBtn = item.captcha_url
         ? '<button class="queue-captcha-btn" onclick="openCaptchaModal(' +
-          item.id +
-          ')" title="Solve captcha">&#128274; Solve</button>'
+        item.id +
+        ')" title="Solve captcha">&#128274; Solve</button>'
         : '';
       actionBtn =
         captchaBtn +
@@ -456,7 +456,7 @@ function closeCaptchaModal() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ x, y }),
-    }).catch(function () {});
+    }).catch(function () { });
   });
 })();
 

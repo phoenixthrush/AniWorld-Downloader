@@ -66,20 +66,13 @@ endblock %} {% block content %}
     <h2>Auto-Sync Defaults</h2>
     <div class="settings-row" style="gap: 10px; flex-wrap: wrap">
       <div style="flex: 1; min-width: 140px">
-        <label
-          style="
+        <label style="
             font-size: 0.78rem;
             color: #6b7280;
             margin-bottom: 4px;
             display: block;
-          "
-          >Schedule</label
-        >
-        <select
-          id="syncSchedule"
-          onchange="saveSyncSchedule()"
-          class="sync-select"
-        >
+          ">Schedule</label>
+        <select id="syncSchedule" onchange="saveSyncSchedule()" class="sync-select">
           <option value="0">Disabled</option>
           <option value="1min">1 min (Debug)</option>
           <option value="30min">30 min</option>
@@ -93,40 +86,26 @@ endblock %} {% block content %}
         </select>
       </div>
       <div style="flex: 1; min-width: 140px">
-        <label
-          style="
+        <label style="
             font-size: 0.78rem;
             color: #6b7280;
             margin-bottom: 4px;
             display: block;
-          "
-          >Default Language</label
-        >
-        <select
-          id="syncLanguage"
-          onchange="saveSyncDefaults()"
-          class="sync-select"
-        >
+          ">Default Language</label>
+        <select id="syncLanguage" onchange="saveSyncDefaults()" class="sync-select">
           <option>German Dub</option>
           <option>English Sub</option>
           <option>German Sub</option>
         </select>
       </div>
       <div style="flex: 1; min-width: 140px">
-        <label
-          style="
+        <label style="
             font-size: 0.78rem;
             color: #6b7280;
             margin-bottom: 4px;
             display: block;
-          "
-          >Default Provider</label
-        >
-        <select
-          id="syncProvider"
-          onchange="saveSyncDefaults()"
-          class="sync-select"
-        >
+          ">Default Provider</label>
+        <select id="syncProvider" onchange="saveSyncDefaults()" class="sync-select">
           <option>VOE</option>
           <option>Vidmoly</option>
           <option>Vidoza</option>
@@ -154,9 +133,7 @@ endblock %} {% block content %}
       Downloads always try the selected provider first. If that hoster fails,
       AniWorld Downloader falls back through this order.
     </div>
-    <label
-      class="settings-checkbox"
-      style="
+    <label class="settings-checkbox" style="
         display: flex;
         align-items: center;
         gap: 8px;
@@ -164,23 +141,15 @@ endblock %} {% block content %}
         font-size: 0.88rem;
         color: #c8cad0;
         cursor: pointer;
-      "
-    >
-      <input
-        type="checkbox"
-        id="langSeparation"
-        onchange="saveLangSeparation()"
-        style="accent-color: #2563eb; cursor: pointer"
-      />
+      ">
+      <input type="checkbox" id="langSeparation" onchange="saveLangSeparation()" style="accent-color: #2563eb; cursor: pointer" />
       Separate languages into folders
     </label>
     <div class="settings-hint">
       When enabled, downloads are organized into subfolders by language (e.g.
       german-dub/, english-sub/)
     </div>
-    <label
-      class="settings-checkbox"
-      style="
+    <label class="settings-checkbox" style="
         display: flex;
         align-items: center;
         gap: 8px;
@@ -188,14 +157,8 @@ endblock %} {% block content %}
         font-size: 0.88rem;
         color: #c8cad0;
         cursor: pointer;
-      "
-    >
-      <input
-        type="checkbox"
-        id="disableEnglishSub"
-        onchange="saveDisableEnglishSub()"
-        style="accent-color: #2563eb; cursor: pointer"
-      />
+      ">
+      <input type="checkbox" id="disableEnglishSub" onchange="saveDisableEnglishSub()" style="accent-color: #2563eb; cursor: pointer" />
       Disable English Sub downloads
     </label>
     <div class="settings-hint">

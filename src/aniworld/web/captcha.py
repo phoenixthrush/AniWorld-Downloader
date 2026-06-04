@@ -5,7 +5,7 @@ without duplication.
 """
 
 from ..playwright.captcha import (  # noqa: F401
+    get_captcha_status,
     is_captcha_page,
     solve_captcha,
-    get_captcha_status,
 )

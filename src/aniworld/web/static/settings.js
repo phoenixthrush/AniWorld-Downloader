@@ -58,7 +58,7 @@ async function saveLangSeparation() {
     }
     showToast(
       "Language separation " +
-        (langSeparationCb.checked ? "enabled" : "disabled"),
+      (langSeparationCb.checked ? "enabled" : "disabled"),
     );
 
     let currentSyncLang = syncLanguageSelect ? syncLanguageSelect.value : null;
@@ -191,7 +191,7 @@ async function saveDisableEnglishSub() {
     }
     showToast(
       "English Sub downloads " +
-        (disableEnglishSubCb.checked ? "disabled" : "enabled"),
+      (disableEnglishSubCb.checked ? "disabled" : "enabled"),
     );
   } catch (e) {
     showToast("Failed to save setting: " + e.message);
@@ -421,10 +421,9 @@ function renderUsers(users) {
       </td>` +
       `<td>${authBadge}</td>` +
       `<td>${esc(u.created_at)}</td>` +
-      `<td>${
-        isLastAdmin
-          ? '<span style="color:#555">protected</span>'
-          : `<button class="btn-del" onclick="deleteUser(${u.id})">Delete</button>`
+      `<td>${isLastAdmin
+        ? '<span style="color:#555">protected</span>'
+        : `<button class="btn-del" onclick="deleteUser(${u.id})">Delete</button>`
       }</td>`;
     userTableBody.appendChild(tr);
   });

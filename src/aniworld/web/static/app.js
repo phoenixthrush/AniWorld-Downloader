@@ -573,21 +573,28 @@ function renderEpisodeLanguageBadges(labels) {
   if (!labels.length) return "";
   return `<span class="ep-language-badges">${labels
     .map((label) => {
-      const display = getEpisodeLanguageBadgeText(label);
+      const badge = getEpisodeLanguageBadge(label);
       const cls = getEpisodeLanguageBadgeClass(label);
-      return `<span class="ep-language-badge ${cls}" title="${esc(label)}">${esc(display)}</span>`;
+      const flagMarkup = (badge ? badge.flags : [])
+        .map(
+          (flag) =>
+            `<img class="ep-language-flag" src="/static/flags/${flag}.svg" alt="" aria-hidden="true">`,
+        )
+        .join("");
+      const text = badge ? badge.text : label;
+      return `<span class="ep-language-badge ${cls}" title="${esc(label)}">${flagMarkup}<span class="ep-language-badge-text">${esc(text)}</span></span>`;
     })
     .join("")}</span>`;
 }
 
-function getEpisodeLanguageBadgeText(label) {
+function getEpisodeLanguageBadge(label) {
   const badgeMap = {
-    "German Dub": "🇩🇪 Dub",
-    "German Sub": "🇯🇵🇩🇪 Sub",
-    "English Dub": "🇬🇧 Dub",
-    "English Sub": "🇯🇵🇬🇧 Sub",
+    "German Dub": { flags: ["de"], text: "Dub" },
+    "German Sub": { flags: ["jp", "de"], text: "Sub" },
+    "English Dub": { flags: ["gb"], text: "Dub" },
+    "English Sub": { flags: ["jp", "gb"], text: "Sub" },
   };
-  return badgeMap[label] || label;
+  return badgeMap[label] || null;
 }
 
 function getEpisodeLanguageBadgeClass(label) {

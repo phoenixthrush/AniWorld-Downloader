@@ -1,112 +1,77 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{% block title %}AniWorld Downloader{% endblock %}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='style.css') }}"
-    />
-    {% block styles %}{% endblock %}
-  </head>
 
-  <body>
-    <div class="top-bar">
-      <div class="top-bar-left">
-        <a href="{{ url_for('index') }}" class="top-bar-brand"
-          >AniWorld Downloader{% if app_version %} v{{ app_version }}{% endif
-          %}</a
-        >
-      </div>
-      <div class="top-bar-right">
-        <a href="{{ url_for('index') }}" class="top-bar-link">Home</a>
-        <a href="{{ url_for('library_page') }}" class="top-bar-link">Library</a>
-        <a href="{{ url_for('autosync_page') }}" class="top-bar-link"
-          >Auto-Sync</a
-        >
-        <a
-          href="#"
-          class="top-bar-link"
-          id="queueBtn"
-          onclick="
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}AniWorld Downloader{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  {% block styles %}{% endblock %}
+</head>
+
+<body>
+  <div class="top-bar">
+    <div class="top-bar-left">
+      <a href="{{ url_for('index') }}" class="top-bar-brand">AniWorld Downloader{% if app_version %} v{{ app_version }}{% endif
+        %}</a>
+    </div>
+    <div class="top-bar-right">
+      <a href="{{ url_for('index') }}" class="top-bar-link">Home</a>
+      <a href="{{ url_for('library_page') }}" class="top-bar-link">Library</a>
+      <a href="{{ url_for('autosync_page') }}" class="top-bar-link">Auto-Sync</a>
+      <a href="#" class="top-bar-link" id="queueBtn" onclick="
             openQueueModal();
             return false;
-          "
-        >
-          Queue
-          <span class="queue-badge" id="queueBadge" style="display: none"
-            >0</span
-          >
-        </a>
-        {% if not auth_enabled or (current_user and current_user.role ==
-        'admin') %}
-        <a href="{{ url_for('settings_page') }}" class="top-bar-link"
-          >Settings</a
-        >
-        {% endif %} {% if auth_enabled and current_user %}
-        <span class="top-bar-user">{{ current_user.username }}</span>
-        <a href="{{ url_for('auth.logout') }}" class="top-bar-link">Logout</a>
-        {% endif %}
-      </div>
+          ">
+        Queue
+        <span class="queue-badge" id="queueBadge" style="display: none">0</span>
+      </a>
+      {% if not auth_enabled or (current_user and current_user.role ==
+      'admin') %}
+      <a href="{{ url_for('settings_page') }}" class="top-bar-link">Settings</a>
+      {% endif %} {% if auth_enabled and current_user %}
+      <span class="top-bar-user">{{ current_user.username }}</span>
+      <a href="{{ url_for('auth.logout') }}" class="top-bar-link">Logout</a>
+      {% endif %}
     </div>
-    {% block content %}{% endblock %}
+  </div>
+  {% block content %}{% endblock %}
 
-    <footer class="site-footer">
-      <p>
-        AniWorld Downloader is open source.
-        <a
-          href="https://github.com/phoenixthrush/AniWorld-Downloader"
-          target="_blank"
-          rel="noopener noreferrer"
-          >View the project on GitHub</a
-        >.
+  <footer class="site-footer">
+    <p>
+      AniWorld Downloader is open source.
+      <a href="https://github.com/phoenixthrush/AniWorld-Downloader" target="_blank" rel="noopener noreferrer">View the project on GitHub</a>.
+    </p>
+  </footer>
+
+  <div class="queue-overlay" id="queueOverlay" onclick="if (event.target === this) closeQueueModal();">
+    <div class="queue-modal">
+      <button class="close" onclick="closeQueueModal()">&times;</button>
+      <h2 class="queue-modal-title">Download Queue</h2>
+      <div id="queueList" class="queue-list"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="{{ url_for('static', filename='queue.js') }}"></script>
+
+  <div class="captcha-overlay" id="captchaOverlay" onclick="if (event.target === this) closeCaptchaModal();">
+    <div class="captcha-modal">
+      <button class="close" onclick="closeCaptchaModal()">&times;</button>
+      <h2 class="queue-modal-title">&#128274; Captcha lösen</h2>
+      <p id="captchaHint" class="captcha-hint">
+        Klick auf die Darstellung um mit dem Browser zu interagieren.
       </p>
-    </footer>
-
-    <div
-      class="queue-overlay"
-      id="queueOverlay"
-      onclick="if (event.target === this) closeQueueModal();"
-    >
-      <div class="queue-modal">
-        <button class="close" onclick="closeQueueModal()">&times;</button>
-        <h2 class="queue-modal-title">Download Queue</h2>
-        <div id="queueList" class="queue-list"></div>
+      <div class="captcha-screen-wrap">
+        <img id="captchaScreenshot" class="captcha-screen" alt="Captcha Browser" draggable="false" />
       </div>
     </div>
+  </div>
 
-    <div class="toast" id="toast"></div>
-    <script src="{{ url_for('static', filename='queue.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
 
-    <div
-      class="captcha-overlay"
-      id="captchaOverlay"
-      onclick="if (event.target === this) closeCaptchaModal();"
-    >
-      <div class="captcha-modal">
-        <button class="close" onclick="closeCaptchaModal()">&times;</button>
-        <h2 class="queue-modal-title">&#128274; Captcha lösen</h2>
-        <p id="captchaHint" class="captcha-hint">
-          Klick auf die Darstellung um mit dem Browser zu interagieren.
-        </p>
-        <div class="captcha-screen-wrap">
-          <img
-            id="captchaScreenshot"
-            class="captcha-screen"
-            alt="Captcha Browser"
-            draggable="false"
-          />
-        </div>
-      </div>
-    </div>
-
-    {% block scripts %}{% endblock %}
-  </body>
 </html>

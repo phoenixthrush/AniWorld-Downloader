@@ -5,7 +5,6 @@ import re
 from urllib.parse import urlparse
 
 import niquests
-
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 try:

@@ -10,12 +10,7 @@
     <span class="site-label" id="labelSto">S.TO</span>
   </div>
   <div class="search-bar">
-    <input
-      type="text"
-      id="searchInput"
-      placeholder="Search for anime..."
-      autofocus
-    />
+    <input type="text" id="searchInput" placeholder="Search for anime..." autofocus />
     <button id="searchBtn" onclick="doSearch()">Search</button>
     <button class="btn-random" id="randomBtn" onclick="doRandom()">
       Random
@@ -58,10 +53,7 @@
     <div class="controls">
       <select id="languageSelect">
         {% for key, label in lang_labels.items() %}
-        <option
-          value="{{ label }}"
-          {% if label == default_web_language %}selected{% endif %}
-        >
+        <option value="{{ label }}" {% if label==default_web_language %}selected{% endif %}>
           {{ label }}
         </option>
         {% endfor %}
@@ -83,18 +75,10 @@
     <div class="episodes-header">
       <h3>Episodes</h3>
       <div style="display: flex; align-items: center; gap: 16px">
-        <label class="select-all-label"
-          ><input
-            type="checkbox"
-            id="autoSyncCheck"
-            onchange="toggleAutoSync()"
-          />
-          Keep Updated (Auto-Sync)</label
-        >
-        <label class="select-all-label"
-          ><input type="checkbox" id="selectAll" onchange="toggleSelectAll()" />
-          Select All</label
-        >
+        <label class="select-all-label"><input type="checkbox" id="autoSyncCheck" onchange="toggleAutoSync()" />
+          Keep Updated (Auto-Sync)</label>
+        <label class="select-all-label"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()" />
+          Select All</label>
       </div>
     </div>
     <div class="season-accordion" id="seasonAccordion"></div>
@@ -103,26 +87,13 @@
       <span id="statusText"></span>
     </div>
     <div class="modal-actions">
-      <button
-        class="btn-download-selected"
-        id="downloadSelectedBtn"
-        onclick="startDownload(false)"
-      >
+      <button class="btn-download-selected" id="downloadSelectedBtn" onclick="startDownload(false)">
         Download Selected
       </button>
-      <button
-        class="btn-download-all"
-        id="downloadAllBtn"
-        onclick="startDownload(true)"
-      >
+      <button class="btn-download-all" id="downloadAllBtn" onclick="startDownload(true)">
         Download All
       </button>
-      <button
-        class="btn-download-all-langs"
-        id="downloadAllLangsBtn"
-        onclick="startDownloadAllLangs()"
-        style="display: none"
-      >
+      <button class="btn-download-all-langs" id="downloadAllLangsBtn" onclick="startDownloadAllLangs()" style="display: none">
         Download All Languages
       </button>
     </div>

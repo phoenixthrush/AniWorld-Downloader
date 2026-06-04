@@ -32,6 +32,7 @@ from .db import (
     add_custom_path,
     add_to_queue,
     cancel_queue_item,
+    clear_captcha_url,
     clear_completed,
     find_autosync_by_url,
     get_autosync_job,
@@ -54,7 +55,6 @@ from .db import (
     remove_custom_path,
     remove_from_queue,
     set_captcha_url,
-    clear_captcha_url,
     set_queue_status,
     update_autosync_job,
     update_queue_errors,
@@ -1046,8 +1046,9 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     @app.route("/api/captcha/<int:queue_id>/screenshot")
     def api_captcha_screenshot(queue_id):
         """Return the latest JPEG screenshot of the Playwright captcha page."""
-        from ..playwright.captcha import _active_sessions, _active_sessions_lock
         from flask import Response
+
+        from ..playwright.captcha import _active_sessions, _active_sessions_lock
 
         with _active_sessions_lock:
             session = _active_sessions.get(queue_id)
@@ -1101,8 +1102,8 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
     @app.route("/settings")
     def settings_page():
-        from pathlib import Path
         import platform
+        from pathlib import Path
 
         env_path = Path.home() / ".aniworld" / ".env"
         if platform.system() != "Windows":

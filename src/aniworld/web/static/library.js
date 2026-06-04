@@ -86,7 +86,7 @@ function restoreExpandedState(state) {
             var sid = "libS" + globalTi + "_" + skey;
             if (
               state.seasons[
-                loc.label + "::" + lf.name + "::" + title.folder + "::" + skey
+              loc.label + "::" + lf.name + "::" + title.folder + "::" + skey
               ]
             ) {
               var body = document.getElementById(sid + "Body");
@@ -150,16 +150,16 @@ function renderTitles(html, titles, idPrefix, padLeft, locIndex, langFolder) {
     html.push('<div class="library-title-section">');
     html.push(
       '<div class="library-title-header" onclick="toggleLibraryTitle(\'' +
-        globalTi +
-        '\')" style="padding-left:' +
-        padLeft +
-        'px">',
+      globalTi +
+      '\')" style="padding-left:' +
+      padLeft +
+      'px">',
     );
     html.push('<div class="library-title-left">');
     html.push(
       '<span class="library-arrow" id="libraryTitleArrow' +
-        globalTi +
-        '">&#9654;</span>',
+      globalTi +
+      '">&#9654;</span>',
     );
     html.push(
       '<span class="library-title-name">' + escLib(title.folder) + "</span>",
@@ -171,8 +171,8 @@ function renderTitles(html, titles, idPrefix, padLeft, locIndex, langFolder) {
     );
     html.push(
       '<span class="library-meta library-meta-size">' +
-        formatSize(title.total_size) +
-        "</span>",
+      formatSize(title.total_size) +
+      "</span>",
     );
     if (libraryCanDelete) {
       var delArgs =
@@ -183,8 +183,8 @@ function renderTitles(html, titles, idPrefix, padLeft, locIndex, langFolder) {
         (langFolder !== null ? "'" + escLib(langFolder) + "'" : "null");
       html.push(
         '<button class="library-delete" onclick="event.stopPropagation();deleteLibraryItem(' +
-          delArgs +
-          ')" title="Delete title">&times;</button>',
+        delArgs +
+        ')" title="Delete title">&times;</button>',
       );
     }
     html.push("</div>");
@@ -204,10 +204,10 @@ function renderTitles(html, titles, idPrefix, padLeft, locIndex, langFolder) {
 
       html.push(
         '<div class="library-season-header" onclick="toggleLibrarySeason(\'' +
-          sid +
-          '\')" style="padding-left:' +
-          seasonPad +
-          'px">',
+        sid +
+        '\')" style="padding-left:' +
+        seasonPad +
+        'px">',
       );
       html.push('<div class="library-season-left">');
       html.push(
@@ -221,8 +221,8 @@ function renderTitles(html, titles, idPrefix, padLeft, locIndex, langFolder) {
       html.push('<div class="library-season-right">');
       html.push(
         '<span class="library-meta library-meta-size">' +
-          formatSize(seasonSize) +
-          "</span>",
+        formatSize(seasonSize) +
+        "</span>",
       );
       if (libraryCanDelete) {
         var delArgs =
@@ -235,8 +235,8 @@ function renderTitles(html, titles, idPrefix, padLeft, locIndex, langFolder) {
           (langFolder !== null ? "'" + escLib(langFolder) + "'" : "null");
         html.push(
           '<button class="library-delete" onclick="event.stopPropagation();deleteLibraryItem(' +
-            delArgs +
-            ')" title="Delete season">&times;</button>',
+          delArgs +
+          ')" title="Delete season">&times;</button>',
         );
       }
       html.push("</div>");
@@ -249,8 +249,8 @@ function renderTitles(html, titles, idPrefix, padLeft, locIndex, langFolder) {
         );
         html.push(
           '<span class="library-ep-num">E' +
-            String(ep.episode).padStart(3, "0") +
-            "</span>",
+          String(ep.episode).padStart(3, "0") +
+          "</span>",
         );
         html.push(
           '<span class="library-ep-file">' + escLib(ep.file) + "</span>",
@@ -271,8 +271,8 @@ function renderTitles(html, titles, idPrefix, padLeft, locIndex, langFolder) {
             (langFolder !== null ? "'" + escLib(langFolder) + "'" : "null");
           html.push(
             '<button class="library-delete" onclick="deleteLibraryItem(' +
-              delArgs +
-              ')" title="Delete episode">&times;</button>',
+            delArgs +
+            ')" title="Delete episode">&times;</button>',
           );
         }
         html.push("</div>");
@@ -317,27 +317,27 @@ function renderLibrary(locations) {
     html.push('<div class="library-title-section">');
     html.push(
       '<div class="library-location-header" onclick="toggleLibraryLocation(' +
-        li +
-        ')">',
+      li +
+      ')">',
     );
     html.push('<div class="library-title-left">');
     html.push(
       '<span class="library-arrow" id="libraryLocArrow' +
-        li +
-        '">&#9654;</span>',
+      li +
+      '">&#9654;</span>',
     );
     html.push(
       '<span class="library-title-name" style="font-weight:600;color:#fff">' +
-        escLib(loc.label) +
-        "</span>",
+      escLib(loc.label) +
+      "</span>",
     );
     html.push("</div>");
     html.push('<div class="library-title-right">');
     html.push('<span class="library-meta">' + locTotalEps + " ep</span>");
     html.push(
       '<span class="library-meta library-meta-size">' +
-        formatSize(locTotalSize) +
-        "</span>",
+      formatSize(locTotalSize) +
+      "</span>",
     );
     html.push("</div>");
     html.push("</div>");
@@ -360,14 +360,14 @@ function renderLibrary(locations) {
         html.push('<div class="library-title-section">');
         html.push(
           '<div class="library-season-header" onclick="toggleLibraryLangFolder(\'' +
-            lfId +
-            '\')" style="padding-left:32px">',
+          lfId +
+          '\')" style="padding-left:32px">',
         );
         html.push('<div class="library-season-left">');
         html.push(
           '<span class="library-arrow" id="libraryLfArrow' +
-            lfId +
-            '">&#9654;</span>',
+          lfId +
+          '">&#9654;</span>',
         );
         html.push(
           '<span style="font-weight:500">' + escLib(lf.name) + "</span>",
@@ -377,8 +377,8 @@ function renderLibrary(locations) {
         html.push('<span class="library-meta">' + lfTotalEps + " ep</span>");
         html.push(
           '<span class="library-meta library-meta-size">' +
-            formatSize(lfTotalSize) +
-            "</span>",
+          formatSize(lfTotalSize) +
+          "</span>",
         );
         html.push("</div>");
         html.push("</div>");

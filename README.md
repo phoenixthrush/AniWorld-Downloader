@@ -221,6 +221,7 @@ AniWorld Downloader builds upon the work of several outstanding open-source proj
 - **[Syncplay](https://github.com/Syncplay/syncplay.git)** – Enables synchronized playback sessions with friends
 - **[Anime4K](https://github.com/bloc97/Anime4K)** – Real-time upscaler for enhancing anime video quality
 - **[Aniskip](https://api.aniskip.com/api-docs)** – Provides opening and ending skip times for the Aniskip extension
+- **[flag-icons](https://github.com/lipis/flag-icons)** – Collection of SVG country flags
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

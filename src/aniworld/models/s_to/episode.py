@@ -5,10 +5,10 @@ from html import unescape
 from pathlib import Path
 
 from ...config import (
-    build_provider_attempt_order,
     GLOBAL_SESSION,
     NAMING_TEMPLATE,
     SERIENSTREAM_EPISODE_PATTERN,
+    build_provider_attempt_order,
     logger,
 )
 from ...extractors import provider_functions
@@ -294,6 +294,7 @@ class SerienstreamEpisode:
     def provider_url(self):
         if self.__provider_url is None:
             from urllib.parse import urlparse
+
             from ...playwright.captcha import solve_sto_modal
 
             # Try plain HTTP first — works when no modal is shown
