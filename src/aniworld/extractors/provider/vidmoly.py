@@ -1,9 +1,9 @@
 import re
 
 try:
-    from ...config import GLOBAL_SESSION
+    from ...config import DEFAULT_USER_AGENT, GLOBAL_SESSION
 except ImportError:
-    from aniworld.config import GLOBAL_SESSION
+    from aniworld.config import DEFAULT_USER_AGENT, GLOBAL_SESSION
 
 # -----------------------------
 # Constants
@@ -19,7 +19,13 @@ PREVIEW_IMAGE_PATTERN = re.compile(
 # -----------------------------
 def _get_headers():
     """Return headers for Vidmoly requests."""
-    return {"Referer": "https://vidmoly.biz"}
+    return {
+        "User-Agent": DEFAULT_USER_AGENT,
+        "Referer": "https://vidmoly.biz/",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Accept-Encoding": "gzip, deflate",
+    }
 
 
 def _extract_regex(pattern, content, name, url):

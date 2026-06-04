@@ -14,7 +14,7 @@ import ffmpeg
 from ...autodeps import DependencyManager
 
 try:
-    from ...autodeps import get_player_path, get_syncplay_path
+    from ...autodeps import get_aria2c_path, get_player_path, get_syncplay_path
     from ...config import (
         INVERSE_LANG_LABELS,
         LANG_CODE_MAP,
@@ -27,7 +27,7 @@ try:
         logger,
     )
 except ImportError:
-    from aniworld.autodeps import get_player_path, get_syncplay_path
+    from aniworld.autodeps import get_aria2c_path, get_player_path, get_syncplay_path
     from aniworld.config import (
         INVERSE_LANG_LABELS,
         LANG_CODE_MAP,
@@ -499,6 +499,121 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
         raise RuntimeError(f"ffmpeg error (rc={process.returncode}): {detail}")
 
 
+def _aria2c_bandwidth_to_mb(value, unit):
+    if unit == "GiB":
+        return value * 1024
+    if unit == "MiB":
+        return value
+    if unit == "KiB":
+        return value / 1024
+    return value / (1024 * 1024)
+
+
+def _try_aria2c_download(url, output_path, headers) -> bool:
+    """Download url with aria2c using multiple connections when available."""
+    try:
+        aria2c = str(get_aria2c_path())
+    except Exception as exc:
+        logger.debug(f"[Doodstream] aria2c unavailable: {exc}")
+        return False
+
+    cmd = [
+        aria2c,
+        "--max-connection-per-server=16",
+        "--split=16",
+        "--allow-overwrite=true",
+        "--auto-file-renaming=false",
+        "--console-log-level=warn",
+        "--summary-interval=1",
+        "--out",
+        output_path.name,
+        "--dir",
+        str(output_path.parent),
+    ]
+    for key, value in headers.items():
+        cmd += ["--header", f"{key}: {value}"]
+    cmd.append(url)
+
+    percent_pattern = re.compile(r"\((\d+)%\)")
+    bandwidth_pattern = re.compile(r"DL:([0-9.]+)(GiB|MiB|KiB|B)")
+
+    try:
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=False,
+        )
+    except Exception as exc:
+        logger.debug(f"[Doodstream] aria2c failed to start: {exc}")
+        return False
+
+    with _ffmpeg_progress_lock:
+        _ffmpeg_progress.update(
+            percent=0.0, time="", speed="", bandwidth="", active=True
+        )
+
+    buf = bytearray()
+    try:
+        while True:
+            char = process.stdout.read(1)
+            if not char:
+                break
+            if char not in (b"\r", b"\n"):
+                buf.extend(char)
+                continue
+            if not buf:
+                continue
+
+            line = buf.decode("utf-8", errors="replace")
+            buf.clear()
+            percent_match = percent_pattern.search(line)
+            if not percent_match:
+                continue
+
+            bandwidth = ""
+            bandwidth_match = bandwidth_pattern.search(line)
+            if bandwidth_match:
+                value = float(bandwidth_match.group(1))
+                unit = bandwidth_match.group(2)
+                bandwidth = f"{_aria2c_bandwidth_to_mb(value, unit):.1f} MB/s"
+
+            with _ffmpeg_progress_lock:
+                _ffmpeg_progress.update(
+                    percent=round(float(percent_match.group(1)), 1),
+                    time="",
+                    speed="",
+                    bandwidth=bandwidth,
+                    active=True,
+                )
+    finally:
+        with _ffmpeg_progress_lock:
+            _ffmpeg_progress.update(
+                percent=0.0, time="", speed="", bandwidth="", active=False
+            )
+
+    process.wait()
+    return process.returncode == 0 and output_path.exists()
+
+
+def _safe_unlink(path, retries=6, delay=0.5):
+    last_error = None
+    for attempt in range(retries):
+        try:
+            path.unlink()
+            return
+        except FileNotFoundError:
+            return
+        except OSError as exc:
+            last_error = exc
+            if attempt < retries - 1:
+                import time
+
+                time.sleep(delay)
+
+    logger.debug(f"Failed to remove temporary file {path}: {last_error}")
+
+
 def download(self):
     """Download required audio/video streams for an episode (AniWorld + s.to) with retry logic."""
     if platform.system() == "Windows":
@@ -580,6 +695,21 @@ def download(self):
                 temp_audio = self._episode_path.with_suffix(".temp_audio.mkv")
                 temp_video = self._episode_path.with_suffix(".temp_video.mkv")
                 temp_full = self._episode_path.with_suffix(".temp_full.mkv")
+                temp_dood = self._episode_path.with_suffix(".temp_dood.mp4")
+
+                if provider_name == "Doodstream":
+                    if _try_aria2c_download(stream_url, temp_dood, headers):
+                        logger.debug(
+                            "[Doodstream] aria2c download complete - using local file"
+                        )
+                        stream_url = str(temp_dood)
+                        input_kwargs = {}
+                    else:
+                        if temp_dood.exists():
+                            _safe_unlink(temp_dood)
+                        logger.debug(
+                            "[Doodstream] aria2c unavailable - falling back to FFmpeg"
+                        )
 
                 if full_stream_needed:
                     logger.debug(
@@ -615,7 +745,9 @@ def download(self):
                         os.replace(temp_full, self._episode_path)
 
                     if temp_full.exists():
-                        temp_full.unlink()
+                        _safe_unlink(temp_full)
+                    if temp_dood.exists():
+                        _safe_unlink(temp_dood)
                     return
 
                 if need_audio:
@@ -666,9 +798,9 @@ def download(self):
                 )
                 os.replace(output_path, self._episode_path)
 
-                for f in (temp_audio, temp_video):
+                for f in (temp_audio, temp_video, temp_dood):
                     if f.exists():
-                        f.unlink()
+                        _safe_unlink(f)
 
                 return
 
@@ -677,11 +809,12 @@ def download(self):
                     ".temp_full.mkv",
                     ".temp_audio.mkv",
                     ".temp_video.mkv",
+                    ".temp_dood.mp4",
                     ".new.mkv",
                 ):
                     temp = self._episode_path.with_suffix(suffix)
                     if temp.exists():
-                        temp.unlink()
+                        _safe_unlink(temp)
 
                 provider_errors[provider_name] = e
                 logger.warning(
