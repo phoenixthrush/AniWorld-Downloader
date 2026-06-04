@@ -225,6 +225,13 @@ def _build_provider_failure_message(action_name, provider_errors):
     return f"{action_name} failed for all providers. {details}"
 
 
+def _build_blocking_player_command(player_path, stream_url):
+    player_name = os.path.basename(str(player_path)).lower()
+    if player_name.startswith("iina"):
+        return [player_path, "--keep-running", stream_url]
+    return [player_path, stream_url]
+
+
 def _resolve_stream_url_with_fallback(self, action_name):
     provider_errors = {}
 
@@ -743,7 +750,7 @@ def watch(self):
                 _reset_provider_resolution_cache(self)
                 stream_url = self.stream_url
                 headers = PROVIDER_HEADERS_W.get(provider_name, {})
-                cmd = [player_path, stream_url]
+                cmd = _build_blocking_player_command(player_path, stream_url)
 
                 if skip_flags:
                     cmd.extend(skip_flags)
