@@ -42,6 +42,7 @@ aniworld -w
 
 This project is actively being improved. Current work in progress includes:
 
+- [ ] add support for aniskip feature on IINA
 - [ ] Split Web UI SSO dependencies into separate `extras` section
 - [ ] Implement `keep-watching` argument for continuous playback
 - [ ] Review and optimize dependency manager on Windows
