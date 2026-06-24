@@ -153,6 +153,39 @@ h1 {
   background: rgba(255, 255, 255, 0.06);
 }
 
+/* ===== Site Tabs ===== */
+.site-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.site-tab {
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: #6b7280;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.site-tab:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #c8cad0;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.site-tab.active {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+}
+
 /* ===== Site Toggle Switch ===== */
 .site-switch {
   display: flex;
@@ -502,6 +535,46 @@ h1 {
 }
 
 .controls select:focus {
+  border-color: #2563eb;
+  outline: none;
+}
+
+.custom-path-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.custom-path-label {
+  font-size: 0.78rem;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.custom-path-row select {
+  padding: 9px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #c8cad0;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px;
+  flex: 1;
+}
+
+.custom-path-row select:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.custom-path-row select:focus {
   border-color: #2563eb;
   outline: none;
 }

@@ -165,6 +165,21 @@ endblock %} {% block content %}
       When enabled, English Sub is hidden from the language selector and cannot
       be downloaded
     </div>
+    <label class="settings-checkbox" style="
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 14px;
+        font-size: 0.88rem;
+        color: #c8cad0;
+        cursor: pointer;
+      ">
+      <input type="checkbox" id="enableHtv" onchange="saveEnableHtv()" style="accent-color: #2563eb; cursor: pointer" />
+      Enable Hanime tab
+    </label>
+    <div class="settings-hint">
+      When enabled, the Hanime tab is shown on the home page
+    </div>
   </div>
 
   <div class="settings-section">
