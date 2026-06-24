@@ -142,6 +142,94 @@ _STO_SERIES_LINK_PATTERN = re.compile(
 )
 
 
+_HTV_SEARCH_URL = "https://search.htv-services.com/"
+
+
+def _search_htv(keyword):
+    """Search hanime.tv via their search API."""
+    try:
+        resp = requests.post(
+            _HTV_SEARCH_URL,
+            json={
+                "search_text": keyword,
+                "tags": [],
+                "tags_mode": "AND",
+                "brands": [],
+                "blacklist": [],
+                "order_by": "likes",
+                "ordering": "desc",
+                "page": 0,
+            },
+            headers={"Content-Type": "application/json"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        import json as _json
+
+        hits_raw = data.get("hits", "[]")
+        if isinstance(hits_raw, str):
+            hits = _json.loads(hits_raw)
+        else:
+            hits = hits_raw
+        return hits
+    except Exception as e:
+        logger.warning(f"HTV search failed: {e}")
+        return []
+
+
+def _fetch_htv_trending():
+    """Fetch trending videos from hanime.tv via search API."""
+    try:
+        resp = requests.post(
+            _HTV_SEARCH_URL,
+            json={
+                "search_text": "",
+                "tags": [],
+                "tags_mode": "AND",
+                "brands": [],
+                "blacklist": [],
+                "order_by": "likes",
+                "ordering": "desc",
+                "page": 0,
+            },
+            headers={"Content-Type": "application/json"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        import json as _json
+
+        hits_raw = data.get("hits", "[]")
+        if isinstance(hits_raw, str):
+            hits = _json.loads(hits_raw)
+        else:
+            hits = hits_raw
+        results = []
+        seen = set()
+        for h in hits:
+            slug = h.get("slug", "")
+            title = h.get("name", "")
+            if not slug or not title:
+                continue
+            franchise_key = re.sub(r"-\d+$", "", slug)
+            if franchise_key in seen:
+                continue
+            seen.add(franchise_key)
+            results.append(
+                {
+                    "title": title,
+                    "url": f"https://hanime.tv/videos/hentai/{slug}",
+                    "poster_url": h.get("poster_url", ""),
+                    "genre": ", ".join(h.get("tags", [])[:3]),
+                }
+            )
+        return results
+    except Exception as e:
+        logger.warning(f"HTV trending fetch failed: {e}")
+        return None
+
+
 # Queue worker state
 _queue_worker_started = False
 _queue_lock = threading.Lock()
@@ -699,12 +787,14 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         default_web_language = os.environ.get("ANIWORLD_LANGUAGE", "German Dub")
         if default_web_language not in LANG_LABELS.values():
             default_web_language = "German Dub"
+        htv_enabled = os.environ.get("ANIWORLD_ENABLE_HTV", "0") == "1"
         return render_template(
             "index.html",
             lang_labels=LANG_LABELS,
             sto_lang_labels=sto_lang_labels,
             supported_providers=WORKING_PROVIDERS,
             default_web_language=default_web_language,
+            htv_enabled=htv_enabled,
         )
 
     @app.route("/api/search", methods=["POST"])
@@ -717,7 +807,20 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
         results = []
 
-        if site == "sto":
+        if site == "htv":
+            # hanime.tv search
+            htv_results = _search_htv(keyword)
+            for item in htv_results:
+                results.append(
+                    {
+                        "title": item["name"],
+                        "url": f"https://hanime.tv/videos/hentai/{item['slug']}",
+                        "poster_url": _proxy_image_url(
+                            item.get("poster_url", "")
+                        ),
+                    }
+                )
+        elif site == "sto":
             # s.to search
             sto_results = query_s_to(keyword) or []
             if isinstance(sto_results, dict):
@@ -819,15 +922,24 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
         try:
             prov = resolve_provider(url)
-            # Pass series to avoid broken series URL reconstruction in s.to
-            # season model (its fallback splits on "-" which fails)
-            series_url = re.sub(r"/staffel-\d+/?$", "", url)
-            series_url = re.sub(r"/filme/?$", "", series_url)
-            try:
+
+            # HTV: season URL is empty; use the series URL to get episodes
+            if prov.name == "HanimeTV":
+                series_url = request.args.get("series_url", "").strip() or url
                 series = prov.series_cls(url=series_url)
-            except Exception:
-                series = None
-            season = prov.season_cls(url=url, series=series)
+                season = series.seasons[0] if series.seasons else None
+                if not season:
+                    return jsonify({"episodes": []})
+            else:
+                # Pass series to avoid broken series URL reconstruction in s.to
+                # season model (its fallback splits on "-" which fails)
+                series_url = re.sub(r"/staffel-\d+/?$", "", url)
+                series_url = re.sub(r"/filme/?$", "", series_url)
+                try:
+                    series = prov.series_cls(url=series_url)
+                except Exception:
+                    series = None
+                season = prov.season_cls(url=url, series=series)
 
             # Scan download directory for downloaded episodes.
             # Uses S##E### filename matching so it works regardless of
@@ -1130,7 +1242,12 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         if not target or not target.startswith(("http://", "https://")):
             return "", 400
         try:
-            resp = requests.get(target, timeout=10, stream=True)
+            proxy_headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+            if "hanime" in target:
+                proxy_headers["Referer"] = "https://hanime.tv/"
+            resp = requests.get(
+                target, headers=proxy_headers, timeout=10, stream=True
+            )
             resp.raise_for_status()
             content_type = resp.headers.get("Content-Type", "image/jpeg")
             return Response(
@@ -1202,6 +1319,17 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         ]
         return jsonify({"results": proxied})
 
+    @app.route("/api/htv-trending")
+    def api_htv_trending():
+        results = _cached_browse("htv_trending", _fetch_htv_trending)
+        if results is None:
+            return jsonify({"error": "Failed to fetch HTV trending"}), 500
+        proxied = [
+            {**r, "poster_url": _proxy_image_url(r.get("poster_url", ""))}
+            for r in results
+        ]
+        return jsonify({"results": proxied})
+
     @app.route("/api/downloaded-folders")
     def api_downloaded_folders():
         from pathlib import Path
@@ -1263,11 +1391,13 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         )
         if sync_provider not in WORKING_PROVIDERS and provider_fallback_order:
             sync_provider = provider_fallback_order[0]
+        enable_htv = os.environ.get("ANIWORLD_ENABLE_HTV", "0")
         return jsonify(
             {
                 "download_path": resolved,
                 "lang_separation": lang_separation,
                 "disable_english_sub": disable_english_sub,
+                "enable_htv": enable_htv,
                 "sync_schedule": sync_schedule,
                 "sync_language": sync_language,
                 "sync_provider": sync_provider,
@@ -1314,6 +1444,10 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             if prov not in WORKING_PROVIDERS:
                 return jsonify({"error": f"Invalid sync_provider: {prov}"}), 400
             os.environ["ANIWORLD_SYNC_PROVIDER"] = prov
+        if "enable_htv" in data:
+            os.environ["ANIWORLD_ENABLE_HTV"] = (
+                "1" if data["enable_htv"] else "0"
+            )
         if "provider_fallback_order" in data:
             raw_order = data["provider_fallback_order"]
             if isinstance(raw_order, list):

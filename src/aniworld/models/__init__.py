@@ -3,7 +3,7 @@ from .aniworld_to import (
     AniworldSeason,
     AniworldSeries,
 )
-from .hanime_tv import HanimeTVEpisode
+from .hanime_tv import HanimeTVEpisode, HanimeTVSeason, HanimeTVSeries
 from .hianime_to import HiAnimeEpisode, HiAnimeSeason, HiAnimeSeries
 from .s_to import SerienstreamEpisode, SerienstreamSeason, SerienstreamSeries
 
@@ -12,6 +12,8 @@ __all__ = [
     "AniworldSeason",
     "AniworldEpisode",
     "HanimeTVEpisode",
+    "HanimeTVSeason",
+    "HanimeTVSeries",
     "SerienstreamSeries",
     "SerienstreamSeason",
     "SerienstreamEpisode",

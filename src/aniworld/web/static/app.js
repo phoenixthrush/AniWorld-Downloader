@@ -46,9 +46,10 @@ let downloadedFolders = [];
 
 // Custom paths select
 const customPathSelect = document.getElementById("customPathSelect");
+const customPathRow = document.getElementById("customPathRow");
 
 async function loadCustomPaths() {
-  if (!customPathSelect) return;
+  if (!customPathSelect || !customPathRow) return;
   try {
     const resp = await fetch("/api/custom-paths");
     const data = await resp.json();
@@ -62,9 +63,9 @@ async function loadCustomPaths() {
         opt.textContent = p.name;
         customPathSelect.appendChild(opt);
       });
-      customPathSelect.style.display = "";
+      customPathRow.style.display = "";
     } else {
-      customPathSelect.style.display = "none";
+      customPathRow.style.display = "none";
     }
   } catch (e) {
     /* best-effort */
@@ -107,15 +108,40 @@ async function loadStoBrowse(force = false) {
   return stoBrowsePromise;
 }
 
+let htvLoadedAt = 0;
+let htvBrowsePromise = null;
+async function loadHtvBrowse(force = false) {
+  if (!force && htvLoadedAt && Date.now() - htvLoadedAt < BROWSE_REFRESH_MS) return;
+  if (htvBrowsePromise) return htvBrowsePromise;
+  htvLoadedAt = Date.now();
+  htvBrowsePromise = (async () => {
+    try {
+      const resp = await fetch("/api/htv-trending");
+      await loadDownloadedFolders();
+      const data = await resp.json();
+      if (data.results) renderBrowseCards(htvTrendingGrid, data.results);
+    } catch (e) {
+      htvLoadedAt = 0;
+    } finally {
+      htvBrowsePromise = null;
+    }
+  })();
+  return htvBrowsePromise;
+}
+
 function showBrowseSections() {
   const isAniworld = currentSite === "aniworld";
+  const isSto = currentSite === "sto";
+  const isHtv = currentSite === "htv";
   browseDiv.style.display = "";
   newAnimesSection.style.display = isAniworld ? "" : "none";
   popularAnimesSection.style.display = isAniworld ? "" : "none";
-  newSeriesSection.style.display = isAniworld ? "none" : "";
-  popularSeriesSection.style.display = isAniworld ? "none" : "";
+  newSeriesSection.style.display = isSto ? "" : "none";
+  popularSeriesSection.style.display = isSto ? "" : "none";
+  if (htvTrendingSection) htvTrendingSection.style.display = isHtv ? "" : "none";
   if (isAniworld) loadAniworldBrowse();
-  else loadStoBrowse();
+  else if (isSto) loadStoBrowse();
+  else if (isHtv) loadHtvBrowse();
 }
 
 function normalizeQuotes(s) {
@@ -146,30 +172,33 @@ function addDownloadedBadge(card, title) {
   }
 }
 
-function toggleSite() {
-  const toggle = document.getElementById("siteToggle");
-  currentSite = toggle.checked ? "sto" : "aniworld";
+const htvTrendingSection = document.getElementById("htvTrendingSection");
+const htvTrendingGrid = document.getElementById("htvTrendingGrid");
+
+function switchSite(site) {
+  currentSite = site;
   localStorage.setItem("selectedSite", currentSite);
 
-  // Update labels
-  document
-    .getElementById("labelAniworld")
-    .classList.toggle("active", !toggle.checked);
-  document
-    .getElementById("labelSto")
-    .classList.toggle("active", toggle.checked);
+  // Update tab active states
+  document.querySelectorAll(".site-tab").forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.site === site);
+  });
 
   // Update heading
   const heading = document.getElementById("pageHeading");
-  if (heading)
-    heading.textContent = toggle.checked
-      ? "SerienStream Downloader"
-      : "AniWorld Downloader";
+  if (heading) {
+    const headings = {
+      aniworld: "AniWorld Downloader",
+      sto: "SerienStream Downloader",
+      htv: "Hanime Downloader",
+    };
+    heading.textContent = headings[site] || "AniWorld Downloader";
+  }
 
   // Update search placeholder
-  searchInput.placeholder = toggle.checked
-    ? "Search for series..."
-    : "Search for anime...";
+  const isHtv = site === "htv";
+  document.querySelector(".search-bar").style.display = "";
+  searchInput.placeholder = isHtv ? "Search Hanime..." : site === "sto" ? "Search for series..." : "Search for anime...";
 
   // Clear search results
   resultsDiv.innerHTML = "";
@@ -179,10 +208,12 @@ function toggleSite() {
   showBrowseSections();
 
   // Toggle Random button
-  randomBtn.style.display = toggle.checked ? "none" : "";
+  randomBtn.style.display = site === "aniworld" ? "" : "none";
 
-  // Update language dropdown
-  rebuildLanguageSelect();
+  // Update language dropdown & controls visibility
+  const controlsDiv = document.querySelector(".controls");
+  if (controlsDiv) controlsDiv.style.display = isHtv ? "none" : "";
+  if (!isHtv) rebuildLanguageSelect();
 
   // Reset providers
   availableProviders = null;
@@ -224,20 +255,17 @@ function rebuildLanguageSelect() {
   }
 }
 
-// Restore site toggle state from localStorage
-(function syncSiteToggle() {
-  const toggle = document.getElementById("siteToggle");
+// Restore site tab state from localStorage
+(function syncSiteTab() {
   const saved = localStorage.getItem("selectedSite");
-  if (saved === "sto") toggle.checked = true;
-  if (toggle && toggle.checked) {
-    currentSite = "sto";
-    document.getElementById("labelAniworld").classList.remove("active");
-    document.getElementById("labelSto").classList.add("active");
-    const heading = document.getElementById("pageHeading");
-    if (heading) heading.textContent = "SerienStream Downloader";
-    searchInput.placeholder = "Search for series...";
-    randomBtn.style.display = "none";
-    rebuildLanguageSelect();
+  const htvEnabled = window.HTV_ENABLED;
+  if (saved && saved !== "aniworld") {
+    if (saved === "htv" && !htvEnabled) {
+      // HTV was selected but is now disabled — fall back
+      switchSite("aniworld");
+    } else if (saved === "htv" || saved === "sto") {
+      switchSite(saved);
+    }
   }
 })();
 
@@ -302,7 +330,8 @@ function isBrowseVisible() {
 function refreshVisibleBrowse(force = false) {
   if (!isBrowseVisible()) return;
   if (currentSite === "aniworld") loadAniworldBrowse(force);
-  else loadStoBrowse(force);
+  else if (currentSite === "sto") loadStoBrowse(force);
+  else if (currentSite === "htv") loadHtvBrowse(force);
 }
 
 setInterval(() => {
@@ -374,10 +403,11 @@ function renderResults(results) {
     const card = document.createElement("div");
     card.className = "card";
     card.onclick = () => openSeries(r.url);
-    card.innerHTML = `<img src="" alt="" data-url="${esc(r.url)}"><div class="info"><div class="title">${esc(r.title)}</div></div>`;
+    const posterSrc = r.poster_url ? esc(r.poster_url) : "";
+    card.innerHTML = `<img src="${posterSrc}" alt="" data-url="${esc(r.url)}"><div class="info"><div class="title">${esc(r.title)}</div></div>`;
     addDownloadedBadge(card, r.title);
     resultsDiv.appendChild(card);
-    loadPoster(r.url, card.querySelector("img"));
+    if (!r.poster_url) loadPoster(r.url, card.querySelector("img"));
   });
 }
 
@@ -407,9 +437,14 @@ async function openSeries(url) {
   providersLoadedForSeries = false;
   currentSeriesUrl = url;
   currentSeriesTitle = "";
+  const isHtvSeries = url.includes("hanime.tv/");
+  const controlsDiv = document.querySelector(".controls");
+  if (controlsDiv) controlsDiv.style.display = isHtvSeries ? "none" : "";
   await checkLangSeparation();
-  rebuildLanguageSelect();
-  resetProviderDropdown();
+  if (!isHtvSeries) {
+    rebuildLanguageSelect();
+    resetProviderDropdown();
+  }
   loadCustomPaths();
 
   try {
@@ -507,9 +542,11 @@ async function loadSeasonEpisodes(index, openToken = currentOpenSeriesToken) {
   const body = document.getElementById("seasonBody-" + index);
   if (!season || !body) return [];
 
-  seasonEpisodesLoading[index] = fetch(
-    "/api/episodes?url=" + encodeURIComponent(season.url),
-  )
+  let epUrl = "/api/episodes?url=" + encodeURIComponent(season.url || currentSeriesUrl);
+  if (!season.url && currentSeriesUrl) {
+    epUrl += "&series_url=" + encodeURIComponent(currentSeriesUrl);
+  }
+  seasonEpisodesLoading[index] = fetch(epUrl)
     .then((r) => r.json())
     .then((data) => {
       if (openToken !== currentOpenSeriesToken) return [];
@@ -766,8 +803,9 @@ async function startDownload(all) {
     return;
   }
 
-  const language = languageSelect.value;
-  const provider = providerSelect.value;
+  const isHtvDl = currentSeriesUrl.includes("hanime.tv/");
+  const language = isHtvDl ? "Japanese" : languageSelect.value;
+  const provider = isHtvDl ? "HanimeTV" : providerSelect.value;
 
   downloadAllBtn.disabled = true;
   downloadSelectedBtn.disabled = true;

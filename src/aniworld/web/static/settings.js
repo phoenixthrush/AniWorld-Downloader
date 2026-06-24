@@ -2,6 +2,7 @@
 const downloadPathInput = document.getElementById("downloadPath");
 const langSeparationCb = document.getElementById("langSeparation");
 const disableEnglishSubCb = document.getElementById("disableEnglishSub");
+const enableHtvCb = document.getElementById("enableHtv");
 const syncScheduleSelect = document.getElementById("syncSchedule");
 const syncLanguageSelect = document.getElementById("syncLanguage");
 const syncProviderSelect = document.getElementById("syncProvider");
@@ -21,6 +22,7 @@ async function loadSettings() {
       langSeparationCb.checked = data.lang_separation === "1";
     if (disableEnglishSubCb)
       disableEnglishSubCb.checked = data.disable_english_sub === "1";
+    if (enableHtvCb) enableHtvCb.checked = data.enable_htv === "1";
     if (syncScheduleSelect && data.sync_schedule)
       syncScheduleSelect.value = data.sync_schedule;
 
@@ -193,6 +195,26 @@ async function saveDisableEnglishSub() {
       "English Sub downloads " +
       (disableEnglishSubCb.checked ? "disabled" : "enabled"),
     );
+  } catch (e) {
+    showToast("Failed to save setting: " + e.message);
+  }
+}
+
+async function saveEnableHtv() {
+  try {
+    const resp = await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        enable_htv: enableHtvCb.checked,
+      }),
+    });
+    const data = await resp.json();
+    if (data.error) {
+      showToast(data.error);
+      return;
+    }
+    showToast("Hanime tab " + (enableHtvCb.checked ? "enabled" : "disabled"));
   } catch (e) {
     showToast("Failed to save setting: " + e.message);
   }

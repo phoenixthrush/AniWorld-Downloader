@@ -1,13 +1,12 @@
 {% extends "base.html" %} {% block content %}
 <div class="container">
   <h1 id="pageHeading">AniWorld Downloader</h1>
-  <div class="site-switch">
-    <span class="site-label active" id="labelAniworld">AniWorld</span>
-    <label class="switch">
-      <input type="checkbox" id="siteToggle" onchange="toggleSite()" />
-      <span class="slider"></span>
-    </label>
-    <span class="site-label" id="labelSto">S.TO</span>
+  <div class="site-tabs" id="siteTabs">
+    <button class="site-tab active" data-site="aniworld" onclick="switchSite('aniworld')">AniWorld</button>
+    <button class="site-tab" data-site="sto" onclick="switchSite('sto')">S.TO</button>
+    {% if htv_enabled %}
+    <button class="site-tab" data-site="htv" onclick="switchSite('htv')">Hanime</button>
+    {% endif %}
   </div>
   <div class="search-bar">
     <input type="text" id="searchInput" placeholder="Search for anime..." autofocus />
@@ -34,6 +33,10 @@
     <div class="browse-section" id="popularSeriesSection" style="display: none">
       <h2 class="browse-heading">Popular Series</h2>
       <div class="browse-grid" id="popularSeriesGrid"></div>
+    </div>
+    <div class="browse-section" id="htvTrendingSection" style="display: none">
+      <h2 class="browse-heading">Trending</h2>
+      <div class="browse-grid" id="htvTrendingGrid"></div>
     </div>
   </div>
 </div>
@@ -63,7 +66,10 @@
         <option value="{{ p }}">{{ p }}</option>
         {% endfor %}
       </select>
-      <select id="customPathSelect" style="display: none">
+    </div>
+    <div class="custom-path-row" id="customPathRow" style="display: none">
+      <label class="custom-path-label">Download Folder</label>
+      <select id="customPathSelect">
         <option value="">Default</option>
       </select>
     </div>
@@ -71,6 +77,7 @@
       window.ANIWORLD_LANGS = {{ lang_labels | tojson }};
       window.STO_LANGS = {{ sto_lang_labels | tojson }};
       window.DEFAULT_WEB_LANGUAGE = {{ default_web_language | tojson }};
+      window.HTV_ENABLED = {{ htv_enabled | tojson }};
     </script>
     <div class="episodes-header">
       <h3>Episodes</h3>

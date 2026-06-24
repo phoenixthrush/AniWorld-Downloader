@@ -21,6 +21,8 @@ from .models import (
     AniworldSeason,
     AniworldSeries,
     HanimeTVEpisode,
+    HanimeTVSeason,
+    HanimeTVSeries,
     HiAnimeEpisode,
     HiAnimeSeason,
     HiAnimeSeries,
@@ -54,7 +56,10 @@ PROVIDERS = [
     ),
     Provider(
         name="HanimeTV",
+        series_pattern=HANIME_TV_SERIES_PATTERN,
         episode_pattern=HANIME_TV_SERIES_PATTERN,
+        series_cls=HanimeTVSeries,
+        season_cls=HanimeTVSeason,
         episode_cls=HanimeTVEpisode,
     ),
     Provider(
