@@ -220,7 +220,7 @@ def _fetch_htv_trending():
                 {
                     "title": title,
                     "url": f"https://hanime.tv/videos/hentai/{slug}",
-                    "poster_url": h.get("poster_url", ""),
+                    "poster_url": h.get("cover_url") or h.get("poster_url") or "",
                     "genre": ", ".join(h.get("tags", [])[:3]),
                 }
             )
@@ -808,16 +808,24 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         results = []
 
         if site == "htv":
-            # hanime.tv search
+            # hanime.tv search — group by franchise so only one result per series
             htv_results = _search_htv(keyword)
+            seen = set()
             for item in htv_results:
+                slug = item.get("slug", "")
+                if not slug:
+                    continue
+                franchise_key = re.sub(r"-\d+$", "", slug)
+                if franchise_key in seen:
+                    continue
+                seen.add(franchise_key)
+                title = re.sub(r"\s+\d+$", "", item.get("name", "")).strip()
+                poster = item.get("cover_url") or item.get("poster_url") or ""
                 results.append(
                     {
-                        "title": item["name"],
-                        "url": f"https://hanime.tv/videos/hentai/{item['slug']}",
-                        "poster_url": _proxy_image_url(
-                            item.get("poster_url", "")
-                        ),
+                        "title": title,
+                        "url": f"https://hanime.tv/videos/hentai/{slug}",
+                        "poster_url": _proxy_image_url(poster),
                     }
                 )
         elif site == "sto":
