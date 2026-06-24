@@ -1,6 +1,3 @@
-from ...config import logger
-
-
 class HanimeTVSeason:
     """
     Represents a season of a hanime.tv franchise.

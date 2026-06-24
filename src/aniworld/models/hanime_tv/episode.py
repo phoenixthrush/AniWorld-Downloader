@@ -9,7 +9,7 @@ import ffmpeg
 import requests
 
 from ...config import NAMING_TEMPLATE, get_video_codec, logger
-from ..common import check_downloaded, clean_title
+from ..common import check_downloaded
 from ..common.common import _run_ffmpeg_with_progress, format_command_for_shell
 
 HANIME_VIDEO_API = "https://hanime.tv/api/v8/video?id={slug}"
@@ -97,9 +97,7 @@ class HanimeTVEpisode:
     def _api_data(self):
         if self.__api_data is None:
             if self._series and hasattr(self._series, "_api_data"):
-                franchise_videos = (
-                    self._series._api_data.get("hentai_franchise_hentai_videos") or []
-                )
+                (self._series._api_data.get("hentai_franchise_hentai_videos") or [])
                 my_slug = self._slug_from_url(self.url)
                 series_slug = self._slug_from_url(self._series.url)
                 if my_slug == series_slug:
@@ -149,7 +147,9 @@ class HanimeTVEpisode:
         if self._season is None:
             from .season import HanimeTVSeason
 
-            franchise_videos = self._api_data.get("hentai_franchise_hentai_videos") or []
+            franchise_videos = (
+                self._api_data.get("hentai_franchise_hentai_videos") or []
+            )
             slugs = [v["slug"] for v in franchise_videos if v.get("slug")]
             if not slugs:
                 slugs = [self._slug_from_url(self.url)]
