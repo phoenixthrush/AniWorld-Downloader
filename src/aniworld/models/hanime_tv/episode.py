@@ -1,19 +1,20 @@
 import os
-import platform
 import re
-import subprocess
-import sys
 from pathlib import Path
 
-import ffmpeg
-import requests
-
-from ...config import NAMING_TEMPLATE, get_video_codec, logger
-from ..common import check_downloaded, clean_title
-from ..common.common import _run_ffmpeg_with_progress, format_command_for_shell
-
-HANIME_VIDEO_API = "https://hanime.tv/api/v8/video?id={slug}"
-_HANIME_HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+from ...config import NAMING_TEMPLATE, logger
+from ...extractors.provider.hanime_tv import (
+    fetch_hanime_api_data,
+    get_direct_link_from_hanime_tv,
+)
+from ..common import check_downloaded
+from ..common.common import (
+    download_hanime as episode_download,
+)
+from ..common.common import (
+    syncplay as episode_syncplay,
+    watch as episode_watch,
+)
 
 
 class HanimeTVEpisode:
@@ -107,11 +108,7 @@ class HanimeTVEpisode:
                     return self.__api_data
 
             slug = self._slug_from_url(self.url)
-            api_url = HANIME_VIDEO_API.format(slug=slug)
-            logger.debug(f"fetching hanime API ({api_url})...")
-            resp = requests.get(api_url, headers=_HANIME_HEADERS, timeout=15)
-            resp.raise_for_status()
-            self.__api_data = resp.json()
+            self.__api_data = fetch_hanime_api_data(slug)
         return self.__api_data
 
     # -----------------------------
@@ -174,7 +171,7 @@ class HanimeTVEpisode:
     @property
     def stream_url(self):
         if self.__stream_url is None:
-            self.__stream_url = self._extract_stream_url()
+            self.__stream_url = get_direct_link_from_hanime_tv(self._api_data)
         return self.__stream_url
 
     @property
@@ -220,6 +217,17 @@ class HanimeTVEpisode:
     # FILE PATHS
     # -----------------------------
 
+    @staticmethod
+    def _format_naming_part(template_part, title, year, season_num, episode_num, language):
+        return template_part.format(
+            title=title,
+            year=year,
+            imdbid="",
+            season=f"{season_num:02d}",
+            episode=f"{episode_num:03d}",
+            language=language,
+        )
+
     @property
     def _base_folder(self):
         if self.__base_folder is None:
@@ -228,14 +236,16 @@ class HanimeTVEpisode:
             if len(parts) <= 1:
                 self.__base_folder = Path(self.selected_path)
             else:
-                folder_str = parts[0].format(
-                    title=self.series.title_cleaned,
-                    year=self.series.release_year,
-                    imdbid="",
-                    season=f"{self.season.season_number:02d}",
-                    episode=f"{self.episode_number:03d}",
-                    language=self.selected_language,
+                folder_str = self._format_naming_part(
+                    parts[0],
+                    self.series.title_cleaned,
+                    self.series.release_year,
+                    self.season.season_number,
+                    self.episode_number,
+                    self.selected_language,
                 )
+                # Strip empty imdbid markers from folder name
+                folder_str = re.sub(r"\s*\[imdbid-\]\s*", "", folder_str).strip()
                 self.__base_folder = Path(self.selected_path) / folder_str
         return self.__base_folder
 
@@ -247,13 +257,13 @@ class HanimeTVEpisode:
             if len(parts) <= 2:
                 self.__folder_path = self._base_folder
             else:
-                folder_str = parts[1].format(
-                    title=self.series.title_cleaned,
-                    year=self.series.release_year,
-                    imdbid="",
-                    season=f"{self.season.season_number:02d}",
-                    episode=f"{self.episode_number:03d}",
-                    language=self.selected_language,
+                folder_str = self._format_naming_part(
+                    parts[1],
+                    self.series.title_cleaned,
+                    self.series.release_year,
+                    self.season.season_number,
+                    self.episode_number,
+                    self.selected_language,
                 )
                 self.__folder_path = self._base_folder / folder_str
         return self.__folder_path
@@ -277,13 +287,13 @@ class HanimeTVEpisode:
             file_template = file_template.replace("%episode%", "{episode}")
             file_template = file_template.replace("%language%", "{language}")
 
-            self.__file_name = file_template.format(
-                title=self.series.title_cleaned,
-                year=self.series.release_year,
-                imdbid="",
-                season=f"{self.season.season_number:02d}",
-                episode=f"{self.episode_number:03d}",
-                language=self.selected_language,
+            self.__file_name = self._format_naming_part(
+                file_template,
+                self.series.title_cleaned,
+                self.series.release_year,
+                self.season.season_number,
+                self.episode_number,
+                self.selected_language,
             )
         return self.__file_name
 
@@ -316,250 +326,7 @@ class HanimeTVEpisode:
             self.__is_downloaded = check_downloaded(self._episode_path)
         return self.__is_downloaded
 
-    # -----------------------------
-    # EXTRACTION
-    # -----------------------------
-
-    def _extract_stream_url(self):
-        manifest = self._api_data.get("videos_manifest") or {}
-        servers = manifest.get("servers") or []
-
-        best_url = None
-        best_height = 0
-
-        for server in servers:
-            for stream in server.get("streams") or []:
-                url = stream.get("signed_url") or stream.get("url") or ""
-                if not url:
-                    continue
-                height = int(stream.get("height") or 0)
-                if height > best_height:
-                    best_height = height
-                    best_url = url
-
-        if not best_url:
-            raise ValueError(f"No stream URL found for {self.url}")
-
-        return best_url
-
-    def _get_download_url(self):
-        dl_url = self._api_data.get("dl_url") or ""
-        if not dl_url:
-            return None
-        if "pixeldrain.com/d/" in dl_url:
-            file_id = dl_url.rstrip("/").split("/")[-1]
-            return f"https://pixeldrain.com/api/filesystem/{file_id}"
-        return dl_url
-
-    # -----------------------------
-    # PUBLIC METHODS
-    # -----------------------------
-
-    def download(self):
-        from ...autodeps import DependencyManager
-
-        if platform.system() == "Windows":
-            manager = DependencyManager()
-            manager.fetch_binary("ffmpeg")
-
-        if self._episode_path.exists():
-            logger.debug(f"[SKIPPED] {self._file_name} (already downloaded)")
-            return
-
-        os.makedirs(self._folder_path, exist_ok=True)
-
-        dl_url = self._get_download_url()
-
-        if dl_url:
-            self._download_direct(dl_url)
-        else:
-            self._download_hls(self.stream_url)
-
-    def _download_direct(self, url):
-        import time as _time
-
-        from ..common.common import _ffmpeg_progress, _ffmpeg_progress_lock
-
-        temp_file = self._episode_path.with_suffix(".temp_dl.mp4")
-        ep_label = os.path.splitext(self._file_name)[0] if self._file_name else ""
-
-        try:
-            logger.debug(f"[DOWNLOADING] {ep_label} via direct download")
-            resp = requests.get(
-                url,
-                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
-                stream=True,
-                timeout=30,
-            )
-            resp.raise_for_status()
-
-            total = int(resp.headers.get("Content-Length", 0))
-            downloaded = 0
-            last_ts = _time.monotonic()
-            last_bytes = 0
-
-            with _ffmpeg_progress_lock:
-                _ffmpeg_progress.update(
-                    percent=0.0, time="", speed="", bandwidth="", active=True
-                )
-
-            with open(temp_file, "wb") as f:
-                for chunk in resp.iter_content(chunk_size=1024 * 1024):
-                    f.write(chunk)
-                    downloaded += len(chunk)
-
-                    if total:
-                        pct = downloaded / total * 100
-                        mb = downloaded / 1024 / 1024
-                        total_mb = total / 1024 / 1024
-
-                        now = _time.monotonic()
-                        dt = now - last_ts
-                        bw_str = ""
-                        if dt > 0.5:
-                            bw = (downloaded - last_bytes) / dt / 1024 / 1024
-                            bw_str = f"{bw:.1f} MB/s"
-                            last_ts = now
-                            last_bytes = downloaded
-
-                        with _ffmpeg_progress_lock:
-                            prev_bw = _ffmpeg_progress.get("bandwidth", "")
-                            _ffmpeg_progress.update(
-                                percent=round(pct, 1),
-                                time=f"{mb:.1f}/{total_mb:.1f} MB",
-                                speed="",
-                                bandwidth=bw_str or prev_bw,
-                                active=True,
-                            )
-
-                        if sys.stderr.isatty():
-                            sys.stderr.write(
-                                f"\r{ep_label} - [{int(pct):3d}%] {mb:.1f}/{total_mb:.1f} MB  "
-                            )
-                            sys.stderr.flush()
-
-            if sys.stderr.isatty():
-                sys.stderr.write("\r" + " " * 80 + "\r")
-                sys.stderr.flush()
-
-            os.replace(temp_file, self._episode_path)
-        except Exception:
-            if temp_file.exists():
-                temp_file.unlink()
-            raise
-        finally:
-            with _ffmpeg_progress_lock:
-                _ffmpeg_progress.update(
-                    percent=0.0, time="", speed="", bandwidth="", active=False
-                )
-
-    def _download_hls(self, stream_url):
-        ep_label = os.path.splitext(self._file_name)[0] if self._file_name else ""
-        temp_full = self._episode_path.with_suffix(".temp_full.mkv")
-
-        try:
-            logger.debug(f"[DOWNLOADING] {ep_label} via HLS stream")
-            video_codec = get_video_codec()
-
-            input_kwargs = {
-                "reconnect": 1,
-                "reconnect_streamed": 1,
-                "reconnect_delay_max": 300,
-            }
-
-            _run_ffmpeg_with_progress(
-                ffmpeg.input(stream_url, **input_kwargs).output(
-                    str(temp_full),
-                    vcodec=video_codec,
-                    acodec=video_codec,
-                    **{"metadata:s:a:0": "language=jpn"},
-                ),
-                label=ep_label,
-            )
-
-            os.replace(temp_full, self._episode_path)
-        except Exception:
-            if temp_full.exists():
-                temp_full.unlink()
-            raise
-
-    def watch(self):
-        from ...autodeps import get_player_path
-
-        print(f"[WATCHING] {self._file_name}")
-
-        player_path = str(get_player_path())
-        stream_url = self.stream_url
-
-        cmd = [player_path, stream_url]
-        cmd.extend(
-            [
-                "--no-ytdl",
-                "--fs",
-                "--quiet",
-                f"--force-media-title={self._file_name}",
-            ]
-        )
-
-        print(format_command_for_shell(cmd))
-        subprocess.run(cmd)
-
-    def syncplay(self):
-        import getpass
-        import hashlib
-
-        from ...autodeps import get_player_path, get_syncplay_path
-
-        print(f"[Syncplaying] {self._file_name}")
-
-        os.environ["ANIWORLD_USE_IINA"] = "0"
-
-        stream_url = self.stream_url
-
-        syncplay_host = os.getenv("ANIWORLD_SYNCPLAY_HOST") or "syncplay.pl:8998"
-        syncplay_password = os.getenv("ANIWORLD_SYNCPLAY_PASSWORD")
-        syncplay_username = os.getenv("ANIWORLD_SYNCPLAY_USERNAME")
-
-        if not syncplay_username:
-            try:
-                syncplay_username = getpass.getuser()
-            except Exception:
-                syncplay_username = "AniWorld-Downloader"
-
-        room = "AniWorld"
-        file_name = self._file_name.replace(" ", "_")
-
-        if syncplay_password:
-            room += (
-                "-"
-                + hashlib.sha256(
-                    f"-{file_name}-{syncplay_password}".encode("utf-8")
-                ).hexdigest()
-            )
-        else:
-            room += f"-{file_name}"
-
-        syncplay_room = os.getenv("ANIWORLD_SYNCPLAY_ROOM") or room
-
-        cmd = [
-            str(get_syncplay_path()),
-            "--no-gui",
-            "--no-store",
-            "--host",
-            syncplay_host,
-            "--room",
-            syncplay_room,
-            "--name",
-            syncplay_username,
-            "--player-path",
-            str(get_player_path()),
-            stream_url,
-            "--",
-            "--no-ytdl",
-            "--fs",
-            "--quiet",
-            f"--force-media-title={self._file_name}",
-        ]
-
-        print(format_command_for_shell(cmd))
-        subprocess.run(cmd)
+    # Episode actions are implemented in aniworld.models.common.common
+    download = episode_download
+    watch = episode_watch
+    syncplay = episode_syncplay
