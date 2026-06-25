@@ -363,15 +363,15 @@ function refreshVisibleBrowse(force = false) {
 }
 
 setInterval(() => {
-  refreshVisibleBrowse(true);
+  refreshVisibleBrowse(false);
 }, BROWSE_REFRESH_MS);
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") refreshVisibleBrowse(true);
+  if (document.visibilityState === "visible") refreshVisibleBrowse(false);
 });
 
 window.addEventListener("focus", () => {
-  refreshVisibleBrowse(true);
+  refreshVisibleBrowse(false);
 });
 
 showBrowseSections();

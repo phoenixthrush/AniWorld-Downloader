@@ -88,5 +88,6 @@ def get_logger(name=__name__, level=None):
         # Reduce noise from urllib3
         logging.getLogger("urllib3").setLevel(logging.WARNING)
         logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
+        logging.getLogger("waitress.queue").setLevel(logging.ERROR)
 
     return _global_logger
