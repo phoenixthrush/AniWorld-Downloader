@@ -42,7 +42,7 @@ aniworld -w
 
 This project is actively being improved. Current work in progress includes:
 
-- [ ] CLI: show the formatted episode name in the episode list instead of only the url, and show "Save Location" instead of "Path" (also make it absolute)
+- [ ] fix episode download cleanup on KeyboardInterrupt in menu
 - [ ] add support for aniskip feature on IINA
 - [ ] Split Web UI SSO dependencies into separate `extras` section
 - [ ] Implement `keep-watching` argument for continuous playback
