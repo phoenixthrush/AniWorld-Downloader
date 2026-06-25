@@ -8,9 +8,7 @@ from .autodeps import ensure_patchright_chromium
 from .config import ACTION_METHODS, ANIWORLD_CONFIG_DIR, VERSION
 from .env import merge_env
 from .logger import get_logger
-from .menu import app
 from .providers import resolve_provider
-from .search import search
 
 merge_env(
     Path(__file__).resolve().parent / ".env.example",
@@ -150,6 +148,8 @@ def aniworld():
                 run_action(obj, action)
             return 0
 
+        from .search import search
+
         url = args.url[0] if args.url else search()
 
         provider = resolve_provider(url)
@@ -184,6 +184,8 @@ def aniworld():
             return 0
 
         # AniWorld series -> show menu
+        from .menu import app
+
         result = app(url=url)
         if not result:
             return 130

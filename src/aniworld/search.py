@@ -1,4 +1,3 @@
-import curses
 import html as html_module
 import os
 import random
@@ -395,6 +394,8 @@ def fetch_popular_series():
 
 def _curses_menu(stdscr, options):
     """Display a simple curses menu to select an option with scrolling support."""
+    import curses
+
     curses.curs_set(0)
     curses.start_color()
     curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_CYAN)
@@ -488,6 +489,8 @@ def query_s_to(keyword):
 
 def search(is_aniworld=None):
     """Prompt user for a search keyword and return a single series URL using a curses menu."""
+    import curses
+
     display_ascii_art()
 
     use_random = os.getenv("ANIWORLD_RANDOM_ANIME", "0") == "1"
