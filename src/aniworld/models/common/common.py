@@ -7,9 +7,11 @@ import shlex
 import subprocess
 import sys
 import threading as _threading
+import time as _time
 from typing import Optional, Tuple
 
 import ffmpeg
+import requests
 
 from ...autodeps import DependencyManager
 
@@ -499,6 +501,140 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
         raise RuntimeError(f"ffmpeg error (rc={process.returncode}): {detail}")
 
 
+def _download_direct_http(episode_path, stream_url, file_name):
+    """Download a video via direct HTTP (e.g. pixeldrain). Shared helper."""
+    temp_file = episode_path.with_suffix(".temp_dl.mp4")
+    ep_label = os.path.splitext(file_name)[0] if file_name else ""
+
+    try:
+        logger.debug(f"[DOWNLOADING] {ep_label} via direct download")
+        from ...config import DEFAULT_USER_AGENT
+
+        resp = requests.get(
+            stream_url,
+            headers={"User-Agent": DEFAULT_USER_AGENT},
+            stream=True,
+            timeout=30,
+        )
+        resp.raise_for_status()
+
+        total = int(resp.headers.get("Content-Length", 0))
+        downloaded = 0
+        last_ts = _time.monotonic()
+        last_bytes = 0
+
+        with _ffmpeg_progress_lock:
+            _ffmpeg_progress.update(
+                percent=0.0, time="", speed="", bandwidth="", active=True
+            )
+
+        with open(temp_file, "wb") as f:
+            for chunk in resp.iter_content(chunk_size=1024 * 1024):
+                f.write(chunk)
+                downloaded += len(chunk)
+
+                if total:
+                    pct = downloaded / total * 100
+                    mb = downloaded / 1024 / 1024
+                    total_mb = total / 1024 / 1024
+
+                    now = _time.monotonic()
+                    dt = now - last_ts
+                    bw_str = ""
+                    if dt > 0.5:
+                        bw = (downloaded - last_bytes) / dt / 1024 / 1024
+                        bw_str = f"{bw:.1f} MB/s"
+                        last_ts = now
+                        last_bytes = downloaded
+
+                    with _ffmpeg_progress_lock:
+                        prev_bw = _ffmpeg_progress.get("bandwidth", "")
+                        _ffmpeg_progress.update(
+                            percent=round(pct, 1),
+                            time=f"{mb:.1f}/{total_mb:.1f} MB",
+                            speed="",
+                            bandwidth=bw_str or prev_bw,
+                            active=True,
+                        )
+
+                    if sys.stderr.isatty():
+                        sys.stderr.write(
+                            f"\r{ep_label} - [{int(pct):3d}%] {mb:.1f}/{total_mb:.1f} MB  "
+                        )
+                        sys.stderr.flush()
+
+        if sys.stderr.isatty():
+            sys.stderr.write("\r" + " " * 80 + "\r")
+            sys.stderr.flush()
+
+        os.replace(temp_file, episode_path)
+    except Exception:
+        if temp_file.exists():
+            temp_file.unlink()
+        raise
+    finally:
+        with _ffmpeg_progress_lock:
+            _ffmpeg_progress.update(
+                percent=0.0, time="", speed="", bandwidth="", active=False
+            )
+
+
+def _download_hls_stream(episode_path, stream_url, file_name, audio_lang="jpn"):
+    """Download a video via HLS stream using ffmpeg. Shared helper."""
+    ep_label = os.path.splitext(file_name)[0] if file_name else ""
+    temp_full = episode_path.with_suffix(".temp_full.mkv")
+
+    try:
+        logger.debug(f"[DOWNLOADING] {ep_label} via HLS stream")
+        video_codec = get_video_codec()
+
+        input_kwargs = {
+            "reconnect": 1,
+            "reconnect_streamed": 1,
+            "reconnect_delay_max": 300,
+        }
+
+        _run_ffmpeg_with_progress(
+            ffmpeg.input(stream_url, **input_kwargs).output(
+                str(temp_full),
+                vcodec=video_codec,
+                acodec=video_codec,
+                **{f"metadata:s:a:0": f"language={audio_lang}"},
+            ),
+            label=ep_label,
+        )
+
+        os.replace(temp_full, episode_path)
+    except Exception:
+        if temp_full.exists():
+            temp_full.unlink()
+        raise
+
+
+def download_hanime(self):
+    """Download a hanime.tv episode via direct download or HLS."""
+    if platform.system() == "Windows":
+        manager = DependencyManager()
+        manager.fetch_binary("ffmpeg")
+
+    if self._episode_path.exists():
+        logger.debug(f"[SKIPPED] {self._file_name} (already downloaded)")
+        return
+
+    os.makedirs(self._folder_path, exist_ok=True)
+
+    from ...extractors.provider.hanime_tv import get_download_url_from_hanime_tv
+
+    dl_url = get_download_url_from_hanime_tv(self._api_data)
+
+    if dl_url:
+        _download_direct_http(self._episode_path, dl_url, self._file_name)
+    else:
+        _download_hls_stream(
+            self._episode_path, self.stream_url, self._file_name
+        )
+
+
 def download(self):
     """Download required audio/video streams for an episode (AniWorld + s.to) with retry logic."""
     if platform.system() == "Windows":
@@ -855,7 +991,9 @@ def syncplay(self):
     cmd.append("--")
 
     aniskip_enabled = os.getenv("ANIWORLD_ANISKIP", "0") == "1"
-    skip_times = self.skip_times if aniskip_enabled else None
+    skip_times = None
+    if aniskip_enabled and hasattr(self, "skip_times"):
+        skip_times = self.skip_times
 
     if skip_times:
         from ...aniskip import build_mpv_flags, setup_aniskip

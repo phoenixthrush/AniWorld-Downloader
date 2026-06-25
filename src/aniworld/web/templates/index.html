@@ -1,12 +1,15 @@
 {% extends "base.html" %} {% block content %}
 <div class="container">
   <h1 id="pageHeading">AniWorld Downloader</h1>
-  <div class="site-tabs" id="siteTabs">
-    <button class="site-tab active" data-site="aniworld" onclick="switchSite('aniworld')">AniWorld</button>
-    <button class="site-tab" data-site="sto" onclick="switchSite('sto')">S.TO</button>
-    {% if htv_enabled %}
-    <button class="site-tab" data-site="htv" onclick="switchSite('htv')">Hanime</button>
-    {% endif %}
+  <div class="segmented-control" id="siteSwitch">
+    <div class="segmented-track" id="segmentedTrack">
+      <div class="segmented-thumb" id="segmentedThumb"></div>
+      <button class="segmented-btn active" id="labelAniworld" onclick="switchSite('aniworld')">AniWorld</button>
+      <button class="segmented-btn" id="labelSto" onclick="switchSite('sto')">S.TO</button>
+      {% if htv_enabled %}
+      <button class="segmented-btn" id="labelHtv" onclick="switchSite('htv')">Hanime</button>
+      {% endif %}
+    </div>
   </div>
   <div class="search-bar">
     <input type="text" id="searchInput" placeholder="Search for anime..." autofocus />
@@ -35,7 +38,7 @@
       <div class="browse-grid" id="popularSeriesGrid"></div>
     </div>
     <div class="browse-section" id="htvTrendingSection" style="display: none">
-      <h2 class="browse-heading">Trending</h2>
+      <h2 class="browse-heading">New Hentai</h2>
       <div class="browse-grid" id="htvTrendingGrid"></div>
     </div>
   </div>

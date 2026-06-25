@@ -175,14 +175,43 @@ function addDownloadedBadge(card, title) {
 const htvTrendingSection = document.getElementById("htvTrendingSection");
 const htvTrendingGrid = document.getElementById("htvTrendingGrid");
 
+const segmentedThumb = document.getElementById("segmentedThumb");
+const htvEnabled = window.HTV_ENABLED;
+const sites = htvEnabled ? ["aniworld", "sto", "htv"] : ["aniworld", "sto"];
+
+const thumbColors = {
+  aniworld: { bg: "linear-gradient(135deg, #9333ea, #7c3aed)", shadow: "0 2px 8px rgba(147, 51, 234, 0.35)" },
+  sto: { bg: "linear-gradient(135deg, #2563eb, #1d4ed8)", shadow: "0 2px 8px rgba(37, 99, 235, 0.35)" },
+  htv: { bg: "linear-gradient(135deg, #dc2626, #b91c1c)", shadow: "0 2px 8px rgba(220, 38, 38, 0.35)" },
+};
+
+function updateSliderState(site) {
+  const labelAniworld = document.getElementById("labelAniworld");
+  const labelSto = document.getElementById("labelSto");
+  const labelHtv = document.getElementById("labelHtv");
+  if (labelAniworld) labelAniworld.classList.toggle("active", site === "aniworld");
+  if (labelSto) labelSto.classList.toggle("active", site === "sto");
+  if (labelHtv) labelHtv.classList.toggle("active", site === "htv");
+
+  if (!segmentedThumb) return;
+  const siteIds = { aniworld: "labelAniworld", sto: "labelSto", htv: "labelHtv" };
+  const btn = document.getElementById(siteIds[site]);
+  if (!btn) return;
+  const track = btn.parentElement;
+  const trackRect = track.getBoundingClientRect();
+  const btnRect = btn.getBoundingClientRect();
+  segmentedThumb.style.width = btnRect.width + "px";
+  segmentedThumb.style.transform = "translateX(" + (btnRect.left - trackRect.left - 3) + "px)";
+  const color = thumbColors[site] || thumbColors.aniworld;
+  segmentedThumb.style.background = color.bg;
+  segmentedThumb.style.boxShadow = color.shadow;
+}
+
 function switchSite(site) {
   currentSite = site;
   localStorage.setItem("selectedSite", currentSite);
 
-  // Update tab active states
-  document.querySelectorAll(".site-tab").forEach((tab) => {
-    tab.classList.toggle("active", tab.dataset.site === site);
-  });
+  updateSliderState(site);
 
   // Update heading
   const heading = document.getElementById("pageHeading");
@@ -255,19 +284,18 @@ function rebuildLanguageSelect() {
   }
 }
 
-// Restore site tab state from localStorage
-(function syncSiteTab() {
+// Restore site state from localStorage
+(function syncSiteState() {
   const saved = localStorage.getItem("selectedSite");
-  const htvEnabled = window.HTV_ENABLED;
-  if (saved && saved !== "aniworld") {
-    if (saved === "htv" && !htvEnabled) {
-      // HTV was selected but is now disabled — fall back
-      switchSite("aniworld");
-    } else if (saved === "htv" || saved === "sto") {
-      switchSite(saved);
-    }
+  const initial = saved && saved !== "aniworld" && sites.includes(saved) && !(saved === "htv" && !htvEnabled) ? saved : "aniworld";
+  if (initial !== "aniworld") {
+    switchSite(initial);
+  } else {
+    updateSliderState("aniworld");
   }
+  requestAnimationFrame(() => updateSliderState(currentSite));
 })();
+window.addEventListener("resize", () => updateSliderState(currentSite));
 
 searchInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") doSearch();

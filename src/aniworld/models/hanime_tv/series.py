@@ -1,14 +1,11 @@
 import re
 from datetime import datetime, timezone
 
-import requests
-
 from ...config import logger
+from ...extractors.provider.hanime_tv import fetch_hanime_api_data
 from ..common import clean_title
 
-HANIME_API_URL = "https://hanime.tv/api/v8/video?id={slug}"
 HANIME_SEARCH_URL = "https://search.htv-services.com/"
-_HANIME_HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
 
 class HanimeTVSeries:
@@ -74,11 +71,7 @@ class HanimeTVSeries:
     def _api_data(self):
         if self.__api_data is None:
             slug = self._slug_from_url(self.url)
-            api_url = HANIME_API_URL.format(slug=slug)
-            logger.debug(f"fetching hanime API ({api_url})...")
-            resp = requests.get(api_url, headers=_HANIME_HEADERS, timeout=15)
-            resp.raise_for_status()
-            self.__api_data = resp.json()
+            self.__api_data = fetch_hanime_api_data(slug)
         return self.__api_data
 
     @property

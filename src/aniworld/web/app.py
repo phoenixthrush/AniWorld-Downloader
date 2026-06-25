@@ -179,7 +179,7 @@ def _search_htv(keyword):
 
 
 def _fetch_htv_trending():
-    """Fetch trending videos from hanime.tv via search API."""
+    """Fetch latest videos from hanime.tv via search API."""
     try:
         resp = requests.post(
             _HTV_SEARCH_URL,
@@ -189,7 +189,7 @@ def _fetch_htv_trending():
                 "tags_mode": "AND",
                 "brands": [],
                 "blacklist": [],
-                "order_by": "likes",
+                "order_by": "created_at",
                 "ordering": "desc",
                 "page": 0,
             },
