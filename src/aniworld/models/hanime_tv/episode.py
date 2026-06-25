@@ -2,7 +2,7 @@ import os
 import re
 from pathlib import Path
 
-from ...config import NAMING_TEMPLATE, logger
+from ...config import NAMING_TEMPLATE
 from ...extractors.provider.hanime_tv import (
     fetch_hanime_api_data,
     get_direct_link_from_hanime_tv,
@@ -218,7 +218,9 @@ class HanimeTVEpisode:
     # -----------------------------
 
     @staticmethod
-    def _format_naming_part(template_part, title, year, season_num, episode_num, language):
+    def _format_naming_part(
+        template_part, title, year, season_num, episode_num, language
+    ):
         return template_part.format(
             title=title,
             year=year,

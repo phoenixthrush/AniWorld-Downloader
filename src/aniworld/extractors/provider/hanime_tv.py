@@ -1,13 +1,16 @@
-import logging
+# TODO:
+# replace requests with niquests later
+# GLOBAL_SESSION does not load images yet, maybe because of bad headers
+# should use the GLOBAL_SESSION here too for the shared dns resolver and stuff
 
-import requests
+import niquests
+
 
 try:
-    from ...config import DEFAULT_USER_AGENT
+    from ...config import DEFAULT_USER_AGENT, logger
 except ImportError:
-    from aniworld.config import DEFAULT_USER_AGENT
+    from aniworld.config import DEFAULT_USER_AGENT, logger
 
-logger = logging.getLogger(__name__)
 
 HANIME_VIDEO_API = "https://hanime.tv/api/v8/video?id={slug}"
 _HANIME_HEADERS = {"User-Agent": DEFAULT_USER_AGENT}
@@ -16,7 +19,7 @@ _HANIME_HEADERS = {"User-Agent": DEFAULT_USER_AGENT}
 def fetch_hanime_api_data(slug):
     api_url = HANIME_VIDEO_API.format(slug=slug)
     logger.debug(f"fetching hanime API ({api_url})...")
-    resp = requests.get(api_url, headers=_HANIME_HEADERS, timeout=15)
+    resp = niquests.get(api_url, headers=_HANIME_HEADERS, timeout=15)
     resp.raise_for_status()
     return resp.json()
 

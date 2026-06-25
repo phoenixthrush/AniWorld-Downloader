@@ -6,12 +6,13 @@ import re
 import shlex
 import subprocess
 import sys
-import threading as _threading
-import time as _time
+import time
+import threading
+import queue
 from typing import Optional, Tuple
 
 import ffmpeg
-import requests
+import niquests
 
 from ...autodeps import DependencyManager
 
@@ -257,7 +258,7 @@ def _resolve_stream_url_with_fallback(self, action_name):
 
 
 # Thread-safe global for current ffmpeg download progress (used by web UI)
-_ffmpeg_progress_lock = _threading.Lock()
+_ffmpeg_progress_lock = threading.Lock()
 _ffmpeg_progress = {
     "percent": 0.0,
     "time": "",
@@ -304,9 +305,6 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
     values) for STALL_TIMEOUT seconds the process is killed so the caller's
     retry logic can kick in.
     """
-    import queue
-    import threading
-    import time
 
     STALL_TIMEOUT = (
         600  # 10 minutes without progress → kill (must exceed reconnect_delay_max=300)
@@ -510,7 +508,7 @@ def _download_direct_http(episode_path, stream_url, file_name):
         logger.debug(f"[DOWNLOADING] {ep_label} via direct download")
         from ...config import DEFAULT_USER_AGENT
 
-        resp = requests.get(
+        resp = niquests.get(
             stream_url,
             headers={"User-Agent": DEFAULT_USER_AGENT},
             stream=True,
@@ -520,7 +518,7 @@ def _download_direct_http(episode_path, stream_url, file_name):
 
         total = int(resp.headers.get("Content-Length", 0))
         downloaded = 0
-        last_ts = _time.monotonic()
+        last_ts = time.monotonic()
         last_bytes = 0
 
         with _ffmpeg_progress_lock:
@@ -538,7 +536,7 @@ def _download_direct_http(episode_path, stream_url, file_name):
                     mb = downloaded / 1024 / 1024
                     total_mb = total / 1024 / 1024
 
-                    now = _time.monotonic()
+                    now = time.monotonic()
                     dt = now - last_ts
                     bw_str = ""
                     if dt > 0.5:
@@ -599,7 +597,7 @@ def _download_hls_stream(episode_path, stream_url, file_name, audio_lang="jpn"):
                 str(temp_full),
                 vcodec=video_codec,
                 acodec=video_codec,
-                **{f"metadata:s:a:0": f"language={audio_lang}"},
+                **{"metadata:s:a:0": f"language={audio_lang}"},
             ),
             label=ep_label,
         )
@@ -630,9 +628,7 @@ def download_hanime(self):
     if dl_url:
         _download_direct_http(self._episode_path, dl_url, self._file_name)
     else:
-        _download_hls_stream(
-            self._episode_path, self.stream_url, self._file_name
-        )
+        _download_hls_stream(self._episode_path, self.stream_url, self._file_name)
 
 
 def download(self):
