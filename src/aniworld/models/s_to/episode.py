@@ -176,12 +176,10 @@ class SerienstreamEpisode:
     @property
     def series(self):
         if self._series is None:
+            series_url = self.url.rsplit("/staffel-", 1)[0]
             from .series import SerienstreamSeries
 
-            if not self.url:
-                raise ValueError("Episode URL is missing for series extraction.")
-            series_url = self.url.rsplit("/staffel-", 1)[0]
-            self._series = SerienstreamSeries(url=series_url)
+            self._series = SerienstreamSeries(series_url)
         return self._series
 
     @property

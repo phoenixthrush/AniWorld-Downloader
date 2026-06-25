@@ -62,7 +62,7 @@ class SerienstreamSeason:
     @property
     def series(self):
         if self._series is None:
-            series_url = "-".join(self.url.split("-")[:-2])
+            series_url = self.url.rsplit("/staffel-", 1)[0]
             from .series import SerienstreamSeries
 
             self._series = SerienstreamSeries(series_url)

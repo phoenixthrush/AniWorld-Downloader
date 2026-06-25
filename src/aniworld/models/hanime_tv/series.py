@@ -104,7 +104,9 @@ class HanimeTVSeries:
         if self.__genres is None:
             hv = self._api_data.get("hentai_video") or {}
             tags = hv.get("hentai_tags") or []
-            self.__genres = [t["text"] for t in tags if isinstance(t, dict) and "text" in t]
+            self.__genres = [
+                t["text"] for t in tags if isinstance(t, dict) and "text" in t
+            ]
         return self.__genres
 
     @property

@@ -1253,9 +1253,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             proxy_headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
             if "hanime" in target:
                 proxy_headers["Referer"] = "https://hanime.tv/"
-            resp = requests.get(
-                target, headers=proxy_headers, timeout=10, stream=True
-            )
+            resp = requests.get(target, headers=proxy_headers, timeout=10, stream=True)
             resp.raise_for_status()
             content_type = resp.headers.get("Content-Type", "image/jpeg")
             return Response(
@@ -1453,9 +1451,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 return jsonify({"error": f"Invalid sync_provider: {prov}"}), 400
             os.environ["ANIWORLD_SYNC_PROVIDER"] = prov
         if "enable_htv" in data:
-            os.environ["ANIWORLD_ENABLE_HTV"] = (
-                "1" if data["enable_htv"] else "0"
-            )
+            os.environ["ANIWORLD_ENABLE_HTV"] = "1" if data["enable_htv"] else "0"
         if "provider_fallback_order" in data:
             raw_order = data["provider_fallback_order"]
             if isinstance(raw_order, list):
