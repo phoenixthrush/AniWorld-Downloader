@@ -42,10 +42,10 @@ aniworld -w
 
 This project is actively being improved. Current work in progress includes:
 
+- [ ] CLI: show the formatted episode name in the episode list instead of only the url, and show "Save Location" instead of "Path" (also make it absolute)
 - [ ] add support for aniskip feature on IINA
 - [ ] Split Web UI SSO dependencies into separate `extras` section
 - [ ] Implement `keep-watching` argument for continuous playback
-- [ ] Review and optimize dependency manager on Windows
 - [ ] Fix Nuitka build crash: use Python 3.12 (non-MSVC builds unsupported on newer versions)
 - [ ] Remove empty lines below actions when running `docker run -it`
 
