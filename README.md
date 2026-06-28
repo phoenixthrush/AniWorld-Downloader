@@ -2,39 +2,46 @@
 
 # AniWorld Downloader v4
 
-AniWorld Downloader is a cross-platform tool for streaming and downloading anime from aniworld.to, as well as series from s.to. It runs on Windows, macOS, and Linux, providing a seamless experience for offline viewing or instant playback.
+AniWorld Downloader is a cross-platform tool for streaming and downloading anime from aniworld.to, as well as series from s.to, with support for more sites being added over time. It runs on Windows, macOS, and Linux, providing a seamless experience for offline viewing or instant playback.
 
 ![GitHub Release](https://img.shields.io/github/v/release/phoenixthrush/AniWorld-Downloader)
 [![PyPI Downloads](https://static.pepy.tech/badge/aniworld)](https://pepy.tech/projects/aniworld)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/aniworld)
 ![GitHub License](https://img.shields.io/github/license/phoenixthrush/AniWorld-Downloader)
 ![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/phoenixthrush/AniWorld-Downloader)
+[![PayPal Donate](https://img.shields.io/badge/PayPal-Donate-blue?logo=paypal)](https://www.paypal.com/paypalme/justnekochan)
 ![GitHub Repo stars](https://img.shields.io/github/stars/phoenixthrush/AniWorld-Downloader)
 ![GitHub forks](https://img.shields.io/github/forks/phoenixthrush/AniWorld-Downloader)
 
 Menu | WebUI (AniWorld) | WebUI (SerienStream)
 :-------------------------:|:-------------------------:|:-------------------------:
-![AniWorld Downloader - Demo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/models/.github/assets/demo.png?raw=true) | ![AniWorld Downloader - Demo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/models/.github/assets/demo-aniworld.png?raw=true) | ![AniWorld Downloader - Demo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/models/.github/assets/demo-serienstream.png?raw=true)
+![Menu Demo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/models/.github/assets/demo.png?raw=true) | ![AniWorld Demo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/models/.github/assets/demo-aniworld.png?raw=true) | ![SerienStream Demo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/models/.github/assets/demo-serienstream.png?raw=true)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## TL;DR - Quick Start
 
 ```bash
-# Install stable release
+# Install stable release (needs Python installed)
 pip install -U aniworld
 
-# Or install latest GitHub commit
+# Or install latest GitHub commit (needs Git installed)
 pip install --upgrade git+https://github.com/phoenixthrush/AniWorld-Downloader.git@models#egg=aniworld
 
-# Launch AniWorld Downloader
-aniworld
-
-# Using WebUI
+# Launch AniWorld Downloader using Web UI
 aniworld -w
+
+# Using Menu
+aniworld
 ```
 
 > **Tip**: Use the stable release for general use. The GitHub version includes the latest features and fixes but may be less stable.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Documentation
+
+For full user guides, tutorials, and troubleshooting, visit the [official documentation](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -70,7 +77,7 @@ This project is actively being improved. Current work in progress includes:
 
 | Provider | Status | Last Tested |
 | --- | --- | --- |
-| VOE | ✅ Working | 02/26 |
+| VOE | ✅ Working | 06/26 |
 | Vidoza | ✅ Working | 02/26 |
 | Vidmoly | ✅ Working | 02/26 |
 | Filemoon | ❌ Broken | 02/26 |
@@ -146,12 +153,6 @@ docker-compose down
 ```
 
 > **Tip:** Ensure your `docker-compose.yml` correctly configures volumes and ports if you want to persist downloads or access the Web UI externally.
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-## Documentation
-
-For full user guides, tutorials, and troubleshooting, visit the [official documentation](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
