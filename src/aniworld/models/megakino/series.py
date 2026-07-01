@@ -330,8 +330,18 @@ class MegaKinoSeries:
     @property
     def _html(self):
         if self.__html is None:
-            sample_path = Path.home() / "Downloads" / "Deadpool.html"
-            self.__html = sample_path.read_text(encoding="utf-8")
+            parsed_url = urlparse(self.url)
+            token_url = f"{parsed_url.scheme}://{parsed_url.netloc}/index.php?yg=token"
+
+            try:
+                token_response = niquests.get(token_url, timeout=15)
+                cookies = token_response.cookies
+            except Exception:
+                cookies = None
+
+            response = niquests.get(self.url, timeout=30, cookies=cookies)
+            response.raise_for_status()
+            self.__html = response.text
         return self.__html
 
     # -----------------------------
