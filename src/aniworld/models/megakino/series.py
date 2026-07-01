@@ -54,7 +54,7 @@ MEGAKINO_DOMAIN = niquests.get(
 ).text.strip()
 
 
-class MegaKinoSeries:
+class MegaKinoEpisode:
     def __init__(
         self,
         url=str,
@@ -992,7 +992,7 @@ class MegaKinoSeries:
 
 if __name__ == "__main__":
     test_url = "https://megakino8.com/films/205-deadpool.html"
-    movie = MegaKinoSeries(test_url)
+    movie = MegaKinoEpisode(test_url)
 
     print("Title:", movie.title)
     print("Cleaned Title:", movie.title_cleaned)

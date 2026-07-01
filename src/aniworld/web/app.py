@@ -646,6 +646,12 @@ def _proxy_image_url(url: str) -> str:
     return f"/api/proxy-image?url={quote(url, safe='')}"
 
 
+def _hanime_fallback_title(url: str) -> str:
+    slug = url.rstrip("/").split("/")[-1]
+    title = re.sub(r"-\d+$", "", slug).replace("-", " ").strip()
+    return title.title() if title else slug
+
+
 def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
     app = Flask(__name__)
@@ -895,6 +901,21 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 }
             )
         except Exception as e:
+            try:
+                prov_name = prov.name if "prov" in locals() else ""
+            except Exception:
+                prov_name = ""
+            if prov_name == "HanimeTV":
+                logger.warning(f"Hanime series fetch fallback for {url}: {e}")
+                return jsonify(
+                    {
+                        "title": _hanime_fallback_title(url),
+                        "poster_url": "",
+                        "description": "",
+                        "genres": [],
+                        "release_year": "",
+                    }
+                )
             logger.error(f"Series fetch failed: {e}", exc_info=True)
             return jsonify({"error": str(e)}), 500
 
@@ -919,6 +940,13 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 )
             return jsonify({"seasons": seasons_data})
         except Exception as e:
+            try:
+                prov_name = prov.name if "prov" in locals() else ""
+            except Exception:
+                prov_name = ""
+            if prov_name == "HanimeTV":
+                logger.warning(f"Hanime seasons fetch fallback for {url}: {e}")
+                return jsonify({"seasons": []})
             logger.error(f"Seasons fetch failed: {e}", exc_info=True)
             return jsonify({"error": str(e)}), 500
 
@@ -1029,6 +1057,13 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 )
             return jsonify({"episodes": episodes_data})
         except Exception as e:
+            try:
+                prov_name = prov.name if "prov" in locals() else ""
+            except Exception:
+                prov_name = ""
+            if prov_name == "HanimeTV":
+                logger.warning(f"Hanime episodes fetch fallback for {url}: {e}")
+                return jsonify({"episodes": []})
             logger.error(f"Episodes fetch failed: {e}", exc_info=True)
             return jsonify({"error": str(e)}), 500
 
@@ -1706,7 +1741,12 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             titles = {}
             if not base.is_dir():
                 return []
-            for folder in base.iterdir():
+            try:
+                folders = list(base.iterdir())
+            except (PermissionError, OSError):
+                return []
+
+            for folder in folders:
                 if not folder.is_dir():
                     continue
                 name = folder.name
