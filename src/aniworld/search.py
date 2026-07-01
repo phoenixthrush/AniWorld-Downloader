@@ -2,6 +2,7 @@ import html as html_module
 import os
 import random
 import re
+from urllib.parse import quote_plus, urljoin
 
 try:
     from .ascii import display_ascii_art
@@ -14,8 +15,10 @@ SEARCH_URL = "https://aniworld.to/ajax/search"
 RANDOM_URL = "https://aniworld.to/ajax/randomGeneratorSeries"
 NEW_EPISODES_URL = "https://aniworld.to/neue-episoden"
 HOME_URL = "https://aniworld.to"
+MAX_PAGES = 5
 
 _homepage_cache = None
+_megakino_homepage_cache = None
 _series_html_content = None
 
 
@@ -53,6 +56,240 @@ def query(keyword):
         return response.json()  # Returns a list of dicts
     except ValueError:
         return None
+
+
+def _relevance_score(title: str, keyword: str) -> int:
+    t = title.lower()
+    k = keyword.lower()
+    if t == k:
+        return 0
+    if t.startswith(k):
+        return 1
+    words = t.split()
+    if k in words:
+        return 2
+    if k in t:
+        return 3
+    return 4
+
+
+def query_megakino(keyword):
+    """Search MegaKino and return a list of matching results with posters."""
+    from .models.megakino.series import MEGAKINO_DOMAIN
+
+    base_url = f"https://{MEGAKINO_DOMAIN}"
+    token_url = f"{base_url}/index.php?yg=token"
+    headers = {"Accept-Encoding": "identity"}
+
+    try:
+        GLOBAL_SESSION.get(token_url, timeout=15, headers=headers)
+    except Exception:
+        pass
+
+    titles_links = []
+    seen_urls = set()
+
+    for page in range(MAX_PAGES):
+        result_from = page * 20 + 1
+        url = (
+            f"{base_url}/index.php?do=search&subaction=search"
+            f"&search_start={page * 2}&full_search=0"
+            f"&result_from={result_from}&story={quote_plus(keyword)}"
+        )
+        try:
+            response = GLOBAL_SESSION.get(url, timeout=15, headers=headers)
+            response.raise_for_status()
+            if "location.replace" in response.text or "yg=token" in response.text:
+                response = GLOBAL_SESSION.get(url, timeout=15, headers=headers)
+                response.raise_for_status()
+        except Exception:
+            break
+
+        html = response.text
+        page_results = _extract_megakino_cards(html, base_url)
+
+        if not page_results:
+            break
+
+        for title, abs_url, poster_url in page_results:
+            if abs_url in seen_urls:
+                continue
+            seen_urls.add(abs_url)
+            titles_links.append((title, abs_url, poster_url))
+
+    if not titles_links:
+        return []
+
+    keyword_lower = keyword.lower()
+    titles_links = [item for item in titles_links if keyword_lower in item[0].lower()]
+    titles_links.sort(key=lambda item: _relevance_score(item[0], keyword))
+
+    return [
+        {"title": title, "url": url, "poster_url": poster_url}
+        for title, url, poster_url in titles_links
+    ]
+
+
+def _extract_megakino_poster_url(inner_html, base_url):
+    """Return the first non-placeholder poster URL from a MegaKino card."""
+
+    for img_match in re.finditer(
+        r"<img\b[^>]*>", inner_html, re.IGNORECASE | re.DOTALL
+    ):
+        img_tag = img_match.group(0)
+        for attr_name in ("data-src", "data-original", "data-lazy-src", "src"):
+            attr_match = re.search(
+                rf'\b{re.escape(attr_name)}=["\']([^"\']+)["\']',
+                img_tag,
+                re.IGNORECASE,
+            )
+            if not attr_match:
+                continue
+
+            poster_url = html_module.unescape(attr_match.group(1).strip())
+            if not poster_url or "no-img" in poster_url.lower():
+                continue
+            if poster_url.startswith("//"):
+                poster_url = f"https:{poster_url}"
+            elif not poster_url.startswith("http"):
+                poster_url = urljoin(base_url, poster_url)
+            return poster_url
+
+    return ""
+
+
+def _extract_megakino_cards(section_html, base_url):
+    """Extract MegaKino poster cards from a HTML section."""
+
+    results = []
+    seen_urls = set()
+
+    for match in re.finditer(
+        r"<a\b[^>]*>(.*?)</a>", section_html, re.IGNORECASE | re.DOTALL
+    ):
+        anchor_html = match.group(0)
+        if "poster" not in anchor_html.lower():
+            continue
+
+        href_match = re.search(r'href=["\']([^"\']+)["\']', anchor_html, re.IGNORECASE)
+        if not href_match:
+            continue
+
+        href = href_match.group(1).strip()
+        abs_url = urljoin(base_url, href)
+        if abs_url in seen_urls:
+            continue
+        seen_urls.add(abs_url)
+
+        inner = match.group(1)
+        title_match = re.search(
+            r'<h3\s+class=["\']poster__title[^"\']*["\']>([^<]+)</h3>',
+            inner,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if not title_match:
+            title_match = re.search(
+                r'<img[^>]+\balt=["\']([^"\']+)["\']',
+                inner,
+                re.IGNORECASE | re.DOTALL,
+            )
+        if not title_match:
+            continue
+
+        title = html_module.unescape(title_match.group(1).strip())
+        poster_url = _extract_megakino_poster_url(inner, base_url)
+        results.append((title, abs_url, poster_url))
+
+    return results
+
+
+def _fetch_megakino_homepage():
+    """Fetch the MegaKino homepage HTML, using a simple module-level cache."""
+
+    global _megakino_homepage_cache
+    if _megakino_homepage_cache is not None:
+        return _megakino_homepage_cache
+
+    from .models.megakino.series import MEGAKINO_DOMAIN
+
+    base_url = f"https://{MEGAKINO_DOMAIN}"
+    token_url = f"{base_url}/index.php?yg=token"
+    headers = {"Accept-Encoding": "identity"}
+
+    try:
+        GLOBAL_SESSION.get(token_url, timeout=15, headers=headers)
+        response = GLOBAL_SESSION.get(base_url, timeout=15, headers=headers)
+        response.raise_for_status()
+        _megakino_homepage_cache = response.text
+        return _megakino_homepage_cache
+    except Exception as e:
+        logger.error(f"Failed to fetch MegaKino homepage: {e}")
+        return None
+
+
+def _extract_megakino_homepage_section(html, heading_hints, fallback_index):
+    """Extract a homepage section from MegaKino and return poster cards."""
+
+    section_html = None
+
+    for hint in heading_hints:
+        heading_pattern = re.compile(
+            rf"<h2[^>]*>\s*{hint}\s*</h2>", re.IGNORECASE | re.DOTALL
+        )
+        heading_match = heading_pattern.search(html)
+        if not heading_match:
+            continue
+
+        start = heading_match.end()
+        next_h2 = re.search(r"<h2[^>]*>", html[start:])
+        section_html = (
+            html[start : start + next_h2.start()] if next_h2 else html[start:]
+        )
+        break
+
+    if section_html is None:
+        sections = [
+            m.start()
+            for m in re.finditer(
+                r'<a\s+class=["\'][^"\']*\bposter\b', html, re.IGNORECASE
+            )
+        ]
+        if sections and fallback_index < len(sections):
+            start = sections[fallback_index]
+            end = (
+                sections[fallback_index + 1]
+                if fallback_index + 1 < len(sections)
+                else len(html)
+            )
+            section_html = html[start:end]
+
+    if not section_html:
+        return []
+
+    from .models.megakino.series import MEGAKINO_DOMAIN
+
+    cards = _extract_megakino_cards(section_html, f"https://{MEGAKINO_DOMAIN}")
+    return [
+        {"title": title, "url": url, "poster_url": poster_url}
+        for title, url, poster_url in cards
+    ]
+
+
+def fetch_popular_movies():
+    """Fetch the MegaKino homepage movie showcase section."""
+
+    html = _fetch_megakino_homepage()
+    if html is None:
+        return None
+    return _extract_megakino_homepage_section(
+        html,
+        heading_hints=[
+            r"Topaktuelle\s+Neuheiten",
+            r"Zuletzt\s+hinzugefügt",
+            r"Film-Nachrichten",
+        ],
+        fallback_index=0,
+    )
 
 
 def fetch_new_episodes():

@@ -633,6 +633,9 @@ class MegaKinoEpisode:
                 }
             )
 
+        logger.debug(
+            f"MegaKino stream URLs found: {[source['url'] for source in sources]}"
+        )
         self.__player_sources = sources or None
 
     def __extract_default_player(self):
@@ -681,7 +684,13 @@ class MegaKinoEpisode:
             if not host or not url:
                 continue
 
-            provider_name = host.split(".", 1)[0].upper()
+            if host.endswith("voe.sx"):
+                provider_name = "VOE"
+            elif host.endswith("gxplayer.xyz"):
+                provider_name = "MegaKino"
+            else:
+                provider_name = host.split(".", 1)[0].upper()
+
             if (
                 f"get_direct_link_from_{provider_name.lower()}"
                 not in provider_functions
@@ -693,12 +702,7 @@ class MegaKinoEpisode:
         if not providers:
             return None
 
-        provider_data = {(Audio.GERMAN, Subtitles.NONE): providers}
-
-        if self.selected_language == "English Dub":
-            provider_data[(Audio.ENGLISH, Subtitles.NONE)] = providers
-
-        return ProviderData(provider_data)
+        return ProviderData({(Audio.GERMAN, Subtitles.NONE): providers})
 
     def __extract_recommended_entries(self):
         section_match = re.search(
@@ -784,7 +788,7 @@ class MegaKinoEpisode:
         if normalized in {"german", "deutsch", "german dub"}:
             return "German Dub"
         if normalized in {"english", "englisch", "english dub"}:
-            return "English Dub"
+            return "German Dub"
 
         raise ValueError(f"Unsupported MegaKino language selection: {language}")
 
@@ -885,7 +889,10 @@ class MegaKinoEpisode:
         if not provider_dict:
             return None
 
-        return provider_dict.get(str(provider).upper())
+        provider_key = str(provider).strip()
+        return provider_dict.get(provider_key) or provider_dict.get(
+            provider_key.upper()
+        )
 
     def available_providers(self, language=None):
         if language is None:

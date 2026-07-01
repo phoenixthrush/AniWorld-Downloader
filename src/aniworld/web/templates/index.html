@@ -6,6 +6,7 @@
       <div class="segmented-thumb" id="segmentedThumb"></div>
       <button class="segmented-btn active" id="labelAniworld" onclick="switchSite('aniworld')">AniWorld</button>
       <button class="segmented-btn" id="labelSto" onclick="switchSite('sto')">S.TO</button>
+      <button class="segmented-btn" id="labelMegakino" onclick="switchSite('megakino')">MegaKino</button>
       {% if htv_enabled %}
       <button class="segmented-btn" id="labelHtv" onclick="switchSite('htv')">Hanime</button>
       {% endif %}
@@ -36,6 +37,10 @@
     <div class="browse-section" id="popularSeriesSection" style="display: none">
       <h2 class="browse-heading">Popular Series</h2>
       <div class="browse-grid" id="popularSeriesGrid"></div>
+    </div>
+    <div class="browse-section" id="popularMoviesSection" style="display: none">
+      <h2 class="browse-heading">Popular Movies</h2>
+      <div class="browse-grid" id="popularMoviesGrid"></div>
     </div>
     <div class="browse-section" id="htvTrendingSection" style="display: none">
       <h2 class="browse-heading">New Hentai</h2>
@@ -79,6 +84,7 @@
     <script>
       window.ANIWORLD_LANGS = {{ lang_labels | tojson }};
       window.STO_LANGS = {{ sto_lang_labels | tojson }};
+      window.MEGAKINO_LANGS = {{ megakino_lang_labels | tojson }};
       window.DEFAULT_WEB_LANGUAGE = {{ default_web_language | tojson }};
       window.HTV_ENABLED = {{ htv_enabled | tojson }};
     </script>

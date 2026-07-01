@@ -23,6 +23,8 @@ const newSeriesGrid = document.getElementById("newSeriesGrid");
 const popularSeriesGrid = document.getElementById("popularSeriesGrid");
 const newSeriesSection = document.getElementById("newSeriesSection");
 const popularSeriesSection = document.getElementById("popularSeriesSection");
+const popularMoviesGrid = document.getElementById("popularMoviesGrid");
+const popularMoviesSection = document.getElementById("popularMoviesSection");
 const BROWSE_REFRESH_MS = 60000;
 
 let currentSeasons = [];
@@ -108,6 +110,27 @@ async function loadStoBrowse(force = false) {
   return stoBrowsePromise;
 }
 
+let mkLoadedAt = 0;
+let mkBrowsePromise = null;
+async function loadMegakinoBrowse(force = false) {
+  if (!force && mkLoadedAt && Date.now() - mkLoadedAt < BROWSE_REFRESH_MS) return;
+  if (mkBrowsePromise) return mkBrowsePromise;
+  mkLoadedAt = Date.now();
+  mkBrowsePromise = (async () => {
+    try {
+      const resp = await fetch("/api/popular-movies");
+      await loadDownloadedFolders();
+      const data = await resp.json();
+      if (data.results) renderBrowseCards(popularMoviesGrid, data.results);
+    } catch (e) {
+      mkLoadedAt = 0;
+    } finally {
+      mkBrowsePromise = null;
+    }
+  })();
+  return mkBrowsePromise;
+}
+
 let htvLoadedAt = 0;
 let htvBrowsePromise = null;
 async function loadHtvBrowse(force = false) {
@@ -132,15 +155,18 @@ async function loadHtvBrowse(force = false) {
 function showBrowseSections() {
   const isAniworld = currentSite === "aniworld";
   const isSto = currentSite === "sto";
+  const isMegakino = currentSite === "megakino";
   const isHtv = currentSite === "htv";
   browseDiv.style.display = "";
   newAnimesSection.style.display = isAniworld ? "" : "none";
   popularAnimesSection.style.display = isAniworld ? "" : "none";
   newSeriesSection.style.display = isSto ? "" : "none";
   popularSeriesSection.style.display = isSto ? "" : "none";
+  if (popularMoviesSection) popularMoviesSection.style.display = isMegakino ? "" : "none";
   if (htvTrendingSection) htvTrendingSection.style.display = isHtv ? "" : "none";
   if (isAniworld) loadAniworldBrowse();
   else if (isSto) loadStoBrowse();
+  else if (isMegakino) loadMegakinoBrowse();
   else if (isHtv) loadHtvBrowse();
 }
 
@@ -177,24 +203,27 @@ const htvTrendingGrid = document.getElementById("htvTrendingGrid");
 
 const segmentedThumb = document.getElementById("segmentedThumb");
 const htvEnabled = window.HTV_ENABLED;
-const sites = htvEnabled ? ["aniworld", "sto", "htv"] : ["aniworld", "sto"];
+const sites = htvEnabled ? ["aniworld", "sto", "megakino", "htv"] : ["aniworld", "sto", "megakino"];
 
 const thumbColors = {
-  aniworld: { bg: "linear-gradient(135deg, #9333ea, #7c3aed)", shadow: "0 2px 8px rgba(147, 51, 234, 0.35)" },
-  sto: { bg: "linear-gradient(135deg, #2563eb, #1d4ed8)", shadow: "0 2px 8px rgba(37, 99, 235, 0.35)" },
-  htv: { bg: "linear-gradient(135deg, #dc2626, #b91c1c)", shadow: "0 2px 8px rgba(220, 38, 38, 0.35)" },
+  aniworld: { bg: "linear-gradient(135deg, #8b5cf6, #6d28d9)", shadow: "0 2px 8px rgba(139, 92, 246, 0.35)" },
+  sto: { bg: "linear-gradient(135deg, #38bdf8, #2563eb)", shadow: "0 2px 8px rgba(56, 189, 248, 0.35)" },
+  megakino: { bg: "linear-gradient(135deg, #ef4444, #b91c1c)", shadow: "0 2px 8px rgba(239, 68, 68, 0.35)" },
+  htv: { bg: "linear-gradient(135deg, #ff4fa3, #db2777)", shadow: "0 2px 8px rgba(255, 79, 163, 0.35)" },
 };
 
 function updateSliderState(site) {
   const labelAniworld = document.getElementById("labelAniworld");
   const labelSto = document.getElementById("labelSto");
+  const labelMegakino = document.getElementById("labelMegakino");
   const labelHtv = document.getElementById("labelHtv");
   if (labelAniworld) labelAniworld.classList.toggle("active", site === "aniworld");
   if (labelSto) labelSto.classList.toggle("active", site === "sto");
+  if (labelMegakino) labelMegakino.classList.toggle("active", site === "megakino");
   if (labelHtv) labelHtv.classList.toggle("active", site === "htv");
 
   if (!segmentedThumb) return;
-  const siteIds = { aniworld: "labelAniworld", sto: "labelSto", htv: "labelHtv" };
+  const siteIds = { aniworld: "labelAniworld", sto: "labelSto", megakino: "labelMegakino", htv: "labelHtv" };
   const btn = document.getElementById(siteIds[site]);
   if (!btn) return;
   const track = btn.parentElement;
@@ -219,6 +248,7 @@ function switchSite(site) {
     const headings = {
       aniworld: "AniWorld Downloader",
       sto: "SerienStream Downloader",
+      megakino: "MegaKino Downloader",
       htv: "Hanime Downloader",
     };
     heading.textContent = headings[site] || "AniWorld Downloader";
@@ -227,7 +257,14 @@ function switchSite(site) {
   // Update search placeholder
   const isHtv = site === "htv";
   document.querySelector(".search-bar").style.display = "";
-  searchInput.placeholder = isHtv ? "Search Hanime..." : site === "sto" ? "Search for series..." : "Search for anime...";
+  searchInput.placeholder =
+    site === "htv"
+      ? "Search Hanime..."
+      : site === "sto"
+        ? "Search for series..."
+        : site === "megakino"
+          ? "Search MegaKino..."
+          : "Search for anime...";
 
   // Clear search results
   resultsDiv.innerHTML = "";
@@ -252,9 +289,14 @@ function rebuildLanguageSelect() {
   const langs =
     currentSite === "sto"
       ? window.STO_LANGS || {}
-      : window.ANIWORLD_LANGS || {};
+      : currentSite === "megakino"
+        ? window.MEGAKINO_LANGS || {}
+        : window.ANIWORLD_LANGS || {};
   const previousValue = languageSelect.value;
-  const preferredValue = previousValue || window.DEFAULT_WEB_LANGUAGE || "German Dub";
+  const preferredValue =
+    currentSite === "megakino"
+      ? "German Dub"
+      : previousValue || window.DEFAULT_WEB_LANGUAGE || "German Dub";
   languageSelect.innerHTML = "";
 
   if (langSeparationEnabled) {
@@ -359,6 +401,7 @@ function refreshVisibleBrowse(force = false) {
   if (!isBrowseVisible()) return;
   if (currentSite === "aniworld") loadAniworldBrowse(force);
   else if (currentSite === "sto") loadStoBrowse(force);
+  else if (currentSite === "megakino") loadMegakinoBrowse(force);
   else if (currentSite === "htv") loadHtvBrowse(force);
 }
 
@@ -783,12 +826,14 @@ function filterLanguageSelectToAvailable() {
 
 function resetProviderDropdown() {
   providerSelect.innerHTML = "";
-  staticProviders.forEach((p) => {
-    const opt = document.createElement("option");
-    opt.value = p;
-    opt.textContent = p;
-    providerSelect.appendChild(opt);
-  });
+  if (currentSite !== "megakino") {
+    staticProviders.forEach((p) => {
+      const opt = document.createElement("option");
+      opt.value = p;
+      opt.textContent = p;
+      providerSelect.appendChild(opt);
+    });
+  }
   selectDefaultProvider();
 }
 
@@ -807,12 +852,14 @@ function updateProviderDropdown() {
       providerSelect.appendChild(opt);
     });
   } else {
-    staticProviders.forEach((p) => {
-      const opt = document.createElement("option");
-      opt.value = p;
-      opt.textContent = p;
-      providerSelect.appendChild(opt);
-    });
+    if (currentSite !== "megakino") {
+      staticProviders.forEach((p) => {
+        const opt = document.createElement("option");
+        opt.value = p;
+        opt.textContent = p;
+        providerSelect.appendChild(opt);
+      });
+    }
   }
   selectDefaultProvider();
 }
@@ -823,6 +870,10 @@ function selectDefaultProvider() {
       providerSelect.value = "VOE";
       return;
     }
+  }
+
+  if (providerSelect.options.length) {
+    providerSelect.value = providerSelect.options[0].value;
   }
 }
 

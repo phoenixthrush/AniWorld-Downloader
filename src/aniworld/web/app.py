@@ -22,7 +22,9 @@ from ..search import (
     fetch_new_animes,
     fetch_new_series,
     fetch_popular_animes,
+    fetch_popular_movies,
     fetch_popular_series,
+    query_megakino,
     query_s_to,
     random_anime,
 )
@@ -81,6 +83,7 @@ def _get_working_providers():
 
 
 WORKING_PROVIDERS = _get_working_providers()
+WORKING_PROVIDER_LOOKUP = {provider.lower(): provider for provider in WORKING_PROVIDERS}
 
 ANIWORLD_LANGUAGE_BADGE_ORDER = (
     "German Dub",
@@ -133,6 +136,10 @@ def _episode_language_labels(provider_data):
     return labels
 
 
+def _is_megakino_url(url: str) -> bool:
+    return bool(re.match(r"^https?://(?:www\.)?megakino[\w-]*\.[^/]+/", url))
+
+
 # Only match series-level links: /anime/stream/<slug> (no season/episode)
 _SERIES_LINK_PATTERN = re.compile(r"^/anime/stream/[a-zA-Z0-9\-]+/?$", re.IGNORECASE)
 
@@ -176,6 +183,18 @@ def _search_htv(keyword):
     except Exception as e:
         logger.warning(f"HTV search failed: {e}")
         return []
+
+
+def _megakino_episode_payload(url, title, episode, season_number=1):
+    available_languages = _episode_language_labels(episode.provider_data)
+    return {
+        "url": url,
+        "episode_number": 1,
+        "title_de": "",
+        "title_en": title,
+        "downloaded": False,
+        "available_languages": available_languages,
+    }
 
 
 def _fetch_htv_trending():
@@ -794,6 +813,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     @app.route("/")
     def index():
         sto_lang_labels = {"1": "German Dub", "2": "English Dub"}
+        megakino_lang_labels = {"1": "German Dub"}
         default_web_language = os.environ.get("ANIWORLD_LANGUAGE", "German Dub")
         if default_web_language not in LANG_LABELS.values():
             default_web_language = "German Dub"
@@ -802,6 +822,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             "index.html",
             lang_labels=LANG_LABELS,
             sto_lang_labels=sto_lang_labels,
+            megakino_lang_labels=megakino_lang_labels,
             supported_providers=WORKING_PROVIDERS,
             default_web_language=default_web_language,
             htv_enabled=htv_enabled,
@@ -836,6 +857,19 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                         "title": title,
                         "url": f"https://hanime.tv/videos/hentai/{slug}",
                         "poster_url": _proxy_image_url(poster),
+                    }
+                )
+        elif site == "megakino":
+            mk_results = query_megakino(keyword) or []
+            for item in mk_results:
+                url = item.get("url", "")
+                if not url:
+                    continue
+                results.append(
+                    {
+                        "title": item.get("title", "Unknown"),
+                        "url": url,
+                        "poster_url": _proxy_image_url(item.get("poster_url", "")),
                     }
                 )
         elif site == "sto":
@@ -931,6 +965,20 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
         try:
             prov = resolve_provider(url)
+            if prov.name == "MegaKino":
+                series = prov.series_cls(url=url)
+                return jsonify(
+                    {
+                        "seasons": [
+                            {
+                                "url": url,
+                                "season_number": 1,
+                                "episode_count": 1,
+                                "are_movies": True,
+                            }
+                        ]
+                    }
+                )
             series = prov.series_cls(url=url)
             seasons_data = []
             for season in series.seasons:
@@ -962,6 +1010,26 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
         try:
             prov = resolve_provider(url)
+
+            if prov.name == "MegaKino":
+                series = prov.series_cls(url=url)
+                episode = prov.episode_cls(url=url, selected_language="German Dub")
+                title = getattr(series, "title_cleaned", None) or getattr(
+                    series, "title", ""
+                )
+                episodes_data = [
+                    {
+                        "url": url,
+                        "episode_number": 1,
+                        "title_de": "",
+                        "title_en": title,
+                        "downloaded": False,
+                        "available_languages": _episode_language_labels(
+                            episode.provider_data
+                        ),
+                    }
+                ]
+                return jsonify({"episodes": episodes_data})
 
             # HTV: season URL is empty; use the series URL to get episodes
             if prov.name == "HanimeTV":
@@ -1085,7 +1153,10 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
         try:
             prov = resolve_provider(url)
-            episode = prov.episode_cls(url=url)
+            if prov.name == "MegaKino":
+                episode = prov.episode_cls(url=url, selected_language="German Dub")
+            else:
+                episode = prov.episode_cls(url=url)
             pd = episode.provider_data
 
             disable_eng_sub = os.environ.get("ANIWORLD_DISABLE_ENGLISH_SUB", "0") == "1"
@@ -1105,7 +1176,11 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                         continue
                     if disable_eng_sub and label == "English Sub":
                         continue
-                    working = [p for p in providers.keys() if p in WORKING_PROVIDERS]
+                    working = [
+                        WORKING_PROVIDER_LOOKUP.get(p.lower(), p)
+                        for p in providers.keys()
+                        if p.lower() in WORKING_PROVIDER_LOOKUP
+                    ]
                     if working:
                         provider_info[label] = working
             else:
@@ -1167,6 +1242,15 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             custom_path_id=custom_path_id,
         )
         return jsonify({"queue_id": queue_id})
+
+    @app.route("/api/popular-movies")
+    def api_popular_movies():
+        try:
+            results = fetch_popular_movies() or []
+            return jsonify({"results": results})
+        except Exception as e:
+            logger.error(f"Popular movies fetch failed: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
 
     @app.route("/api/queue")
     def api_queue():

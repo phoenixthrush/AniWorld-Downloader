@@ -144,6 +144,7 @@ logger.debug(
 # -----------------------------
 SUPPORTED_PROVIDERS = (
     "VOE",
+    "MegaKino",
     "Vidmoly",
     "Vidoza",
     # "Doodstream",
@@ -394,9 +395,8 @@ HIANIME_SEASON_PATTERN = re.compile(r"", re.IGNORECASE)
 
 HIANIME_EPISODE_PATTERN = re.compile(r"", re.IGNORECASE)
 
-# TODO: this is just a placeholder for now, who would have thought
 MEGAKINO_SERIES_PATTERN = re.compile(
-    r"^https://.+$",
+    r"^https?://(?:www\.)?megakino[\w-]*\.[^/]+/(?:action|films|serials)/[^?#]+(?:\.html)?/?$",
     re.IGNORECASE,
 )
 
