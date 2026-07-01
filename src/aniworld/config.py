@@ -111,6 +111,14 @@ LULUVDO_USER_AGENT = (
     "Mozilla/5.0 (Android 15; Mobile; rv:132.0) Gecko/132.0 Firefox/132.0"
 )
 
+# TODO:
+# This is so fucking annoying because using GLOBAL_SESSION anywhere in the
+# codebase ends up importing basically every module, so even a simple fetch
+# takes 20–30 seconds just to start...
+#
+# I already made a lazy-loading wrapper that defers all the __init__.py imports
+# in another branch, but for now I just have to sit through the import time
+# every run, even though the actual fetch only takes about a second
 GLOBAL_SESSION = Session(
     resolver=["doh+google://"],
     headers={
@@ -127,6 +135,9 @@ GLOBAL_SESSION = Session(
 )
 
 logger.debug("Config initialized successfully")
+logger.debug(
+    "If this shit seems to hang, just wait. It's currently loading all modules, which can take up to ~30 seconds, but only once per startup. This is being worked on and won't take nearly as long in the future."
+)
 
 # -----------------------------
 # Provider Stuff
@@ -382,6 +393,12 @@ HIANIME_SERIES_PATTERN = re.compile(r"", re.IGNORECASE)
 HIANIME_SEASON_PATTERN = re.compile(r"", re.IGNORECASE)
 
 HIANIME_EPISODE_PATTERN = re.compile(r"", re.IGNORECASE)
+
+# TODO: this is just a placeholder for now, who would have thought
+MEGAKINO_SERIES_PATTERN = re.compile(
+    r"^https://.+$",
+    re.IGNORECASE,
+)
 
 # -----------------------------
 # Directories
