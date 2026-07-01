@@ -2,7 +2,7 @@
 
 # AniWorld Downloader v4
 
-AniWorld Downloader is a cross-platform tool for streaming and downloading anime from aniworld.to, as well as series from s.to, with support for more sites being added over time. It runs on Windows, macOS, and Linux, providing a seamless experience for offline viewing or instant playback.
+AniWorld Downloader is a cross-platform tool for streaming and downloading content from AniWorld, SerienStream, MegaKino, and Hanime, with more support coming in the future. It runs on Windows, macOS, and Linux, providing a seamless experience for offline viewing or instant playback.
 
 ![GitHub Release](https://img.shields.io/github/v/release/phoenixthrush/AniWorld-Downloader)
 [![PyPI Downloads](https://static.pepy.tech/badge/aniworld)](https://pepy.tech/projects/aniworld)
@@ -217,12 +217,13 @@ All dependencies are installed automatically when AniWorld Downloader is install
 
 AniWorld Downloader builds upon the work of several outstanding open-source projects:
 
-- **[mpv](https://github.com/mpv-player/mpv.git)** – A versatile media player used for seamless video streaming
-- **[IINA](https://github.com/iina/iina.git)** – Modern macOS media player built on mpv, offering a sleek interface and advanced playback features
+- **[mpv](https://github.com/mpv-player/mpv)** – A versatile media player used for seamless video streaming
+- **[IINA](https://github.com/iina/iina)** – Modern macOS media player built on mpv, offering a sleek interface and advanced playback features
 - **[Syncplay](https://github.com/Syncplay/syncplay.git)** – Enables synchronized playback sessions with friends
 - **[Anime4K](https://github.com/bloc97/Anime4K)** – Real-time upscaler for enhancing anime video quality
 - **[Aniskip](https://api.aniskip.com/api-docs)** – Provides opening and ending skip times for the Aniskip extension
 - **[flag-icons](https://github.com/lipis/flag-icons)** – Collection of SVG country flags
+- **[new-domain-check](https://github.com/Yezun-hikari/new-domain-check)** – Constant checks for new redirects on megakino
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
