@@ -492,7 +492,11 @@ def _run_autosync_for_job(job):
                 for base in all_bases:
                     if not base.is_dir():
                         continue
-                    for folder in base.iterdir():
+                    try:
+                        folders = list(base.iterdir())
+                    except (PermissionError, OSError):
+                        continue
+                    for folder in folders:
                         if not folder.is_dir() or not folder.name.lower().startswith(
                             title_clean
                         ):
@@ -1021,7 +1025,11 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                     for base in all_bases:
                         if not base.is_dir():
                             continue
-                        for folder in base.iterdir():
+                        try:
+                            folders = list(base.iterdir())
+                        except (PermissionError, OSError):
+                            continue
+                        for folder in folders:
                             if (
                                 not folder.is_dir()
                                 or not folder.name.lower().startswith(title_clean)
@@ -1404,7 +1412,11 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             for base in bases:
                 if not base.is_dir():
                     continue
-                for entry in base.iterdir():
+                try:
+                    entries = list(base.iterdir())
+                except (PermissionError, OSError):
+                    continue
+                for entry in entries:
                     if entry.is_dir():
                         folders.add(entry.name)
         return jsonify({"folders": sorted(folders)})

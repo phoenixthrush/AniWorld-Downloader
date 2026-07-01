@@ -1,5 +1,6 @@
 import re
 from datetime import datetime, timezone
+from html import unescape
 
 from ...config import logger
 from ...extractors.provider.hanime_tv import fetch_hanime_api_data
@@ -106,6 +107,16 @@ class HanimeTVSeries:
         if not value:
             return ""
         return re.sub(r"<[^>]+>", "", value).strip()
+
+    @staticmethod
+    def _title_from_slug(slug):
+        """Build a readable title from a hanime slug."""
+
+        if not slug:
+            return ""
+        title = re.sub(r"-\d+$", "", slug)
+        title = title.replace("-", " ").strip()
+        return title.title()
 
     @staticmethod
     def _parse_datetime(ts, fallback=""):
@@ -217,7 +228,9 @@ class HanimeTVSeries:
             self.__title = self.franchise_title
             if not self.__title:
                 name = self.video_title
-                self.__title = re.sub(r"\s*\d+\s*$", "", name).strip() or name
+                self.__title = re.sub(r"\s*\d+$", "", name).strip() or name
+            if not self.__title:
+                self.__title = self._title_from_slug(self.slug)
         return self.__title
 
     @property
@@ -225,7 +238,7 @@ class HanimeTVSeries:
         """Return the cleaned series title."""
 
         if self.__title_cleaned is None:
-            self.__title_cleaned = clean_title(self.title)
+            self.__title_cleaned = clean_title(unescape(self.title))
         return self.__title_cleaned
 
     @property

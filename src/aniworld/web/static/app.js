@@ -486,7 +486,9 @@ async function openSeries(url) {
 
     currentSeriesTitle = seriesData.title || "Unknown";
     const titleEl = document.getElementById("modalTitle");
-    titleEl.innerHTML = `<a href="${currentSeriesUrl}" target="_blank" rel="noopener noreferrer">${currentSeriesTitle}</a>`;
+    const titleUrl =
+      (seriesData.episode_urls && seriesData.episode_urls[0]) || currentSeriesUrl;
+    titleEl.innerHTML = `<a href="${titleUrl}" target="_blank" rel="noopener noreferrer">${currentSeriesTitle}</a>`;
     if (seriesData.poster_url)
       document.getElementById("modalPoster").src = seriesData.poster_url;
     document.getElementById("modalGenres").textContent = (
