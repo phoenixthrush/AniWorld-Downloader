@@ -1052,6 +1052,8 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                     ep.episode_number,
                 ) in downloaded_eps
                 available_languages = _episode_language_labels(ep.provider_data)
+                if prov.name == "HanimeTV" and not available_languages:
+                    available_languages = ["Japanese"]
 
                 episodes_data.append(
                     {

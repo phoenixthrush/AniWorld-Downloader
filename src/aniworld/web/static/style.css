@@ -650,6 +650,12 @@ h1 {
   white-space: nowrap;
 }
 
+.episode-item .ep-title-fallback {
+  color: #6b7280;
+  font-size: 0.88em;
+  font-weight: 500;
+}
+
 .episode-item .ep-main {
   display: flex;
   align-items: center;

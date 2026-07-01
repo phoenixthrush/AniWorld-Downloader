@@ -612,12 +612,15 @@ function renderSeasonEpisodes(index, episodes) {
   episodes.forEach((ep) => {
     const div = document.createElement("div");
     div.className = "episode-item";
-    const title = ep.title_en || ep.title_de || "";
+    const hasTitle = !!(ep.title_en || ep.title_de);
+    const title = hasTitle
+      ? `<span class="ep-title-main">${esc(ep.title_en || ep.title_de)}</span>`
+      : '<span class="ep-title-fallback">[Not Available]</span>';
     const languageBadges = renderEpisodeLanguageBadges(ep.available_languages || []);
     const dlIcon = ep.downloaded
       ? '<span class="ep-downloaded" title="Downloaded">&#10003;</span>'
       : "";
-    div.innerHTML = `<input type="checkbox" value="${esc(ep.url)}" data-season="${index}"><span class="ep-num">E${ep.episode_number}</span>${dlIcon}<div class="ep-main"><span class="ep-title">${esc(title)}</span>${languageBadges}</div>`;
+    div.innerHTML = `<input type="checkbox" value="${esc(ep.url)}" data-season="${index}"><span class="ep-num">E${ep.episode_number}</span>${dlIcon}<div class="ep-main"><span class="ep-title">${title}</span>${languageBadges}</div>`;
     body.appendChild(div);
   });
 
@@ -660,6 +663,7 @@ function getEpisodeLanguageBadge(label) {
     "German Sub": { flags: ["jp", "de"], text: "Sub" },
     "English Dub": { flags: ["gb"], text: "Dub" },
     "English Sub": { flags: ["jp", "gb"], text: "Sub" },
+    Japanese: { flags: ["jp"], text: "Dub" },
   };
   return badgeMap[label] || null;
 }
@@ -670,6 +674,7 @@ function getEpisodeLanguageBadgeClass(label) {
     "German Sub": "badge-german-sub",
     "English Dub": "badge-english-dub",
     "English Sub": "badge-english-sub",
+    Japanese: "badge-german-dub",
   };
   return classMap[label] || "badge-default";
 }
