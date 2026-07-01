@@ -2,13 +2,13 @@ import getpass
 import hashlib
 import os
 import platform
+import queue
 import re
 import shlex
 import subprocess
 import sys
-import time
 import threading
-import queue
+import time
 from typing import Optional, Tuple
 
 import ffmpeg
@@ -495,7 +495,7 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
             if stderr_lines
             else f"exit code {process.returncode}"
         )
-        logger.error(f"[FFmpeg] Process failed (rc={process.returncode}):\n{detail}")
+        logger.warning(f"[FFmpeg] Process failed (rc={process.returncode}):\n{detail}")
         raise RuntimeError(f"ffmpeg error (rc={process.returncode}): {detail}")
 
 

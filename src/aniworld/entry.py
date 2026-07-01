@@ -51,14 +51,13 @@ def aniworld():
     """Main entry point"""
     try:
         _enable_debug_logging_if_requested()
-        logger.debug("Starting...")
-        logger.info("Starting AniWorld-Downloader...")
+        logger.debug("Starting AniWorld-Downloader...")
         set_terminal_title()
         args = parse_args()
 
-        logger.info("Checking dependencies...")
+        logger.debug("Checking dependencies...")
         ensure_patchright_chromium()
-        logger.info("Dependencies OK")
+        logger.debug("Dependencies OK")
 
         if args.web_ui:
             from .web import start_web_ui

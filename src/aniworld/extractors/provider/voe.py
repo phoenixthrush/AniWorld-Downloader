@@ -210,7 +210,7 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
             if not source:
                 raise ValueError("No VOE video source found in page.")
 
-            logger.info(f"VOE source extracted on attempt {attempt + 1}")
+            logger.debug(f"VOE source extracted on attempt {attempt + 1}")
             return source
 
         except (niquests.RequestException, Exception) as err:

@@ -458,8 +458,7 @@ def ensure_patchright_chromium():
 
     _ensure_xvfb()
     try:
-        _log.debug("Ensuring patchright chromium is installed...")
-        _log.info("Installing patchright chromium (this may take a moment)...")
+        _log.debug("Installing patchright chromium (this may take a moment)...")
         subprocess.run(
             [sys.executable, "-m", "patchright", "install", "chromium"],
             check=True,
@@ -467,7 +466,6 @@ def ensure_patchright_chromium():
             stderr=subprocess.DEVNULL,
         )
         _log.debug("patchright chromium is ready")
-        _log.info("patchright chromium is ready")
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
         _log.warning(f"patchright chromium install failed: {e}")
 
