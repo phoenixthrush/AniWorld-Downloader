@@ -55,9 +55,10 @@ def aniworld():
         set_terminal_title()
         args = parse_args()
 
-        logger.debug("Checking dependencies...")
-        ensure_patchright_chromium()
-        logger.debug("Dependencies OK")
+        if not os.getenv("ANIWORLD_DOWNLOAD_PATH") == "/app/Downloads":
+            logger.debug("Checking dependencies...")
+            ensure_patchright_chromium()
+            logger.debug("Dependencies OK")
 
         if args.web_ui:
             from .web import start_web_ui
