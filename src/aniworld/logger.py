@@ -25,36 +25,63 @@ class ColorFormatter(logging.Formatter):
     """Formatter for colored stdout logs."""
 
     def format(self, record):
-        level_color = COLORS.get(record.levelno, RESET)
-        record.levelname = f"{level_color}{record.levelname}{RESET}"
+        orig_levelname = record.levelname
+        orig_msg = record.msg
+        orig_args = record.args
+        orig_func_info = getattr(record, "func_info", None)
+        orig_message = getattr(record, "message", None)
 
-        cwd = os.getcwd()
-        rel_path = os.path.relpath(record.pathname, cwd)
-        record.func_info = (
-            f"{FUNC_COLOR}{rel_path}:{record.lineno}:{record.funcName}{RESET}"
-        )
+        try:
+            level_color = COLORS.get(record.levelno, RESET)
+            record.levelname = f"{level_color}{record.levelname}{RESET}"
 
-        record.msg = f"{MSG_COLOR}{record.getMessage()}{RESET}"
+            cwd = os.getcwd()
+            rel_path = os.path.relpath(record.pathname, cwd)
+            record.func_info = (
+                f"{FUNC_COLOR}{rel_path}:{record.lineno}:{record.funcName}{RESET}"
+            )
 
-        formatted = super().format(record)
+            record.msg = f"{MSG_COLOR}{record.getMessage()}{RESET}"
+            record.args = None
 
-        # Color timestamp
-        parts = formatted.split(" - ", 1)
-        if len(parts) == 2:
-            timestamp, rest = parts
-            formatted = f"{TIME_COLOR}{timestamp}{RESET} - {rest}"
+            formatted = super().format(record)
 
-        return formatted
+            # Color timestamp
+            parts = formatted.split(" - ", 1)
+            if len(parts) == 2:
+                timestamp, rest = parts
+                formatted = f"{TIME_COLOR}{timestamp}{RESET} - {rest}"
+
+            return formatted
+        finally:
+            record.levelname = orig_levelname
+            record.msg = orig_msg
+            record.args = orig_args
+            if orig_func_info is not None:
+                record.func_info = orig_func_info
+            elif hasattr(record, "func_info"):
+                del record.func_info
+            if orig_message is not None:
+                record.message = orig_message
+            elif hasattr(record, "message"):
+                del record.message
 
 
 class PlainFormatter(logging.Formatter):
     """Formatter for plain file logs (no color)."""
 
     def format(self, record):
-        cwd = os.getcwd()
-        rel_path = os.path.relpath(record.pathname, cwd)
-        record.func_info = f"{rel_path}:{record.lineno}:{record.funcName}"
-        return super().format(record)
+        orig_func_info = getattr(record, "func_info", None)
+        try:
+            cwd = os.getcwd()
+            rel_path = os.path.relpath(record.pathname, cwd)
+            record.func_info = f"{rel_path}:{record.lineno}:{record.funcName}"
+            return super().format(record)
+        finally:
+            if orig_func_info is not None:
+                record.func_info = orig_func_info
+            elif hasattr(record, "func_info"):
+                del record.func_info
 
 
 # TODO: This does not respect env debug mode
