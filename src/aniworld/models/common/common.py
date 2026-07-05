@@ -307,7 +307,7 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
     """
 
     STALL_TIMEOUT = (
-        600  # 10 minutes without progress → kill (must exceed reconnect_delay_max=300)
+        60  # 60 seconds without progress → kill (must exceed reconnect_delay_max=30)
     )
 
     debug_mode = os.getenv("ANIWORLD_DEBUG_MODE", "0") == "1"
@@ -589,7 +589,7 @@ def _download_hls_stream(episode_path, stream_url, file_name, audio_lang="jpn"):
         input_kwargs = {
             "reconnect": 1,
             "reconnect_streamed": 1,
-            "reconnect_delay_max": 300,
+            "reconnect_delay_max": 30,
         }
 
         _run_ffmpeg_with_progress(
@@ -654,7 +654,7 @@ def download(self):
                 input_kwargs = {
                     "reconnect": 1,
                     "reconnect_streamed": 1,
-                    "reconnect_delay_max": 300,  # wait up to 5 min for connection recovery
+                    "reconnect_delay_max": 30,  # wait up to 30s for connection recovery
                 }
                 if headers:
                     header_list = [f"{k}: {v}" for k, v in headers.items()]
