@@ -870,14 +870,16 @@ def get_general_stats():
             "FROM download_queue WHERE status = 'completed' "
             "GROUP BY language ORDER BY cnt DESC"
         ).fetchall()
-        # Anime vs Series (heuristic: aniworld.to = anime, s.to = series)
+        # Anime vs Series (heuristic: aniworld.to = anime, serienstream.to = series)
         anime_count = conn.execute(
             "SELECT COUNT(*) AS cnt FROM download_queue "
             "WHERE status = 'completed' AND series_url LIKE '%aniworld.to%'"
         ).fetchone()["cnt"]
         series_count = conn.execute(
             "SELECT COUNT(*) AS cnt FROM download_queue "
-            "WHERE status = 'completed' AND series_url LIKE '%s.to%'"
+            "WHERE status = 'completed' AND ("
+            "series_url LIKE '%serienstream.to%' OR series_url LIKE '%s.to%'"
+            ")"
         ).fetchone()["cnt"]
         return {
             "total_downloads": total_downloads,

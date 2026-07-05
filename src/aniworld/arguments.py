@@ -93,7 +93,7 @@ def parse_args():
         description=(
             "AniWorld Downloader is a cross-platform tool for streaming and "
             "downloading anime from aniworld.to, as well as movies and series "
-            "from s.to. It runs on Windows, macOS, and Linux, providing a "
+            "from serienstream.to. It runs on Windows, macOS, and Linux, providing a "
             "seamless experience for offline viewing or instant playback."
         ),
         epilog='Run "aniworld --examples" to see more usage examples.',
@@ -181,7 +181,7 @@ def parse_args():
         "-sto",
         "--use-sto-search",
         action="store_true",
-        help="Prefer s.to for interactive searches.",
+        help="Prefer serienstream.to for interactive searches.",
     )
 
     # =========================

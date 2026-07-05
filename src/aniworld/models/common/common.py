@@ -632,7 +632,7 @@ def download_hanime(self):
 
 
 def download(self):
-    """Download required audio/video streams for an episode (AniWorld + s.to) with retry logic."""
+    """Download required audio/video streams for an episode (AniWorld + serienstream.to) with retry logic."""
     if platform.system() == "Windows":
         manager = DependencyManager()
         manager.fetch_binary("ffmpeg")
@@ -850,7 +850,7 @@ def watch(self):
     provider_order = _get_provider_attempt_order(self)
     provider_errors = {}
 
-    # AniSkip: AniWorld only; ignore for s.to
+    # AniSkip: AniWorld only; ignore for serienstream.to
     aniskip_enabled = os.getenv("ANIWORLD_ANISKIP", "0") == "1"
     if aniskip_enabled and hasattr(self, "skip_times"):
         skip_times = self.skip_times
@@ -925,7 +925,7 @@ def watch(self):
 
 
 def syncplay(self):
-    """Syncplay an episode (AniWorld + s.to)."""
+    """Syncplay an episode (AniWorld + serienstream.to)."""
 
     print(f"[Syncplaying] {self._file_name}")
 

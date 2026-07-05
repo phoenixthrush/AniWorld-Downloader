@@ -25,11 +25,11 @@ from ..common.common import (
 
 
 # -----------------------------
-# Language Stuff (s.to only)
+# Language Stuff (serienstream.to only)
 # -----------------------------
 class Audio(Enum):
     """
-    Available audio language options (s.to only):
+    Available audio language options (serienstream.to only):
         - GERMAN:  German dub
         - ENGLISH: English dub
     """
@@ -40,14 +40,14 @@ class Audio(Enum):
 
 class Subtitles(Enum):
     """
-    Available subtitle options (s.to only):
+    Available subtitle options (serienstream.to only):
         - NONE: no subtitles
     """
 
     NONE = "None"
 
 
-# Map UI labels to enum tuples (s.to labels)
+# Map UI labels to enum tuples (serienstream.to labels)
 LANG_LABEL_TO_ENUM = {
     "Deutsch": (Audio.GERMAN, Subtitles.NONE),
     "Englisch": (Audio.ENGLISH, Subtitles.NONE),
@@ -298,10 +298,10 @@ class SerienstreamEpisode:
             # Try plain HTTP first — works when no modal is shown
             resp = GLOBAL_SESSION.get(self.redirect_url)
             if urlparse(resp.url).netloc != urlparse(self.redirect_url).netloc:
-                # Redirect left s.to — no modal, plain session worked
+                # Redirect left serienstream.to — no modal, plain session worked
                 self.__provider_url = resp.url
             else:
-                # Still on s.to — modal was shown, need browser
+                # Still on serienstream.to — modal was shown, need browser
                 _lang_map = {Audio.GERMAN: "Deutsch", Audio.ENGLISH: "Englisch"}
                 lang = self.selected_language
                 audio = lang[0] if isinstance(lang, tuple) else lang

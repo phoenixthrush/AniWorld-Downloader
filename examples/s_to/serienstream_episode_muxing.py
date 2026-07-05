@@ -1,6 +1,6 @@
 from aniworld.models import SerienstreamEpisode
 
-url = "https://s.to/serie/american-horror-story-die-dunkle-seite-in-dir/staffel-1/episode-1"
+url = "https://serienstream.to/serie/american-horror-story-die-dunkle-seite-in-dir/staffel-1/episode-1"
 
 # ----------------------------
 # Language variations

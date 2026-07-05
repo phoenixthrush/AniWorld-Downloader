@@ -444,7 +444,7 @@ async function doSearch() {
 
 async function doRandom() {
   if (currentSite === "sto") {
-    showToast("Random is not available for S.TO");
+    showToast("Random is not available for serienstream.to");
     return;
   }
   randomBtn.disabled = true;

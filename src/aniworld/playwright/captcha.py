@@ -189,7 +189,7 @@ def is_captcha_page(html: str, status_code: int = 200) -> bool:
         "g-recaptcha",
         # legacy aniworld check kept for safety
         "<title>stream wird vorbereitet...</title>",
-        # s.to inline Turnstile modal
+        # serienstream.to inline Turnstile modal
         "player-prepare-turnstile",
     ]
     return any(ind in lower for ind in indicators)
@@ -267,7 +267,7 @@ def _solve_captcha_cli(url: str) -> bool:
                         solved = True
                         break
 
-                    # s.to modal: form target="player-iframe" — after Weiter the VOE URL
+                    # serienstream.to modal: form target="player-iframe" — after Weiter the VOE URL
                     # loads into that iframe. The modal HTML stays on the page, so
                     # is_captcha_page() would never become False. Instead poll the frame.
                     for frame in page.frames:
@@ -427,7 +427,7 @@ def _solve_captcha_interactive(url: str, queue_id: int) -> bool:
                     solved = True
                     break
 
-                # s.to modal: poll player-iframe for the VOE URL
+                # serienstream.to modal: poll player-iframe for the VOE URL
                 for frame in page.frames:
                     if frame.name == "player-iframe":
                         fu = frame.url
@@ -620,7 +620,7 @@ def _inject_session_cookies(context, url: str) -> None:
 
 def solve_sto_modal(episode_url: str, provider_name: str, language_label: str):
     """
-    Open the s.to episode page in a browser, click the provider button,
+    Open the serienstream.to episode page in a browser, click the provider button,
     solve the Turnstile modal, click Weiter, and return the player-iframe
     URL (e.g. voe.sx/e/...).  Works in CLI and WebUI mode.
     Returns the iframe URL on success, None on timeout.
@@ -809,7 +809,7 @@ if __name__ == "__main__":
     from aniworld.config import Audio, Subtitles
     from aniworld.models import SerienstreamEpisode
 
-    ep = SerienstreamEpisode("https://s.to/serie/mr-pickles/staffel-1/episode-1")
+    ep = SerienstreamEpisode("https://serienstream.to/serie/mr-pickles/staffel-1/episode-1")
 
     language = (Audio.GERMAN, Subtitles.NONE)
     provider = "VOE"

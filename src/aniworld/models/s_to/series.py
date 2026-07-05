@@ -292,7 +292,7 @@ class SerienstreamSeries:
         </div>
         """
 
-        # s.to uses both src= and data-src= depending on page version.
+        # serienstream.to uses both src= and data-src= depending on page version.
         pattern = re.compile(
             r'(?:data-)?src="(?P<url>(?:https?://(?:serienstream|s)\.to)?/media/images/channel/[^"]+)"'
         )
@@ -547,7 +547,7 @@ class SerienstreamSeries:
         """
         from .season import SerienstreamSeason
 
-        # s.to currently serves both absolute and relative hrefs.
+        # serienstream.to currently serves both absolute and relative hrefs.
         # Support both and normalize them to absolute URLs.
         pattern = re.compile(
             r'href="(?P<href>(?:https?://(?:serienstream|s)\.to)?/serie/[^\"\s]+/staffel-\d+)/?"'

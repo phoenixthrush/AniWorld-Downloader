@@ -143,7 +143,7 @@ def _is_megakino_url(url: str) -> bool:
 # Only match series-level links: /anime/stream/<slug> (no season/episode)
 _SERIES_LINK_PATTERN = re.compile(r"^/anime/stream/[a-zA-Z0-9\-]+/?$", re.IGNORECASE)
 
-# Only match s.to series-level links: /serie/<slug> (no season/episode)
+# Only match serienstream.to series-level links: /serie/<slug> (no season/episode)
 _STO_SERIES_LINK_PATTERN = re.compile(
     r"^/serie/(stream/)?[a-zA-Z0-9\-]+/?$", re.IGNORECASE
 )
@@ -873,7 +873,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                     }
                 )
         elif site == "sto":
-            # s.to search
+            # serienstream.to search
             sto_results = query_s_to(keyword) or []
             if isinstance(sto_results, dict):
                 sto_results = [sto_results]
@@ -888,7 +888,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                     results.append(
                         {
                             "title": title,
-                            "url": f"https://s.to{link}",
+                            "url": f"https://serienstream.to{link}",
                         }
                     )
         else:
@@ -923,7 +923,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             prov = resolve_provider(url)
             series = prov.series_cls(url=url)
             poster = getattr(series, "poster_url", None)
-            # s.to returns relative poster paths - make them absolute
+            # serienstream.to returns relative poster paths - make them absolute
             if poster and poster.startswith("/"):
                 from urllib.parse import urlparse
 
@@ -1039,7 +1039,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 if not season:
                     return jsonify({"episodes": []})
             else:
-                # Pass series to avoid broken series URL reconstruction in s.to
+                # Pass series to avoid broken series URL reconstruction in serienstream.to
                 # season model (its fallback splits on "-" which fails)
                 series_url = re.sub(r"/staffel-\d+/?$", "", url)
                 series_url = re.sub(r"/filme/?$", "", series_url)
@@ -1184,7 +1184,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                     if working:
                         provider_info[label] = working
             else:
-                # s.to: plain dict with (Audio, Subtitles) enum tuple keys
+                # serienstream.to: plain dict with (Audio, Subtitles) enum tuple keys
                 sto_label_map = {
                     ("German", "None"): "German Dub",
                     ("English", "None"): "English Dub",
@@ -1365,7 +1365,9 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     def api_random():
         site = request.args.get("site", "aniworld").strip()
         if site == "sto":
-            return jsonify({"error": "Random is not available for S.TO"}), 400
+            return jsonify(
+                {"error": "Random is not available for serienstream.to"}
+            ), 400
         url = random_anime()
         if url:
             return jsonify({"url": url})
