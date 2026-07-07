@@ -2,7 +2,7 @@ from urllib.parse import quote
 
 import niquests
 
-SEARCH_API = "https://mangafire.to/api/titles?keyword={}&limit=1"
+SEARCH_API = "https://mangafire.to/api/titles?keyword={}&limit=20"
 CHAPTERS_API = "https://mangafire.to/api/titles/{}/chapters?language=en&sort=number&order=asc&page=1&limit=200"
 CHAPTER_URL = "https://mangafire.to/title/{}/chapter/{}"
 CHAPTER_API = "https://mangafire.to/api/chapters/{}"
@@ -11,15 +11,15 @@ CHAPTER_API = "https://mangafire.to/api/chapters/{}"
 class MangaFireToImage:
     """Store MangaFire image data."""
 
-    def __init__(self, url: str, width: int, height: int):
+    def __init__(self, image_url: str, width: int, height: int):
         """Set up the image."""
-        self.url = url
+        self.image_url = image_url
         self.width = width
         self.height = height
 
     def __str__(self) -> str:
         """Return a readable image string."""
-        return self.url
+        return self.image_url
 
     def __repr__(self) -> str:
         """Return a readable debug string."""
@@ -33,44 +33,44 @@ class MangaFireToChapter:
         self,
         series,
         chapter_id: int,
-        number: float,
-        name: str = "",
-        language: str = "",
+        chapter_number: float,
+        chapter_name: str = "",
+        chapter_language: str = "",
         chapter_type: str = "",
         created_at: int = 0,
     ):
         """Set up the chapter."""
         self.series = series
-        self.id = chapter_id
-        self.number = number
-        self.name = name
-        self.language = language
-        self.type = chapter_type
+        self.chapter_id = chapter_id
+        self.chapter_number = chapter_number
+        self.chapter_name = chapter_name
+        self.chapter_language = chapter_language
+        self.chapter_type = chapter_type
         self.created_at = created_at
 
-        self.url = CHAPTER_URL.format(series.hid, number)
-        self.api_url = CHAPTER_API.format(chapter_id)
+        self.chapter_url = CHAPTER_URL.format(series.hid, chapter_number)
+        self.chapter_api_url = CHAPTER_API.format(chapter_id)
 
-        self.__data = None
+        self.__chapter_data = None
         self.__images = None
 
     def __str__(self) -> str:
         """Return a readable chapter string."""
-        if self.name:
-            return f"Chapter {self.number} - {self.name}"
-        return f"Chapter {self.number}"
+        if self.chapter_name:
+            return f"Chapter {self.chapter_number} - {self.chapter_name}"
+        return f"Chapter {self.chapter_number}"
 
     def __repr__(self) -> str:
         """Return a readable debug string."""
         return str(self)
 
     @property
-    def data(self) -> dict:
+    def chapter_data(self) -> dict:
         """Return the chapter data."""
-        if self.__data is None:
-            resp = niquests.get(self.api_url)
-            self.__data = resp.json().get("data", {})
-        return self.__data
+        if self.__chapter_data is None:
+            response = niquests.get(self.chapter_api_url)
+            self.__chapter_data = response.json().get("data", {})
+        return self.__chapter_data
 
     @property
     def images(self) -> list:
@@ -78,10 +78,10 @@ class MangaFireToChapter:
         if self.__images is None:
             self.__images = []
 
-            for page in self.data.get("pages", []):
+            for page in self.chapter_data.get("pages", []):
                 self.__images.append(
                     MangaFireToImage(
-                        url=page["url"],
+                        image_url=page["url"],
                         width=page["width"],
                         height=page["height"],
                     )
@@ -93,120 +93,63 @@ class MangaFireToChapter:
 class MangaFireToSeries:
     """Store MangaFire series data."""
 
-    def __init__(self, query: str | None = None, url: str | None = None):
+    def __init__(self, series_url: str):
         """Set up the series."""
-        self.query = query
-        self._url = url
+        self.series_url = series_url
 
-        self.__item = None
+        self.__series_item = None
         self.__chapters_data = None
         self.__chapters = None
 
-        if not query and not url:
-            raise ValueError("Expected either query or url.")
+        self.__load_from_series_url(series_url)
 
-        if query:
-            self.__load_from_query(query)
-        else:
-            self.__load_from_url(url)
-
-    def __load_from_query(self, query: str) -> None:
-        """Load series data from a search query."""
-        resp = niquests.get(SEARCH_API.format(quote(query)))
-        data = resp.json()
-
-        items = data.get("items", [])
-        if not items:
-            raise ValueError(f"No series found for query: {query}")
-
-        self.__item = items[0]
-
-    def __load_from_url(self, url: str) -> None:
+    def __load_from_series_url(self, series_url: str) -> None:
         """Load series data from a MangaFire title url."""
-        slug_part = url.rstrip("/").split("/title/")[-1]
-        hid = slug_part.split("-")[0]
-
-        chapters_url = CHAPTERS_API.format(hid)
-        resp = niquests.get(chapters_url)
-        chapters_data = resp.json()
-
-        title = chapters_data.get("items", [])
-        if not title:
-            raise ValueError(f"No chapters found for url: {url}")
-
-        chapter_id = title[0]["id"]
-        chapter_resp = niquests.get(CHAPTER_API.format(chapter_id))
-        chapter_data = chapter_resp.json().get("data", {})
-        title_data = chapter_data.get("title", {})
-
-        if not title_data:
-            raise ValueError(f"No title data found for url: {url}")
-
-        self.__item = {
-            "id": title_data["id"],
-            "hid": title_data["hid"],
-            "slug": title_data["slug"],
-            "title": title_data["name"],
-            "year": None,
-            "status": None,
+        slug_part = series_url.rstrip("/").split("/title/")[-1]
+        self.__series_item = {
+            "hid": slug_part.split("-")[0],
+            "slug": "-".join(slug_part.split("-")[1:]),
+            "title": slug_part.split("-", 1)[1].replace("-", " ").title(),
         }
-
-        self.__chapters_data = chapters_data
 
     def __str__(self) -> str:
         """Return a readable series string."""
-        if self.year:
-            return f"{self.title} ({self.year})"
         return self.title
 
     def __repr__(self) -> str:
         """Return a readable debug string."""
         return str(self)
 
-    @property
-    def item(self) -> dict:
-        """Return the raw series item."""
-        return self.__item
+    # -----------------------------
+    # series fields
+    # -----------------------------
 
     @property
-    def id(self) -> int:
-        """Return the series id."""
-        return self.item["id"]
+    def series_item(self) -> dict:
+        """Return the raw series item."""
+        return self.__series_item
 
     @property
     def hid(self) -> str:
         """Return the series hid."""
-        return self.item["hid"]
+        return self.series_item["hid"]
 
     @property
     def slug(self) -> str:
         """Return the series slug."""
-        return self.item["slug"]
+        return self.series_item["slug"]
 
     @property
     def title(self) -> str:
         """Return the series title."""
-        return self.item["title"]
+        return self.series_item["title"]
+
+    # -----------------------------
+    # chapters
+    # -----------------------------
 
     @property
-    def year(self):
-        """Return the series year."""
-        return self.item.get("year")
-
-    @property
-    def status(self):
-        """Return the series status."""
-        return self.item.get("status")
-
-    @property
-    def url(self) -> str:
-        """Return the series url."""
-        if self._url:
-            return self._url
-        return f"https://mangafire.to/title/{self.hid}-{self.slug}"
-
-    @property
-    def chapters_api(self) -> str:
+    def chapters_api_url(self) -> str:
         """Return the chapters API url."""
         return CHAPTERS_API.format(self.hid)
 
@@ -214,8 +157,8 @@ class MangaFireToSeries:
     def chapters_data(self) -> dict:
         """Return raw chapter data."""
         if self.__chapters_data is None:
-            resp = niquests.get(self.chapters_api)
-            self.__chapters_data = resp.json()
+            response = niquests.get(self.chapters_api_url)
+            self.__chapters_data = response.json()
         return self.__chapters_data
 
     @property
@@ -229,9 +172,9 @@ class MangaFireToSeries:
                     MangaFireToChapter(
                         series=self,
                         chapter_id=item["id"],
-                        number=item["number"],
-                        name=item["name"],
-                        language=item["language"],
+                        chapter_number=item["number"],
+                        chapter_name=item["name"],
+                        chapter_language=item["language"],
                         chapter_type=item["type"],
                         created_at=item["createdAt"],
                     )
@@ -242,12 +185,16 @@ class MangaFireToSeries:
     @property
     def official_chapters(self) -> list:
         """Return official chapters."""
-        return [chapter for chapter in self.chapters if chapter.type == "official"]
+        return [
+            chapter for chapter in self.chapters if chapter.chapter_type == "official"
+        ]
 
     @property
     def unofficial_chapters(self) -> list:
         """Return unofficial chapters."""
-        return [chapter for chapter in self.chapters if chapter.type == "unofficial"]
+        return [
+            chapter for chapter in self.chapters if chapter.chapter_type == "unofficial"
+        ]
 
     @property
     def preferred_chapters(self) -> list:
@@ -255,31 +202,36 @@ class MangaFireToSeries:
         return self.official_chapters or self.unofficial_chapters
 
 
+def search_series(query: str) -> list:
+    """Search MangaFire series."""
+    response = niquests.get(SEARCH_API.format(quote(query)))
+    response_data = response.json()
+    return response_data.get("items", [])
+
+
 if __name__ == "__main__":
-    series = MangaFireToSeries(
-        url="https://mangafire.to/title/zlwvm-darling-in-the-franxx"
-    )
+    query = "darling in the franxx"
+    results = search_series(query)
+
+    if not results:
+        raise ValueError(f"No series found for query: {query}")
+
+    first_item = results[0]
+    series_url = f"https://mangafire.to{first_item['url']}"
+
+    series = MangaFireToSeries(series_url=series_url)
 
     print(series)
     print()
 
-    print("all chapters:")
-    for chapter in series.chapters:
-        print("-", chapter)
-
-    print()
-    print("official chapters:")
-    for chapter in series.official_chapters:
-        print("-", chapter)
-
-    print()
-    print("unofficial chapters:")
-    for chapter in series.unofficial_chapters:
-        print("-", chapter)
+    print("search results:")
+    for item in results:
+        poster_url = item.get("poster", {}).get("large")
+        print("-", item["title"], item["url"], poster_url)
 
     print()
     print("preferred chapters:")
-    for chapter in series.preferred_chapters:
+    for chapter in series.preferred_chapters[:5]:
         print("-", chapter)
 
     print()
@@ -290,9 +242,9 @@ if __name__ == "__main__":
     print()
     print("images:")
     for image in chapter.images:
-        print("-", image.url)
+        print("-", image.image_url)
 
     print()
     image = chapter.images[0]
     print("selected image:")
-    print(image.url)
+    print(image.image_url)
