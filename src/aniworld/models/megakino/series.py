@@ -53,6 +53,8 @@ MEGAKINO_DOMAIN = niquests.get(
     "https://raw.githubusercontent.com/Yezun-hikari/new-domain-check/refs/heads/main/monitors/megakino/domain.txt"
 ).text.strip()
 
+# MEGAKINO_DOMAIN = "megakino.to"
+
 
 class MegaKinoEpisode:
     def __init__(

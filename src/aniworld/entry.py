@@ -152,7 +152,7 @@ def aniworld():
 
         url = args.url[0] if args.url else search()
 
-        #FIX: replace s.to with serienstream.to to avoid issues with s.to being down
+        # FIX: replace s.to with serienstream.to to avoid issues with s.to being down
         url = url.replace("://s.to", "://serienstream.to")
 
         provider = resolve_provider(url)
