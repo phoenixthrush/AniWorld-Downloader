@@ -1,3 +1,4 @@
+import re
 from os import getenv
 from pathlib import Path
 from pprint import pprint
@@ -62,6 +63,15 @@ def _download_file(url: str, file_path: Path) -> Path:
         file.write(response.content)
 
     return file_path
+
+
+def _strip_html(value: str) -> str:
+    """Return a plain-text version of a HTML fragment."""
+    if not value:
+        return ""
+    text = re.sub(r"<[^>]+>", " ", value)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
 
 
 # -----------------------------
@@ -175,16 +185,22 @@ class MangaFireToChapter:
 
     def __init__(
         self,
-        series,
-        chapter_id: int,
-        chapter_number: float,
+        url: str,
+        series=None,
+        chapter_id: int | None = None,
+        chapter_number: float | None = None,
         chapter_name: str = "",
         chapter_language: str = "",
         chapter_type: str = "",
         created_at: int = 0,
+        selected_path=None,
+        selected_language=None,
+        selected_provider=None,
+        selected_pages: list[int] | None = None,
     ):
         """Set up the chapter."""
-        self.series = series
+        self._series = series
+        self.chapter_url = url
         self.chapter_id = chapter_id
         self.chapter_number = chapter_number
         self.chapter_name = chapter_name
@@ -192,11 +208,21 @@ class MangaFireToChapter:
         self.chapter_type = chapter_type
         self.created_at = created_at
 
-        self.chapter_url = CHAPTER_URL.format(series.hid, chapter_number)
-        self.chapter_api_url = CHAPTER_API.format(chapter_id)
+        self.__selected_path_param = selected_path
+        self.__selected_language_param = selected_language
+        self.__selected_provider_param = selected_provider
+        self.__selected_pages_param = selected_pages
+
+        self.chapter_api_url = CHAPTER_API.format(chapter_id or 0)
 
         self.__chapter_data = None
         self.__pages = None
+
+        if self.chapter_number is None:
+            self.chapter_number = self.__extract_chapter_number_from_url(url)
+
+        self.__load_metadata_from_series()
+        self.chapter_api_url = CHAPTER_API.format(self.chapter_id or 0)
 
     def __str__(self) -> str:
         """Return a readable chapter string."""
@@ -208,10 +234,50 @@ class MangaFireToChapter:
         """Return a readable debug string."""
         return str(self)
 
+    def __extract_chapter_number_from_url(self, chapter_url: str):
+        """Return the chapter number encoded in a MangaFire chapter url."""
+        chapter_part = chapter_url.rstrip("/").rsplit("/chapter/", 1)[-1]
+        try:
+            value = float(chapter_part)
+        except ValueError:
+            return chapter_part
+        return int(value) if value.is_integer() else value
+
+    def __load_metadata_from_series(self) -> None:
+        """Fill chapter metadata from the parent series when possible."""
+        if self.chapter_id and self.chapter_number is not None:
+            return
+
+        try:
+            chapters = getattr(self.series, "chapters", []) or []
+        except Exception:
+            chapters = []
+
+        for chapter in chapters:
+            if getattr(chapter, "chapter_url", "") == self.chapter_url:
+                self.chapter_id = getattr(chapter, "chapter_id", self.chapter_id)
+                self.chapter_number = getattr(
+                    chapter, "chapter_number", self.chapter_number
+                )
+                self.chapter_name = self.chapter_name or getattr(
+                    chapter, "chapter_name", ""
+                )
+                self.chapter_language = self.chapter_language or getattr(
+                    chapter, "chapter_language", ""
+                )
+                self.chapter_type = self.chapter_type or getattr(
+                    chapter, "chapter_type", ""
+                )
+                self.created_at = self.created_at or getattr(chapter, "created_at", 0)
+                break
+
     @property
     def chapter_data(self) -> dict:
         """Return the chapter data."""
         if self.__chapter_data is None:
+            if not self.chapter_id:
+                self.__load_metadata_from_series()
+                self.chapter_api_url = CHAPTER_API.format(self.chapter_id or 0)
             response = _get(self.chapter_api_url)
             self.__chapter_data = response.json().get("data", {})
         return self.__chapter_data
@@ -248,6 +314,74 @@ class MangaFireToChapter:
             base += f" - {self.chapter_name}"
         return _safe_name(base)
 
+    @property
+    def season_number(self):
+        """Return a chapter number for web UI compatibility."""
+        return self.chapter_number
+
+    @property
+    def episode_number(self):
+        """Return a chapter number for episode-style UIs."""
+        return self.chapter_number
+
+    @property
+    def episode_count(self) -> int:
+        """Return one selectable item per chapter."""
+        return 1
+
+    @property
+    def are_movies(self) -> bool:
+        """MangaFire chapters are not movies."""
+        return False
+
+    @property
+    def title_en(self) -> str:
+        """Return the English title label for the chapter."""
+        return self.chapter_name or f"Chapter {self.chapter_number}"
+
+    @property
+    def title_de(self) -> str:
+        """Return the German title label for the chapter."""
+        return self.title_en
+
+    @property
+    def episodes(self) -> list:
+        """Return this chapter as the only selectable unit."""
+        return [self]
+
+    @property
+    def selected_path(self):
+        """Return the explicitly selected download path, if any."""
+        return self.__selected_path_param
+
+    @property
+    def selected_language(self):
+        """Return the selected language label, if any."""
+        return self.__selected_language_param
+
+    @property
+    def selected_provider(self):
+        """Return the selected provider label, if any."""
+        return self.__selected_provider_param
+
+    @property
+    def selected_pages(self):
+        """Return selected page numbers, if any."""
+        return self.__selected_pages_param
+
+    @property
+    def series(self):
+        """Return the parent series."""
+        if self._series is None:
+            series_url = self.chapter_url.rsplit("/chapter/", 1)[0]
+            self._series = MangaFireToSeries(series_url=series_url)
+        return self._series
+
+    @property
+    def url(self) -> str:
+        """Return the canonical chapter url."""
+        return self.chapter_url
+
     def download(
         self,
         folder: str | Path | None = None,
@@ -255,10 +389,22 @@ class MangaFireToChapter:
         total_chapters: int = 0,
     ) -> Path:
         """Download all chapter pages."""
+        chapter_title = (
+            getattr(self._series, "title", "")
+            if self._series is not None
+            else self.chapter_name or f"Chapter {self.chapter_number}"
+        )
         if folder is None:
-            folder = (
-                _get_download_root() / _safe_name(self.series.title) / self.folder_name
-            )
+            if self.selected_path:
+                folder = (
+                    Path(self.selected_path)
+                    / _safe_name(chapter_title)
+                    / self.folder_name
+                )
+            else:
+                folder = (
+                    _get_download_root() / _safe_name(chapter_title) / self.folder_name
+                )
         else:
             folder = Path(folder)
 
@@ -272,9 +418,14 @@ class MangaFireToChapter:
 
         print(f"[{chapter_progress}] {self}")
 
-        total_pages = len(self.pages)
+        pages = self.pages
+        if self.selected_pages is not None:
+            selected = {int(page_number) for page_number in self.selected_pages}
+            pages = [page for page in pages if page.page_number in selected]
 
-        for page in self.pages:
+        total_pages = len(pages)
+
+        for page in pages:
             page.download(folder, total_pages=total_pages)
 
         return folder
@@ -292,13 +443,23 @@ class MangaFireToChapter:
 class MangaFireToSeries:
     """Store MangaFire series data."""
 
-    def __init__(self, series_url: str):
+    def __init__(self, series_url: str | None = None, url: str | None = None):
         """Set up the series."""
+        if series_url is None:
+            series_url = url
+        if not series_url:
+            raise ValueError("series_url is required")
+
         self.series_url = series_url
 
         self.__series_item = None
         self.__chapters_data = None
         self.__chapters = None
+        self.__poster_url = ""
+        self.__description = ""
+        self.__genres = []
+        self.__release_year = ""
+        self.__series_data = None
 
         self.__load_from_series_url(series_url)
 
@@ -310,6 +471,36 @@ class MangaFireToSeries:
             "slug": "-".join(slug_part.split("-")[1:]),
             "title": slug_part.split("-", 1)[1].replace("-", " ").title(),
         }
+
+    def __load_series_metadata(self) -> None:
+        """Load title metadata from MangaFire's title detail API."""
+        if self.__series_data is not None:
+            return
+
+        response = _get(f"https://mangafire.to/api/titles/{self.hid}")
+        payload = response.json().get("data", {})
+        self.__series_data = payload
+
+        title = payload.get("title")
+        if title:
+            self.__series_item["title"] = title
+
+        poster = payload.get("poster") or {}
+        self.__poster_url = (
+            poster.get("large")
+            or poster.get("medium")
+            or poster.get("small")
+            or self.__poster_url
+        )
+
+        synopsis = payload.get("synopsisHtml") or payload.get("synopsis") or ""
+        self.__description = _strip_html(synopsis)
+
+        genres = payload.get("genres") or []
+        self.__genres = [item.get("title", "") for item in genres if item.get("title")]
+
+        year = payload.get("year")
+        self.__release_year = str(year) if year else ""
 
     def __str__(self) -> str:
         """Return a readable series string."""
@@ -341,7 +532,42 @@ class MangaFireToSeries:
     @property
     def title(self) -> str:
         """Return the series title."""
+        if self.__series_data is None:
+            self.__load_series_metadata()
         return self.series_item["title"]
+
+    @property
+    def title_cleaned(self) -> str:
+        """Return a filesystem-safe title for folder matching."""
+        return _safe_name(self.title)
+
+    @property
+    def poster_url(self) -> str:
+        """Return the series poster url when available."""
+        if self.__series_data is None:
+            self.__load_series_metadata()
+        return self.__poster_url
+
+    @property
+    def description(self) -> str:
+        """Return the series description when available."""
+        if self.__series_data is None:
+            self.__load_series_metadata()
+        return self.__description
+
+    @property
+    def genres(self) -> list:
+        """Return the series genres when available."""
+        if self.__series_data is None:
+            self.__load_series_metadata()
+        return self.__genres
+
+    @property
+    def release_year(self) -> str:
+        """Return the release year when available."""
+        if self.__series_data is None:
+            self.__load_series_metadata()
+        return self.__release_year
 
     # -----------------------------
     # chapters
@@ -367,8 +593,10 @@ class MangaFireToSeries:
             self.__chapters = []
 
             for item in self.chapters_data.get("items", []):
+                chapter_url = CHAPTER_URL.format(self.hid, item["number"])
                 self.__chapters.append(
                     MangaFireToChapter(
+                        url=chapter_url,
                         series=self,
                         chapter_id=item["id"],
                         chapter_number=item["number"],
@@ -380,6 +608,11 @@ class MangaFireToSeries:
                 )
 
         return self.__chapters
+
+    @property
+    def seasons(self) -> list:
+        """Return chapter objects in a season-like shape for the web UI."""
+        return self.chapters
 
     @property
     def official_chapters(self) -> list:

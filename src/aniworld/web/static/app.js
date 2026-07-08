@@ -25,9 +25,14 @@ const newSeriesSection = document.getElementById("newSeriesSection");
 const popularSeriesSection = document.getElementById("popularSeriesSection");
 const popularMoviesGrid = document.getElementById("popularMoviesGrid");
 const popularMoviesSection = document.getElementById("popularMoviesSection");
+const mangaFireTrendingGrid = document.getElementById("mangaFireTrendingGrid");
+const mangaFireTrendingSection = document.getElementById("mangaFireTrendingSection");
+const mangaFireControls = document.getElementById("mangaFireControls");
+const showUnofficialCb = document.getElementById("showUnofficial");
 const BROWSE_REFRESH_MS = 60000;
 
 let currentSeasons = [];
+let currentAllSeasons = [];
 let currentSeriesTitle = "";
 let currentSeriesUrl = "";
 let currentOpenSeriesToken = 0;
@@ -39,6 +44,23 @@ let availableProviders = null;
 let langSeparationEnabled = false;
 // Static list of providers rendered into the template
 const staticProviders = Array.from(providerSelect.options).map((o) => o.value);
+
+function isMangaFireUrl(url) {
+  return url.includes("mangafire.to/title/");
+}
+
+function getVisibleMangaFireSeasons() {
+  if (!currentAllSeasons.length) return [];
+  if (!showUnofficialCb || showUnofficialCb.checked) return currentAllSeasons;
+  return currentAllSeasons.filter((season) => (season.chapter_type || "").toLowerCase() === "official");
+}
+
+function rebuildMangaFireAccordion() {
+  currentSeasons = getVisibleMangaFireSeasons();
+  seasonEpisodesCache = {};
+  seasonEpisodesLoading = {};
+  buildAccordion(currentSeasons, currentOpenSeriesToken);
+}
 
 // Site toggle state
 let currentSite = "aniworld";
@@ -152,11 +174,33 @@ async function loadHtvBrowse(force = false) {
   return htvBrowsePromise;
 }
 
+let mangaFireLoadedAt = 0;
+let mangaFireBrowsePromise = null;
+async function loadMangaFireBrowse(force = false) {
+  if (!force && mangaFireLoadedAt && Date.now() - mangaFireLoadedAt < BROWSE_REFRESH_MS) return;
+  if (mangaFireBrowsePromise) return mangaFireBrowsePromise;
+  mangaFireLoadedAt = Date.now();
+  mangaFireBrowsePromise = (async () => {
+    try {
+      const resp = await fetch("/api/mangafire-trending");
+      await loadDownloadedFolders();
+      const data = await resp.json();
+      if (data.results) renderBrowseCards(mangaFireTrendingGrid, data.results);
+    } catch (e) {
+      mangaFireLoadedAt = 0;
+    } finally {
+      mangaFireBrowsePromise = null;
+    }
+  })();
+  return mangaFireBrowsePromise;
+}
+
 function showBrowseSections() {
   const isAniworld = currentSite === "aniworld";
   const isSto = currentSite === "sto";
   const isMegakino = currentSite === "megakino";
   const isHtv = currentSite === "htv";
+  const isMangaFire = currentSite === "mangafire";
   browseDiv.style.display = "";
   newAnimesSection.style.display = isAniworld ? "" : "none";
   popularAnimesSection.style.display = isAniworld ? "" : "none";
@@ -164,10 +208,12 @@ function showBrowseSections() {
   popularSeriesSection.style.display = isSto ? "" : "none";
   if (popularMoviesSection) popularMoviesSection.style.display = isMegakino ? "" : "none";
   if (htvTrendingSection) htvTrendingSection.style.display = isHtv ? "" : "none";
+  if (mangaFireTrendingSection) mangaFireTrendingSection.style.display = isMangaFire ? "" : "none";
   if (isAniworld) loadAniworldBrowse();
   else if (isSto) loadStoBrowse();
   else if (isMegakino) loadMegakinoBrowse();
   else if (isHtv) loadHtvBrowse();
+  else if (isMangaFire) loadMangaFireBrowse();
 }
 
 function normalizeQuotes(s) {
@@ -203,12 +249,15 @@ const htvTrendingGrid = document.getElementById("htvTrendingGrid");
 
 const segmentedThumb = document.getElementById("segmentedThumb");
 const htvEnabled = window.HTV_ENABLED;
-const sites = htvEnabled ? ["aniworld", "sto", "megakino", "htv"] : ["aniworld", "sto", "megakino"];
+const sites = htvEnabled
+  ? ["aniworld", "sto", "megakino", "mangafire", "htv"]
+  : ["aniworld", "sto", "megakino", "mangafire"];
 
 const thumbColors = {
   aniworld: { bg: "linear-gradient(135deg, #8b5cf6, #6d28d9)", shadow: "0 2px 8px rgba(139, 92, 246, 0.35)" },
   sto: { bg: "linear-gradient(135deg, #38bdf8, #2563eb)", shadow: "0 2px 8px rgba(56, 189, 248, 0.35)" },
   megakino: { bg: "linear-gradient(135deg, #ef4444, #b91c1c)", shadow: "0 2px 8px rgba(239, 68, 68, 0.35)" },
+  mangafire: { bg: "linear-gradient(135deg, #f59e0b, #b45309)", shadow: "0 2px 8px rgba(245, 158, 11, 0.35)" },
   htv: { bg: "linear-gradient(135deg, #ff4fa3, #db2777)", shadow: "0 2px 8px rgba(255, 79, 163, 0.35)" },
 };
 
@@ -216,14 +265,16 @@ function updateSliderState(site) {
   const labelAniworld = document.getElementById("labelAniworld");
   const labelSto = document.getElementById("labelSto");
   const labelMegakino = document.getElementById("labelMegakino");
+  const labelMangaFire = document.getElementById("labelMangaFire");
   const labelHtv = document.getElementById("labelHtv");
   if (labelAniworld) labelAniworld.classList.toggle("active", site === "aniworld");
   if (labelSto) labelSto.classList.toggle("active", site === "sto");
   if (labelMegakino) labelMegakino.classList.toggle("active", site === "megakino");
+  if (labelMangaFire) labelMangaFire.classList.toggle("active", site === "mangafire");
   if (labelHtv) labelHtv.classList.toggle("active", site === "htv");
 
   if (!segmentedThumb) return;
-  const siteIds = { aniworld: "labelAniworld", sto: "labelSto", megakino: "labelMegakino", htv: "labelHtv" };
+  const siteIds = { aniworld: "labelAniworld", sto: "labelSto", megakino: "labelMegakino", mangafire: "labelMangaFire", htv: "labelHtv" };
   const btn = document.getElementById(siteIds[site]);
   if (!btn) return;
   const track = btn.parentElement;
@@ -249,6 +300,7 @@ function switchSite(site) {
       aniworld: "AniWorld Downloader",
       sto: "SerienStream Downloader",
       megakino: "MegaKino Downloader",
+      mangafire: "MangaFire Downloader",
       htv: "Hanime Downloader",
     };
     heading.textContent = headings[site] || "AniWorld Downloader";
@@ -256,15 +308,18 @@ function switchSite(site) {
 
   // Update search placeholder
   const isHtv = site === "htv";
+  const isMangaFire = site === "mangafire";
   document.querySelector(".search-bar").style.display = "";
   searchInput.placeholder =
-    site === "htv"
-      ? "Search Hanime..."
-      : site === "sto"
-        ? "Search for series..."
-        : site === "megakino"
-          ? "Search MegaKino..."
-          : "Search for anime...";
+    site === "mangafire"
+      ? "Search for manga..."
+      : site === "htv"
+        ? "Search Hanime..."
+        : site === "sto"
+          ? "Search for series..."
+          : site === "megakino"
+            ? "Search MegaKino..."
+            : "Search for anime...";
 
   // Clear search results
   resultsDiv.innerHTML = "";
@@ -278,8 +333,9 @@ function switchSite(site) {
 
   // Update language dropdown & controls visibility
   const controlsDiv = document.querySelector(".controls");
-  if (controlsDiv) controlsDiv.style.display = isHtv ? "none" : "";
-  if (!isHtv) rebuildLanguageSelect();
+  if (controlsDiv) controlsDiv.style.display = isHtv || isMangaFire ? "none" : "";
+  if (mangaFireControls) mangaFireControls.style.display = isMangaFire ? "flex" : "none";
+  if (!isHtv && !isMangaFire) rebuildLanguageSelect();
 
   // Reset providers
   availableProviders = null;
@@ -402,6 +458,7 @@ function refreshVisibleBrowse(force = false) {
   if (currentSite === "aniworld") loadAniworldBrowse(force);
   else if (currentSite === "sto") loadStoBrowse(force);
   else if (currentSite === "megakino") loadMegakinoBrowse(force);
+  else if (currentSite === "mangafire") loadMangaFireBrowse(force);
   else if (currentSite === "htv") loadHtvBrowse(force);
 }
 
@@ -509,13 +566,19 @@ async function openSeries(url) {
   currentSeriesUrl = url;
   currentSeriesTitle = "";
   const isHtvSeries = url.includes("hanime.tv/");
+  const isMangaFireSeries = isMangaFireUrl(url);
   const controlsDiv = document.querySelector(".controls");
-  if (controlsDiv) controlsDiv.style.display = isHtvSeries ? "none" : "";
+  if (controlsDiv) controlsDiv.style.display = isHtvSeries || isMangaFireSeries ? "none" : "";
+  if (mangaFireControls) mangaFireControls.style.display = isMangaFireSeries ? "flex" : "none";
   await checkLangSeparation();
-  if (!isHtvSeries) {
+  if (downloadAllLangsBtn && isMangaFireSeries) {
+    downloadAllLangsBtn.style.display = "none";
+  }
+  if (!isHtvSeries && !isMangaFireSeries) {
     rebuildLanguageSelect();
     resetProviderDropdown();
   }
+  if (showUnofficialCb) showUnofficialCb.checked = false;
   loadCustomPaths();
 
   try {
@@ -542,7 +605,8 @@ async function openSeries(url) {
     document.getElementById("modalDesc").textContent =
       seriesData.description || "";
 
-    currentSeasons = seasonsData.seasons || [];
+    currentAllSeasons = seasonsData.seasons || [];
+    currentSeasons = isMangaFireSeries ? getVisibleMangaFireSeasons() : currentAllSeasons;
     buildAccordion(currentSeasons, openToken);
 
     // Check if auto-sync exists for this series
@@ -575,9 +639,11 @@ function buildAccordion(seasons, openToken) {
 
     const count =
       typeof season.episode_count === "number" ? season.episode_count : "?";
-    const label = season.are_movies
-      ? `Movies (${count} episodes)`
-      : `Season ${season.season_number} (${count} episodes)`;
+    const label = currentSite === "mangafire"
+      ? `Chapter ${season.season_number}`
+      : season.are_movies
+        ? `Movies (${count} episodes)`
+        : `Season ${season.season_number} (${count} episodes)`;
 
     const header = document.createElement("div");
     header.className = "season-header" + (index === 0 ? " expanded" : "");
@@ -608,6 +674,11 @@ function buildAccordion(seasons, openToken) {
   }
 }
 
+function toggleShowUnofficial() {
+  if (currentSite !== "mangafire") return;
+  rebuildMangaFireAccordion();
+}
+
 async function loadSeasonEpisodes(index, openToken = currentOpenSeriesToken) {
   if (seasonEpisodesCache[index]) return seasonEpisodesCache[index];
   if (seasonEpisodesLoading[index]) return seasonEpisodesLoading[index];
@@ -619,6 +690,9 @@ async function loadSeasonEpisodes(index, openToken = currentOpenSeriesToken) {
   if (!season.url && currentSeriesUrl) {
     epUrl += "&series_url=" + encodeURIComponent(currentSeriesUrl);
   }
+  if (currentSite === "mangafire" && currentSeriesUrl) {
+    epUrl += "&series_url=" + encodeURIComponent(currentSeriesUrl);
+  }
   seasonEpisodesLoading[index] = fetch(epUrl)
     .then((r) => r.json())
     .then((data) => {
@@ -626,7 +700,7 @@ async function loadSeasonEpisodes(index, openToken = currentOpenSeriesToken) {
       const episodes = data.episodes || [];
       seasonEpisodesCache[index] = episodes;
       renderSeasonEpisodes(index, episodes);
-      if (!providersLoadedForSeries && episodes.length) {
+      if (!providersLoadedForSeries && episodes.length && currentSite !== "mangafire") {
         providersLoadedForSeries = true;
         fetchProviders(episodes[0].url);
       }
@@ -655,15 +729,25 @@ function renderSeasonEpisodes(index, episodes) {
   episodes.forEach((ep) => {
     const div = document.createElement("div");
     div.className = "episode-item";
-    const hasTitle = !!(ep.title_en || ep.title_de);
-    const title = hasTitle
-      ? `<span class="ep-title-main">${esc(ep.title_en || ep.title_de)}</span>`
-      : '<span class="ep-title-fallback">[Not Available]</span>';
+    const pageCount = typeof ep.page_count === "number" ? ep.page_count : 0;
+    const title = currentSite === "mangafire"
+      ? `<span class="ep-title-main">${pageCount ? `Page ${ep.page_number} of ${pageCount}` : `Page ${ep.page_number}`}</span>`
+      : (ep.title_en || ep.title_de)
+        ? `<span class="ep-title-main">${esc(ep.title_en || ep.title_de)}</span>`
+        : '<span class="ep-title-fallback">[Not Available]</span>';
     const languageBadges = renderEpisodeLanguageBadges(ep.available_languages || []);
     const dlIcon = ep.downloaded
       ? '<span class="ep-downloaded" title="Downloaded">&#10003;</span>'
       : "";
-    div.innerHTML = `<input type="checkbox" value="${esc(ep.url)}" data-season="${index}"><span class="ep-num">E${ep.episode_number}</span>${dlIcon}<div class="ep-main"><span class="ep-title">${title}</span>${languageBadges}</div>`;
+    const epPrefix = currentSite === "mangafire" ? "P" : "E";
+    const chapterUrl = ep.chapter_url || ep.url || "";
+    const value = currentSite === "mangafire"
+      ? `${chapterUrl}##${ep.page_number}`
+      : ep.url;
+    const extraAttrs = currentSite === "mangafire"
+      ? ` data-chapter-url="${esc(chapterUrl)}" data-page-number="${ep.page_number}"`
+      : "";
+    div.innerHTML = `<input type="checkbox" value="${esc(value)}" data-season="${index}"${extraAttrs}><span class="ep-num">${epPrefix}${ep.episode_number}</span>${dlIcon}<div class="ep-main"><span class="ep-title">${title}</span>${languageBadges}</div>`;
     body.appendChild(div);
   });
 
@@ -676,7 +760,9 @@ function renderSeasonEpisodes(index, episodes) {
     : "";
   const label = season.are_movies
     ? `Movies (${episodes.length} episodes)`
-    : `Season ${season.season_number} (${episodes.length} episodes)`;
+    : currentSite === "mangafire"
+      ? `Chapter ${season.season_number}`
+      : `Season ${season.season_number} (${episodes.length} episodes)`;
   header.innerHTML =
     `<div class="season-label"><span class="season-arrow">&#9654;</span> ${esc(label)}${seasonDlIcon}</div>` +
     `<label class="season-all-label" onclick="event.stopPropagation()"><input type="checkbox" onchange="toggleSeasonAll(this, ${index})"> All</label>`;
@@ -773,17 +859,43 @@ function syncSelectAll() {
 }
 
 function getAllEpisodeUrls() {
+  if (currentSite === "mangafire") {
+    return collectMangaFireDownloadItems(false);
+  }
   return Array.from(
     seasonAccordion.querySelectorAll(".episode-item input[type=checkbox]"),
   ).map((cb) => cb.value);
 }
 
 function getSelectedEpisodeUrls() {
+  if (currentSite === "mangafire") {
+    return collectMangaFireDownloadItems(true);
+  }
   return Array.from(
     seasonAccordion.querySelectorAll(
       ".episode-item input[type=checkbox]:checked",
     ),
   ).map((cb) => cb.value);
+}
+
+function collectMangaFireDownloadItems(onlyChecked) {
+  const selector = onlyChecked
+    ? ".episode-item input[type=checkbox]:checked"
+    : ".episode-item input[type=checkbox]";
+  const grouped = new Map();
+  seasonAccordion.querySelectorAll(selector).forEach((cb) => {
+    const chapterUrl = cb.dataset.chapterUrl || cb.value.split("##")[0];
+    const pageNumber = parseInt(cb.dataset.pageNumber || "0", 10);
+    if (!chapterUrl || !pageNumber) return;
+    if (!grouped.has(chapterUrl)) grouped.set(chapterUrl, new Set());
+    grouped.get(chapterUrl).add(pageNumber);
+  });
+
+  return Array.from(grouped.entries()).map(([url, pageSet]) => ({
+    url,
+    series_url: currentSeriesUrl,
+    selected_pages: Array.from(pageSet).sort((a, b) => a - b),
+  }));
 }
 
 async function fetchProviders(episodeUrl) {
@@ -890,8 +1002,17 @@ async function startDownload(all) {
   }
 
   const isHtvDl = currentSeriesUrl.includes("hanime.tv/");
-  const language = isHtvDl ? "Japanese" : languageSelect.value;
-  const provider = isHtvDl ? "HanimeTV" : providerSelect.value;
+  const isMangaFireDl = isMangaFireUrl(currentSeriesUrl);
+  const language = isHtvDl
+    ? "Japanese"
+    : isMangaFireDl
+      ? "MangaFire"
+      : languageSelect.value;
+  const provider = isHtvDl
+    ? "HanimeTV"
+    : isMangaFireDl
+      ? "MangaFire"
+      : providerSelect.value;
 
   downloadAllBtn.disabled = true;
   downloadSelectedBtn.disabled = true;
@@ -947,11 +1068,12 @@ async function toggleAutoSync() {
     await toggleSelectAll();
     // Create sync job
     try {
+      const isMangaFireDl = isMangaFireUrl(currentSeriesUrl);
       const body = {
         title: currentSeriesTitle,
         series_url: currentSeriesUrl,
-        language: languageSelect.value,
-        provider: providerSelect.value,
+        language: isMangaFireDl ? "MangaFire" : languageSelect.value,
+        provider: isMangaFireDl ? "MangaFire" : providerSelect.value,
       };
       if (customPathSelect && customPathSelect.value) {
         body.custom_path_id = parseInt(customPathSelect.value);
@@ -965,10 +1087,10 @@ async function toggleAutoSync() {
       if (data.ok) {
         showToast('Auto-Sync enabled for "' + currentSeriesTitle + '"');
       } else if (resp.status === 409 && data.job) {
-        // Job already exists — update it with current modal settings
+        const isMangaFireDl = isMangaFireUrl(currentSeriesUrl);
         const updateBody = {
-          language: languageSelect.value,
-          provider: providerSelect.value,
+          language: isMangaFireDl ? "MangaFire" : languageSelect.value,
+          provider: isMangaFireDl ? "MangaFire" : providerSelect.value,
           custom_path_id:
             customPathSelect && customPathSelect.value
               ? parseInt(customPathSelect.value)
@@ -993,7 +1115,6 @@ async function toggleAutoSync() {
       autoSyncCheck.checked = false;
     }
   } else {
-    // Remove sync job
     try {
       const resp = await fetch(
         "/api/autosync/check?url=" + encodeURIComponent(currentSeriesUrl),
@@ -1057,6 +1178,10 @@ async function checkLangSeparation() {
 }
 
 async function startDownloadAllLangs() {
+  if (currentSite === "mangafire") {
+    showToast("All Languages is not available for MangaFire.");
+    return;
+  }
   episodeSpinner.style.display = "block";
   await ensureAllSeasonsLoaded();
   episodeSpinner.style.display = "none";

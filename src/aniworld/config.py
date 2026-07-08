@@ -400,6 +400,16 @@ MEGAKINO_SERIES_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+MANGA_FIRE_SERIES_PATTERN = re.compile(
+    r"^https?://(?:www\.)?mangafire\.to/title/[a-zA-Z0-9]+(?:-[a-zA-Z0-9\-]+)?/?$",
+    re.IGNORECASE,
+)
+
+MANGA_FIRE_CHAPTER_PATTERN = re.compile(
+    r"^https?://(?:www\.)?mangafire\.to/title/[a-zA-Z0-9]+(?:-[a-zA-Z0-9\-]+)?/chapter/[0-9]+(?:\.[0-9]+)?/?$",
+    re.IGNORECASE,
+)
+
 # -----------------------------
 # Directories
 # -----------------------------

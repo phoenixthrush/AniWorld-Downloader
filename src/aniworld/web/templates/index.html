@@ -7,6 +7,7 @@
       <button class="segmented-btn active" id="labelAniworld" onclick="switchSite('aniworld')">AniWorld</button>
       <button class="segmented-btn" id="labelSto" onclick="switchSite('sto')">SerienStream</button>
       <button class="segmented-btn" id="labelMegakino" onclick="switchSite('megakino')">MegaKino</button>
+      <button class="segmented-btn" id="labelMangaFire" onclick="switchSite('mangafire')">MangaFire</button>
       {% if htv_enabled %}
       <button class="segmented-btn" id="labelHtv" onclick="switchSite('htv')">Hanime</button>
       {% endif %}
@@ -42,6 +43,10 @@
       <h2 class="browse-heading">Popular Movies</h2>
       <div class="browse-grid" id="popularMoviesGrid"></div>
     </div>
+    <div class="browse-section" id="mangaFireTrendingSection" style="display: none">
+      <h2 class="browse-heading">MangaFire Trending</h2>
+      <div class="browse-grid" id="mangaFireTrendingGrid"></div>
+    </div>
     <div class="browse-section" id="htvTrendingSection" style="display: none">
       <h2 class="browse-heading">New Hentai</h2>
       <div class="browse-grid" id="htvTrendingGrid"></div>
@@ -74,6 +79,9 @@
         <option value="{{ p }}">{{ p }}</option>
         {% endfor %}
       </select>
+    </div>
+    <div class="controls manga-fire-controls" id="mangaFireControls" style="display: none; margin-top: 12px; gap: 16px; flex-wrap: wrap;">
+      <label class="select-all-label"><input type="checkbox" id="showUnofficial" onchange="toggleShowUnofficial()" /> Show unofficial chapters</label>
     </div>
     <div class="custom-path-row" id="customPathRow" style="display: none">
       <label class="custom-path-label">Download Folder</label>

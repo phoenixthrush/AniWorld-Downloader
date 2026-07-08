@@ -17,6 +17,7 @@ from ..config import (
 )
 from ..extractors import provider_functions
 from ..logger import get_logger
+from ..models.mangafire_to.series import search_series as query_mangafire
 from ..providers import resolve_provider
 from ..search import (
     fetch_new_animes,
@@ -366,14 +367,32 @@ def _queue_worker():
             from ..playwright import captcha as _captcha_mod
 
             for i, ep_url in enumerate(episodes):
-                update_queue_progress(item["id"], i, ep_url)
                 try:
-                    prov = resolve_provider(ep_url)
+                    selected_pages = None
+                    series_url = None
+                    series = None
+                    chapter_url = ep_url
+                    if isinstance(ep_url, dict):
+                        chapter_url = (ep_url.get("url") or "").strip()
+                        series_url = (ep_url.get("series_url") or "").strip() or None
+                        selected_pages = ep_url.get("selected_pages")
+                    prov = resolve_provider(chapter_url)
+                    if prov.name == "MangaFire":
+                        if not series_url:
+                            series_url = chapter_url.rsplit("/chapter/", 1)[0]
+                        try:
+                            series = prov.series_cls(url=series_url)
+                        except Exception:
+                            series = None
+                    update_queue_progress(item["id"], i, chapter_url)
                     ep_kwargs = {
-                        "url": ep_url,
+                        "url": chapter_url,
+                        "series": series,
                         "selected_language": item["language"],
                         "selected_provider": item["provider"],
                     }
+                    if selected_pages is not None:
+                        ep_kwargs["selected_pages"] = selected_pages
                     if selected_path:
                         ep_kwargs["selected_path"] = selected_path
                     episode = prov.episode_cls(**ep_kwargs)
@@ -666,7 +685,58 @@ def _proxy_image_url(url: str) -> str:
         return url
     from urllib.parse import quote
 
+    if not isinstance(url, str):
+        url = getattr(url, "url", None) or getattr(url, "href", None) or str(url)
+
     return f"/api/proxy-image?url={quote(url, safe='')}"
+
+
+def _normalize_image_url(value) -> str:
+    if not value:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        for key in ("large", "medium", "small", "url", "href", "src"):
+            candidate = value.get(key)
+            if isinstance(candidate, str) and candidate:
+                return candidate
+        for candidate in value.values():
+            if isinstance(candidate, str) and candidate:
+                return candidate
+    return getattr(value, "url", None) or getattr(value, "href", None) or str(value)
+
+
+def _mangafire_browse_item(item: dict) -> dict:
+    """Normalize MangaFire browse/search payloads into homepage card data."""
+    poster = _normalize_image_url(item.get("poster", ""))
+    url = item.get("url", "") or ""
+    if url and not url.startswith("http"):
+        url = f"https://mangafire.to{url}"
+
+    genres = item.get("genres") or []
+    genre = ", ".join(
+        genre_item.get("title", "")
+        for genre_item in genres
+        if isinstance(genre_item, dict) and genre_item.get("title")
+    )
+
+    if not genre:
+        status = item.get("status", "")
+        year = item.get("year")
+        parts = [
+            part
+            for part in (status.title() if status else "", str(year) if year else "")
+            if part
+        ]
+        genre = " · ".join(parts)
+
+    return {
+        "title": item.get("title", "Unknown"),
+        "url": url,
+        "poster_url": _proxy_image_url(poster),
+        "genre": genre,
+    }
 
 
 def _hanime_fallback_title(url: str) -> str:
@@ -856,7 +926,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                     {
                         "title": title,
                         "url": f"https://hanime.tv/videos/hentai/{slug}",
-                        "poster_url": _proxy_image_url(poster),
+                        "poster_url": _proxy_image_url(_normalize_image_url(poster)),
                     }
                 )
         elif site == "megakino":
@@ -869,7 +939,9 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                     {
                         "title": item.get("title", "Unknown"),
                         "url": url,
-                        "poster_url": _proxy_image_url(item.get("poster_url", "")),
+                        "poster_url": _proxy_image_url(
+                            _normalize_image_url(item.get("poster_url", ""))
+                        ),
                     }
                 )
         elif site == "sto":
@@ -891,6 +963,31 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                             "url": f"https://serienstream.to{link}",
                         }
                     )
+        elif site == "mangafire":
+            mf_results = query_mangafire(keyword) or []
+            if isinstance(mf_results, dict):
+                mf_results = [mf_results]
+            for item in mf_results:
+                url = item.get("url", "")
+                if not url:
+                    continue
+                if not url.startswith("http"):
+                    url = f"https://mangafire.to{url}"
+                title = item.get("title") or item.get("name") or "Unknown"
+                poster = (
+                    item.get("poster_url")
+                    or item.get("cover_url")
+                    or item.get("image")
+                    or item.get("poster")
+                    or ""
+                )
+                results.append(
+                    {
+                        "title": title,
+                        "url": url,
+                        "poster_url": _proxy_image_url(_normalize_image_url(poster)),
+                    }
+                )
         else:
             # AniWorld search
             aw_results = aniworld_query(keyword) or []
@@ -932,7 +1029,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             return jsonify(
                 {
                     "title": series.title,
-                    "poster_url": _proxy_image_url(poster),
+                    "poster_url": _proxy_image_url(_normalize_image_url(poster)),
                     "description": getattr(series, "description", ""),
                     "genres": getattr(series, "genres", []),
                     "release_year": getattr(series, "release_year", ""),
@@ -988,6 +1085,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                         "season_number": season.season_number,
                         "episode_count": season.episode_count,
                         "are_movies": getattr(season, "are_movies", False),
+                        "chapter_type": getattr(season, "chapter_type", ""),
                     }
                 )
             return jsonify({"seasons": seasons_data})
@@ -1039,15 +1137,97 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 if not season:
                     return jsonify({"episodes": []})
             else:
-                # Pass series to avoid broken series URL reconstruction in serienstream.to
-                # season model (its fallback splits on "-" which fails)
-                series_url = re.sub(r"/staffel-\d+/?$", "", url)
-                series_url = re.sub(r"/filme/?$", "", series_url)
+                if prov.name == "MangaFire":
+                    series_url = request.args.get("series_url", "").strip() or url
+                else:
+                    # Pass series to avoid broken series URL reconstruction in serienstream.to
+                    # season model (its fallback splits on "-" which fails)
+                    series_url = re.sub(r"/staffel-\d+/?$", "", url)
+                    series_url = re.sub(r"/filme/?$", "", series_url)
                 try:
                     series = prov.series_cls(url=series_url)
                 except Exception:
                     series = None
                 season = prov.season_cls(url=url, series=series)
+
+            if prov.name == "MangaFire":
+                from pathlib import Path
+
+                lang_sep = os.environ.get("ANIWORLD_LANG_SEPARATION", "0") == "1"
+                lang_folders = [
+                    "german-dub",
+                    "english-sub",
+                    "german-sub",
+                    "english-dub",
+                ]
+
+                raw = os.environ.get("ANIWORLD_DOWNLOAD_PATH", "")
+                if raw:
+                    dl_base = Path(raw).expanduser()
+                    if not dl_base.is_absolute():
+                        dl_base = Path.home() / dl_base
+                else:
+                    dl_base = Path.home() / "Downloads"
+
+                scan_roots = [dl_base]
+                for cp in get_custom_paths():
+                    cp_path = Path(cp["path"]).expanduser()
+                    if not cp_path.is_absolute():
+                        cp_path = Path.home() / cp_path
+                    scan_roots.append(cp_path)
+
+                all_bases = []
+                for root in scan_roots:
+                    if lang_sep:
+                        all_bases.extend([root / lf for lf in lang_folders])
+                    else:
+                        all_bases.append(root)
+
+                title_clean = (
+                    getattr(series, "title_cleaned", None)
+                    or getattr(series, "title", "")
+                ).lower()
+                episodes_data = []
+                chapter_pages = []
+                try:
+                    chapter_pages = list(getattr(season, "pages", []) or [])
+                except Exception:
+                    chapter_pages = []
+
+                def _mangafire_page_downloaded(page) -> bool:
+                    for base in all_bases:
+                        if not base.is_dir():
+                            continue
+                        try:
+                            folders = list(base.iterdir())
+                        except (PermissionError, OSError):
+                            continue
+                        for folder in folders:
+                            if (
+                                not folder.is_dir()
+                                or not folder.name.lower().startswith(title_clean)
+                            ):
+                                continue
+                            if (folder / season.folder_name / page.file_name).exists():
+                                return True
+                    return False
+
+                total_pages = len(chapter_pages)
+                for page in chapter_pages:
+                    episodes_data.append(
+                        {
+                            "url": season.url,
+                            "chapter_url": season.url,
+                            "episode_number": page.page_number,
+                            "page_number": page.page_number,
+                            "page_count": total_pages,
+                            "title_de": f"Page {page.page_number}",
+                            "title_en": f"Page {page.page_number}",
+                            "downloaded": _mangafire_page_downloaded(page),
+                            "available_languages": ["English Dub"],
+                        }
+                    )
+                return jsonify({"episodes": episodes_data})
 
             # Scan download directory for downloaded episodes.
             # Uses S##E### filename matching so it works regardless of
@@ -1075,6 +1255,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
             # Build set of (season_num, episode_num) found on disk
             downloaded_eps = set()
+            downloaded_chapters = set()
             try:
                 title_clean = ""
                 if series:
@@ -1103,6 +1284,12 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                                 or not folder.name.lower().startswith(title_clean)
                             ):
                                 continue
+                            if prov.name == "MangaFire":
+                                for chapter_folder in folder.iterdir():
+                                    if chapter_folder.is_dir():
+                                        downloaded_chapters.add(
+                                            chapter_folder.name.lower()
+                                        )
                             for f in folder.rglob("*"):
                                 if f.is_file():
                                     m = ep_re.search(f.name)
@@ -1115,6 +1302,8 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
             episodes_data = []
             for ep in season.episodes:
+                if prov.name == "MangaFire":
+                    continue
                 downloaded = (
                     ep.season.season_number,
                     ep.episode_number,
@@ -1131,6 +1320,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                         "title_en": getattr(ep, "title_en", ""),
                         "downloaded": downloaded,
                         "available_languages": available_languages,
+                        "page_count": 0,
                     }
                 )
             return jsonify({"episodes": episodes_data})
@@ -1153,6 +1343,8 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
         try:
             prov = resolve_provider(url)
+            if prov.name == "MangaFire":
+                return jsonify({"providers": {}})
             if prov.name == "MegaKino":
                 episode = prov.episode_cls(url=url, selected_language="German Dub")
             else:
@@ -1464,6 +1656,22 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         proxied = [
             {**r, "poster_url": _proxy_image_url(r.get("poster_url", ""))}
             for r in results
+        ]
+        return jsonify({"results": proxied})
+
+    @app.route("/api/mangafire-trending")
+    def api_mangafire_trending():
+        def _fetch_mangafire_trending():
+            response = requests.get("https://mangafire.to/api/top-titles", timeout=20)
+            response.raise_for_status()
+            payload = response.json() or {}
+            return payload.get("items", [])
+
+        results = _cached_browse("mangafire_trending", _fetch_mangafire_trending)
+        if results is None:
+            return jsonify({"error": "Failed to fetch MangaFire trending"}), 500
+        proxied = [
+            _mangafire_browse_item(item) for item in results if isinstance(item, dict)
         ]
         return jsonify({"results": proxied})
 
