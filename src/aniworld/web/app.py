@@ -387,10 +387,11 @@ def _queue_worker():
                     update_queue_progress(item["id"], i, chapter_url)
                     ep_kwargs = {
                         "url": chapter_url,
-                        "series": series,
                         "selected_language": item["language"],
                         "selected_provider": item["provider"],
                     }
+                    if prov.name != "MegaKino":
+                        ep_kwargs["series"] = series
                     if selected_pages is not None:
                         ep_kwargs["selected_pages"] = selected_pages
                     if selected_path:

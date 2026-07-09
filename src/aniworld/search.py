@@ -2,6 +2,7 @@ import html as html_module
 import os
 import random
 import re
+import niquests
 from urllib.parse import quote_plus, urljoin
 
 try:
@@ -80,9 +81,11 @@ def query_megakino(keyword):
     base_url = f"https://{MEGAKINO_DOMAIN}"
     token_url = f"{base_url}/index.php?yg=token"
     headers = {"Accept-Encoding": "identity"}
+    
+    session = niquests.Session()
 
     try:
-        GLOBAL_SESSION.get(token_url, timeout=15, headers=headers)
+        session.get(token_url, timeout=15, headers=headers)
     except Exception:
         pass
 
@@ -97,10 +100,10 @@ def query_megakino(keyword):
             f"&result_from={result_from}&story={quote_plus(keyword)}"
         )
         try:
-            response = GLOBAL_SESSION.get(url, timeout=15, headers=headers)
+            response = session.get(url, timeout=15, headers=headers)
             response.raise_for_status()
             if "location.replace" in response.text or "yg=token" in response.text:
-                response = GLOBAL_SESSION.get(url, timeout=15, headers=headers)
+                response = session.get(url, timeout=15, headers=headers)
                 response.raise_for_status()
         except Exception:
             break
@@ -215,10 +218,12 @@ def _fetch_megakino_homepage():
     base_url = f"https://{MEGAKINO_DOMAIN}"
     token_url = f"{base_url}/index.php?yg=token"
     headers = {"Accept-Encoding": "identity"}
+    
+    session = niquests.Session()
 
     try:
-        GLOBAL_SESSION.get(token_url, timeout=15, headers=headers)
-        response = GLOBAL_SESSION.get(base_url, timeout=15, headers=headers)
+        session.get(token_url, timeout=15, headers=headers)
+        response = session.get(base_url, timeout=15, headers=headers)
         response.raise_for_status()
         _megakino_homepage_cache = response.text
         return _megakino_homepage_cache
