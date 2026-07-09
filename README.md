@@ -14,7 +14,11 @@ AniWorld Downloader is a cross-platform tool for streaming and downloading conte
 ![GitHub Repo stars](https://img.shields.io/github/stars/phoenixthrush/AniWorld-Downloader)
 ![GitHub forks](https://img.shields.io/github/forks/phoenixthrush/AniWorld-Downloader)
 
+Demo Menu
+:-------------------------:
 ![Menu Demo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/models/.github/assets/demo.png?raw=true)
+
+https://github.com/user-attachments/assets/d65c4a5c-827a-45d7-a904-78977fd9aef4
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
