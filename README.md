@@ -2,7 +2,7 @@
 
 # AniWorld Downloader v4
 
-AniWorld Downloader is a cross-platform tool for streaming and downloading content from AniWorld, SerienStream, MegaKino, and Hanime, with more support coming in the future. It runs on Windows, macOS, and Linux, providing a seamless experience for offline viewing or instant playback.
+AniWorld Downloader is a cross-platform tool for streaming and downloading content from AniWorld, Hanime, MangaFire, MegaKino, and SerienStream, with more support coming in the future. It runs on Windows, macOS, and Linux, providing a seamless experience for offline viewing or instant playback.
 
 ![GitHub Release](https://img.shields.io/github/v/release/phoenixthrush/AniWorld-Downloader)
 [![PyPI Downloads](https://static.pepy.tech/badge/aniworld)](https://pepy.tech/projects/aniworld)
@@ -14,9 +14,7 @@ AniWorld Downloader is a cross-platform tool for streaming and downloading conte
 ![GitHub Repo stars](https://img.shields.io/github/stars/phoenixthrush/AniWorld-Downloader)
 ![GitHub forks](https://img.shields.io/github/forks/phoenixthrush/AniWorld-Downloader)
 
-Menu | WebUI (AniWorld) | WebUI (SerienStream)
-:-------------------------:|:-------------------------:|:-------------------------:
-![Menu Demo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/models/.github/assets/demo.png?raw=true) | ![AniWorld Demo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/models/.github/assets/demo-aniworld.png?raw=true) | ![SerienStream Demo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/models/.github/assets/demo-serienstream.png?raw=true)
+![Menu Demo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/models/.github/assets/demo.png?raw=true)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -46,19 +44,6 @@ For full user guides, tutorials, and troubleshooting, visit the [official docume
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## Still in Development
-
-This project is actively being improved. Current work in progress includes:
-
-- [ ] fix episode download cleanup on KeyboardInterrupt in menu
-- [ ] add support for aniskip feature on IINA
-- [ ] Split Web UI SSO dependencies into separate `extras` section
-- [ ] Implement `keep-watching` argument for continuous playback
-- [ ] Fix Nuitka build crash: use Python 3.12 (non-MSVC builds unsupported on newer versions)
-- [ ] Remove empty lines below actions when running `docker run -it`
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
 ## Features
 
 - **Downloading** – Grab full series, individual seasons, or single episodes for offline viewing
@@ -74,11 +59,25 @@ This project is actively being improved. Current work in progress includes:
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+## Still in Development
+
+This project is actively being improved. Current work in progress includes:
+
+- [ ] implement GLOBAL_SESSION imports lazy loading
+- [ ] fix episode download cleanup on KeyboardInterrupt in menu
+- [ ] add support for aniskip feature on IINA
+- [ ] Split Web UI SSO dependencies into separate `extras` section
+- [ ] Implement `keep-watching` argument for continuous playback
+- [ ] Fix Nuitka build crash: use Python 3.12 (non-MSVC builds unsupported on newer versions)
+- [ ] Remove empty lines below actions when running `docker run -it`
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## Supported Providers
 
 | Provider | Status | Last Tested |
 | --- | --- | --- |
-| VOE | ✅ Working | 06/26 |
+| VOE | ✅ Working | 07/26 |
 | Vidoza | ✅ Working | 02/26 |
 | Vidmoly | ✅ Working | 02/26 |
 | Filemoon | ❌ Broken | 02/26 |
