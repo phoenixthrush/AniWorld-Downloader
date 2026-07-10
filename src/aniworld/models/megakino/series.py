@@ -17,7 +17,7 @@ try:
     )
     from ...extractors import provider_functions
     from ..common import ProviderData, clean_title
-    from ..common.common import check_downloaded
+    from ..common.common import check_downloaded, movie_folder_enabled
     from ..common.common import (
         download as episode_download,
     )
@@ -38,7 +38,12 @@ except ImportError:
         logger,
     )
     from aniworld.extractors import provider_functions
-    from aniworld.models.common import ProviderData, check_downloaded, clean_title
+    from aniworld.models.common import (
+        ProviderData,
+        check_downloaded,
+        clean_title,
+        movie_folder_enabled,
+    )
     from aniworld.models.common import (
         download as episode_download,
     )
@@ -942,8 +947,11 @@ class MegaKinoEpisode:
     @property
     def _base_folder(self):
         if self.__base_folder is None:
-            folder_name = f"{self.title_cleaned} ({self.release_year})"
-            self.__base_folder = Path(self.selected_path) / folder_name
+            if movie_folder_enabled():
+                folder_name = f"{self.title_cleaned} ({self.release_year})"
+                self.__base_folder = Path(self.selected_path) / folder_name
+            else:
+                self.__base_folder = Path(self.selected_path)
         return self.__base_folder
 
     @property

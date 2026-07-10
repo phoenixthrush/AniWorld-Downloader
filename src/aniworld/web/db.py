@@ -569,6 +569,14 @@ def init_custom_paths_db():
     conn = get_db()
     try:
         conn.execute(_CREATE_CUSTOM_PATHS_TABLE)
+        # default_sites: CSV of site keys this path is the default for
+        # (aniworld, sto, megakino, mangafire, htv, kinox, burningseries, filmpalast)
+        try:
+            conn.execute(
+                "ALTER TABLE custom_paths ADD COLUMN default_sites TEXT NOT NULL DEFAULT ''"
+            )
+        except Exception:
+            pass  # column already exists
         conn.commit()
     finally:
         conn.close()
@@ -578,22 +586,47 @@ def get_custom_paths():
     conn = get_db()
     try:
         rows = conn.execute(
-            "SELECT id, name, path FROM custom_paths ORDER BY id"
+            "SELECT id, name, path, default_sites FROM custom_paths ORDER BY id"
         ).fetchall()
         return [dict(r) for r in rows]
     finally:
         conn.close()
 
 
-def add_custom_path(name, path):
+def add_custom_path(name, path, default_sites=""):
     conn = get_db()
     try:
         cur = conn.execute(
-            "INSERT INTO custom_paths (name, path) VALUES (?, ?)",
-            (name, path),
+            "INSERT INTO custom_paths (name, path, default_sites) VALUES (?, ?, ?)",
+            (name, path, default_sites),
         )
         conn.commit()
         return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def update_custom_path(path_id, name=None, path=None, default_sites=None):
+    fields = []
+    values = []
+    if name is not None:
+        fields.append("name = ?")
+        values.append(name)
+    if path is not None:
+        fields.append("path = ?")
+        values.append(path)
+    if default_sites is not None:
+        fields.append("default_sites = ?")
+        values.append(default_sites)
+    if not fields:
+        return
+    values.append(path_id)
+    conn = get_db()
+    try:
+        conn.execute(
+            f"UPDATE custom_paths SET {', '.join(fields)} WHERE id = ?", values
+        )
+        conn.commit()
     finally:
         conn.close()
 
@@ -611,7 +644,8 @@ def get_custom_path_by_id(path_id):
     conn = get_db()
     try:
         row = conn.execute(
-            "SELECT id, name, path FROM custom_paths WHERE id = ?", (path_id,)
+            "SELECT id, name, path, default_sites FROM custom_paths WHERE id = ?",
+            (path_id,),
         ).fetchone()
         return dict(row) if row else None
     finally:
@@ -758,6 +792,128 @@ def remove_autosync_job(job_id):
         if not row:
             return False, "Job not found"
         conn.execute("DELETE FROM autosync_jobs WHERE id = ?", (job_id,))
+        conn.commit()
+        return True, None
+    finally:
+        conn.close()
+
+
+# ===== Planned Releases =====
+
+_CREATE_PLANNED_TABLE = """\
+CREATE TABLE IF NOT EXISTS planned_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    site TEXT NOT NULL,
+    media_type TEXT NOT NULL DEFAULT 'movie',
+    language TEXT NOT NULL DEFAULT 'German Dub',
+    provider TEXT NOT NULL DEFAULT 'VOE',
+    custom_path_id INTEGER,
+    auto_sync INTEGER NOT NULL DEFAULT 0,
+    added_by TEXT,
+    status TEXT NOT NULL DEFAULT 'waiting',
+    last_check TEXT,
+    found_url TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+"""
+
+
+def init_planned_db():
+    ANIWORLD_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    conn = get_db()
+    try:
+        conn.execute(_CREATE_PLANNED_TABLE)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def add_planned_job(
+    title,
+    site,
+    media_type,
+    language,
+    provider,
+    custom_path_id=None,
+    auto_sync=0,
+    added_by=None,
+):
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            "INSERT INTO planned_jobs "
+            "(title, site, media_type, language, provider, custom_path_id, auto_sync, added_by) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                title,
+                site,
+                media_type,
+                language,
+                provider,
+                custom_path_id,
+                1 if auto_sync else 0,
+                added_by,
+            ),
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def get_planned_jobs(added_by=None):
+    conn = get_db()
+    try:
+        if added_by is None:
+            rows = conn.execute(
+                "SELECT * FROM planned_jobs ORDER BY id DESC"
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM planned_jobs WHERE added_by = ? ORDER BY id DESC",
+                (added_by,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_planned_job(job_id):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM planned_jobs WHERE id = ?", (job_id,)
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def update_planned_job(job_id, **fields):
+    allowed = {"status", "last_check", "found_url", "title", "language", "provider"}
+    filtered = {k: v for k, v in fields.items() if k in allowed}
+    if not filtered:
+        return
+    set_clause = ", ".join(f"{k} = ?" for k in filtered)
+    values = list(filtered.values()) + [job_id]
+    conn = get_db()
+    try:
+        conn.execute(f"UPDATE planned_jobs SET {set_clause} WHERE id = ?", values)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def remove_planned_job(job_id):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT id FROM planned_jobs WHERE id = ?", (job_id,)
+        ).fetchone()
+        if not row:
+            return False, "Job not found"
+        conn.execute("DELETE FROM planned_jobs WHERE id = ?", (job_id,))
         conn.commit()
         return True, None
     finally:

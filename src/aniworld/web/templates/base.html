@@ -10,6 +10,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
   {% block styles %}{% endblock %}
+  <script>
+    window.ANIWORLD_UI_LANGUAGE = {{ (ui_language or 'en') | tojson }};
+  </script>
+  <script src="{{ url_for('static', filename='i18n.js') }}"></script>
 </head>
 
 <body>
@@ -19,22 +23,23 @@
         %}</a>
     </div>
     <div class="top-bar-right">
-      <a href="{{ url_for('index') }}" class="top-bar-link">Home</a>
-      <a href="{{ url_for('library_page') }}" class="top-bar-link">Library</a>
-      <a href="{{ url_for('autosync_page') }}" class="top-bar-link">Auto-Sync</a>
+      <a href="{{ url_for('index') }}" class="top-bar-link" data-i18n="nav.home">Home</a>
+      <a href="{{ url_for('library_page') }}" class="top-bar-link" data-i18n="nav.library">Library</a>
+      <a href="{{ url_for('autosync_page') }}" class="top-bar-link" data-i18n="nav.autosync">Auto-Sync</a>
+      <a href="{{ url_for('planned_page') }}" class="top-bar-link" data-i18n="nav.planned">Planned</a>
       <a href="#" class="top-bar-link" id="queueBtn" onclick="
             openQueueModal();
             return false;
           ">
-        Queue
+        <span data-i18n="nav.queue">Queue</span>
         <span class="queue-badge" id="queueBadge" style="display: none">0</span>
       </a>
       {% if not auth_enabled or (current_user and current_user.role ==
       'admin') %}
-      <a href="{{ url_for('settings_page') }}" class="top-bar-link">Settings</a>
+      <a href="{{ url_for('settings_page') }}" class="top-bar-link" data-i18n="nav.settings">Settings</a>
       {% endif %} {% if auth_enabled and current_user %}
       <span class="top-bar-user">{{ current_user.username }}</span>
-      <a href="{{ url_for('auth.logout') }}" class="top-bar-link">Logout</a>
+      <a href="{{ url_for('auth.logout') }}" class="top-bar-link" data-i18n="nav.logout">Logout</a>
       {% endif %}
     </div>
   </div>
@@ -42,15 +47,15 @@
 
   <footer class="site-footer">
     <p>
-      AniWorld Downloader is open source.
-      <a href="https://github.com/phoenixthrush/AniWorld-Downloader" target="_blank" rel="noopener noreferrer">View the project on GitHub</a>.
+      <span data-i18n="footer.opensource">AniWorld Downloader is open source.</span>
+      <a href="https://github.com/phoenixthrush/AniWorld-Downloader" target="_blank" rel="noopener noreferrer" data-i18n="footer.viewgithub">View the project on GitHub</a>.
     </p>
   </footer>
 
   <div class="queue-overlay" id="queueOverlay" onclick="if (event.target === this) closeQueueModal();">
     <div class="queue-modal">
       <button class="close" onclick="closeQueueModal()">&times;</button>
-      <h2 class="queue-modal-title">Download Queue</h2>
+      <h2 class="queue-modal-title" data-i18n="queue.title">Download Queue</h2>
       <div id="queueList" class="queue-list"></div>
     </div>
   </div>
@@ -61,8 +66,8 @@
   <div class="captcha-overlay" id="captchaOverlay" onclick="if (event.target === this) closeCaptchaModal();">
     <div class="captcha-modal">
       <button class="close" onclick="closeCaptchaModal()">&times;</button>
-      <h2 class="queue-modal-title">&#128274; Captcha lösen</h2>
-      <p id="captchaHint" class="captcha-hint">
+      <h2 class="queue-modal-title" data-i18n="captcha.title">&#128274; Captcha lösen</h2>
+      <p id="captchaHint" class="captcha-hint" data-i18n="captcha.hint">
         Klick auf die Darstellung um mit dem Browser zu interagieren.
       </p>
       <div class="captcha-screen-wrap">

@@ -4,6 +4,7 @@ from .common import (
     clean_title,
     download,
     download_hanime,
+    movie_folder_enabled,
     syncplay,
     watch,
 )
@@ -14,6 +15,7 @@ __all__ = [
     "clean_title",
     "download",
     "download_hanime",
+    "movie_folder_enabled",
     "syncplay",
     "watch",
 ]

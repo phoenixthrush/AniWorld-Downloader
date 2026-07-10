@@ -147,7 +147,7 @@ SUPPORTED_PROVIDERS = (
     "MegaKino",
     "Vidmoly",
     "Vidoza",
-    # "Doodstream",
+    "Doodstream",
     # "Filemoon",
     # "LoadX",
     # "Luluvdo",
@@ -224,7 +224,12 @@ def build_provider_attempt_order(
 
 PROVIDER_HEADERS_D = {
     "Vidmoly": {"Referer": "https://vidmoly.biz"},
-    "Doodstream": {"Referer": "https://dood.li/"},
+    # Doodstream signs the direct link against the requesting client, so the
+    # download must reuse the same User-Agent the extractor sent.
+    "Doodstream": {
+        "User-Agent": DEFAULT_USER_AGENT,
+        "Referer": "https://dood.li/",
+    },
     "VOE": {
         "User-Agent": DEFAULT_USER_AGENT,
         "Accept": "*/*",
@@ -246,7 +251,12 @@ PROVIDER_HEADERS_D = {
 
 PROVIDER_HEADERS_W = {
     "Vidmoly": {"Referer": "https://vidmoly.biz"},
-    "Doodstream": {"Referer": "https://dood.li/"},
+    # Doodstream signs the direct link against the requesting client, so the
+    # download must reuse the same User-Agent the extractor sent.
+    "Doodstream": {
+        "User-Agent": DEFAULT_USER_AGENT,
+        "Referer": "https://dood.li/",
+    },
     "VOE": {
         "User-Agent": DEFAULT_USER_AGENT,
         "Accept": "*/*",
@@ -407,6 +417,36 @@ MANGA_FIRE_SERIES_PATTERN = re.compile(
 
 MANGA_FIRE_CHAPTER_PATTERN = re.compile(
     r"^https?://(?:www\.)?mangafire\.to/title/[a-zA-Z0-9]+(?:-[a-zA-Z0-9\-]+)?/chapter/[0-9]+(?:\.[0-9]+)?/?$",
+    re.IGNORECASE,
+)
+
+FILMPALAST_SERIES_PATTERN = re.compile(
+    r"^https?://(?:www\.)?filmpalast\.[^/]+/stream/[^/?#]+/?$",
+    re.IGNORECASE,
+)
+
+# The trailing (?:\?[^#]*)? lets per-episode URLs (…?s=1&e=2) resolve too.
+KINOX_SERIES_PATTERN = re.compile(
+    r"^https?://(?:www\.)?kinox[\w.-]*\.[^/]+/Stream/[^/?#]+?(?:\.html)?(?:\?[^#]*)?/?$",
+    re.IGNORECASE,
+)
+
+_BS_HOST = r"(?:www\.)?(?:burning-series\.(?:io|net)|bs\.to)"
+
+BURNINGSERIES_SERIES_PATTERN = re.compile(
+    rf"^https?://{_BS_HOST}/serie/[a-zA-Z0-9\-]+(?:\?[^#]*)?/?$",
+    re.IGNORECASE,
+)
+
+# /serie/<slug>/<season>[/<lang>]
+BURNINGSERIES_SEASON_PATTERN = re.compile(
+    rf"^https?://{_BS_HOST}/serie/[a-zA-Z0-9\-]+/\d+(?:/[a-z]{{2}})?/?$",
+    re.IGNORECASE,
+)
+
+# /serie/<slug>/<season>/<episode-slug>/<lang>
+BURNINGSERIES_EPISODE_PATTERN = re.compile(
+    rf"^https?://{_BS_HOST}/serie/[a-zA-Z0-9\-]+/\d+/[^/]+/[a-z]{{2}}/?$",
     re.IGNORECASE,
 )
 

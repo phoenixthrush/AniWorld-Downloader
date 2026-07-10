@@ -539,6 +539,51 @@ def playwright_get_page_url(url: str) -> str:
     return GLOBAL_SESSION.get(url).url
 
 
+def playwright_get_iframe_url(url: str, timeout: int = 20) -> str:
+    """Open `url` in a headless browser and return the first external iframe URL.
+
+    Some sites (e.g. burning-series.io) render the hoster embed client-side, so
+    the embed URL only exists after JavaScript runs. This loads the page, waits
+    for a cross-origin iframe to appear, and returns it. Raises when patchright
+    isn't available so callers can surface a clear message.
+    """
+    try:
+        from patchright.sync_api import sync_playwright
+    except ImportError:
+        raise RuntimeError(
+            "patchright is not installed. Install it with: "
+            "pip install patchright && patchright install chromium"
+        )
+
+    from ..logger import get_logger
+
+    logger = get_logger(__name__)
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True, args=["--disable-gpu"])
+            context = browser.new_context(viewport={"width": 1280, "height": 720})
+            _inject_session_cookies(context, url)
+            page = context.new_page()
+            logger.debug(f"Opening page for iframe capture: {url}")
+            page.goto(url, wait_until="domcontentloaded")
+
+            deadline = _time.time() + timeout
+            found = url
+            while _time.time() < deadline:
+                candidate = _extract_iframe_url(page, url)
+                if candidate and candidate != url:
+                    found = candidate
+                    break
+                page.wait_for_timeout(500)
+
+            browser.close()
+        return found
+    except Exception as e:
+        logger.error(f"Failed to capture iframe URL for {url}: {e}")
+        raise
+
+
 def playwright_get_hanime_stream_url(url: str) -> str:
     """Open a hanime page in Playwright and capture the first playable HLS URL."""
     try:

@@ -1,14 +1,14 @@
 {% extends "base.html" %} {% block title %}Settings — AniWorld Downloader{%
 endblock %} {% block content %}
 <div class="settings-container">
-  <h1>Settings</h1>
+  <h1 data-i18n="settings.title">Settings</h1>
 
   {% if auth_enabled %}
   <div class="settings-section">
-    <h2>User Management</h2>
+    <h2 data-i18n="settings.users">User Management</h2>
 
     {% if not force_sso %}
-    <h3 class="settings-subtitle">Add User</h3>
+    <h3 class="settings-subtitle" data-i18n="settings.add_user">Add User</h3>
     <div class="add-user-row" style="margin-bottom: 16px">
       <input type="text" id="newUsername" placeholder="Username" />
       <input type="password" id="newPassword" placeholder="Password" />
@@ -37,8 +37,8 @@ endblock %} {% block content %}
   {% endif %}
 
   <div class="settings-section">
-    <h2>Custom Paths</h2>
-    <h3 class="settings-subtitle">Add Path</h3>
+    <h2 data-i18n="settings.custom_paths">Custom Paths</h2>
+    <h3 class="settings-subtitle" data-i18n="settings.add_path">Add Path</h3>
     <div class="add-user-row" style="margin-bottom: 16px">
       <input type="text" id="newPathName" placeholder="Name (e.g. NAS)" />
       <input type="text" id="newPathValue" placeholder="/mnt/nas/anime" />
@@ -49,21 +49,24 @@ endblock %} {% block content %}
         <tr>
           <th>Name</th>
           <th>Path</th>
+          <th data-i18n="settings.paths.default_for">Default for sites</th>
           <th>Actions</th>
         </tr>
       </thead>
       <tbody id="customPathsBody"></tbody>
     </table>
+    <div class="settings-hint" data-i18n="settings.paths.default_hint">
+      Tick the sites a path should be the pre-selected download folder for.
+    </div>
   </div>
 
   <div class="settings-notice">
-    Changes made below are temporary and will be reset when AniWorld Downloader
-    is restarted. To make settings persist, set them in your .env file at
-    <code>{{ env_path }}</code>.
+    <span data-i18n="settings.persist_notice">Changes are saved to your .env and persist across restarts.</span>
+    <code>{{ env_path }}</code>
   </div>
 
   <div class="settings-section">
-    <h2>Auto-Sync Defaults</h2>
+    <h2 data-i18n="settings.autosync_defaults">Auto-Sync Defaults</h2>
     <div class="settings-row" style="gap: 10px; flex-wrap: wrap">
       <div style="flex: 1; min-width: 140px">
         <label style="
@@ -118,18 +121,18 @@ endblock %} {% block content %}
     </div>
   </div>
   <div class="settings-section">
-    <h2>Settings</h2>
-    <h3 class="settings-subtitle">Download Path</h3>
+    <h2 data-i18n="settings.general">Settings</h2>
+    <h3 class="settings-subtitle" data-i18n="settings.download_path">Download Path</h3>
     <div class="settings-row">
       <input type="text" id="downloadPath" placeholder="/path/to/downloads" />
       <button onclick="saveDownloadPath()">Save</button>
     </div>
-    <div class="settings-hint">
+    <div class="settings-hint" data-i18n="settings.download_path_hint">
       Changes take effect immediately for new downloads
     </div>
-    <h3 class="settings-subtitle">Provider Fallback Order</h3>
+    <h3 class="settings-subtitle" data-i18n="settings.provider_fallback">Provider Fallback Order</h3>
     <div id="providerFallbackOrder"></div>
-    <div class="settings-hint">
+    <div class="settings-hint" data-i18n="settings.provider_fallback_hint">
       Downloads always try the selected provider first. If that hoster fails,
       AniWorld Downloader falls back through this order.
     </div>
@@ -143,9 +146,9 @@ endblock %} {% block content %}
         cursor: pointer;
       ">
       <input type="checkbox" id="langSeparation" onchange="saveLangSeparation()" style="accent-color: #2563eb; cursor: pointer" />
-      Separate languages into folders
+      <span data-i18n="settings.lang_separation">Separate languages into folders</span>
     </label>
-    <div class="settings-hint">
+    <div class="settings-hint" data-i18n="settings.lang_separation_hint">
       When enabled, downloads are organized into subfolders by language (e.g.
       german-dub/, english-sub/)
     </div>
@@ -159,9 +162,9 @@ endblock %} {% block content %}
         cursor: pointer;
       ">
       <input type="checkbox" id="disableEnglishSub" onchange="saveDisableEnglishSub()" style="accent-color: #2563eb; cursor: pointer" />
-      Disable English Sub downloads
+      <span data-i18n="settings.disable_english_sub">Disable English Sub downloads</span>
     </label>
-    <div class="settings-hint">
+    <div class="settings-hint" data-i18n="settings.disable_english_sub_hint">
       When enabled, English Sub is hidden from the language selector and cannot
       be downloaded
     </div>
@@ -175,15 +178,110 @@ endblock %} {% block content %}
         cursor: pointer;
       ">
       <input type="checkbox" id="enableHtv" onchange="saveEnableHtv()" style="accent-color: #2563eb; cursor: pointer" />
-      Enable Hanime tab
+      <span data-i18n="settings.enable_htv">Enable Hanime tab</span>
     </label>
-    <div class="settings-hint">
+    <div class="settings-hint" data-i18n="settings.enable_htv_hint">
       When enabled, the Hanime tab is shown on the home page
     </div>
   </div>
 
   <div class="settings-section">
-    <h2>IP Check</h2>
+    <h2 data-i18n="settings.interface">Interface</h2>
+    <div class="settings-row" style="gap: 10px; flex-wrap: wrap">
+      <div style="flex: 1; min-width: 160px">
+        <label class="planned-label" data-i18n="settings.ui_language">Interface Language</label>
+        <select id="uiLanguage" onchange="saveUiLanguage()" class="sync-select">
+          <option value="en">English</option>
+          <option value="de">Deutsch</option>
+        </select>
+      </div>
+      <div style="flex: 1; min-width: 160px">
+        <label class="planned-label" data-i18n="settings.output_format">Output Format</label>
+        <select id="outputFormat" onchange="saveOutputFormat()" class="sync-select">
+          <option value="mkv">MKV</option>
+          <option value="mp4">MP4</option>
+        </select>
+      </div>
+    </div>
+    <div class="settings-hint" data-i18n="settings.output_format_hint">
+      Container for downloaded files. MP4 is the most compatible with players and Plex.
+    </div>
+    <label class="settings-checkbox" style="
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 14px;
+        font-size: 0.88rem;
+        color: #c8cad0;
+        cursor: pointer;
+      ">
+      <input type="checkbox" id="movieFolder" onchange="saveMovieFolder()" style="accent-color: #2563eb; cursor: pointer" />
+      <span data-i18n="settings.movie_folder">Wrap movies in their own folder</span>
+    </label>
+    <div class="settings-hint" data-i18n="settings.movie_folder_hint">
+      When off, a movie is saved directly into the download path instead of a "Title (Year)" folder.
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h2 data-i18n="settings.discord">Discord Request Bot</h2>
+    <label class="settings-checkbox" style="
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.88rem;
+        color: #c8cad0;
+        cursor: pointer;
+      ">
+      <input type="checkbox" id="discordEnabled" style="accent-color: #2563eb; cursor: pointer" />
+      <span data-i18n="settings.discord.enable">Enable Discord bot</span>
+    </label>
+    <div class="settings-hint" data-i18n="settings.discord.enable_hint">
+      Let users request movies and series from Discord. Requests are sent to you for approval.
+    </div>
+    <div class="settings-row" style="margin-top: 12px">
+      <label class="planned-label" style="min-width: 120px" data-i18n="settings.discord.token">Bot Token</label>
+      <input type="password" id="discordToken" placeholder="••••••••" autocomplete="new-password" />
+    </div>
+    <div class="settings-row" style="margin-top: 10px; gap: 10px; flex-wrap: wrap">
+      <div style="flex: 1; min-width: 150px">
+        <label class="planned-label" data-i18n="settings.discord.owner">Owner User ID</label>
+        <input type="text" id="discordOwner" placeholder="123456789012345678" />
+      </div>
+      <div style="flex: 1; min-width: 150px">
+        <label class="planned-label" data-i18n="settings.discord.mode">Mode</label>
+        <select id="discordMode" class="sync-select">
+          <option value="standard" data-i18n="settings.discord.mode_standard">Standard (approve each request)</option>
+          <option value="advanced" data-i18n="settings.discord.mode_advanced">Advanced (queue immediately)</option>
+        </select>
+      </div>
+    </div>
+    <div class="settings-row" style="margin-top: 10px; gap: 10px; flex-wrap: wrap">
+      <div style="flex: 1; min-width: 150px">
+        <label class="planned-label" data-i18n="settings.discord.role">Request Role ID (optional)</label>
+        <input type="text" id="discordRole" placeholder="" />
+      </div>
+      <div style="flex: 1; min-width: 150px">
+        <label class="planned-label" data-i18n="settings.discord.guild">Server ID (optional, faster command sync)</label>
+        <input type="text" id="discordGuild" placeholder="" />
+      </div>
+    </div>
+    <div style="margin-top: 14px; display: flex; align-items: center; gap: 12px">
+      <button onclick="saveDiscord()" data-i18n="common.save">Save</button>
+      <span id="discordStatus" class="discord-status"></span>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h2 data-i18n="settings.config_file">Configuration File</h2>
+    <div class="settings-hint" data-i18n="settings.env_hint">
+      Edit the raw .env file. Handy for Docker users. Some values only take effect after a restart.
+    </div>
+    <button style="margin-top: 12px" onclick="openEnvModal()" data-i18n="settings.edit_env">Edit .env</button>
+  </div>
+
+  <div class="settings-section">
+    <h2 data-i18n="settings.ip">IP Check</h2>
     <h3 class="settings-subtitle">Container Public IP</h3>
     <div class="settings-ip-card">
       <div>
@@ -200,6 +298,46 @@ endblock %} {% block content %}
     <div class="settings-hint">
       Refresh this after connecting or disconnecting your VPN to confirm the
       container is using the expected public IP.
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="envOverlay" onclick="if (event.target === this) closeEnvModal();">
+  <div class="modal" id="envModal" style="max-width: 720px">
+    <button class="close" onclick="closeEnvModal()">&times;</button>
+    <h2 style="color: #fff; margin-bottom: 4px" data-i18n="settings.env_modal_title">Edit .env</h2>
+    <div id="envPath" style="color: #6ea8fe; font-size: 0.82rem; margin-bottom: 12px; word-break: break-all"></div>
+    <textarea id="envContent" spellcheck="false" style="
+        width: 100%;
+        min-height: 340px;
+        resize: vertical;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        font-size: 0.82rem;
+        line-height: 1.5;
+        padding: 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(0, 0, 0, 0.25);
+        color: #c8cad0;
+      "></textarea>
+    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px">
+      <button onclick="closeEnvModal()" style="
+          padding: 10px 20px;
+          border-radius: 10px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.04);
+          color: #c8cad0;
+          cursor: pointer;
+        " data-i18n="common.cancel">Cancel</button>
+      <button onclick="saveEnv()" style="
+          padding: 10px 20px;
+          border-radius: 10px;
+          border: none;
+          background: linear-gradient(135deg, #2563eb, #1d4ed8);
+          color: #fff;
+          font-weight: 600;
+          cursor: pointer;
+        " data-i18n="common.save">Save</button>
     </div>
   </div>
 </div>

@@ -15,6 +15,7 @@ import ffmpeg
 import niquests
 
 from ...autodeps import DependencyManager
+from .hls import HLSUnsupported, cleanup_temp_files, download_hls_parallel, get_concurrency
 
 try:
     from ...autodeps import get_player_path, get_syncplay_path
@@ -178,15 +179,27 @@ class ProviderData:
 # -----------------------------------------------------------------------------
 
 
-def _remove_empty_dirs(folder_path, base_folder):
-    """Remove folder_path and base_folder if they are empty directories."""
+def _remove_empty_dirs(folder_path, base_folder, protected=None):
+    """Remove folder_path and base_folder if they are empty directories.
+
+    `protected` is never removed. With ANIWORLD_MOVIE_FOLDER=0 a movie's
+    "folder" *is* the download root, and a failed download must not delete it.
+    """
     try:
-        if folder_path.is_dir() and not any(folder_path.iterdir()):
-            folder_path.rmdir()
-        if base_folder.is_dir() and not any(base_folder.iterdir()):
-            base_folder.rmdir()
+        protected = Path(protected).resolve() if protected else None
     except OSError:
-        pass
+        protected = None
+
+    for candidate in (folder_path, base_folder):
+        try:
+            if not candidate.is_dir():
+                continue
+            if protected is not None and candidate.resolve() == protected:
+                continue
+            if not any(candidate.iterdir()):
+                candidate.rmdir()
+        except OSError:
+            pass
 
 
 def _reset_provider_resolution_cache(self):
@@ -499,6 +512,61 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
         raise RuntimeError(f"ffmpeg error (rc={process.returncode}): {detail}")
 
 
+def movie_folder_enabled():
+    """Whether movies get their own folder instead of landing in the root."""
+    return os.getenv("ANIWORLD_MOVIE_FOLDER", "1") != "0"
+
+
+def _finalize_episode(temp_path, episode_path, label=""):
+    """Move `temp_path` onto `episode_path`, remuxing when containers differ.
+
+    The muxer always writes Matroska, so a naming template ending in `.mp4`
+    used to produce MKV data inside an `.mp4` file. Remuxing here keeps the
+    file honest. Stream copy is tried first; only a codec the target container
+    cannot hold forces a re-encode.
+    """
+    source_ext = temp_path.suffix.lower().lstrip(".")
+    target_ext = episode_path.suffix.lower().lstrip(".")
+
+    if target_ext == source_ext or target_ext not in ("mkv", "mp4"):
+        os.replace(temp_path, episode_path)
+        return
+
+    converted = episode_path.with_suffix(f".convert.{target_ext}")
+    output_kwargs = {"c": "copy"}
+    if target_ext == "mp4":
+        output_kwargs["movflags"] = "+faststart"
+
+    try:
+        logger.debug(f"[REMUXING] {source_ext} -> {target_ext}")
+        _run_ffmpeg_with_progress(
+            ffmpeg.input(str(temp_path)).output(str(converted), **output_kwargs),
+            label=label,
+        )
+    except RuntimeError:
+        if target_ext != "mp4":
+            raise
+        logger.warning(
+            "[REMUXING] stream copy into MP4 failed, re-encoding to H.264/AAC"
+        )
+        converted.unlink(missing_ok=True)
+        _run_ffmpeg_with_progress(
+            ffmpeg.input(str(temp_path)).output(
+                str(converted),
+                vcodec="libx264",
+                preset="veryfast",
+                crf=20,
+                acodec="aac",
+                audio_bitrate="192k",
+                movflags="+faststart",
+            ),
+            label=label,
+        )
+
+    os.replace(converted, episode_path)
+    temp_path.unlink(missing_ok=True)
+
+
 def _download_direct_http(episode_path, stream_url, file_name):
     """Download a video via direct HTTP (e.g. pixeldrain). Shared helper."""
     temp_file = episode_path.with_suffix(".temp_dl.mp4")
@@ -565,7 +633,7 @@ def _download_direct_http(episode_path, stream_url, file_name):
             sys.stderr.write("\r" + " " * 80 + "\r")
             sys.stderr.flush()
 
-        os.replace(temp_file, episode_path)
+        _finalize_episode(temp_file, episode_path, ep_label)
     except Exception:
         if temp_file.exists():
             temp_file.unlink()
@@ -592,20 +660,22 @@ def _download_hls_stream(episode_path, stream_url, file_name, audio_lang="jpn"):
             "reconnect_delay_max": 30,
         }
 
-        _run_ffmpeg_with_progress(
-            ffmpeg.input(stream_url, **input_kwargs).output(
-                str(temp_full),
-                vcodec=video_codec,
-                acodec=video_codec,
-                **{"metadata:s:a:0": f"language={audio_lang}"},
-            ),
-            label=ep_label,
+        _download_full_stream(
+            stream_url,
+            temp_full,
+            input_kwargs,
+            None,
+            {"metadata:s:a:0": f"language={audio_lang}"},
+            video_codec,
+            ep_label,
+            audio_lang,
         )
 
-        os.replace(temp_full, episode_path)
+        _finalize_episode(temp_full, episode_path, ep_label)
     except Exception:
         if temp_full.exists():
             temp_full.unlink()
+        cleanup_temp_files(temp_full)
         raise
 
 
@@ -629,6 +699,84 @@ def download_hanime(self):
         _download_direct_http(self._episode_path, dl_url, self._file_name)
     else:
         _download_hls_stream(self._episode_path, self.stream_url, self._file_name)
+
+
+def _is_hls_stream(stream_url):
+    """True when the URL points at an m3u8 playlist rather than a plain file."""
+    return ".m3u8" in (stream_url or "").split("?", 1)[0].lower()
+
+
+def _download_full_stream(
+    stream_url,
+    temp_full,
+    input_kwargs,
+    headers,
+    stream_metadata,
+    video_codec,
+    ep_label,
+    audio_code,
+):
+    """Fetch audio+video into `temp_full`.
+
+    HLS streams are pulled segment-by-segment in parallel first, which is
+    several times faster than letting FFmpeg walk the playlist over a single
+    connection. The segments are then remuxed locally. Any playlist feature the
+    parallel downloader does not support falls back to FFmpeg reading the
+    stream URL directly, which is the original behaviour.
+    """
+    if _is_hls_stream(stream_url) and get_concurrency() > 1:
+        try:
+            local_inputs = download_hls_parallel(
+                stream_url,
+                temp_full,
+                headers=headers,
+                preferred_audio_lang=audio_code,
+                label=ep_label,
+            )
+        except HLSUnsupported as exc:
+            logger.debug(f"[HLS] falling back to FFmpeg: {exc}")
+        except Exception as exc:
+            logger.warning(f"[HLS] parallel download failed, using FFmpeg: {exc}")
+            cleanup_temp_files(temp_full)
+        else:
+            try:
+                logger.debug("[MUXING] remuxing parallel HLS segments")
+                if len(local_inputs) == 2:
+                    # Separate video + audio renditions: map each explicitly so
+                    # the requested audio language can't be replaced by a stray
+                    # audio track embedded in the video segments.
+                    video_in = ffmpeg.input(str(local_inputs[0]))
+                    audio_in = ffmpeg.input(str(local_inputs[1]))
+                    node = ffmpeg.output(
+                        video_in["v"],
+                        audio_in["a"],
+                        str(temp_full),
+                        vcodec=video_codec,
+                        acodec=video_codec,
+                        **stream_metadata,
+                    )
+                else:
+                    node = ffmpeg.input(str(local_inputs[0])).output(
+                        str(temp_full),
+                        vcodec=video_codec,
+                        acodec=video_codec,
+                        **stream_metadata,
+                    )
+                _run_ffmpeg_with_progress(node, label=ep_label)
+                return
+            finally:
+                for path in local_inputs:
+                    path.unlink(missing_ok=True)
+
+    _run_ffmpeg_with_progress(
+        ffmpeg.input(stream_url, **input_kwargs).output(
+            str(temp_full),
+            vcodec=video_codec,
+            acodec=video_codec,
+            **stream_metadata,
+        ),
+        label=ep_label,
+    )
 
 
 def download(self):
@@ -723,14 +871,15 @@ def download(self):
                         stream_metadata["metadata:s:v:0"] = f"language={sub_video_code}"
 
                     video_codec = get_video_codec()
-                    _run_ffmpeg_with_progress(
-                        ffmpeg.input(stream_url, **input_kwargs).output(
-                            str(temp_full),
-                            vcodec=video_codec,
-                            acodec=video_codec,
-                            **stream_metadata,
-                        ),
-                        label=ep_label,
+                    _download_full_stream(
+                        stream_url,
+                        temp_full,
+                        input_kwargs,
+                        headers,
+                        stream_metadata,
+                        video_codec,
+                        ep_label,
+                        audio_code,
                     )
 
                     if self._episode_path.exists():
@@ -742,9 +891,9 @@ def download(self):
                         _run_ffmpeg_with_progress(
                             ffmpeg.output(*inputs, str(output_path), c="copy")
                         )
-                        os.replace(output_path, self._episode_path)
+                        _finalize_episode(output_path, self._episode_path, ep_label)
                     else:
-                        os.replace(temp_full, self._episode_path)
+                        _finalize_episode(temp_full, self._episode_path, ep_label)
 
                     if temp_full.exists():
                         temp_full.unlink()
@@ -796,7 +945,7 @@ def download(self):
                 _run_ffmpeg_with_progress(
                     ffmpeg.output(*inputs, str(output_path), c="copy")
                 )
-                os.replace(output_path, self._episode_path)
+                _finalize_episode(output_path, self._episode_path, ep_label)
 
                 for f in (temp_audio, temp_video):
                     if f.exists():
@@ -810,10 +959,13 @@ def download(self):
                     ".temp_audio.mkv",
                     ".temp_video.mkv",
                     ".new.mkv",
+                    ".convert.mkv",
+                    ".convert.mp4",
                 ):
                     temp = self._episode_path.with_suffix(suffix)
                     if temp.exists():
                         temp.unlink()
+                cleanup_temp_files(self._episode_path.with_suffix(".temp_full.mkv"))
 
                 provider_errors[provider_name] = e
                 logger.warning(
@@ -833,7 +985,11 @@ def download(self):
                         f"{next_provider} for {getattr(self, 'url', 'episode')}"
                     )
 
-    _remove_empty_dirs(self._folder_path, self._base_folder)
+    _remove_empty_dirs(
+        self._folder_path,
+        self._base_folder,
+        protected=getattr(self, "selected_path", None),
+    )
     if provider_errors:
         raise RuntimeError(
             _build_provider_failure_message("Download", provider_errors)

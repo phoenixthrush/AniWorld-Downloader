@@ -729,6 +729,355 @@ def query_s_to(keyword):
     return results
 
 
+def _clean_search_query(keyword):
+    """Drop trailing year / bracketed qualifiers so a stricter site search
+    still matches (e.g. "Dune 2021" -> "Dune")."""
+    cleaned = re.sub(r"\s*\(?\b(19|20)\d{2}\b\)?\s*$", "", keyword).strip()
+    cleaned = re.sub(r"\s*\[[^\]]*\]\s*$", "", cleaned).strip()
+    return cleaned or keyword
+
+
+def query_filmpalast(keyword):
+    """Search filmpalast.to and return a list of movie results with posters."""
+    base = "https://filmpalast.to"
+
+    def _run(term):
+        url = f"{base}/search/title/{quote_plus(term)}"
+        try:
+            resp = GLOBAL_SESSION.get(
+                url,
+                headers={"Accept-Encoding": "gzip, deflate", "Referer": f"{base}/"},
+                timeout=15,
+            )
+            resp.raise_for_status()
+        except Exception as exc:
+            logger.debug(f"filmpalast search failed for {term!r}: {exc}")
+            return []
+
+        results = []
+        seen = set()
+        for block in resp.text.split('<article class="liste')[1:]:
+            h2 = re.search(r"<h2[^>]*>(.*?)</h2>", block, re.DOTALL | re.IGNORECASE)
+            if not h2:
+                continue
+            href = re.search(r'href="([^"]+)"', h2.group(1), re.IGNORECASE)
+            if not href:
+                continue
+            movie_url = href.group(1).strip()
+            if movie_url.startswith("//"):
+                movie_url = "https:" + movie_url
+            elif movie_url.startswith("/"):
+                movie_url = base + movie_url
+
+            if movie_url in seen:
+                continue
+            seen.add(movie_url)
+
+            title_m = re.search(r'title="([^"]+)"', h2.group(1), re.IGNORECASE)
+            if title_m:
+                title = title_m.group(1).strip()
+            else:
+                anchor = re.search(r"<a[^>]*>(.*?)</a>", h2.group(1), re.DOTALL)
+                if not anchor:
+                    continue
+                title = re.sub(r"<[^>]+>", "", anchor.group(1)).strip()
+
+            poster = ""
+            pm = re.search(
+                r'<img\s+[^>]*src="([^"]+)"[^>]*class="[^"]*cover[^"]*"', block, re.I
+            ) or re.search(
+                r'<img\s+[^>]*class="[^"]*cover[^"]*"[^>]*src="([^"]+)"', block, re.I
+            )
+            if pm:
+                poster = pm.group(1).strip()
+                if poster.startswith("//"):
+                    poster = "https:" + poster
+                elif poster.startswith("/"):
+                    poster = base + poster
+
+            results.append(
+                {"title": html_module.unescape(title), "url": movie_url, "poster_url": poster}
+            )
+        return results[:30]
+
+    results = _run(keyword)
+    if not results:
+        cleaned = _clean_search_query(keyword)
+        if cleaned.lower() != keyword.lower():
+            results = _run(cleaned)
+    return results
+
+
+def query_kinox(keyword):
+    """Search kinox.to and return a list of results with posters."""
+    from .models.kinox.series import KINOX_DOMAIN
+
+    base = f"https://{KINOX_DOMAIN}"
+    url = f"{base}/Search.html?q={quote_plus(keyword)}"
+    try:
+        resp = GLOBAL_SESSION.get(
+            url,
+            headers={"Accept-Encoding": "gzip, deflate", "Referer": f"{base}/"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+    except Exception as exc:
+        logger.debug(f"kinox search failed for {keyword!r}: {exc}")
+        return []
+
+    results = []
+    seen = set()
+    for block in resp.text.split('class="Opt leftOpt Headlne"')[1:]:
+        href = re.search(r'href="([^"]+)"', block, re.IGNORECASE)
+        title_m = re.search(r'title="([^"]+)"', block, re.IGNORECASE) or re.search(
+            r"<h1>(.*?)</h1>", block, re.DOTALL | re.IGNORECASE
+        )
+        if not (href and title_m):
+            continue
+        movie_url = href.group(1).strip()
+        if "/Stream/" not in movie_url:
+            continue
+        if movie_url.startswith("/"):
+            movie_url = base + movie_url
+        if movie_url in seen:
+            continue
+        seen.add(movie_url)
+
+        title = re.sub(r"<[^>]+>", "", title_m.group(1)).strip()
+        title = re.sub(r"\s*\(\d{4}\)\s*$", "", title).strip()
+
+        poster = ""
+        pm = re.search(r'<div class="Thumb"><img[^>]*src="([^"]+)"', block, re.I)
+        if pm:
+            poster = pm.group(1).strip()
+            if poster.startswith("/"):
+                poster = base + poster
+
+        results.append(
+            {"title": html_module.unescape(title), "url": movie_url, "poster_url": poster}
+        )
+    return results[:30]
+
+
+_bs_index_cache = None
+
+
+def query_burningseries(keyword):
+    """Search burning-series by scanning its full series index (cached)."""
+    from .models.burningseries.series import bs_get_with_fallback, bs_current_base
+
+    global _bs_index_cache
+    if _bs_index_cache is None:
+        try:
+            _bs_index_cache = bs_get_with_fallback("/andere-serien")
+        except Exception as exc:
+            logger.debug(f"burning-series index fetch failed: {exc}")
+            return []
+
+    base = bs_current_base()
+    keyword_lower = keyword.lower()
+    results = []
+    seen = set()
+    for m in re.finditer(
+        r'<a[^>]*href=["\']/?(serie/([^"\'/]+))["\'][^>]*>(.*?)</a>',
+        _bs_index_cache,
+        re.IGNORECASE | re.DOTALL,
+    ):
+        slug = m.group(2)
+        text = html_module.unescape(re.sub(r"<[^>]+>", "", m.group(3)).strip())
+        if not text or slug in seen:
+            continue
+        if keyword_lower in text.lower() or keyword_lower in slug.lower():
+            seen.add(slug)
+            results.append(
+                {"title": text, "url": f"{base}/serie/{slug}", "poster_url": ""}
+            )
+
+    results.sort(key=lambda item: _relevance_score(item["title"], keyword))
+    return results[:30]
+
+
+def fetch_filmpalast_movies():
+    """Fetch the newest movies from filmpalast.to for the browse grid."""
+    base = "https://filmpalast.to"
+    try:
+        resp = GLOBAL_SESSION.get(
+            f"{base}/movies/new/page/1",
+            headers={"Accept-Encoding": "gzip, deflate", "Referer": f"{base}/"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+    except Exception as exc:
+        logger.debug(f"filmpalast browse failed: {exc}")
+        return None
+
+    results = []
+    seen = set()
+    for art in resp.text.split('<article class="liste')[1:]:
+        h2 = re.search(r"<h2[^>]*>(.*?)</h2>", art, re.DOTALL | re.IGNORECASE)
+        if not h2:
+            continue
+        href = re.search(r'href="([^"]+)"', h2.group(1), re.IGNORECASE)
+        if not href:
+            continue
+        url = href.group(1).strip()
+        if url.startswith("//"):
+            url = "https:" + url
+        elif url.startswith("/"):
+            url = base + url
+        if url in seen:
+            continue
+        seen.add(url)
+
+        title_m = re.search(r'title="([^"]+)"', h2.group(1), re.IGNORECASE)
+        if title_m:
+            title = title_m.group(1).strip()
+        else:
+            anchor = re.search(r"<a[^>]*>(.*?)</a>", h2.group(1), re.DOTALL)
+            title = re.sub(r"<[^>]+>", "", anchor.group(1)).strip() if anchor else ""
+        if not title:
+            continue
+
+        poster = ""
+        pm = re.search(
+            r'<img\s+[^>]*src="([^"]+)"[^>]*class="[^"]*cover[^"]*"', art, re.I
+        ) or re.search(
+            r'<img\s+[^>]*class="[^"]*cover[^"]*"[^>]*src="([^"]+)"', art, re.I
+        )
+        if pm:
+            poster = pm.group(1).strip()
+            if poster.startswith("//"):
+                poster = "https:" + poster
+            elif poster.startswith("/"):
+                poster = base + poster
+
+        results.append(
+            {"title": html_module.unescape(title), "url": url, "poster_url": poster, "genre": ""}
+        )
+    return results[:30]
+
+
+def fetch_kinox_movies():
+    """Fetch the newest cinema movies from kinox for the browse grid."""
+    from .models.kinox.series import KINOX_DOMAIN
+
+    base = f"https://{KINOX_DOMAIN}"
+    try:
+        resp = GLOBAL_SESSION.get(
+            f"{base}/Kino-Filme.html",
+            headers={"Accept-Encoding": "gzip, deflate", "Referer": f"{base}/"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+    except Exception as exc:
+        logger.debug(f"kinox browse failed: {exc}")
+        return None
+
+    results = []
+    seen = set()
+    for block in resp.text.split('class="Opt leftOpt Headlne"')[1:]:
+        href = re.search(r'href="([^"]+)"', block, re.IGNORECASE)
+        title_m = re.search(r'title="([^"]+)"', block, re.IGNORECASE) or re.search(
+            r"<h1>(.*?)</h1>", block, re.DOTALL | re.IGNORECASE
+        )
+        if not (href and title_m):
+            continue
+        url = href.group(1).strip()
+        if "/Stream/" not in url:
+            continue
+        if url.startswith("/"):
+            url = base + url
+        if url in seen:
+            continue
+        seen.add(url)
+
+        title = re.sub(r"<[^>]+>", "", title_m.group(1)).strip()
+        title = re.sub(r"\s*\(\d{4}\)\s*$", "", title).strip()
+
+        poster = ""
+        pm = re.search(r'<div class="Thumb"><img[^>]*src="([^"]+)"', block, re.I)
+        if pm:
+            poster = pm.group(1).strip()
+            if poster.startswith("/"):
+                poster = base + poster
+
+        results.append(
+            {"title": html_module.unescape(title), "url": url, "poster_url": poster, "genre": ""}
+        )
+    return results[:30]
+
+
+def _bs_cover(slug):
+    """Fetch a burning-series series page and return its cover URL (or '')."""
+    from .models.burningseries.series import bs_current_base
+    from .models.common.http import get_html
+
+    base = bs_current_base()
+    try:
+        html = get_html(f"{base}/serie/{slug}", check_captcha=False)
+    except Exception:
+        return ""
+    m = re.search(
+        r'<img[^>]*src="([^"]*/cover/[^"]+\.(?:jpg|jpeg|png|webp))"', html, re.IGNORECASE
+    )
+    if not m:
+        return ""
+    poster = m.group(1).strip()
+    if poster.startswith("//"):
+        return "https:" + poster
+    if poster.startswith("/"):
+        return base + poster
+    return poster
+
+
+def fetch_burningseries_series():
+    """Fetch recently updated series from the burning-series homepage.
+
+    burning-series has no listing page with inline covers, so the covers are
+    fetched from each series page concurrently here (once, then cached by the
+    browse layer) instead of lazily per card, which was slow and trickled in.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    from .models.burningseries.series import bs_current_base, bs_get_with_fallback
+
+    try:
+        html = bs_get_with_fallback("/")
+    except Exception as exc:
+        logger.debug(f"burning-series browse failed: {exc}")
+        return None
+
+    base = bs_current_base()
+    items = []
+    seen = set()
+    # Homepage lists the latest episodes; each carries the series slug + title.
+    for m in re.finditer(
+        r'<a[^>]*href="/?serie/([^"/]+)[^"]*"[^>]*title="([^"]+)"', html, re.IGNORECASE
+    ):
+        slug = m.group(1)
+        if slug in seen:
+            continue
+        seen.add(slug)
+        title = html_module.unescape(m.group(2).split("|")[0].split(":")[0].strip())
+        items.append({"slug": slug, "title": title})
+        if len(items) >= 12:
+            break
+
+    # Fetch covers in parallel so the whole grid is ready in one short wait.
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        covers = list(pool.map(_bs_cover, [it["slug"] for it in items]))
+
+    return [
+        {
+            "title": it["title"],
+            "url": f"{base}/serie/{it['slug']}",
+            "poster_url": cover,
+            "genre": "",
+        }
+        for it, cover in zip(items, covers)
+    ]
+
+
 def search(is_aniworld=None):
     """Prompt user for a search keyword and return a single series URL using a curses menu."""
     import curses

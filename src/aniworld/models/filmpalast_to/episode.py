@@ -6,10 +6,14 @@ try:
     from ...config import (
         GLOBAL_SESSION,
         NAMING_TEMPLATE,
+        Audio,
+        Subtitles,
+        build_provider_attempt_order,
         logger,
     )
     from ...extractors import provider_functions
-    from ..common import check_downloaded
+    from ..common import ProviderData, check_downloaded, movie_folder_enabled
+    from ..common.common import clean_title
     from ..common.common import (
         download as episode_download,
     )
@@ -19,14 +23,23 @@ try:
     from ..common.common import (
         watch as episode_watch,
     )
+    from ..common.provider_map import host_to_provider
 except ImportError:
     from aniworld.config import (
         GLOBAL_SESSION,
         NAMING_TEMPLATE,
+        Audio,
+        Subtitles,
+        build_provider_attempt_order,
         logger,
     )
     from aniworld.extractors import provider_functions
-    from aniworld.models.common import check_downloaded
+    from aniworld.models.common import (
+        ProviderData,
+        check_downloaded,
+        clean_title,
+        movie_folder_enabled,
+    )
     from aniworld.models.common import (
         download as episode_download,
     )
@@ -36,8 +49,9 @@ except ImportError:
     from aniworld.models.common import (
         watch as episode_watch,
     )
+    from aniworld.models.common.provider_map import host_to_provider
 
-FILMPALAST_EPISODE_PATTERN = re.compile(r"^https?://filmpalast\.to/stream/.+")
+FILMPALAST_EPISODE_PATTERN = re.compile(r"^https?://(?:www\.)?filmpalast\.to/stream/.+")
 
 
 # TODO: update docstring with actual properties and methods of this class, and example values
@@ -241,8 +255,9 @@ class FilmPalastEpisode:
     @property
     def selected_language(self):
         if self.__selected_language is None:
-            self.__selected_language = self.__selected_language_param or os.getenv(
-                "ANIWORLD_LANGUAGE", "German"
+            self.__selected_language = self._normalize_language(
+                self.__selected_language_param
+                or os.getenv("ANIWORLD_LANGUAGE", "German Dub")
             )
         return self.__selected_language
 
@@ -265,6 +280,25 @@ class FilmPalastEpisode:
                 "ANIWORLD_PROVIDER", "VOE"
             )
         return self.__selected_provider
+
+    @selected_provider.setter
+    def selected_provider(self, value):
+        self.__selected_provider_param = value
+        self.__selected_provider = None
+        self.__redirect_url = None
+        self.__provider_url = None
+
+    @property
+    def title(self):
+        return self.title_de or ""
+
+    @property
+    def title_cleaned(self):
+        return clean_title(self.title_de or "")
+
+    @property
+    def poster_url(self):
+        return self.image_url
 
     @property
     def redirect_url(self):
@@ -298,74 +332,31 @@ class FilmPalastEpisode:
 
         return stream_url
 
-    # TODO: add this into a common base class
+    @property
+    def _movie_basename(self):
+        year = self.release_year
+        base = self.title_cleaned or "Movie"
+        return f"{base} ({year})" if year else base
+
     @property
     def _base_folder(self):
         if self.__base_folder is None:
-            naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-            parts = naming_template.split("/")
-            if len(parts) <= 1:
-                self.__base_folder = Path(self.selected_path)
+            if movie_folder_enabled():
+                self.__base_folder = Path(self.selected_path) / self._movie_basename
             else:
-                folder_str = parts[0].format(
-                    title=self.series.title_cleaned,
-                    year=self.series.release_year,
-                    imdbid=self.series.imdb,
-                    season=f"{self.season.season_number:02d}",
-                    episode=f"{self.episode_number:03d}",
-                    language=self.selected_language,
-                )
-                self.__base_folder = Path(self.selected_path) / folder_str
+                self.__base_folder = Path(self.selected_path)
         return self.__base_folder
 
     @property
     def _folder_path(self):
         if self.__folder_path is None:
-            naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-            parts = naming_template.split("/")
-            if len(parts) <= 2:
-                self.__folder_path = self._base_folder
-            else:
-                folder_str = parts[1].format(
-                    title=self.series.title_cleaned,
-                    year=self.series.release_year,
-                    imdbid=self.series.imdb,
-                    season=f"{self.season.season_number:02d}",
-                    episode=f"{self.episode_number:03d}",
-                    language=self.selected_language,
-                )
-                self.__folder_path = self._base_folder / folder_str
+            self.__folder_path = self._base_folder
         return self.__folder_path
 
     @property
     def _file_name(self):
         if self.__file_name is None:
-            naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-            try:
-                file_template = naming_template.split("/")[-1]
-            except IndexError:
-                file_template = f"{self.series.title_cleaned} S{self.season.season_number:02d}E{self.episode_number:03d}.mkv"
-
-            # Remove extension
-            if "." in file_template:
-                file_template = ".".join(file_template.split(".")[:-1])
-
-            # Replace %style% with {style} for compatibility
-            file_template = file_template.replace("%title%", "{title}")
-            file_template = file_template.replace("%year%", "{year}")
-            file_template = file_template.replace("%imdbid%", "{imdbid}")
-            file_template = file_template.replace("%season%", "{season}")
-            file_template = file_template.replace("%episode%", "{episode}")
-            file_template = file_template.replace("%language%", "{language}")
-
-            self.__file_name = file_template.format(
-                title=self.series.title_cleaned,
-                year=self.series.release_year,
-                imdbid=self.series.imdb,
-                season=f"{self.season.season_number:02d}",
-                episode=f"{self.episode_number:03d}",
-                language=self.selected_language,
-            )
+            self.__file_name = self._movie_basename
         return self.__file_name
 
     @property
@@ -405,7 +396,15 @@ class FilmPalastEpisode:
             if not self.url:
                 raise ValueError("Episode URL is missing for HTML fetch.")
             logger.debug(f"fetching ({self.url})...")
-            resp = GLOBAL_SESSION.get(self.url)
+            # gzip/deflate only — filmpalast serves Brotli, which niquests
+            # can't decode without the optional brotli package.
+            resp = GLOBAL_SESSION.get(
+                self.url,
+                headers={
+                    "Accept-Encoding": "gzip, deflate",
+                    "Referer": "https://filmpalast.to/",
+                },
+            )
             self.__html = resp.text
         return self.__html
 
@@ -465,27 +464,76 @@ class FilmPalastEpisode:
             self.__imdb_rating = float(match.group(1))
 
     def __extract_provider_data(self):
-        providers = []
-        blocks = re.findall(
-            r'<ul class="currentStreamLinks">(.*?)</ul>', self._html, re.DOTALL
+        providers = {}
+
+        # The hoster name and its play link live in two adjacent <li> elements:
+        #   <li class="hostBg …"><p class="hostName">VOE HD</p></li>
+        #   <li class="streamPlayBtn …"> … <a … href="https://voe.sx/…">Play</a>
+        pattern = re.compile(
+            r'hostName">([^<]+)</p></li>\s*'
+            r'<li class="streamPlayBtn[^>]*>.*?href="([^"]+)"',
+            re.DOTALL,
         )
+        for name, href in pattern.findall(self._html):
+            provider = host_to_provider(name)
+            if not provider or provider in providers:
+                continue
+            redirect = href.strip()
+            if redirect.startswith("//"):
+                redirect = "https:" + redirect
+            elif redirect.startswith("/"):
+                redirect = "https://filmpalast.to" + redirect
+            providers[provider] = redirect
 
-        for block in blocks:
-            # provider name
-            name = re.search(r'<p class="hostName">(.*?)</p>', block)
-            provider = name.group(1).strip() if name else None
+        if not providers:
+            return None
 
-            # redirect url
-            url = re.search(r'<a [^>]*?(?:data-player-url|href)="([^"]+)"', block)
-            redirect = url.group(1).strip() if url else None
+        audio = Audio.ENGLISH if self._is_english else Audio.GERMAN
+        return ProviderData({(audio, Subtitles.NONE): providers})
 
-            if provider and redirect:
-                providers.append({"name": provider, "url": redirect})
+    @property
+    def _is_english(self):
+        haystack = f"{self.url} {self.__title_de or ''}".lower()
+        return "-english" in haystack or "english" in haystack
 
-        return providers
+    def _normalize_language(self, language):
+        """FilmPalast pages are single-language; accept the dub labels."""
+        text = str(language or "").strip().lower()
+        if text in {"english", "englisch", "english dub"}:
+            return "English Dub"
+        return "German Dub"
 
-    def provider_link(self, language, provider):
-        pass
+    def provider_link(self, language=None, provider=None):
+        if provider is None:
+            provider = self.selected_provider
+
+        provider_data = self.provider_data
+        if not isinstance(provider_data, ProviderData):
+            return None
+
+        provider_dict = provider_data.get((Audio.GERMAN, Subtitles.NONE)) or provider_data.get(
+            (Audio.ENGLISH, Subtitles.NONE)
+        )
+        if not provider_dict:
+            return None
+
+        key = str(provider).strip()
+        return provider_dict.get(key) or provider_dict.get(key.upper())
+
+    def available_providers(self, language=None):
+        provider_data = self.provider_data
+        if not isinstance(provider_data, ProviderData):
+            return tuple()
+        provider_dict = provider_data.get(
+            (Audio.GERMAN, Subtitles.NONE)
+        ) or provider_data.get((Audio.ENGLISH, Subtitles.NONE))
+        return tuple(provider_dict.keys()) if provider_dict else tuple()
+
+    def provider_attempt_order(self):
+        return build_provider_attempt_order(
+            self.selected_provider,
+            self.available_providers(),
+        )
 
     # -----------------------------
     # PUBLIC METHODS
