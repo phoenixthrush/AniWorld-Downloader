@@ -309,7 +309,11 @@ def _queue_worker():
                 if not get_running():
                     item = get_next_queued()
                     if item:
-                        set_queue_status(item["id"], "running")
+                        try:
+                            set_queue_status(item["id"], "running")
+                        except Exception as e:
+                            logger.error(f"Failed to set status to 'running': {e}", exc_info=True)
+                            item = None
 
             if not item:
                 time.sleep(3)
@@ -424,6 +428,11 @@ def _queue_worker():
 
         except Exception as e:
             logger.error(f"Queue worker error: {e}", exc_info=True)
+            if item:
+                try:
+                    set_queue_status(item["id"], "failed")
+                except Exception:
+                    pass
             time.sleep(3)
 
 

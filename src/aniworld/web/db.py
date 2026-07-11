@@ -1,5 +1,7 @@
 import os
+import random
 import sqlite3
+import time
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -30,10 +32,59 @@ WHERE sso_issuer IS NOT NULL AND sso_subject IS NOT NULL;
 """
 
 
+def _retry_db(func, *args, **kwargs):
+    delay = 0.1
+    for attempt in range(15):
+        try:
+            return func(*args, **kwargs)
+        except sqlite3.OperationalError as e:
+            if ("locked" in str(e).lower() or "busy" in str(e).lower()) and attempt < 14:
+                time.sleep(delay + random.uniform(0, 0.05))
+                delay = min(delay * 2, 5.0)
+            else:
+                raise
+
+
+class RetryingCursor(sqlite3.Cursor):
+    def execute(self, *args, **kwargs):
+        return _retry_db(super().execute, *args, **kwargs)
+
+    def executemany(self, *args, **kwargs):
+        return _retry_db(super().executemany, *args, **kwargs)
+
+    def executescript(self, *args, **kwargs):
+        return _retry_db(super().executescript, *args, **kwargs)
+
+
+class RetryingConnection(sqlite3.Connection):
+    def cursor(self, factory=RetryingCursor):
+        return super().cursor(factory=factory)
+
+    def execute(self, *args, **kwargs):
+        cur = self.cursor()
+        return cur.execute(*args, **kwargs)
+
+    def executemany(self, *args, **kwargs):
+        cur = self.cursor()
+        return cur.executemany(*args, **kwargs)
+
+    def executescript(self, *args, **kwargs):
+        cur = self.cursor()
+        return cur.executescript(*args, **kwargs)
+
+    def commit(self):
+        return _retry_db(super().commit)
+
+
 def get_db():
     ANIWORLD_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(DB_PATH), timeout=60.0, factory=RetryingConnection)
     conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA busy_timeout=60000;")
+    except Exception:
+        pass
     return conn
 
 
@@ -900,3 +951,5 @@ def get_general_stats():
         }
     finally:
         conn.close()
+
+
