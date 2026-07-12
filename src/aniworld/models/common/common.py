@@ -9,13 +9,13 @@ import subprocess
 import sys
 import threading
 import time
+from pathlib import Path
 from typing import Optional, Tuple
 
 import ffmpeg
 import niquests
 
 from ...autodeps import DependencyManager
-from .hls import HLSUnsupported, cleanup_temp_files, download_hls_parallel, get_concurrency
 
 try:
     from ...autodeps import get_player_path, get_syncplay_path
@@ -675,7 +675,6 @@ def _download_hls_stream(episode_path, stream_url, file_name, audio_lang="jpn"):
     except Exception:
         if temp_full.exists():
             temp_full.unlink()
-        cleanup_temp_files(temp_full)
         raise
 
 
@@ -701,9 +700,137 @@ def download_hanime(self):
         _download_hls_stream(self._episode_path, self.stream_url, self._file_name)
 
 
-def _is_hls_stream(stream_url):
-    """True when the URL points at an m3u8 playlist rather than a plain file."""
-    return ".m3u8" in (stream_url or "").split("?", 1)[0].lower()
+class _HLSManualUnsupported(Exception):
+    """Raised when the manual HLS segment fetcher can't handle a playlist."""
+
+
+_HLS_MEDIA_EXTS = (".ts", ".m4s", ".mp4", ".m4a", ".m4v", ".aac", ".mp3", ".mov")
+
+
+def _fetch_hls_segment(session, seg_url, headers, hosts, timeout=90):
+    """Download one HLS segment, failing over across mirror hosts.
+
+    cineby serves every segment from a rotating pool of mirror hosts that all
+    return byte-identical content, so a single host's transient failure (e.g. a
+    Cloudflare 522 origin timeout) no longer has to abort the whole download — we
+    retry the same path on the other mirrors (two passes, short backoff) before
+    giving up. Segments on a single host still just retry that host.
+    """
+    from urllib.parse import urlparse, urlunparse
+
+    parsed = urlparse(seg_url)
+    ordered = [parsed.netloc] + [h for h in hosts if h and h != parsed.netloc]
+    last_exc = None
+    for attempt in range(2):
+        for host in ordered:
+            url = urlunparse(parsed._replace(netloc=host))
+            try:
+                resp = session.get(url, headers=headers, timeout=timeout)
+                resp.raise_for_status()
+                return resp.content
+            except Exception as exc:  # noqa: BLE001 - try the next mirror
+                last_exc = exc
+        if attempt == 0:
+            time.sleep(1.0)
+    raise last_exc
+
+
+def _hls_uris(playlist, base_url):
+    from urllib.parse import urljoin
+
+    return [
+        urljoin(base_url, line.strip())
+        for line in playlist.splitlines()
+        if line.strip() and not line.startswith("#")
+    ]
+
+
+def _download_hls_manual(m3u8_url, headers, temp_ts, label=""):
+    """Fetch an HLS media playlist's segments over plain HTTP into `temp_ts`.
+
+    Some hosters (cineby) disguise their segments with non-media extensions
+    (`.jpg`, `.css`, `.txt`) served from rotating hosts. Strict FFmpeg builds
+    refuse those through the HLS demuxer even with `-allowed_extensions ALL`, so
+    we bypass the demuxer entirely: download each segment ourselves (they are
+    plain MPEG-TS) and concatenate them, then let FFmpeg remux the local file.
+
+    Raises `_HLSManualUnsupported` for playlists this simple path shouldn't take
+    over (a master with no usable variant, AES-encrypted segments, or ordinary
+    `.ts` segments that FFmpeg already handles well).
+    """
+    session = niquests.Session()
+    req_headers = {"Accept-Encoding": "identity"}
+    req_headers.update(headers or {})
+
+    resp = session.get(m3u8_url, headers=req_headers, timeout=30)
+    resp.raise_for_status()
+    playlist = resp.text
+    if "#EXTM3U" not in playlist:
+        raise _HLSManualUnsupported("not an m3u8 playlist")
+
+    # Master playlist → follow the last (usually highest-quality) variant.
+    if "#EXT-X-STREAM-INF" in playlist:
+        variants = _hls_uris(playlist, m3u8_url)
+        if not variants:
+            raise _HLSManualUnsupported("master playlist with no variants")
+        m3u8_url = variants[-1]
+        resp = session.get(m3u8_url, headers=req_headers, timeout=30)
+        resp.raise_for_status()
+        playlist = resp.text
+
+    if "#EXT-X-KEY" in playlist:
+        raise _HLSManualUnsupported("encrypted playlist")
+
+    segments = _hls_uris(playlist, m3u8_url)
+    if not segments:
+        raise _HLSManualUnsupported("no segments")
+
+    def _is_standard(url):
+        path = url.split("?", 1)[0].lower()
+        return path.endswith(_HLS_MEDIA_EXTS)
+
+    if all(_is_standard(url) for url in segments):
+        raise _HLSManualUnsupported("standard segments (leave to ffmpeg)")
+
+    # Pool of interchangeable mirror hosts to fail a segment over to (see
+    # _fetch_hls_segment): every host the playlist uses, plus the playlist's own.
+    from urllib.parse import urlparse
+
+    seg_hosts = list(
+        dict.fromkeys(
+            [urlparse(u).netloc for u in segments] + [urlparse(m3u8_url).netloc]
+        )
+    )
+
+    total = len(segments)
+    ep = os.path.splitext(label)[0] if label else ""
+    logger.debug(f"[DOWNLOADING] {ep} via manual HLS ({total} segments)")
+    try:
+        with open(temp_ts, "wb") as out:
+            for index, seg_url in enumerate(segments, start=1):
+                out.write(
+                    _fetch_hls_segment(session, seg_url, req_headers, seg_hosts)
+                )
+                percent = round(index / total * 100, 1)
+                with _ffmpeg_progress_lock:
+                    _ffmpeg_progress.update(
+                        percent=percent,
+                        time=f"{index}/{total} segments",
+                        speed="",
+                        bandwidth="",
+                        active=True,
+                    )
+    except Exception:
+        try:
+            temp_ts.unlink(missing_ok=True)
+        except Exception:
+            pass
+        raise
+    finally:
+        with _ffmpeg_progress_lock:
+            _ffmpeg_progress.update(
+                percent=0.0, time="", speed="", bandwidth="", active=False
+            )
 
 
 def _download_full_stream(
@@ -718,55 +845,30 @@ def _download_full_stream(
 ):
     """Fetch audio+video into `temp_full`.
 
-    HLS streams are pulled segment-by-segment in parallel first, which is
-    several times faster than letting FFmpeg walk the playlist over a single
-    connection. The segments are then remuxed locally. Any playlist feature the
-    parallel downloader does not support falls back to FFmpeg reading the
-    stream URL directly, which is the original behaviour.
+    For an HLS playlist we first try the manual segment fetcher (needed for
+    hosters that disguise segments with non-media extensions); it opts out for
+    normal/encrypted playlists, which then take the FFmpeg path.
     """
-    if _is_hls_stream(stream_url) and get_concurrency() > 1:
+    if ".m3u8" in stream_url.split("?", 1)[0].lower():
+        temp_ts = temp_full.with_suffix(".seg.ts")
         try:
-            local_inputs = download_hls_parallel(
-                stream_url,
-                temp_full,
-                headers=headers,
-                preferred_audio_lang=audio_code,
-                label=ep_label,
-            )
-        except HLSUnsupported as exc:
-            logger.debug(f"[HLS] falling back to FFmpeg: {exc}")
-        except Exception as exc:
-            logger.warning(f"[HLS] parallel download failed, using FFmpeg: {exc}")
-            cleanup_temp_files(temp_full)
+            _download_hls_manual(stream_url, headers, temp_ts, ep_label)
+        except _HLSManualUnsupported as exc:
+            logger.debug(f"[HLS] manual fetch not used ({exc}); using FFmpeg")
         else:
             try:
-                logger.debug("[MUXING] remuxing parallel HLS segments")
-                if len(local_inputs) == 2:
-                    # Separate video + audio renditions: map each explicitly so
-                    # the requested audio language can't be replaced by a stray
-                    # audio track embedded in the video segments.
-                    video_in = ffmpeg.input(str(local_inputs[0]))
-                    audio_in = ffmpeg.input(str(local_inputs[1]))
-                    node = ffmpeg.output(
-                        video_in["v"],
-                        audio_in["a"],
+                _run_ffmpeg_with_progress(
+                    ffmpeg.input(str(temp_ts)).output(
                         str(temp_full),
                         vcodec=video_codec,
                         acodec=video_codec,
                         **stream_metadata,
-                    )
-                else:
-                    node = ffmpeg.input(str(local_inputs[0])).output(
-                        str(temp_full),
-                        vcodec=video_codec,
-                        acodec=video_codec,
-                        **stream_metadata,
-                    )
-                _run_ffmpeg_with_progress(node, label=ep_label)
+                    ),
+                    label=ep_label,
+                )
                 return
             finally:
-                for path in local_inputs:
-                    path.unlink(missing_ok=True)
+                temp_ts.unlink(missing_ok=True)
 
     _run_ffmpeg_with_progress(
         ffmpeg.input(stream_url, **input_kwargs).output(
@@ -804,6 +906,12 @@ def download(self):
                     "reconnect_streamed": 1,
                     "reconnect_delay_max": 30,  # wait up to 30s for connection recovery
                 }
+                # Cineby (and some other hosters) disguise their HLS segments with
+                # non-.ts extensions like .jpg; ffmpeg 7+ refuses those by default
+                # ("not in allowed_segment_extensions"), so allow every segment
+                # extension for m3u8 inputs.
+                if ".m3u8" in (stream_url or "").split("?", 1)[0].lower():
+                    input_kwargs["allowed_extensions"] = "ALL"
                 if headers:
                     header_list = [f"{k}: {v}" for k, v in headers.items()]
                     input_kwargs["headers"] = "\r\n".join(header_list) + "\r\n"
@@ -965,7 +1073,6 @@ def download(self):
                     temp = self._episode_path.with_suffix(suffix)
                     if temp.exists():
                         temp.unlink()
-                cleanup_temp_files(self._episode_path.with_suffix(".temp_full.mkv"))
 
                 provider_errors[provider_name] = e
                 logger.warning(

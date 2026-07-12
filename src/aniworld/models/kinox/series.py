@@ -46,6 +46,11 @@ except ImportError:
 
 KINOX_DOMAIN = os.getenv("ANIWORLD_KINOX_DOMAIN", "kinox.to")
 
+# Stable marker embedded in the error message when kinox's captcha blocks a
+# download, so the web queue can recognise it and offer a "solve on kinox"
+# button (only for kinox — no other site uses this).
+KINOX_CAPTCHA_MARKER = "[kinox-captcha]"
+
 
 def _base():
     return f"https://{KINOX_DOMAIN}"
@@ -54,6 +59,12 @@ def _base():
 def kinox_slug_from_url(url):
     m = re.search(r"/Stream/([^/.?#]+)(?:\.html)?", url)
     return m.group(1) if m else None
+
+
+def kinox_captcha_page_url(url):
+    """The kinox page a user should open to solve the verification captcha."""
+    slug = kinox_slug_from_url(url)
+    return f"{_base()}/Stream/{slug}.html" if slug else _base()
 
 
 def kinox_episode_url(slug, season, episode):
@@ -100,8 +111,19 @@ def _parse_mirrors(html):
     return mirrors
 
 
+def _stayed_on_kinox(url):
+    return KINOX_DOMAIN.split(".")[0] in urlparse(url).netloc.lower()
+
+
 def _resolve_embed(rel, referer):
-    """Turn a mirror rel handle into the hoster embed URL."""
+    """Turn a mirror rel handle into the hoster embed URL.
+
+    The mirror API returns a ``/redirect/<hash>`` URL. For a plain hoster that
+    page 302s straight to the embed. kinox also guards some redirects with a JS
+    "Verifizierung" wall that only reveals the hoster iframe after JavaScript
+    runs, so when a direct follow stays on kinox we fall back to the headless
+    browser (the same approach burning-series uses for its client-side player).
+    """
     api_url = f"{_base()}/aGET/Mirror/{rel}"
     raw = get_html(api_url, headers={"Referer": referer}, check_captcha=False)
     try:
@@ -120,19 +142,41 @@ def _resolve_embed(rel, referer):
     if target.startswith("/"):
         target = _base() + target
 
-    resp = get_session().get(target, headers={"Referer": referer}, allow_redirects=True)
-    resp.raise_for_status()
+    # A plain hoster 302s straight to the embed. Force gzip/deflate so the body
+    # is decodable (kinox/Cloudflare serve Brotli, which niquests can't decode
+    # without the optional package) instead of undecodable bytes. Do NOT
+    # raise_for_status here: kinox's bot-check answers the redirect with a 403
+    # (or a 200 "Verifizierung" page), and both mean "captcha required".
+    resp = get_session().get(
+        target,
+        headers={"Referer": referer, "Accept-Encoding": "gzip, deflate"},
+        allow_redirects=True,
+    )
     final = str(resp.url)
+    if resp.status_code < 400 and not _stayed_on_kinox(final):
+        return final
 
-    netloc = urlparse(final).netloc.lower()
-    if KINOX_DOMAIN.split(".")[0] in netloc:
-        body = resp.text.lower()
-        if any(t in body for t in ("verifizierung", "captcha", "verification")):
-            raise RuntimeError(
-                "kinox: captcha verification required — open kinox in a browser once"
-            )
-        raise RuntimeError(f"kinox: redirect stayed on site ({final})")
-    return final
+    # Blocked: a 403/429/503, or a redirect that stayed on kinox serving the JS
+    # "Verifizierung" bot-check. Every visitor gets it and it never resolves
+    # without a real browser solving it once, so fail with a marker the web UI
+    # turns into a "solve the captcha on kinox, then retry" button.
+    body = ""
+    try:
+        body = resp.text[:4000].lower()
+    except Exception:
+        pass
+    if (
+        resp.status_code in (403, 429, 503)
+        or _stayed_on_kinox(final)
+        or "verifizierung" in body
+    ):
+        raise RuntimeError(
+            "kinox: verification captcha required — open the title on kinox, "
+            f"solve the captcha there, then retry the download {KINOX_CAPTCHA_MARKER}"
+        )
+    raise RuntimeError(
+        f"kinox: redirect failed (status {resp.status_code}, {final})"
+    )
 
 
 class _KinoxLanguageMixin:

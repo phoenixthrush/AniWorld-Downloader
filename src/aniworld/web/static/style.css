@@ -1909,6 +1909,57 @@ h1 {
   border-color: rgba(239, 68, 68, 0.6);
 }
 
+/* Kinox-only: solve-captcha link + retry shown under a failed kinox item */
+.queue-captcha-solve {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.queue-captcha-note {
+  font-size: 0.75rem;
+  color: #f8b4b4;
+  flex: 1 1 auto;
+}
+
+.queue-captcha-link,
+.queue-retry-btn {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.queue-captcha-link {
+  background: rgba(239, 68, 68, 0.14);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #f87171;
+}
+
+.queue-captcha-link:hover {
+  background: rgba(239, 68, 68, 0.24);
+}
+
+.queue-retry-btn {
+  background: rgba(96, 165, 250, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.4);
+  color: #60a5fa;
+}
+
+.queue-retry-btn:hover {
+  background: rgba(96, 165, 250, 0.22);
+}
+
 .captcha-overlay {
   display: none;
   position: fixed;

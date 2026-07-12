@@ -272,6 +272,11 @@ def init_queue_db():
             conn.execute("ALTER TABLE download_queue ADD COLUMN captcha_url TEXT")
         except Exception:
             pass  # column already exists
+        # Add discord_user_id column so the bot can DM the requester on completion
+        try:
+            conn.execute("ALTER TABLE download_queue ADD COLUMN discord_user_id TEXT")
+        except Exception:
+            pass  # column already exists
         conn.commit()
     finally:
         conn.close()
@@ -286,14 +291,15 @@ def add_to_queue(
     username=None,
     custom_path_id=None,
     source="manual",
+    discord_user_id=None,
 ):
     import json
 
     conn = get_db()
     try:
         cur = conn.execute(
-            "INSERT INTO download_queue (title, series_url, episodes, total_episodes, language, provider, username, custom_path_id, source) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO download_queue (title, series_url, episodes, total_episodes, language, provider, username, custom_path_id, source, discord_user_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 title,
                 series_url,
@@ -304,6 +310,7 @@ def add_to_queue(
                 username,
                 custom_path_id,
                 source,
+                discord_user_id,
             ),
         )
         row_id = cur.lastrowid
@@ -451,6 +458,33 @@ def update_queue_errors(queue_id, errors_json):
             (errors_json, queue_id),
         )
         conn.commit()
+    finally:
+        conn.close()
+
+
+def requeue_item(queue_id):
+    """Reset a finished item back to 'queued' so the worker retries it.
+
+    Used by the retry action (e.g. after solving the kinox captcha). Clears the
+    previous errors, progress and captcha marker, and moves the item to the end
+    of the queue so it stays visible: the UI only lists the few most-recent
+    finished items, and without the bump a retried-then-failed item would drop
+    out of view. Returns True if a row changed.
+    """
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT COALESCE(MAX(position), 0) + 1 AS pos FROM download_queue"
+        ).fetchone()
+        next_pos = row["pos"] if row else 0
+        cur = conn.execute(
+            "UPDATE download_queue SET status='queued', errors='[]', "
+            "current_episode=0, current_url=NULL, completed_at=NULL, "
+            "captcha_url=NULL, position=? WHERE id=? AND status IN ('failed','cancelled')",
+            (next_pos, queue_id),
+        )
+        conn.commit()
+        return cur.rowcount > 0
     finally:
         conn.close()
 

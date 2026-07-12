@@ -19,6 +19,7 @@ from urllib.parse import urlparse
 try:
     from ...config import (
         Audio,
+        DEFAULT_USER_AGENT,
         Subtitles,
         build_provider_attempt_order,
         logger,
@@ -34,6 +35,7 @@ try:
 except ImportError:
     from aniworld.config import (
         Audio,
+        DEFAULT_USER_AGENT,
         Subtitles,
         build_provider_attempt_order,
         logger,
@@ -47,9 +49,8 @@ except ImportError:
     from aniworld.models.common.http import get_html, get_session
     from aniworld.models.common.provider_map import host_to_provider
 
-# Official domains, newest first. bs.to went down; the burning-series devs
-# published bs.cine.to / burningseries.ac / burningseries.cx as the current
-# mirrors. They are tried in order and the first that answers is remembered.
+# Official domains for search / browse / episode listings. bs.cine.to answers
+# reliably for these. The first domain that answers is remembered.
 _DOMAINS = [
     "https://bs.cine.to",
     "https://burningseries.ac",
@@ -57,6 +58,12 @@ _DOMAINS = [
     "https://burning-series.io",
     "https://burning-series.net",
 ]
+
+# Domains that still serve the classic player with the window.open stream
+# redirect that downloads rely on. bs.cine.to's newer markup dropped it, so the
+# stream step is resolved against these regardless of the browse domain. The
+# per-episode hoster paths are relative, so they work on any burning-series host.
+_STREAM_DOMAINS = ["https://burning-series.io", "https://burning-series.net"]
 _active_idx = 0
 
 # burning-series rate-limits parallel redirect follows, so serialise them.
@@ -113,57 +120,116 @@ def _is_bs_host(url):
     return any(netloc.endswith(host) for host in _BS_HOSTS)
 
 
+def _bs_curl_get(url, referer=None, timeout=12):
+    """GET a burning-series URL and return (text, final_url).
+
+    Prefers curl_cffi's real Chrome TLS fingerprint so the Cloudflare/Turnstile
+    gate on the stream redirect lets us through (plain niquests gets challenged);
+    falls back to the shared session when curl_cffi isn't installed.
+    """
+    headers = {"User-Agent": DEFAULT_USER_AGENT, "Accept-Encoding": "gzip, deflate"}
+    if referer:
+        headers["Referer"] = referer
+    try:
+        from curl_cffi import requests as _curl_requests
+
+        resp = _curl_requests.get(
+            url,
+            headers=headers,
+            impersonate="chrome124",
+            allow_redirects=True,
+            timeout=timeout,
+        )
+        return resp.text, str(resp.url)
+    except ImportError:
+        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug(f"burning-series curl_cffi fetch failed ({exc}); using niquests")
+    resp = get_session().get(url, headers=headers, allow_redirects=True, timeout=timeout)
+    return resp.text, str(resp.url)
+
+
+def _hoster_rel_path(hoster_path):
+    """Strip any burning-series host so the relative hoster path can be rebuilt
+    against a stream-capable domain."""
+    if hoster_path.startswith("http"):
+        hoster_path = re.sub(r"^https?://[^/]+/", "", hoster_path)
+    return hoster_path.lstrip("/")
+
+
 def _resolve_hoster_link(hoster_path, referer):
     """Follow a per-episode hoster link to the final hoster embed URL.
 
-    The hoster page carries a ``window.open('…/stream/<id>')`` link. That
-    ``/stream/<id>`` page renders the hoster iframe client-side, so a plain HTTP
-    follow stays on burning-series. We first try a server-side redirect (fast),
-    then fall back to a headless browser that waits for the real hoster iframe.
+    The classic burning-series.io/.net player carries a ``window.open('…')`` to a
+    stream redirect; following that redirect with a real Chrome TLS fingerprint
+    (so Cloudflare/Turnstile lets us through) lands on the actual hoster embed.
+    The newer bs.cine.to mirror dropped that redirect, so the player page is
+    fetched from the stream-capable domains regardless of the browse domain.
     """
-    base = bs_current_base()
-    player_url = hoster_path if hoster_path.startswith("http") else f"{base}/{hoster_path.lstrip('/')}"
+    rel = _hoster_rel_path(hoster_path)
 
     with _REDIRECT_LOCK:
         time.sleep(_REDIRECT_DELAY)
-        player_html = get_html(player_url, headers={"Referer": referer})
-        m = re.search(r"window\.open\(['\"]([^'\"]+)['\"]", player_html)
-        if not m:
-            raise RuntimeError("burning-series: no player redirect found")
 
-        stream_url = m.group(1)
-        if stream_url.startswith("//"):
-            stream_url = "https:" + stream_url
-        elif stream_url.startswith("/"):
-            stream_url = base + stream_url
+        last_err = None
+        vpn_blocked = False
+        for base in _STREAM_DOMAINS:
+            player_url = f"{base}/{rel}"
+            try:
+                player_html, _ = _bs_curl_get(player_url, referer)
+            except Exception as exc:  # noqa: BLE001
+                last_err = exc
+                continue
 
-        # Fast path: a plain redirect straight to the hoster.
-        try:
-            resp = get_session().get(
-                stream_url, headers={"Referer": player_url}, allow_redirects=True
-            )
-            resp.raise_for_status()
-            final = str(resp.url)
-            if not _is_bs_host(final):
-                return final
-        except Exception as exc:
-            logger.debug(f"burning-series direct redirect failed: {exc}")
+            # German ISPs block burning-series, so the site serves a "you must
+            # use a VPN" interstitial instead of the player. Detect it to give a
+            # clear reason instead of a vague failure.
+            low = player_html[:6000].lower()
+            if "vpn" in low and ("burning series" in low or "zensur" in low or "gesperrt" in low):
+                vpn_blocked = True
+                last_err = RuntimeError("VPN required")
+                continue
 
-        # Slow path: the /stream/<id> player renders the embed with JavaScript.
-        try:
-            from ...playwright.captcha import playwright_get_iframe_url
+            m = re.search(r"window\.open\(['\"]([^'\"]+)['\"]", player_html)
+            if not m:
+                last_err = RuntimeError(f"no window.open on {base}")
+                continue
 
-            embed = playwright_get_iframe_url(stream_url)
-            if embed and not _is_bs_host(embed):
-                return embed
-        except Exception as exc:
+            stream_url = m.group(1)
+            if stream_url.startswith("//"):
+                stream_url = "https:" + stream_url
+            elif stream_url.startswith("/"):
+                stream_url = base + stream_url
+
+            # Follow the redirect (Chrome impersonation passes Turnstile).
+            try:
+                _body, final = _bs_curl_get(stream_url, player_url)
+                if final and not _is_bs_host(final):
+                    return final
+            except Exception as exc:  # noqa: BLE001
+                logger.debug(f"burning-series redirect follow failed: {exc}")
+
+            # Fallback: the redirect renders the embed client-side — let the
+            # headless browser wait for the real hoster iframe.
+            try:
+                from ...playwright.captcha import playwright_get_iframe_url
+
+                embed = playwright_get_iframe_url(stream_url)
+                if embed and not _is_bs_host(embed):
+                    return embed
+            except Exception as exc:  # noqa: BLE001
+                last_err = exc
+
+        if vpn_blocked:
             raise RuntimeError(
-                "burning-series: could not resolve the hoster embed. The player "
-                "renders client-side and needs the headless browser (patchright + "
-                f"chromium). Details: {exc}"
-            ) from exc
-
-        raise RuntimeError("burning-series: hoster embed not found")
+                "burning-series is geo-blocked for German ISPs and serves a "
+                "'use a VPN' page instead of the player — run the app/container "
+                "behind a VPN to download from burning-series."
+            )
+        raise RuntimeError(
+            "burning-series: could not resolve the hoster embed on "
+            f"burning-series.io/.net ({last_err})."
+        )
 
 
 class _BSLanguageMixin:
@@ -633,11 +699,22 @@ class BurningSeriesSeries:
                 re.IGNORECASE,
             ):
                 numbers.add(int(m.group(1)))
+            # burning-series exposes "season 0" as a movies/specials bucket that
+            # is often empty or holds just a film. List the real numbered seasons
+            # first so the modal opens on one that actually has episodes, and keep
+            # season 0 at the end rather than dropping it (it can still hold
+            # content). Without this the modal defaulted to season 0 and looked
+            # like the series had no episodes at all.
+            ordered = sorted(n for n in numbers if n > 0)
+            if 0 in numbers:
+                ordered.append(0)
+            if not ordered:
+                ordered = [1]
             self.__seasons = [
                 BurningSeriesSeason(
                     f"{bs_current_base()}/serie/{self.slug}/{n}", series=self, season_number=n
                 )
-                for n in sorted(numbers) or [1]
+                for n in ordered
             ]
         return self.__seasons
 

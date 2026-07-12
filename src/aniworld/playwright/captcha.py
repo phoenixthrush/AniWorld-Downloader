@@ -645,13 +645,15 @@ def playwright_get_hanime_stream_url(url: str) -> str:
         return None
 
 
-def playwright_get_cineby_stream_url(url: str, timeout: int = 45) -> str:
-    """Open a cineby.at watch page and capture the playable HLS (m3u8) URL.
+def playwright_get_cineby_stream_url(url: str, timeout: int = 40) -> str:
+    """Open the vidking player embed and capture the playable HLS (m3u8) URL.
 
-    cineby is a Next.js SPA that resolves its stream client-side (encrypted
-    source API + Cloudflare), so the reliable way to get the playlist is to load
-    the page, start playback and capture the `index.m3u8` request — the same
-    approach already used for hanime.
+    cineby embeds the vidking player (`vidking.net/embed/...`), which resolves
+    the stream client-side from an encrypted source API. `url` is the vidking
+    embed URL — a bare player page that autoplays, so a single click plus
+    `video.play()` reliably makes it request the `index.m3u8` we capture. This
+    is far more dependable than driving cineby's full SPA (Cloudflare + a finicky
+    play button).
     """
     try:
         from patchright.sync_api import sync_playwright
@@ -669,40 +671,50 @@ def playwright_get_cineby_stream_url(url: str, timeout: int = 45) -> str:
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True, args=["--disable-gpu"])
-            context = browser.new_context(viewport={"width": 1280, "height": 720})
+            context = browser.new_context(
+                viewport={"width": 1280, "height": 720}, locale="en-US"
+            )
             page = context.new_page()
 
             def _capture(response):
                 nonlocal final_url
                 u = response.url
-                if not final_url and ".m3u8" in u and "index" in u:
+                if not final_url and ".m3u8" in u.split("?", 1)[0].lower():
                     final_url = u
 
             page.on("response", _capture)
-            logger.debug(f"Opening cineby page for stream capture: {url}")
+            logger.debug(f"Opening vidking embed for stream capture: {url}")
             try:
                 page.goto(url, wait_until="domcontentloaded", timeout=40000)
             except Exception:
                 pass
-            page.wait_for_timeout(2500)
+            try:
+                page.wait_for_selector("video, button", timeout=15000)
+            except Exception:
+                pass
+            page.wait_for_timeout(1500)
 
-            # Nudge playback so the source resolves.
-            for selector in ('button:has-text("Play")', '[class*="play" i]', "video"):
-                try:
-                    element = page.locator(selector).first
-                    if element.count() > 0:
-                        element.click(timeout=2500)
-                except Exception:
-                    pass
-
+            # One click in the middle to start playback (a user gesture), then
+            # only ever call play() when paused so we never toggle it back off.
+            try:
+                page.mouse.click(640, 360)
+            except Exception:
+                pass
             deadline = _time.time() + timeout
             while _time.time() < deadline and not final_url:
-                page.wait_for_timeout(1000)
+                try:
+                    page.evaluate(
+                        "() => { const v = document.querySelector('video');"
+                        " if (v) { v.muted = true; if (v.paused) v.play().catch(()=>{}); } }"
+                    )
+                except Exception:
+                    pass
+                page.wait_for_timeout(1200)
 
             browser.close()
 
         if final_url:
-            logger.info("Captured cineby manifest URL")
+            logger.info("Captured cineby/vidking manifest URL")
         return final_url
     except Exception as e:
         logger.error(f"Failed to capture cineby stream URL: {e}")

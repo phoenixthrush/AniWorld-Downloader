@@ -97,12 +97,16 @@ function applyDiscordSettings(d) {
   const mode = document.getElementById("discordMode");
   const role = document.getElementById("discordRole");
   const guild = document.getElementById("discordGuild");
+  const language = document.getElementById("discordLanguage");
+  const announce = document.getElementById("discordAnnounce");
   const token = document.getElementById("discordToken");
   if (enabled) enabled.checked = !!d.enabled;
   if (owner) owner.value = d.owner_id || "";
   if (mode) mode.value = d.mode || "standard";
   if (role) role.value = d.request_role_id || "";
   if (guild) guild.value = d.guild_id || "";
+  if (language) language.value = d.language || "en";
+  if (announce) announce.value = d.announce_channel_id || "";
   // Show a placeholder when a token is already stored; leave blank to keep it.
   if (token) token.placeholder = d.token_set ? "••••••••" : "";
   loadDiscordStatus();
@@ -117,6 +121,8 @@ async function saveDiscord() {
       mode: document.getElementById("discordMode").value,
       request_role_id: document.getElementById("discordRole").value.trim(),
       guild_id: document.getElementById("discordGuild").value.trim(),
+      language: document.getElementById("discordLanguage").value,
+      announce_channel_id: document.getElementById("discordAnnounce").value.trim(),
     },
   };
   // Only send the token when the user actually typed a new one.

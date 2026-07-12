@@ -9,6 +9,7 @@ hanime. URLs are `/movie/<tmdb_id>` and `/tv/<tmdb_id>/<season>/<episode>`.
 
 import os
 import re
+import time
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -40,6 +41,130 @@ except ImportError:
 CINEBY_BASE = "https://www.cineby.at"
 TMDB_PROXY = "https://db.wingsdatabase.com/3"
 TMDB_IMG = "https://image.tmdb.org/t/p/w500"
+# cineby plays through the vidking embed; capturing the stream from the bare
+# embed page is far more reliable than driving cineby's full SPA.
+VIDKING_BASE = "https://www.vidking.net"
+
+
+def vidking_embed_url(is_movie, tmdb_id, season=None, episode=None):
+    """The vidking player embed URL cineby loads to resolve a stream."""
+    if is_movie:
+        return f"{VIDKING_BASE}/embed/movie/{tmdb_id}"
+    return f"{VIDKING_BASE}/embed/tv/{tmdb_id}/{season or 1}/{episode or 1}"
+
+
+# cineby's playable sources come from this API (encrypted with enc=2). Resolving
+# it directly is browser-free and reliable; the headless capture is the fallback.
+WINGS_API = "https://api.wingsdatabase.com"
+
+
+def _fetch(url, params=None, timeout=15):
+    """GET a wingsdatabase URL, returning the response object.
+
+    Prefers curl_cffi with a real Chrome TLS fingerprint: api/db.wingsdatabase.com
+    sit behind Cloudflare (it hands out ``error code: 1200`` / 503 to clients it
+    doesn't like — the same gate VOE needed impersonation for), and curl_cffi
+    also resolves DNS itself instead of the shared session's DoH resolver, which
+    can be unreachable inside a container. Falls back to the shared niquests
+    session when curl_cffi isn't installed or errors.
+    """
+    try:
+        from curl_cffi import requests as _curl_requests
+
+        return _curl_requests.get(
+            url,
+            params=params,
+            headers=_TMDB_HEADERS,
+            impersonate="chrome124",
+            timeout=timeout,
+        )
+    except ImportError:
+        pass
+    except Exception as exc:  # noqa: BLE001 - fall back to niquests on any curl error
+        logger.debug(f"cineby curl_cffi fetch failed ({exc}); using niquests")
+
+    return get_session().get(url, params=params, headers=_TMDB_HEADERS, timeout=timeout)
+
+
+def _best_source(sources):
+    """Pick the highest-quality m3u8 from a decrypted sources list."""
+    def quality(src):
+        m = re.match(r"(\d+)", str(src.get("quality", "")))
+        return int(m.group(1)) if m else 0
+
+    for src in sorted(sources or [], key=quality, reverse=True):
+        url = src.get("url")
+        if url and ".m3u8" in url:
+            return url
+    return None
+
+
+def resolve_stream_via_api(
+    media_type, tmdb_id, title, year, imdb_id, season, episode, attempts=3
+):
+    """Resolve the playable m3u8 straight from cineby's source API (no browser).
+
+    Fetches the short-lived seed, then the ``enc=2`` sources blob, decrypts it
+    (STREAMCRYPTO) and returns the highest-quality playlist. The API is behind
+    Cloudflare and rate-limits per IP, so a single request fails often enough to
+    be unreliable; we retry a few times (fresh seed each time — it has a 30 s TTL)
+    with a short backoff before giving up. Returns None on total failure so the
+    caller can fall back to the headless capture, and logs *why* at WARNING so a
+    persistent failure is diagnosable instead of silently blamed on the browser.
+    """
+    from .streamcrypto import decrypt_sources
+
+    last_err = None
+    for attempt in range(attempts):
+        try:
+            seed_resp = _fetch(f"{WINGS_API}/seed", params={"mediaId": tmdb_id})
+            if seed_resp.status_code != 200:
+                raise RuntimeError(
+                    f"seed HTTP {seed_resp.status_code}: {seed_resp.text[:80]!r}"
+                )
+            seed = (seed_resp.json() or {}).get("seed")
+            if not seed:
+                raise RuntimeError(f"no seed in response: {seed_resp.text[:80]!r}")
+
+            params = {
+                "title": title or "",
+                "mediaType": media_type,
+                "year": year or "",
+                "episodeId": episode or 1,
+                "seasonId": season or 1,
+                "tmdbId": tmdb_id,
+                "imdbId": imdb_id or "",
+                "enc": "2",
+                "seed": seed,
+            }
+            src_resp = _fetch(f"{WINGS_API}/cdn/sources-with-title", params=params)
+            if src_resp.status_code != 200:
+                raise RuntimeError(
+                    f"sources HTTP {src_resp.status_code}: {src_resp.text[:80]!r}"
+                )
+            # A rate-limit / error comes back as a JSON body ({"error": ...}); the
+            # real payload is base64url and never starts with a brace.
+            if src_resp.text.lstrip().startswith("{"):
+                raise RuntimeError(f"sources error: {src_resp.text[:80]!r}")
+
+            data = decrypt_sources(src_resp.text, seed, int(tmdb_id))
+            url = _best_source(data.get("sources"))
+            if url:
+                return url
+            raise RuntimeError("no playable m3u8 in decrypted sources")
+        except Exception as exc:  # noqa: BLE001 - retry, then fall back to browser
+            last_err = exc
+            logger.debug(
+                f"cineby API resolve attempt {attempt + 1}/{attempts} failed: {exc}"
+            )
+            if attempt + 1 < attempts:
+                time.sleep(1.5 * (attempt + 1))
+
+    logger.warning(
+        f"cineby API stream resolve failed for tmdb {tmdb_id} after "
+        f"{attempts} attempts: {last_err}"
+    )
+    return None
 
 _TMDB_HEADERS = {
     "Accept-Encoding": "gzip, deflate",
@@ -49,11 +174,16 @@ _TMDB_HEADERS = {
 
 
 def tmdb_get(path):
-    """GET a TMDB proxy path and return parsed JSON (or {})."""
+    """GET a TMDB proxy path and return parsed JSON (or {}).
+
+    Uses the same curl_cffi path as the source API: db.wingsdatabase.com is
+    behind the same Cloudflare gate, so a plain session can come back empty in a
+    container and leave the stream lookup with no title/year to send.
+    """
     sep = "&" if "?" in path else "?"
     url = f"{TMDB_PROXY}{path}{sep}language=en-US"
     try:
-        resp = get_session().get(url, headers=_TMDB_HEADERS, timeout=15)
+        resp = _fetch(url)
         resp.raise_for_status()
         return resp.json()
     except Exception as exc:
@@ -251,14 +381,46 @@ class CinebyEpisode:
     @property
     def stream_url(self):
         if self.__stream_url is None:
-            from ...playwright.captcha import playwright_get_cineby_stream_url
+            m3u8 = None
 
-            m3u8 = playwright_get_cineby_stream_url(self.url)
+            # Preferred: resolve straight from cineby's source API and decrypt
+            # it — no browser, so it can't be defeated by a flaky headless run.
+            try:
+                meta = self._meta or {}
+                title = meta.get("title") or meta.get("name") or self.title
+                year = _year(meta.get("release_date") or meta.get("first_air_date"))
+                imdb = meta.get("imdb_id") or ""
+                season = 1 if self.is_movie else self.season_number
+                episode = 1 if self.is_movie else self.episode_number
+                m3u8 = resolve_stream_via_api(
+                    self.media_type, self.tmdb_id, title, year, imdb, season, episode
+                )
+            except Exception as exc:
+                logger.debug(f"cineby API resolve error: {exc}")
+
+            # Fallback: capture the m3u8 from the headless vidking player.
             if not m3u8:
+                from ...playwright.captcha import playwright_get_cineby_stream_url
+
+                embed = vidking_embed_url(
+                    self.is_movie, self.tmdb_id, self.season_number, self.episode_number
+                )
+                m3u8 = playwright_get_cineby_stream_url(embed)
+
+            if not m3u8:
+                # A common reason there's no playlist is simply that the title
+                # isn't out yet — say so instead of blaming the browser.
+                meta = self._meta or {}
+                status = (meta.get("status") or "").lower()
+                release = meta.get("release_date") or meta.get("first_air_date") or ""
+                if status and status != "released":
+                    raise RuntimeError(
+                        f"cineby: no stream yet for '{self.title}' — it isn't "
+                        f"released ({status}, {release or 'date unknown'})."
+                    )
                 raise RuntimeError(
-                    f"cineby: could not capture a stream for {self.url}. "
-                    "The player resolves client-side and needs the headless "
-                    "browser (patchright + chromium)."
+                    f"cineby: could not resolve a stream for {self.url} "
+                    "(source API and headless browser both failed)."
                 )
             self.__stream_url = m3u8
         return self.__stream_url

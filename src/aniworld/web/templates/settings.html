@@ -266,6 +266,22 @@ endblock %} {% block content %}
         <input type="text" id="discordGuild" placeholder="" />
       </div>
     </div>
+    <div class="settings-row" style="margin-top: 10px; gap: 10px; flex-wrap: wrap">
+      <div style="flex: 1; min-width: 150px">
+        <label class="planned-label" data-i18n="settings.discord.language">Bot Language</label>
+        <select id="discordLanguage" class="sync-select">
+          <option value="en" data-i18n="settings.discord.language_en">English</option>
+          <option value="de" data-i18n="settings.discord.language_de">German</option>
+        </select>
+      </div>
+      <div style="flex: 1; min-width: 150px">
+        <label class="planned-label" data-i18n="settings.discord.announce">Announce Channel ID (optional)</label>
+        <input type="text" id="discordAnnounce" placeholder="" />
+      </div>
+    </div>
+    <div class="settings-hint" data-i18n="settings.discord.announce_hint">
+      When a requested download finishes, the requester is DM'd; if an announce channel is set, a "now available" message is posted there too.
+    </div>
     <div style="margin-top: 14px; display: flex; align-items: center; gap: 12px">
       <button onclick="saveDiscord()" data-i18n="common.save">Save</button>
       <span id="discordStatus" class="discord-status"></span>

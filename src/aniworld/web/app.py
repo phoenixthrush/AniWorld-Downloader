@@ -71,6 +71,7 @@ from .db import (
     remove_autosync_job,
     remove_custom_path,
     remove_from_queue,
+    requeue_item,
     set_captcha_url,
     set_queue_status,
     update_autosync_job,
@@ -142,7 +143,10 @@ DISCORD_ENV_KEYS = {
     "mode": "ANIWORLD_DISCORD_MODE",
     "request_role_id": "ANIWORLD_DISCORD_REQUEST_ROLE_ID",
     "guild_id": "ANIWORLD_DISCORD_GUILD_ID",
+    "language": "ANIWORLD_DISCORD_LANGUAGE",
+    "announce_channel_id": "ANIWORLD_DISCORD_ANNOUNCE_CHANNEL_ID",
 }
+DISCORD_LANGUAGES = ("en", "de")
 
 DISCORD_MODES = ("standard", "advanced")
 
@@ -191,6 +195,10 @@ def _discord_settings():
         "mode": os.environ.get(DISCORD_ENV_KEYS["mode"], "standard"),
         "request_role_id": os.environ.get(DISCORD_ENV_KEYS["request_role_id"], ""),
         "guild_id": os.environ.get(DISCORD_ENV_KEYS["guild_id"], ""),
+        "language": os.environ.get(DISCORD_ENV_KEYS["language"], "en"),
+        "announce_channel_id": os.environ.get(
+            DISCORD_ENV_KEYS["announce_channel_id"], ""
+        ),
     }
 
 
@@ -217,7 +225,13 @@ def _apply_discord_settings(payload, env_updates):
             return f"Invalid discord mode: {mode}"
         env_updates[DISCORD_ENV_KEYS["mode"]] = mode
 
-    for field in ("owner_id", "request_role_id", "guild_id"):
+    if "language" in payload:
+        language = str(payload["language"]).strip().lower()
+        if language not in DISCORD_LANGUAGES:
+            return f"Invalid discord language: {language}"
+        env_updates[DISCORD_ENV_KEYS["language"]] = language
+
+    for field in ("owner_id", "request_role_id", "guild_id", "announce_channel_id"):
         if field in payload:
             value = str(payload[field]).strip()
             if value and not value.isdigit():
@@ -241,12 +255,30 @@ def _persist_discord_env(env_updates):
     if not subset:
         return
     try:
+        from pathlib import Path
+
         from ..env import persist_env_values
 
         env_path = Path.home() / ".aniworld" / ".env"
         persist_env_values(env_path, subset)
     except Exception as exc:
         logger.warning(f"Could not persist Discord settings to .env: {exc}")
+
+
+def _notify_discord_completed(item):
+    """Tell the Discord bot a requested download finished (DM + optional announce)."""
+    try:
+        from .discord_bot import notify_completed
+
+        media_type = "movie" if int(item.get("total_episodes") or 1) <= 1 else "series"
+        notify_completed(
+            item.get("title") or "Unknown",
+            media_type,
+            item.get("language") or "",
+            item.get("discord_user_id"),
+        )
+    except Exception as exc:
+        logger.info(f"Discord completion notice skipped: {exc}")
 
 
 def _reconcile_discord_bot():
@@ -584,7 +616,27 @@ def _queue_worker():
                 except Exception as e:
                     _captcha_mod._local.queue_id = None
                     logger.error(f"Download failed for {ep_url}: {e}")
-                    errors.append({"url": ep_url, "error": str(e)})
+                    err_entry = {"url": ep_url, "error": str(e)}
+                    # kinox (and only kinox) guards each download with a captcha
+                    # every visitor gets. Attach the kinox title page so the UI
+                    # can offer a "solve on kinox, then retry" button.
+                    try:
+                        from ..models.kinox.series import (
+                            KINOX_CAPTCHA_MARKER,
+                            kinox_captcha_page_url,
+                        )
+
+                        if (
+                            locals().get("prov") is not None
+                            and prov.name == "Kinox"
+                            and KINOX_CAPTCHA_MARKER in str(e)
+                        ):
+                            err_entry["captcha_url"] = kinox_captcha_page_url(
+                                chapter_url
+                            )
+                    except Exception:
+                        pass
+                    errors.append(err_entry)
                     update_queue_errors(item["id"], json.dumps(errors))
 
                 # Check for cancellation after each episode
@@ -600,6 +652,10 @@ def _queue_worker():
                     "failed" if errors and len(errors) == len(episodes) else "completed"
                 )
                 set_queue_status(item["id"], status)
+
+                # Notify the Discord requester (DM) + optional announce channel.
+                if status == "completed" and item.get("source") == "discord":
+                    _notify_discord_completed(item)
 
         except Exception as e:
             logger.error(f"Queue worker error: {e}", exc_info=True)
@@ -1756,6 +1812,14 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     @app.route("/api/queue/completed", methods=["DELETE"])
     def api_queue_clear():
         clear_completed()
+        return jsonify({"ok": True})
+
+    @app.route("/api/queue/<int:queue_id>/retry", methods=["POST"])
+    def api_queue_retry(queue_id):
+        """Re-queue a failed/cancelled item (e.g. after solving the kinox captcha)."""
+        if not requeue_item(queue_id):
+            return jsonify({"error": "item not found or not retryable"}), 400
+        _ensure_queue_worker()
         return jsonify({"ok": True})
 
     # ── Captcha endpoints ─────────────────────────────────────────────────────

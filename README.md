@@ -60,7 +60,11 @@ For full user guides, tutorials, and troubleshooting, visit the [official docume
 - **Group Watching** – Sync anime and series sessions with friends via **Syncplay**
 - **Web Interface** – Browse, download, and manage your queue with a modern web UI
 - **More Sites** – Also search and download from **Kinox**, **BurningSeries**, **FilmPalast**, and **Cineby**
-- **Faster VOE/HLS** – HLS streams are fetched with parallel segments instead of a single FFmpeg connection
+  > **Kinox is currently not recommended:** it demands a captcha for every download
+  > (the same one all visitors get) that can't be solved automatically. Downloads
+  > still run without errors — when kinox blocks one, the queue shows a **"Solve on
+  > Kinox"** button that opens the title page so you can solve the captcha and hit
+  > **Retry**. Prefer the other sites for now.
 - **Planned Releases** – Queue titles that aren't out yet; they download automatically once available
 - **Discord Request Bot** – Let others request movies/series from Discord, with owner approval
 - **Interface Language** – Switch the whole UI between English and German

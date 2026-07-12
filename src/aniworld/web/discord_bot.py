@@ -7,6 +7,11 @@ blind first-hit matcher would. Depending on the configured mode the request is
 either sent to the owner for approval (standard) or queued straight away
 (advanced).
 
+The bot speaks English or German (ANIWORLD_DISCORD_LANGUAGE): the slash command
+names, their descriptions and every message it sends follow that setting. When a
+requested download finishes, the requester is always DM'd, and — if an announce
+channel is configured — a "now available" message is posted there too.
+
 The whole module is import-safe: if discord.py is not installed, or the bot is
 disabled, the web app keeps working and `get_status()` simply reports it as off.
 """
@@ -41,6 +46,134 @@ SITE_LABELS = {
     "burningseries": "BurningSeries",
     "cineby": "Cineby",
 }
+
+
+# ---------------------------------------------------------------------------
+# Localisation
+# ---------------------------------------------------------------------------
+TRANSLATIONS = {
+    "en": {
+        "cmd_movie": "movie-request",
+        "cmd_movie_desc": "Request a movie",
+        "cmd_series": "series-request",
+        "cmd_series_desc": "Request a series",
+        "arg_movie_title": "Movie title",
+        "arg_series_title": "Series title",
+        "no_permission": "You don't have permission to request.",
+        "search_failed": "Search failed: {error}",
+        "no_results": "No results found for **{title}**.",
+        "results_for": "Results for **{title}**:",
+        "pick_title": "Pick the exact title",
+        "language_ph": "Language",
+        "choose_language": "**{title}** — choose a language:",
+        "queued": "✅ **{title}** ({language}) was added to the download queue.",
+        "queue_failed": "❌ Could not queue **{title}**: {error}",
+        "no_owner": "⚠️ No owner is configured, so the request can't be forwarded.",
+        "sent_for_approval": "\U0001f4e8 Your request for **{title}** was sent for approval.",
+        "owner_unreachable": "⚠️ Could not reach the owner via DM.",
+        "req_title": "New download request",
+        "f_type": "Type",
+        "f_language": "Language",
+        "f_site": "Site",
+        "f_requested_by": "Requested by",
+        "f_url": "URL",
+        "btn_accept": "Accept",
+        "btn_decline": "Decline",
+        "accepted_owner": "✅ Accepted — **{title}** is downloading.",
+        "accepted_dm": "✅ Your request **{title}** was accepted and is downloading.",
+        "decline_title": "Decline request",
+        "decline_reason": "Reason (optional)",
+        "declined_owner": "\U0001f6ab Declined **{title}**.",
+        "declined_dm": "\U0001f6ab Your request **{title}** was declined.",
+        "declined_reason": "Reason: {reason}",
+        "queue_failed_short": "❌ Failed to queue: {error}",
+        "available_dm": "✅ Your request **{title}** has finished downloading and is now available.",
+        "available_title": "{title} is now available!",
+        "available_desc": "**{title}** ({language}) has finished downloading and is now available.",
+        "type_movie": "Movie",
+        "type_series": "Series",
+        "lang_german": "German",
+        "lang_english": "English",
+        "qual_dub": "Dub",
+        "qual_sub": "Sub",
+    },
+    "de": {
+        "cmd_movie": "film-anfrage",
+        "cmd_movie_desc": "Einen Film anfragen",
+        "cmd_series": "serien-anfrage",
+        "cmd_series_desc": "Eine Serie anfragen",
+        "arg_movie_title": "Filmtitel",
+        "arg_series_title": "Serientitel",
+        "no_permission": "Du hast keine Berechtigung, etwas anzufragen.",
+        "search_failed": "Suche fehlgeschlagen: {error}",
+        "no_results": "Keine Ergebnisse für **{title}** gefunden.",
+        "results_for": "Ergebnisse für **{title}**:",
+        "pick_title": "Wähle den genauen Titel",
+        "language_ph": "Sprache",
+        "choose_language": "**{title}** — wähle eine Sprache:",
+        "queued": "✅ **{title}** ({language}) wurde zur Download-Warteschlange hinzugefügt.",
+        "queue_failed": "❌ **{title}** konnte nicht eingereiht werden: {error}",
+        "no_owner": "⚠️ Es ist kein Owner konfiguriert, daher kann die Anfrage nicht weitergeleitet werden.",
+        "sent_for_approval": "\U0001f4e8 Deine Anfrage für **{title}** wurde zur Freigabe gesendet.",
+        "owner_unreachable": "⚠️ Der Owner konnte per DM nicht erreicht werden.",
+        "req_title": "Neue Download-Anfrage",
+        "f_type": "Typ",
+        "f_language": "Sprache",
+        "f_site": "Seite",
+        "f_requested_by": "Angefragt von",
+        "f_url": "URL",
+        "btn_accept": "Annehmen",
+        "btn_decline": "Ablehnen",
+        "accepted_owner": "✅ Angenommen — **{title}** wird heruntergeladen.",
+        "accepted_dm": "✅ Deine Anfrage **{title}** wurde angenommen und wird heruntergeladen.",
+        "decline_title": "Anfrage ablehnen",
+        "decline_reason": "Grund (optional)",
+        "declined_owner": "\U0001f6ab **{title}** abgelehnt.",
+        "declined_dm": "\U0001f6ab Deine Anfrage **{title}** wurde abgelehnt.",
+        "declined_reason": "Grund: {reason}",
+        "queue_failed_short": "❌ Einreihen fehlgeschlagen: {error}",
+        "available_dm": "✅ Deine Anfrage **{title}** ist fertig heruntergeladen und jetzt verfügbar.",
+        "available_title": "{title} ist jetzt verfügbar!",
+        "available_desc": "**{title}** ({language}) wurde fertig heruntergeladen und ist jetzt verfügbar.",
+        "type_movie": "Film",
+        "type_series": "Serie",
+        "lang_german": "Deutsch",
+        "lang_english": "Englisch",
+        "qual_dub": "Dub",
+        "qual_sub": "Sub",
+    },
+}
+
+
+def _lang_option_label(config, value, media_type):
+    """Friendly, localised label for a language option.
+
+    Movies only ever come as a dub, so we drop the "Dub" qualifier there and show
+    just the language name (Deutsch/English/…). Series keep a (Dub)/(Sub) suffix
+    so the two variants stay distinguishable. The option's *value* is unchanged —
+    it's still the real "German Dub"/"English Sub"/… string the downloader needs.
+    """
+    base = "lang_german" if value.startswith("German") else "lang_english"
+    name = t(config, base)
+    if media_type == "movie":
+        return name
+    qual = "qual_dub" if value.endswith("Dub") else "qual_sub"
+    return f"{name} ({t(config, qual)})"
+
+
+def _lang(config):
+    lang = (config or {}).get("language", "en")
+    return lang if lang in TRANSLATIONS else "en"
+
+
+def t(config, key, **kwargs):
+    text = TRANSLATIONS[_lang(config)].get(key, TRANSLATIONS["en"].get(key, key))
+    if kwargs:
+        try:
+            return text.format(**kwargs)
+        except Exception:
+            return text
+    return text
 
 
 def aggregate_search(title, media_type):
@@ -85,6 +218,10 @@ def _read_config():
         "mode": os.environ.get("ANIWORLD_DISCORD_MODE", "standard").strip().lower(),
         "role_id": os.environ.get("ANIWORLD_DISCORD_REQUEST_ROLE_ID", "").strip(),
         "guild_id": os.environ.get("ANIWORLD_DISCORD_GUILD_ID", "").strip(),
+        "language": os.environ.get("ANIWORLD_DISCORD_LANGUAGE", "en").strip().lower(),
+        "announce_channel_id": os.environ.get(
+            "ANIWORLD_DISCORD_ANNOUNCE_CHANNEL_ID", ""
+        ).strip(),
     }
 
 
@@ -101,7 +238,7 @@ def get_status():
 # ---------------------------------------------------------------------------
 # Enqueue helpers (run in an executor — they do blocking network + sqlite work)
 # ---------------------------------------------------------------------------
-def _enqueue(title, url, media_type, language, provider, requester):
+def _enqueue(title, url, media_type, language, provider, requester, requester_id):
     if media_type == "movie":
         episodes = [url]
     else:
@@ -122,12 +259,67 @@ def _enqueue(title, url, media_type, language, provider, requester):
         provider=provider,
         username=requester,
         source="discord",
+        discord_user_id=requester_id,
     )
 
 
 def _default_provider():
     provider = os.environ.get("ANIWORLD_PROVIDER", "VOE").strip()
     return provider or "VOE"
+
+
+# ---------------------------------------------------------------------------
+# Completion notification (called from the queue worker thread)
+# ---------------------------------------------------------------------------
+def notify_completed(title, media_type, language, discord_user_id):
+    """DM the requester and (optionally) announce a finished download.
+
+    Safe to call from any thread: it schedules the coroutine on the bot's own
+    event loop and returns immediately. No-op when the bot isn't running.
+    """
+    with _lock:
+        loop = _state.get("loop")
+        client = _state.get("client")
+        config = _state.get("config")
+    if not (loop and client and getattr(loop, "is_running", lambda: False)()):
+        return
+    try:
+        asyncio.run_coroutine_threadsafe(
+            _announce_and_dm(client, config, title, media_type, language, discord_user_id),
+            loop,
+        )
+    except Exception as exc:  # pragma: no cover
+        logger.info("Discord: could not schedule completion notice: %s", exc)
+
+
+async def _announce_and_dm(client, config, title, media_type, language, user_id):
+    # Always DM the requester.
+    if user_id:
+        try:
+            user = await client.fetch_user(int(user_id))
+            await user.send(t(config, "available_dm", title=title))
+        except Exception as exc:
+            logger.info("Discord: could not DM requester on completion: %s", exc)
+
+    # Optionally announce in a shared channel.
+    channel_id = (config or {}).get("announce_channel_id")
+    if not channel_id:
+        return
+    try:
+        channel = client.get_channel(int(channel_id))
+        if channel is None:
+            channel = await client.fetch_channel(int(channel_id))
+        type_key = "type_movie" if media_type == "movie" else "type_series"
+        embed = discord.Embed(
+            title=t(config, "available_title", title=title),
+            description=t(config, "available_desc", title=title, language=language),
+            color=0x22C55E,
+        )
+        embed.add_field(name=t(config, "f_type"), value=t(config, type_key), inline=True)
+        embed.add_field(name=t(config, "f_language"), value=language, inline=True)
+        await channel.send(embed=embed)
+    except Exception as exc:
+        logger.warning("Discord: announce to channel failed: %s", exc)
 
 
 # ---------------------------------------------------------------------------
@@ -163,9 +355,15 @@ def _build_client(config):
     class LanguageSelect(discord.ui.Select):
         def __init__(self, ctx):
             self.ctx = ctx
-            langs = MOVIE_LANGS if ctx["media_type"] == "movie" else SERIES_LANGS
-            options = [discord.SelectOption(label=lang) for lang in langs]
-            super().__init__(placeholder="Language", options=options)
+            media_type = ctx["media_type"]
+            langs = MOVIE_LANGS if media_type == "movie" else SERIES_LANGS
+            options = [
+                discord.SelectOption(
+                    label=_lang_option_label(config, lang, media_type), value=lang
+                )
+                for lang in langs
+            ]
+            super().__init__(placeholder=t(config, "language_ph"), options=options)
 
         async def callback(self, interaction):
             self.ctx["language"] = self.values[0]
@@ -182,7 +380,7 @@ def _build_client(config):
                 options.append(
                     discord.SelectOption(label=title, description=site, value=str(idx))
                 )
-            super().__init__(placeholder="Pick the exact title", options=options)
+            super().__init__(placeholder=t(config, "pick_title"), options=options)
 
         async def callback(self, interaction):
             chosen = self.results[int(self.values[0])]
@@ -192,17 +390,18 @@ def _build_client(config):
             view = discord.ui.View(timeout=300)
             view.add_item(LanguageSelect(self.ctx))
             await interaction.response.edit_message(
-                content=f"**{self.ctx['title']}** — choose a language:", view=view
+                content=t(config, "choose_language", title=self.ctx["title"]),
+                view=view,
             )
 
     async def _finalize(interaction, ctx):
         ctx["provider"] = _default_provider()
         if config["mode"] == "advanced":
-            await _do_enqueue(interaction, ctx, notify_owner=False)
+            await _do_enqueue(interaction, ctx)
         else:
             await _request_owner_approval(interaction, ctx)
 
-    async def _do_enqueue(interaction, ctx, notify_owner):
+    async def _do_enqueue(interaction, ctx):
         loop = asyncio.get_running_loop()
         try:
             await loop.run_in_executor(
@@ -214,48 +413,48 @@ def _build_client(config):
                 ctx["language"],
                 ctx["provider"],
                 ctx["requester_name"],
+                ctx["requester_id"],
             )
         except Exception as exc:
             logger.error("Discord enqueue failed: %s", exc)
             await _safe_edit(
-                interaction, f"❌ Could not queue **{ctx['title']}**: {exc}"
+                interaction, t(config, "queue_failed", title=ctx["title"], error=exc)
             )
             return
         await _safe_edit(
             interaction,
-            f"✅ **{ctx['title']}** ({ctx['language']}) was added to the download queue.",
+            t(config, "queued", title=ctx["title"], language=ctx["language"]),
         )
 
     async def _request_owner_approval(interaction, ctx):
         owner = await _owner_user()
         if owner is None:
-            await _safe_edit(
-                interaction,
-                "⚠️ No owner is configured, so the request can't be forwarded.",
-            )
+            await _safe_edit(interaction, t(config, "no_owner"))
             return
 
         embed = discord.Embed(
-            title="New download request",
+            title=t(config, "req_title"),
             description=f"**{ctx['title']}**",
             color=0x2563EB,
         )
-        embed.add_field(name="Type", value=ctx["media_type"], inline=True)
-        embed.add_field(name="Language", value=ctx["language"], inline=True)
-        embed.add_field(name="Site", value=ctx["site"], inline=True)
-        embed.add_field(name="Requested by", value=ctx["requester_name"], inline=False)
-        embed.add_field(name="URL", value=ctx["url"], inline=False)
+        type_key = "type_movie" if ctx["media_type"] == "movie" else "type_series"
+        embed.add_field(name=t(config, "f_type"), value=t(config, type_key), inline=True)
+        embed.add_field(name=t(config, "f_language"), value=ctx["language"], inline=True)
+        embed.add_field(name=t(config, "f_site"), value=ctx["site"], inline=True)
+        embed.add_field(
+            name=t(config, "f_requested_by"), value=ctx["requester_name"], inline=False
+        )
+        embed.add_field(name=t(config, "f_url"), value=ctx["url"], inline=False)
 
         try:
             await owner.send(embed=embed, view=OwnerApprovalView(ctx))
         except Exception as exc:
             logger.error("Discord: could not DM owner: %s", exc)
-            await _safe_edit(interaction, "⚠️ Could not reach the owner via DM.")
+            await _safe_edit(interaction, t(config, "owner_unreachable"))
             return
 
         await _safe_edit(
-            interaction,
-            f"📨 Your request for **{ctx['title']}** was sent for approval.",
+            interaction, t(config, "sent_for_approval", title=ctx["title"])
         )
 
     class OwnerApprovalView(discord.ui.View):
@@ -263,7 +462,9 @@ def _build_client(config):
             super().__init__(timeout=None)
             self.ctx = ctx
 
-        @discord.ui.button(label="Accept", style=discord.ButtonStyle.success)
+        @discord.ui.button(
+            label=t(config, "btn_accept"), style=discord.ButtonStyle.success
+        )
         async def accept(self, interaction, button):
             loop = asyncio.get_running_loop()
             try:
@@ -276,31 +477,33 @@ def _build_client(config):
                     self.ctx["language"],
                     self.ctx["provider"],
                     self.ctx["requester_name"],
+                    self.ctx["requester_id"],
                 )
             except Exception as exc:
                 await interaction.response.edit_message(
-                    content=f"❌ Failed to queue: {exc}", view=None
+                    content=t(config, "queue_failed_short", error=exc), view=None
                 )
                 return
             await interaction.response.edit_message(
-                content=f"✅ Accepted — **{self.ctx['title']}** is downloading.",
+                content=t(config, "accepted_owner", title=self.ctx["title"]),
                 view=None,
             )
             await _dm_requester(
-                self.ctx,
-                f"✅ Your request **{self.ctx['title']}** was accepted and is downloading.",
+                self.ctx, t(config, "accepted_dm", title=self.ctx["title"])
             )
 
-        @discord.ui.button(label="Decline", style=discord.ButtonStyle.danger)
+        @discord.ui.button(
+            label=t(config, "btn_decline"), style=discord.ButtonStyle.danger
+        )
         async def decline(self, interaction, button):
             await interaction.response.send_modal(DeclineModal(self.ctx))
 
-    class DeclineModal(discord.ui.Modal, title="Decline request"):
+    class DeclineModal(discord.ui.Modal):
         def __init__(self, ctx):
-            super().__init__()
+            super().__init__(title=t(config, "decline_title"))
             self.ctx = ctx
             self.reason = discord.ui.TextInput(
-                label="Reason (optional)",
+                label=t(config, "decline_reason"),
                 required=False,
                 style=discord.TextStyle.paragraph,
             )
@@ -309,11 +512,11 @@ def _build_client(config):
         async def on_submit(self, interaction):
             reason = str(self.reason.value or "").strip()
             await interaction.response.edit_message(
-                content=f"🚫 Declined **{self.ctx['title']}**.", view=None
+                content=t(config, "declined_owner", title=self.ctx["title"]), view=None
             )
-            msg = f"🚫 Your request **{self.ctx['title']}** was declined."
+            msg = t(config, "declined_dm", title=self.ctx["title"])
             if reason:
-                msg += f"\nReason: {reason}"
+                msg += "\n" + t(config, "declined_reason", reason=reason)
             await _dm_requester(self.ctx, msg)
 
     async def _dm_requester(ctx, message):
@@ -335,19 +538,20 @@ def _build_client(config):
     async def _start_request(interaction, title, media_type):
         if not _has_role(interaction):
             await interaction.response.send_message(
-                "You don't have permission to request.", ephemeral=True
+                t(config, "no_permission"), ephemeral=True
             )
             return
         await interaction.response.defer(ephemeral=True, thinking=True)
         try:
-            # Search every site of this type and combine the hits.
             results = await _search_all(title, media_type)
         except Exception as exc:
-            await interaction.followup.send(f"Search failed: {exc}", ephemeral=True)
+            await interaction.followup.send(
+                t(config, "search_failed", error=exc), ephemeral=True
+            )
             return
         if not results:
             await interaction.followup.send(
-                f"No results found for **{title}**.", ephemeral=True
+                t(config, "no_results", title=title), ephemeral=True
             )
             return
 
@@ -360,17 +564,17 @@ def _build_client(config):
         view = discord.ui.View(timeout=300)
         view.add_item(ResultSelect(ctx, results))
         await interaction.followup.send(
-            content=f"Results for **{title}**:", view=view, ephemeral=True
+            content=t(config, "results_for", title=title), view=view, ephemeral=True
         )
 
-    @tree.command(name="film-anfrage", description="Request a movie")
-    @app_commands.describe(title="Movie title")
-    async def film_anfrage(interaction, title: str):
+    @tree.command(name=t(config, "cmd_movie"), description=t(config, "cmd_movie_desc"))
+    @app_commands.describe(title=t(config, "arg_movie_title"))
+    async def movie_request(interaction, title: str):
         await _start_request(interaction, title, "movie")
 
-    @tree.command(name="serien-anfrage", description="Request a series")
-    @app_commands.describe(title="Series title")
-    async def serien_anfrage(interaction, title: str):
+    @tree.command(name=t(config, "cmd_series"), description=t(config, "cmd_series_desc"))
+    @app_commands.describe(title=t(config, "arg_series_title"))
+    async def series_request(interaction, title: str):
         await _start_request(interaction, title, "series")
 
     @client.event
@@ -384,12 +588,19 @@ def _build_client(config):
                 guild = discord.Object(id=int(config["guild_id"]))
                 tree.copy_global_to(guild=guild)
                 await tree.sync(guild=guild)
+                # Drop any stale GLOBAL commands (e.g. left by a previous bot that
+                # used this token) so only the guild commands remain.
+                tree.clear_commands(guild=None)
+                await tree.sync()
             else:
                 await tree.sync()
         except Exception as exc:
             logger.warning("Discord: command sync failed: %s", exc)
         logger.info("Discord bot ready as %s", client.user)
 
+    # Stash what the stop path needs to unregister the commands.
+    client._aniworld_tree = tree
+    client._aniworld_guild_id = config["guild_id"]
     return client
 
 
@@ -425,11 +636,33 @@ def _run_bot(config):
             _state["user"] = None
 
 
+async def _clear_commands(client):
+    """Unregister the bot's slash commands from Discord (guild and global)."""
+    tree = getattr(client, "_aniworld_tree", None)
+    if tree is None:
+        return
+    guild_id = getattr(client, "_aniworld_guild_id", "")
+    tree.clear_commands(guild=None)
+    await tree.sync()
+    if guild_id:
+        guild = discord.Object(id=int(guild_id))
+        tree.clear_commands(guild=guild)
+        await tree.sync(guild=guild)
+
+
 def _stop_locked():
     client = _state.get("client")
     loop = _state.get("loop")
     thread = _state.get("thread")
     if client and loop and loop.is_running():
+        # Remove the registered slash commands first so nothing lingers on the
+        # server while the bot is off, then close the connection.
+        try:
+            asyncio.run_coroutine_threadsafe(
+                _clear_commands(client), loop
+            ).result(timeout=20)
+        except Exception as exc:
+            logger.warning("Discord: clearing commands on stop failed: %s", exc)
         asyncio.run_coroutine_threadsafe(client.close(), loop)
     if thread and thread.is_alive():
         thread.join(timeout=10)
