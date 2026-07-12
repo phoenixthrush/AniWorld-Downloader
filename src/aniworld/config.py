@@ -240,6 +240,7 @@ PROVIDER_HEADERS_D = {
         "Origin": "https://voe.sx",
     },
     "LoadX": {"Accept": "*/*"},
+    "Cineby": {"Referer": "https://www.cineby.at/"},
     "Filemoon": {"User-Agent": DEFAULT_USER_AGENT, "Referer": "https://filemoon.to"},
     "Luluvdo": {
         "User-Agent": LULUVDO_USER_AGENT,
@@ -267,6 +268,7 @@ PROVIDER_HEADERS_W = {
         "Origin": "https://voe.sx",
     },
     "LoadX": {"Accept": "*/*"},
+    "Cineby": {"Referer": "https://www.cineby.at/"},
     "Filemoon": {"User-Agent": DEFAULT_USER_AGENT, "Referer": "https://filemoon.to"},
     "Luluvdo": {
         "User-Agent": LULUVDO_USER_AGENT,
@@ -379,12 +381,15 @@ HANIME_TV_SERIES_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# serienstream.to went down at times; serienstream.cx is the current mirror.
+_STO_HOST = r"(www\.)?(serienstream\.(?:to|cx)|s\.to)"
+
 SERIENSTREAM_SERIES_PATTERN = re.compile(
-    r"^https?://(www\.)?(serienstream|s)\.to/serie/[a-zA-Z0-9\-]+/?$", re.IGNORECASE
+    rf"^https?://{_STO_HOST}/serie/[a-zA-Z0-9\-]+/?$", re.IGNORECASE
 )
 
 SERIENSTREAM_SEASON_PATTERN = re.compile(
-    r"^https?://(www\.)?(serienstream|s)\.to/serie/"
+    rf"^https?://{_STO_HOST}/serie/"
     r"[a-zA-Z0-9\-]+/"
     r"staffel-\d+"
     r"/?$",
@@ -392,7 +397,7 @@ SERIENSTREAM_SEASON_PATTERN = re.compile(
 )
 
 SERIENSTREAM_EPISODE_PATTERN = re.compile(
-    r"^https?://(www\.)?(serienstream|s)\.to/serie/"
+    rf"^https?://{_STO_HOST}/serie/"
     r"[a-zA-Z0-9\-]+/"
     r"staffel-\d+/episode-\d+"
     r"/?$",
@@ -431,7 +436,21 @@ KINOX_SERIES_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-_BS_HOST = r"(?:www\.)?(?:burning-series\.(?:io|net)|bs\.to)"
+_CINEBY_HOST = r"(?:www\.)?cineby\.(?:at|app|[a-z]{2,4})"
+
+# /movie/<id> or /tv/<id> (optionally ?s=N for a specific TV season)
+CINEBY_SERIES_PATTERN = re.compile(
+    rf"^https?://{_CINEBY_HOST}/(?:movie|tv)/\d+(?:\?[^#]*)?/?$",
+    re.IGNORECASE,
+)
+
+# /movie/<id> or /tv/<id>/<season>/<episode>
+CINEBY_EPISODE_PATTERN = re.compile(
+    rf"^https?://{_CINEBY_HOST}/(?:movie/\d+|tv/\d+/\d+/\d+)(?:\?[^#]*)?/?$",
+    re.IGNORECASE,
+)
+
+_BS_HOST = r"(?:www\.)?(?:burning-series\.(?:io|net)|burningseries\.(?:ac|cx)|bs\.cine\.to|bs\.to)"
 
 BURNINGSERIES_SERIES_PATTERN = re.compile(
     rf"^https?://{_BS_HOST}/serie/[a-zA-Z0-9\-]+(?:\?[^#]*)?/?$",

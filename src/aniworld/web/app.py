@@ -15,13 +15,13 @@ from ..config import (
     get_provider_fallback_order,
     parse_provider_order,
 )
-from ..env import read_env_file, update_env_values, write_env_file
 from ..extractors import provider_functions
 from ..logger import get_logger
 from ..models.mangafire_to.series import search_series as query_mangafire
 from ..providers import resolve_provider
 from ..search import (
     fetch_burningseries_series,
+    fetch_cineby_movies,
     fetch_filmpalast_movies,
     fetch_kinox_movies,
     fetch_new_animes,
@@ -30,6 +30,7 @@ from ..search import (
     fetch_popular_movies,
     fetch_popular_series,
     query_burningseries,
+    query_cineby,
     query_filmpalast,
     query_kinox,
     query_megakino,
@@ -109,6 +110,7 @@ SITE_KEYS = (
     "kinox",
     "burningseries",
     "filmpalast",
+    "cineby",
 )
 
 
@@ -223,6 +225,28 @@ def _apply_discord_settings(payload, env_updates):
             env_updates[DISCORD_ENV_KEYS[field]] = value
 
     return None
+
+
+def _persist_discord_env(env_updates):
+    """Persist only the Discord bot keys to ~/.aniworld/.env.
+
+    Every other web-UI setting is intentionally in-memory only (see
+    api_settings_update). The bot config is the one exception: a token that
+    vanished on restart would be useless, so the ANIWORLD_DISCORD_* keys are
+    written through to the .env file. They live in .env.example too, so the
+    startup merge_env keeps them across restarts.
+    """
+    discord_keys = set(DISCORD_ENV_KEYS.values())
+    subset = {k: v for k, v in env_updates.items() if k in discord_keys}
+    if not subset:
+        return
+    try:
+        from ..env import persist_env_values
+
+        env_path = Path.home() / ".aniworld" / ".env"
+        persist_env_values(env_path, subset)
+    except Exception as exc:
+        logger.warning(f"Could not persist Discord settings to .env: {exc}")
 
 
 def _reconcile_discord_bot():
@@ -1148,12 +1172,13 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                         "poster_url": _proxy_image_url(_normalize_image_url(poster)),
                     }
                 )
-        elif site in ("megakino", "kinox", "filmpalast", "burningseries"):
+        elif site in ("megakino", "kinox", "filmpalast", "burningseries", "cineby"):
             query_fn = {
                 "megakino": query_megakino,
                 "kinox": query_kinox,
                 "filmpalast": query_filmpalast,
                 "burningseries": query_burningseries,
+                "cineby": query_cineby,
             }[site]
             site_results = query_fn(keyword) or []
             for item in site_results:
@@ -1301,13 +1326,19 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                     }
                 )
             series = prov.series_cls(url=url)
+            # burning-series has no per-season episode count on the series page,
+            # so reading season.episode_count here would fetch every season page
+            # up front (a series with 30+ seasons = 30+ serial requests = the
+            # modal "loading…" forever). Skip it: the count fills in lazily as
+            # each season is expanded and its episodes load.
+            defer_counts = prov.name == "BurningSeries"
             seasons_data = []
             for season in series.seasons:
                 seasons_data.append(
                     {
                         "url": season.url,
                         "season_number": season.season_number,
-                        "episode_count": season.episode_count,
+                        "episode_count": None if defer_counts else season.episode_count,
                         "are_movies": getattr(season, "are_movies", False),
                         "chapter_type": getattr(season, "chapter_type", ""),
                     }
@@ -1528,11 +1559,11 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             except Exception:
                 pass
 
-            # Kinox / BurningSeries resolve hosters per episode over the network,
-            # so read the language once at the season level for the listing and
-            # skip the expensive per-episode provider_data probe.
+            # Kinox / BurningSeries / Cineby resolve their stream per episode, so
+            # read the language once at the season level for the listing and skip
+            # the per-episode provider_data probe.
             season_lang_labels = None
-            if prov.name in ("Kinox", "BurningSeries"):
+            if prov.name in ("Kinox", "BurningSeries", "Cineby"):
                 try:
                     season_lang_labels = list(getattr(season, "language_labels", []) or [])
                 except Exception as exc:
@@ -1587,6 +1618,9 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             prov = resolve_provider(url)
             if prov.name == "MangaFire":
                 return jsonify({"providers": {}})
+            if prov.name == "Cineby":
+                # Single implicit provider; stream is captured from the site.
+                return jsonify({"providers": {"English Dub": ["Cineby"]}})
             if prov.name == "MegaKino":
                 episode = prov.episode_cls(url=url, selected_language="German Dub")
             else:
@@ -1923,6 +1957,17 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         ]
         return jsonify({"results": proxied})
 
+    @app.route("/api/cineby-movies")
+    def api_cineby_movies():
+        results = _cached_browse("cineby_movies", fetch_cineby_movies)
+        if results is None:
+            return jsonify({"error": "Failed to fetch cineby"}), 500
+        proxied = [
+            {**r, "poster_url": _proxy_image_url(r.get("poster_url", ""))}
+            for r in results
+        ]
+        return jsonify({"results": proxied})
+
     @app.route("/api/htv-trending")
     def api_htv_trending():
         results = _cached_browse("htv_trending", _fetch_htv_trending)
@@ -2145,18 +2190,15 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             if error:
                 return jsonify({"error": error}), 400
 
-        try:
-            update_env_values(env_updates)
-        except OSError as exc:
-            logger.error(f"Failed to persist settings to .env: {exc}")
-            # Still apply in-memory so the change takes effect for this run
-            for key, value in env_updates.items():
-                os.environ[key] = value
-            return jsonify(
-                {"ok": True, "warning": "Settings applied but could not be saved"}
-            )
+        # Settings are intentionally in-memory only for the running process.
+        # To persist across restarts, users set them in their .env file.
+        for key, value in env_updates.items():
+            os.environ[key] = value
 
         if "discord" in data:
+            # The Discord bot config is the one setting that must survive a
+            # restart, so persist just those keys to .env (see the helper).
+            _persist_discord_env(env_updates)
             _reconcile_discord_bot()
 
         return jsonify({"ok": True})
@@ -2169,39 +2211,6 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             return jsonify(get_status())
         except Exception as exc:
             return jsonify({"running": False, "error": str(exc)[:120]})
-
-    @app.route("/api/env", methods=["GET"])
-    def api_env_get():
-        """Return the raw .env file so it can be edited in the browser."""
-        from pathlib import Path
-
-        env_path = Path.home() / ".aniworld" / ".env"
-        try:
-            content = read_env_file(env_path)
-        except OSError as exc:
-            logger.error(f"Failed to read .env: {exc}")
-            return jsonify({"error": "Failed to read .env file"}), 500
-        return jsonify({"content": content, "path": str(env_path)})
-
-    @app.route("/api/env", methods=["PUT"])
-    def api_env_put():
-        """Overwrite the .env file and reload it into the running process."""
-        from pathlib import Path
-
-        data = request.get_json(silent=True) or {}
-        content = data.get("content")
-        if not isinstance(content, str):
-            return jsonify({"error": "content is required"}), 400
-
-        env_path = Path.home() / ".aniworld" / ".env"
-        try:
-            write_env_file(content, env_path)
-        except OSError as exc:
-            logger.error(f"Failed to write .env: {exc}")
-            return jsonify({"error": "Failed to write .env file"}), 500
-
-        _reconcile_discord_bot()
-        return jsonify({"ok": True})
 
     @app.route("/api/custom-paths")
     def api_custom_paths():
@@ -2704,8 +2713,6 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             "api_settings",
             "api_settings_public_ip",
             "api_settings_update",
-            "api_env_get",
-            "api_env_put",
             "api_discord_status",
             "api_library_delete",
             "api_custom_paths_add",

@@ -39,6 +39,7 @@ SITE_LABELS = {
     "kinox": "Kinox",
     "filmpalast": "FilmPalast",
     "burningseries": "BurningSeries",
+    "cineby": "Cineby",
 }
 
 

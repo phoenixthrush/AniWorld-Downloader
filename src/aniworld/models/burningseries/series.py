@@ -8,6 +8,7 @@ are rate-limited by the site, so they are serialised behind a lock with a short
 delay.
 """
 
+import html as html_module
 import os
 import re
 import threading
@@ -46,14 +47,30 @@ except ImportError:
     from aniworld.models.common.http import get_html, get_session
     from aniworld.models.common.provider_map import host_to_provider
 
-_DOMAINS = ["https://burning-series.io", "https://burning-series.net", "https://bs.to"]
+# Official domains, newest first. bs.to went down; the burning-series devs
+# published bs.cine.to / burningseries.ac / burningseries.cx as the current
+# mirrors. They are tried in order and the first that answers is remembered.
+_DOMAINS = [
+    "https://bs.cine.to",
+    "https://burningseries.ac",
+    "https://burningseries.cx",
+    "https://burning-series.io",
+    "https://burning-series.net",
+]
 _active_idx = 0
 
 # burning-series rate-limits parallel redirect follows, so serialise them.
 _REDIRECT_LOCK = threading.Lock()
 _REDIRECT_DELAY = 1.5
 
-_BS_HOSTS = ("burning-series.io", "burning-series.net", "bs.to")
+_BS_HOSTS = (
+    "bs.cine.to",
+    "burningseries.ac",
+    "burningseries.cx",
+    "burning-series.io",
+    "burning-series.net",
+    "bs.to",
+)
 
 
 def bs_current_base():
@@ -61,8 +78,14 @@ def bs_current_base():
 
 
 def bs_get_with_fallback(path, **kwargs):
-    """GET a path, rotating through the known domains on failure."""
+    """GET a path, rotating through the known domains on any failure.
+
+    A short timeout keeps a dead or slow mirror (e.g. bs.to being down) from
+    surfacing as a "connection aborted" error — it just rotates to the next
+    domain instead.
+    """
     global _active_idx
+    kwargs.setdefault("timeout", 8)
     last_err = None
     for offset in range(len(_DOMAINS)):
         idx = (_active_idx + offset) % len(_DOMAINS)
@@ -539,15 +562,44 @@ class BurningSeriesSeries:
 
     @property
     def release_year(self):
-        return ""
+        # "Produktionsjahre" block: <span>Produktionsjahre</span><p><em>2023 …
+        m = re.search(
+            r"<span>\s*Produktionsjahre?\s*</span>\s*<p>.*?(\d{4})",
+            self._html,
+            re.DOTALL | re.IGNORECASE,
+        )
+        return m.group(1) if m else ""
 
     @property
     def description(self):
-        return ""
+        # The synopsis is the first <p> in the left info column (#sp_left),
+        # right after the <h2> title heading.
+        m = re.search(
+            r'id="sp_left".*?<p[^>]*>(.*?)</p>',
+            self._html,
+            re.DOTALL | re.IGNORECASE,
+        )
+        if not m:
+            return ""
+        text = re.sub(r"<[^>]+>", " ", m.group(1))
+        return re.sub(r"\s+", " ", html_module.unescape(text)).strip()
 
     @property
     def genres(self):
-        return []
+        # <span>Genres</span><p><span …>Zeichentrick</span> <span …>Action</span></p>
+        block = re.search(
+            r"<span>\s*Genres?\s*</span>\s*<p>(.*?)</p>",
+            self._html,
+            re.DOTALL | re.IGNORECASE,
+        )
+        if not block:
+            return []
+        names = re.findall(r">([^<>]+)<", block.group(1))
+        return [
+            html_module.unescape(n).strip()
+            for n in names
+            if n.strip()
+        ]
 
     @property
     def poster_url(self):

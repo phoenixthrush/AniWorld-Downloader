@@ -59,11 +59,10 @@ For full user guides, tutorials, and troubleshooting, visit the [official docume
 - **AniSkip Integration** – Skip intros and outros on AniWorld for a smoother experience
 - **Group Watching** – Sync anime and series sessions with friends via **Syncplay**
 - **Web Interface** – Browse, download, and manage your queue with a modern web UI
-- **More Sites** – Also search and download from **Kinox**, **BurningSeries**, and **FilmPalast**
+- **More Sites** – Also search and download from **Kinox**, **BurningSeries**, **FilmPalast**, and **Cineby**
 - **Faster VOE/HLS** – HLS streams are fetched with parallel segments instead of a single FFmpeg connection
 - **Planned Releases** – Queue titles that aren't out yet; they download automatically once available
 - **Discord Request Bot** – Let others request movies/series from Discord, with owner approval
-- **Persistent Settings** – Web UI settings are saved to `.env`, plus an in-browser `.env` editor
 - **Interface Language** – Switch the whole UI between English and German
 - **Docker Ready** – Deploy easily using **Docker** or **Docker Compose**
 

@@ -1,4 +1,3 @@
-import os
 import re
 from pathlib import Path
 
@@ -6,9 +5,6 @@ from dotenv import load_dotenv
 
 # match lines like KEY=VALUE, ignoring comments and blank lines
 ENV_LINE_RE = re.compile(r"^([^#\n=]+?)=(.*)$")
-
-# Default location of the user's .env file
-DEFAULT_ENV_PATH = Path.home() / ".aniworld" / ".env"
 
 
 def merge_env(example_path: Path, env_path: Path):
@@ -47,69 +43,30 @@ def merge_env(example_path: Path, env_path: Path):
     load_dotenv(env_path)
 
 
-def format_env_value(value) -> str:
-    """Quote a value so dotenv reads it back unchanged."""
-    text = "" if value is None else str(value)
-    if text == "":
-        return ""
-    needs_quotes = any(c in text for c in ' \t#"\'') or text != text.strip()
-    if not needs_quotes:
-        return text
-    escaped = text.replace("\\", "\\\\").replace('"', '\\"')
-    return f'"{escaped}"'
+def persist_env_values(env_path: Path, updates: dict):
+    """Write specific KEY=VALUE pairs into the .env file, preserving the rest.
 
-
-def update_env_values(updates: dict, env_path: Path = None) -> None:
-    """Persist KEY=VALUE pairs into the user's .env file.
-
-    Existing keys are rewritten in place so comments, blank lines and the
-    ordering of the file survive. Unknown keys are appended at the end.
-    Also updates os.environ so the change takes effect immediately.
+    Only the given keys are touched: existing lines (comments, other keys,
+    formatting) are kept as-is, matching keys are rewritten in place, and any
+    missing keys are appended at the end. Used to persist settings that must
+    survive a restart (e.g. the Discord bot config) while every other web-UI
+    setting stays session-only.
     """
-    if not updates:
-        return
-
-    env_path = Path(env_path or DEFAULT_ENV_PATH)
+    env_path = Path(env_path)
     env_path.parent.mkdir(parents=True, exist_ok=True)
-
     lines = env_path.read_text().splitlines() if env_path.exists() else []
-    remaining = dict(updates)
-    new_lines = []
 
+    remaining = dict(updates)
+    out = []
     for line in lines:
         m = ENV_LINE_RE.match(line)
-        if m:
-            key = m.group(1).strip()
-            if key in remaining:
-                new_lines.append(f"{key}={format_env_value(remaining.pop(key))}")
-                continue
-        new_lines.append(line)
+        key = m.group(1).strip() if m else None
+        if key is not None and key in remaining:
+            out.append(f"{key}={remaining.pop(key)}")
+        else:
+            out.append(line)
 
     for key, value in remaining.items():
-        new_lines.append(f"{key}={format_env_value(value)}")
+        out.append(f"{key}={value}")
 
-    env_path.write_text("\n".join(new_lines) + "\n")
-
-    for key, value in updates.items():
-        os.environ[key] = "" if value is None else str(value)
-
-
-def read_env_file(env_path: Path = None) -> str:
-    """Return the raw contents of the user's .env file."""
-    env_path = Path(env_path or DEFAULT_ENV_PATH)
-    if not env_path.exists():
-        return ""
-    return env_path.read_text()
-
-
-def write_env_file(content: str, env_path: Path = None) -> None:
-    """Overwrite the user's .env file and reload it into the process."""
-    env_path = Path(env_path or DEFAULT_ENV_PATH)
-    env_path.parent.mkdir(parents=True, exist_ok=True)
-
-    normalized = content.replace("\r\n", "\n").replace("\r", "\n")
-    if normalized and not normalized.endswith("\n"):
-        normalized += "\n"
-    env_path.write_text(normalized)
-
-    load_dotenv(env_path, override=True)
+    env_path.write_text("\n".join(out) + "\n")

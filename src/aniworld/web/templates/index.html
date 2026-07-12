@@ -9,6 +9,7 @@
       <button class="segmented-btn" id="labelSto" onclick="switchSite('sto')">SerienStream</button>
       <button class="segmented-btn" id="labelBurningSeries" onclick="switchSite('burningseries')">BurningSeries</button>
       <button class="segmented-btn" id="labelMegakino" onclick="switchSite('megakino')">MegaKino</button>
+      <button class="segmented-btn" id="labelCineby" onclick="switchSite('cineby')">Cineby</button>
       <button class="segmented-btn" id="labelKinox" onclick="switchSite('kinox')">Kinox</button>
       <button class="segmented-btn" id="labelFilmPalast" onclick="switchSite('filmpalast')">FilmPalast</button>
       {% if htv_enabled %}
@@ -57,6 +58,10 @@
     <div class="browse-section" id="burningseriesSection" style="display: none">
       <h2 class="browse-heading" data-i18n="browse.recent_series">Recently Updated</h2>
       <div class="browse-grid" id="burningseriesGrid"></div>
+    </div>
+    <div class="browse-section" id="cinebySection" style="display: none">
+      <h2 class="browse-heading" data-i18n="browse.trending_movies">Trending Movies</h2>
+      <div class="browse-grid" id="cinebyGrid"></div>
     </div>
     <div class="browse-section" id="mangaFireTrendingSection" style="display: none">
       <h2 class="browse-heading">MangaFire Trending</h2>
@@ -111,6 +116,7 @@
       window.KINOX_LANGS = { "1": "German Dub", "2": "English Dub" };
       window.BURNINGSERIES_LANGS = { "1": "German Dub", "2": "English Dub" };
       window.FILMPALAST_LANGS = { "1": "German Dub", "2": "English Dub" };
+      window.CINEBY_LANGS = { "1": "English Dub" };
       window.DEFAULT_WEB_LANGUAGE = {{ default_web_language | tojson }};
       window.HTV_ENABLED = {{ htv_enabled | tojson }};
     </script>

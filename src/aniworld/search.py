@@ -7,10 +7,10 @@ from urllib.parse import quote_plus, urljoin
 
 try:
     from .ascii import display_ascii_art
-    from .config import GLOBAL_SESSION, logger
+    from .config import DEFAULT_USER_AGENT, GLOBAL_SESSION, logger
 except ImportError:
     from aniworld.ascii import display_ascii_art
-    from aniworld.config import GLOBAL_SESSION, logger
+    from aniworld.config import DEFAULT_USER_AGENT, GLOBAL_SESSION, logger
 
 SEARCH_URL = "https://aniworld.to/ajax/search"
 RANDOM_URL = "https://aniworld.to/ajax/randomGeneratorSeries"
@@ -483,7 +483,9 @@ def _fetch_series_homepage():
         return _series_html_content
 
     try:
-        response = GLOBAL_SESSION.get("https://serienstream.to/beliebte-serien")
+        from .models.s_to.http import sto_get
+
+        response = sto_get("https://serienstream.to/beliebte-serien")
         response.raise_for_status()
         _series_html_content = response.text
         return _series_html_content
@@ -712,9 +714,11 @@ def _normalize_s_to_link(link: str) -> str:
 
 def query_s_to(keyword):
     """Search serienstream.to for the given keyword and return a list of matching series with their URLs."""
+    from .models.s_to.http import sto_get
+
     # Use query params to ensure proper URL encoding (spaces, umlauts, etc.)
     url = "https://serienstream.to/api/search/suggest"
-    response = GLOBAL_SESSION.get(url, params={"term": keyword})
+    response = sto_get(url, params={"term": keyword})
 
     data = response.json()
     shows = data.get("shows", []) or []
@@ -897,6 +901,68 @@ def query_burningseries(keyword):
     return results[:30]
 
 
+def _cineby_result(item):
+    """Turn a TMDB search/list item into a browse/search result dict."""
+    from .models.cineby.series import (
+        TMDB_IMG,
+        cineby_movie_url,
+        cineby_tv_url,
+    )
+
+    media = item.get("media_type")
+    tmdb_id = item.get("id")
+    if not tmdb_id:
+        return None
+    if media == "tv" or (media is None and item.get("name")):
+        url = cineby_tv_url(tmdb_id)
+        title = item.get("name") or item.get("title")
+        year = (item.get("first_air_date") or "")[:4]
+    else:
+        url = cineby_movie_url(tmdb_id)
+        title = item.get("title") or item.get("name")
+        year = (item.get("release_date") or "")[:4]
+    if not title:
+        return None
+    if year:
+        title = f"{title} ({year})"
+    poster = item.get("poster_path")
+    return {
+        "title": title,
+        "url": url,
+        "poster_url": f"{TMDB_IMG}{poster}" if poster else "",
+        "genre": "",
+    }
+
+
+def query_cineby(keyword):
+    """Search cineby via its TMDB proxy (movies + TV)."""
+    from .models.cineby.series import tmdb_get
+
+    data = tmdb_get(f"/search/multi?query={quote_plus(keyword)}&page=1")
+    results = []
+    for item in data.get("results", []):
+        if item.get("media_type") == "person":
+            continue
+        r = _cineby_result(item)
+        if r:
+            results.append(r)
+    return results[:30]
+
+
+def fetch_cineby_movies():
+    """Trending movies on cineby for the browse grid."""
+    from .models.cineby.series import tmdb_get
+
+    data = tmdb_get("/trending/movie/week")
+    results = []
+    for item in data.get("results", []):
+        item.setdefault("media_type", "movie")
+        r = _cineby_result(item)
+        if r:
+            results.append(r)
+    return results[:30]
+
+
 def fetch_filmpalast_movies():
     """Fetch the newest movies from filmpalast.to for the browse grid."""
     base = "https://filmpalast.to"
@@ -1007,14 +1073,18 @@ def fetch_kinox_movies():
     return results[:30]
 
 
-def _bs_cover(slug):
+def _bs_cover(session, base, slug):
     """Fetch a burning-series series page and return its cover URL (or '')."""
-    from .models.burningseries.series import bs_current_base
-    from .models.common.http import get_html
-
-    base = bs_current_base()
     try:
-        html = get_html(f"{base}/serie/{slug}", check_captcha=False)
+        resp = session.get(
+            f"{base}/serie/{slug}",
+            headers={
+                "Accept-Encoding": "gzip, deflate",
+                "User-Agent": DEFAULT_USER_AGENT,
+            },
+            timeout=8,
+        )
+        html = resp.text
     except Exception:
         return ""
     m = re.search(
@@ -1035,7 +1105,9 @@ def fetch_burningseries_series():
 
     burning-series has no listing page with inline covers, so the covers are
     fetched from each series page concurrently here (once, then cached by the
-    browse layer) instead of lazily per card, which was slow and trickled in.
+    browse layer). A dedicated plain session is used for the fan-out because the
+    shared GLOBAL_SESSION serialises requests through its DoH resolver, which
+    turned this into an ~18 s wait instead of well under a second.
     """
     from concurrent.futures import ThreadPoolExecutor
 
@@ -1063,9 +1135,20 @@ def fetch_burningseries_series():
         if len(items) >= 12:
             break
 
-    # Fetch covers in parallel so the whole grid is ready in one short wait.
-    with ThreadPoolExecutor(max_workers=8) as pool:
-        covers = list(pool.map(_bs_cover, [it["slug"] for it in items]))
+    # Fetch covers truly in parallel (plain session, OS DNS) so the grid is
+    # ready in one short wait rather than trickling in.
+    cover_session = niquests.Session()
+    try:
+        with ThreadPoolExecutor(max_workers=12) as pool:
+            covers = list(
+                pool.map(lambda s: _bs_cover(cover_session, base, s),
+                         [it["slug"] for it in items])
+            )
+    finally:
+        try:
+            cover_session.close()
+        except Exception:
+            pass
 
     return [
         {

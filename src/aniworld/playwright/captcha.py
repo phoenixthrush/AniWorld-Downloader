@@ -645,6 +645,70 @@ def playwright_get_hanime_stream_url(url: str) -> str:
         return None
 
 
+def playwright_get_cineby_stream_url(url: str, timeout: int = 45) -> str:
+    """Open a cineby.at watch page and capture the playable HLS (m3u8) URL.
+
+    cineby is a Next.js SPA that resolves its stream client-side (encrypted
+    source API + Cloudflare), so the reliable way to get the playlist is to load
+    the page, start playback and capture the `index.m3u8` request — the same
+    approach already used for hanime.
+    """
+    try:
+        from patchright.sync_api import sync_playwright
+    except ImportError:
+        raise RuntimeError(
+            "patchright is not installed. Install it with: "
+            "pip install patchright && patchright install chromium"
+        )
+
+    from ..logger import get_logger
+
+    logger = get_logger(__name__)
+    final_url = None
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True, args=["--disable-gpu"])
+            context = browser.new_context(viewport={"width": 1280, "height": 720})
+            page = context.new_page()
+
+            def _capture(response):
+                nonlocal final_url
+                u = response.url
+                if not final_url and ".m3u8" in u and "index" in u:
+                    final_url = u
+
+            page.on("response", _capture)
+            logger.debug(f"Opening cineby page for stream capture: {url}")
+            try:
+                page.goto(url, wait_until="domcontentloaded", timeout=40000)
+            except Exception:
+                pass
+            page.wait_for_timeout(2500)
+
+            # Nudge playback so the source resolves.
+            for selector in ('button:has-text("Play")', '[class*="play" i]', "video"):
+                try:
+                    element = page.locator(selector).first
+                    if element.count() > 0:
+                        element.click(timeout=2500)
+                except Exception:
+                    pass
+
+            deadline = _time.time() + timeout
+            while _time.time() < deadline and not final_url:
+                page.wait_for_timeout(1000)
+
+            browser.close()
+
+        if final_url:
+            logger.info("Captured cineby manifest URL")
+        return final_url
+    except Exception as e:
+        logger.error(f"Failed to capture cineby stream URL: {e}")
+        return None
+
+
 def _inject_session_cookies(context, url: str) -> None:
     """Copy GLOBAL_SESSION cookies into a patchright browser context."""
     try:

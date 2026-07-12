@@ -33,6 +33,8 @@ const filmpalastMoviesGrid = document.getElementById("filmpalastMoviesGrid");
 const filmpalastMoviesSection = document.getElementById("filmpalastMoviesSection");
 const burningseriesGrid = document.getElementById("burningseriesGrid");
 const burningseriesSection = document.getElementById("burningseriesSection");
+const cinebyGrid = document.getElementById("cinebyGrid");
+const cinebySection = document.getElementById("cinebySection");
 
 // Browse loaders for the added sites. Defined up here (before showBrowseSections
 // and the initial syncSiteState run) so switching to one of these sites on load
@@ -70,6 +72,9 @@ const loadFilmpalastBrowse = filmpalastMoviesGrid
   : () => {};
 const loadBurningseriesBrowse = burningseriesGrid
   ? makeBrowseLoader("/api/burningseries-series", burningseriesGrid)
+  : () => {};
+const loadCinebyBrowse = cinebyGrid
+  ? makeBrowseLoader("/api/cineby-movies", cinebyGrid)
   : () => {};
 const mangaFireControls = document.getElementById("mangaFireControls");
 const showUnofficialCb = document.getElementById("showUnofficial");
@@ -258,6 +263,7 @@ function showBrowseSections() {
   const isKinox = currentSite === "kinox";
   const isFilmpalast = currentSite === "filmpalast";
   const isBurningseries = currentSite === "burningseries";
+  const isCineby = currentSite === "cineby";
   browseDiv.style.display = "";
   newAnimesSection.style.display = isAniworld ? "" : "none";
   popularAnimesSection.style.display = isAniworld ? "" : "none";
@@ -269,6 +275,7 @@ function showBrowseSections() {
   if (kinoxMoviesSection) kinoxMoviesSection.style.display = isKinox ? "" : "none";
   if (filmpalastMoviesSection) filmpalastMoviesSection.style.display = isFilmpalast ? "" : "none";
   if (burningseriesSection) burningseriesSection.style.display = isBurningseries ? "" : "none";
+  if (cinebySection) cinebySection.style.display = isCineby ? "" : "none";
   if (isAniworld) loadAniworldBrowse();
   else if (isSto) loadStoBrowse();
   else if (isMegakino) loadMegakinoBrowse();
@@ -277,6 +284,7 @@ function showBrowseSections() {
   else if (isKinox) loadKinoxBrowse();
   else if (isFilmpalast) loadFilmpalastBrowse();
   else if (isBurningseries) loadBurningseriesBrowse();
+  else if (isCineby) loadCinebyBrowse();
 }
 
 function normalizeQuotes(s) {
@@ -313,8 +321,8 @@ const htvTrendingGrid = document.getElementById("htvTrendingGrid");
 const segmentedThumb = document.getElementById("segmentedThumb");
 const htvEnabled = window.HTV_ENABLED;
 const sites = htvEnabled
-  ? ["aniworld", "mangafire", "sto", "burningseries", "megakino", "kinox", "filmpalast", "htv"]
-  : ["aniworld", "mangafire", "sto", "burningseries", "megakino", "kinox", "filmpalast"];
+  ? ["aniworld", "mangafire", "sto", "burningseries", "megakino", "cineby", "kinox", "filmpalast", "htv"]
+  : ["aniworld", "mangafire", "sto", "burningseries", "megakino", "cineby", "kinox", "filmpalast"];
 
 // Movie-only sites behave like MegaKino (single item, no seasons).
 const movieSites = ["megakino", "filmpalast"];
@@ -323,6 +331,7 @@ const siteLabelIds = {
   aniworld: "labelAniworld",
   sto: "labelSto",
   megakino: "labelMegakino",
+  cineby: "labelCineby",
   kinox: "labelKinox",
   burningseries: "labelBurningSeries",
   filmpalast: "labelFilmPalast",
@@ -334,6 +343,7 @@ const thumbColors = {
   aniworld: { bg: "linear-gradient(135deg, #8b5cf6, #6d28d9)", shadow: "0 2px 8px rgba(139, 92, 246, 0.35)" },
   sto: { bg: "linear-gradient(135deg, #38bdf8, #2563eb)", shadow: "0 2px 8px rgba(56, 189, 248, 0.35)" },
   megakino: { bg: "linear-gradient(135deg, #ef4444, #b91c1c)", shadow: "0 2px 8px rgba(239, 68, 68, 0.35)" },
+  cineby: { bg: "linear-gradient(135deg, #22d3ee, #0891b2)", shadow: "0 2px 8px rgba(34, 211, 238, 0.35)" },
   kinox: { bg: "linear-gradient(135deg, #34d399, #059669)", shadow: "0 2px 8px rgba(52, 211, 153, 0.35)" },
   burningseries: { bg: "linear-gradient(135deg, #fb923c, #ea580c)", shadow: "0 2px 8px rgba(251, 146, 60, 0.35)" },
   filmpalast: { bg: "linear-gradient(135deg, #a78bfa, #7c3aed)", shadow: "0 2px 8px rgba(167, 139, 250, 0.35)" },
@@ -373,6 +383,7 @@ function switchSite(site) {
       aniworld: "AniWorld Downloader",
       sto: "SerienStream Downloader",
       megakino: "MegaKino Downloader",
+      cineby: "Cineby Downloader",
       kinox: "Kinox Downloader",
       burningseries: "BurningSeries Downloader",
       filmpalast: "FilmPalast Downloader",
@@ -391,6 +402,7 @@ function switchSite(site) {
     htv: "Search Hanime...",
     sto: "Search for series...",
     megakino: "Search MegaKino...",
+    cineby: "Search Cineby...",
     kinox: "Search Kinox...",
     burningseries: "Search BurningSeries...",
     filmpalast: "Search FilmPalast...",
@@ -423,6 +435,7 @@ const siteLangMaps = {
   kinox: () => window.KINOX_LANGS || {},
   burningseries: () => window.BURNINGSERIES_LANGS || {},
   filmpalast: () => window.FILMPALAST_LANGS || {},
+  cineby: () => window.CINEBY_LANGS || {},
 };
 
 function rebuildLanguageSelect() {
@@ -545,6 +558,7 @@ function refreshVisibleBrowse(force = false) {
   else if (currentSite === "kinox") loadKinoxBrowse(force);
   else if (currentSite === "filmpalast") loadFilmpalastBrowse(force);
   else if (currentSite === "burningseries") loadBurningseriesBrowse(force);
+  else if (currentSite === "cineby") loadCinebyBrowse(force);
 }
 
 setInterval(() => {

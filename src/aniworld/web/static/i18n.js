@@ -39,6 +39,7 @@
       "index.show_unofficial": "Show unofficial chapters",
       "browse.new_movies": "New Movies",
       "browse.recent_series": "Recently Updated",
+      "browse.trending_movies": "Trending Movies",
       "common.save": "Save",
       "common.add": "Add",
       "common.delete": "Delete",
@@ -54,7 +55,7 @@
       "settings.paths.default_hint":
         "Tick the sites a path should be the pre-selected download folder for.",
       "settings.persist_notice":
-        "Changes are saved to your .env and persist across restarts.",
+        "Changes made below are temporary and will be reset when AniWorld Downloader is restarted. To make settings persist, set them in your .env file at",
       "settings.autosync_defaults": "Auto-Sync Defaults",
       "settings.schedule": "Schedule",
       "settings.default_language": "Default Language",
@@ -84,11 +85,6 @@
       "settings.ui_language": "Interface Language",
       "settings.ui_language_hint": "Language of this web interface.",
       "settings.interface": "Interface",
-      "settings.config_file": "Configuration File",
-      "settings.edit_env": "Edit .env",
-      "settings.env_hint":
-        "Edit the raw .env file. Handy for Docker users. Some values only take effect after a restart.",
-      "settings.env_modal_title": "Edit .env",
       "settings.discord": "Discord Request Bot",
       "settings.discord.enable": "Enable Discord bot",
       "settings.discord.enable_hint":
@@ -152,6 +148,7 @@
       "index.show_unofficial": "Inoffizielle Kapitel anzeigen",
       "browse.new_movies": "Neue Filme",
       "browse.recent_series": "Zuletzt aktualisiert",
+      "browse.trending_movies": "Angesagte Filme",
       "common.save": "Speichern",
       "common.add": "Hinzufügen",
       "common.delete": "Löschen",
@@ -167,7 +164,7 @@
       "settings.paths.default_hint":
         "Wähle die Seiten aus, für die dieser Pfad der voreingestellte Download-Ordner sein soll.",
       "settings.persist_notice":
-        "Änderungen werden in deiner .env gespeichert und bleiben nach Neustarts erhalten.",
+        "Änderungen hier sind temporär und werden beim Neustart von AniWorld Downloader zurückgesetzt. Um Einstellungen dauerhaft zu speichern, trage sie in deine .env-Datei ein unter",
       "settings.autosync_defaults": "Auto-Sync-Standards",
       "settings.schedule": "Zeitplan",
       "settings.default_language": "Standardsprache",
@@ -197,11 +194,6 @@
       "settings.ui_language": "Sprache der Oberfläche",
       "settings.ui_language_hint": "Sprache dieser Weboberfläche.",
       "settings.interface": "Oberfläche",
-      "settings.config_file": "Konfigurationsdatei",
-      "settings.edit_env": ".env bearbeiten",
-      "settings.env_hint":
-        "Bearbeite die .env-Datei direkt. Praktisch für Docker-Nutzer. Manche Werte gelten erst nach einem Neustart.",
-      "settings.env_modal_title": ".env bearbeiten",
       "settings.discord": "Discord-Anfrage-Bot",
       "settings.discord.enable": "Discord-Bot aktivieren",
       "settings.discord.enable_hint":

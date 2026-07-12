@@ -15,6 +15,7 @@ from ..providers import resolve_provider
 from ..search import (
     query,
     query_burningseries,
+    query_cineby,
     query_filmpalast,
     query_kinox,
     query_megakino,
@@ -38,16 +39,17 @@ SITE_SEARCH = {
     "kinox": query_kinox,
     "filmpalast": query_filmpalast,
     "burningseries": query_burningseries,
+    "cineby": query_cineby,
 }
 
 # Sites checked for a request, in priority order. A planned/requested item is
-# grabbed from whichever site has it first. Kinox appears in both because it
-# carries movies and series; a type check disambiguates its hits.
-SERIES_SITE_ORDER = ["sto", "burningseries", "aniworld", "kinox"]
-MOVIE_SITE_ORDER = ["megakino", "filmpalast", "kinox"]
+# grabbed from whichever site has it first. Kinox/Cineby appear in both because
+# they carry movies and series; a type check disambiguates their hits.
+SERIES_SITE_ORDER = ["sto", "burningseries", "aniworld", "kinox", "cineby"]
+MOVIE_SITE_ORDER = ["megakino", "filmpalast", "kinox", "cineby"]
 
 # Sites whose search mixes movies and series and therefore need a type check.
-_MIXED_SITES = {"kinox"}
+_MIXED_SITES = {"kinox", "cineby"}
 
 
 # aniworld/s.to searches return relative `/…/<slug>` links; the others return

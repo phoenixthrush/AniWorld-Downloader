@@ -150,48 +150,6 @@ async function loadDiscordStatus() {
   }
 }
 
-// ===== .env editor =====
-
-async function openEnvModal() {
-  const overlay = document.getElementById("envOverlay");
-  try {
-    const resp = await fetch("/api/env");
-    const data = await resp.json();
-    if (data.error) {
-      showToast(data.error);
-      return;
-    }
-    document.getElementById("envContent").value = data.content || "";
-    document.getElementById("envPath").textContent = data.path || "";
-    overlay.style.display = "block";
-  } catch (e) {
-    showToast("Failed to load .env: " + e.message);
-  }
-}
-
-function closeEnvModal() {
-  document.getElementById("envOverlay").style.display = "none";
-}
-
-async function saveEnv() {
-  const content = document.getElementById("envContent").value;
-  try {
-    const resp = await fetch("/api/env", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content }),
-    });
-    const data = await resp.json();
-    if (data.error) {
-      showToast(data.error);
-      return;
-    }
-    showToast("Saved .env — some values need a restart");
-    closeEnvModal();
-  } catch (e) {
-    showToast("Failed to save .env: " + e.message);
-  }
-}
 
 async function saveLangSeparation() {
   try {

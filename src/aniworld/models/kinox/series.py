@@ -6,6 +6,7 @@ exposing provider_data / redirect_url / provider_url / stream_url and the
 shared download/watch/syncplay actions).
 """
 
+import html as html_lib
 import json
 import os
 import re
@@ -86,8 +87,6 @@ def _detect_language(html, url, title=""):
 
 def _parse_mirrors(html):
     """Return [(provider_key, rel), …] from a KinoX mirror listing."""
-    import html as html_lib
-
     mirrors = []
     for m in re.finditer(
         r'<li[^>]*class="[^"]*MirBtn[^"]*"[^>]*rel="([^"]+)"[^>]*>.*?<div class="Named">([^<]+)</div>',
@@ -547,24 +546,50 @@ class KinoxSeries:
     @property
     def poster_url(self):
         if self.__poster_url is None:
+            # KinoX serves the cover from /statics/thumbs/…; the container class
+            # is the site's own misspelling "Grahpics", which is why the old
+            # "Gfx" selector matched nothing and the poster stayed blank.
             m = re.search(
-                r'class="[^"]*Gfx[^"]*"[^>]*>\s*<img[^>]*src="([^"]+)"',
+                r'<img[^>]*src="(/statics/[^"]+\.(?:jpg|jpeg|png|webp|gif))"',
+                self._html,
+                re.IGNORECASE,
+            ) or re.search(
+                r'class="[^"]*Gra?h?pics[^"]*"[^>]*>\s*(?:<a[^>]*>\s*)?<img[^>]*src="([^"]+)"',
                 self._html,
                 re.IGNORECASE,
             )
             poster = m.group(1).strip() if m else ""
-            if poster.startswith("/"):
+            if poster.startswith("//"):
+                poster = "https:" + poster
+            elif poster.startswith("/"):
                 poster = _base() + poster
             self.__poster_url = poster
         return self.__poster_url
 
     @property
     def description(self):
-        return ""
+        # Plot text lives in <div class="Descriptore">…</div>.
+        m = re.search(
+            r'<div class="Descriptore">(.*?)</div>',
+            self._html,
+            re.DOTALL | re.IGNORECASE,
+        )
+        if not m:
+            return ""
+        text = re.sub(r"<[^>]+>", " ", m.group(1))
+        return re.sub(r"\s+", " ", html_lib.unescape(text)).strip()
 
     @property
     def genres(self):
-        return []
+        # <li … title="Genre"><span class="Genre"></span>Science Fiction</li>
+        m = re.search(
+            r'title="Genre"><span class="Genre"></span>([^<]+)',
+            self._html,
+            re.IGNORECASE,
+        )
+        if not m:
+            return []
+        return [g.strip() for g in html_lib.unescape(m.group(1)).split(",") if g.strip()]
 
     @property
     def language_labels(self):
