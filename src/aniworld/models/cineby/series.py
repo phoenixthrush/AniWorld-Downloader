@@ -166,6 +166,164 @@ def resolve_stream_via_api(
     )
     return None
 
+
+# cineby's language labels line up with the rest of the app's dub labels so the
+# download pipeline's LANG maps ("German Dub" -> deu, "English Dub" -> eng) work
+# unchanged.
+ENGLISH_LABEL = "English Dub"
+GERMAN_LABEL = "German Dub"
+
+# The source API is mirrored across several "servers" (path prefixes). The first
+# (cdn) carries the original audio muxed into the stream — what cineby plays by
+# default. The others sometimes expose extra dub tracks (German among them) as a
+# separate audio rendition inside an HLS master, which is what the player's
+# "server" list surfaces. We scan the extras only to find a German rendition.
+CINEBY_DEFAULT_SERVER = "cdn/sources-with-title"
+CINEBY_EXTRA_SERVERS = (
+    "neon2/sources-with-title",
+    "downloader2/sources-with-title",
+    "tejo/sources-with-title",
+    "1movies/sources-with-title",
+)
+
+# Availability is stable per title but costs several requests to probe, so cache
+# it per (media_type, tmdb, season, episode). Stores the label list plus which
+# server carried German — never a stream URL, since those hold short-lived tokens
+# and must be re-resolved fresh at download time.
+_LANG_DETECT_CACHE = {}
+
+
+def _fetch_decrypted_sources(
+    endpoint, media_type, tmdb_id, title, year, imdb_id, season, episode, attempts=2
+):
+    """Fetch + decrypt one server's ``enc=2`` sources blob. Returns dict or None.
+
+    Same seed/decrypt dance as ``resolve_stream_via_api`` but for an arbitrary
+    server endpoint and returning the whole payload (``{sources, subtitles}``)
+    instead of a single URL, so callers can inspect audio renditions.
+    """
+    from .streamcrypto import decrypt_sources
+
+    last_err = None
+    for attempt in range(attempts):
+        try:
+            seed_resp = _fetch(f"{WINGS_API}/seed", params={"mediaId": tmdb_id})
+            if seed_resp.status_code != 200:
+                raise RuntimeError(f"seed HTTP {seed_resp.status_code}")
+            seed = (seed_resp.json() or {}).get("seed")
+            if not seed:
+                raise RuntimeError("no seed in response")
+            params = {
+                "title": title or "",
+                "mediaType": media_type,
+                "year": year or "",
+                "episodeId": episode or 1,
+                "seasonId": season or 1,
+                "tmdbId": tmdb_id,
+                "imdbId": imdb_id or "",
+                "enc": "2",
+                "seed": seed,
+            }
+            src_resp = _fetch(f"{WINGS_API}/{endpoint}", params=params)
+            if src_resp.status_code != 200:
+                raise RuntimeError(f"sources HTTP {src_resp.status_code}")
+            if src_resp.text.lstrip().startswith("{"):
+                raise RuntimeError(f"sources error: {src_resp.text[:80]!r}")
+            return decrypt_sources(src_resp.text, seed, int(tmdb_id))
+        except Exception as exc:  # noqa: BLE001 - retry with a fresh seed
+            last_err = exc
+            logger.debug(
+                f"cineby {endpoint} fetch attempt {attempt + 1}/{attempts} failed: {exc}"
+            )
+            if attempt + 1 < attempts:
+                time.sleep(1.0 * (attempt + 1))
+    logger.debug(f"cineby {endpoint} sources unavailable for tmdb {tmdb_id}: {last_err}")
+    return None
+
+
+def _hls_master_from_sources(sources):
+    """Return the HLS master URL from a decrypted sources list, or None.
+
+    Prefers an explicit ``type == "hls"`` source (the multi-audio servers tag
+    them); falls back to any ``.m3u8`` URL. DASH (``.mpd``) is skipped — the
+    downloader only speaks HLS.
+    """
+    for src in sources or []:
+        if (src.get("type") or "").lower() == "hls" and src.get("url"):
+            return src["url"]
+    for src in sources or []:
+        url = src.get("url") or ""
+        if ".m3u8" in url:
+            return url
+    return None
+
+
+def _german_master_url(media_type, tmdb_id, title, year, imdb_id, season, episode, endpoint):
+    """Freshly resolve the German-carrying server's HLS master URL (or None)."""
+    data = _fetch_decrypted_sources(
+        endpoint, media_type, tmdb_id, title, year, imdb_id, season, episode
+    )
+    if not data:
+        return None
+    return _hls_master_from_sources(data.get("sources"))
+
+
+def detect_audio_languages(
+    media_type, tmdb_id, title, year, imdb_id, season, episode, probe=True
+):
+    """Probe cineby's servers for the audio languages available for a title.
+
+    English (the original, muxed audio) is always offered — that's how cineby
+    plays by default. The extra servers are scanned for a German audio rendition
+    (matched exactly as the HLS downloader will match it); the first server that
+    has one is remembered so the download can go straight to it. Result is cached
+    per episode. Returns ``{"labels": [...], "german_server": <endpoint|None>}``.
+
+    ``probe=False`` returns the cached result if present, otherwise an
+    English-only answer *without* touching the network or caching it — used on
+    the episode-listing hot path so the several-request scan never blocks the
+    list from rendering (the language dropdown probes for real separately).
+    """
+    # Availability (and which server carries German) is a title-level property,
+    # stable across episodes, so cache it per title — the season/episode passed
+    # only pick which episode gets probed. The German URL itself is never cached;
+    # stream_url re-resolves it fresh per episode (its token expires).
+    key = (media_type, str(tmdb_id))
+    if key in _LANG_DETECT_CACHE:
+        return _LANG_DETECT_CACHE[key]
+    if not probe:
+        return {"labels": [ENGLISH_LABEL], "german_server": None}
+
+    from ..common.hls import rendition_languages
+
+    labels = [ENGLISH_LABEL]
+    german_server = None
+    for endpoint in CINEBY_EXTRA_SERVERS:
+        data = _fetch_decrypted_sources(
+            endpoint, media_type, tmdb_id, title, year, imdb_id, season, episode
+        )
+        if not data:
+            continue
+        master = _hls_master_from_sources(data.get("sources"))
+        if not master:
+            continue
+        try:
+            text = _fetch(master).text
+        except Exception as exc:  # noqa: BLE001 - unreachable mirror, try next server
+            logger.debug(f"cineby manifest fetch failed for {endpoint}: {exc}")
+            continue
+        if not text.lstrip().startswith("#EXTM3U"):
+            continue
+        if "deu" in rendition_languages(text, master):
+            labels.append(GERMAN_LABEL)
+            german_server = endpoint
+            break
+
+    result = {"labels": labels, "german_server": german_server}
+    _LANG_DETECT_CACHE[key] = result
+    return result
+
+
 _TMDB_HEADERS = {
     "Accept-Encoding": "gzip, deflate",
     "Origin": CINEBY_BASE,
@@ -220,7 +378,12 @@ def cineby_season_url(media_type, tmdb_id, season):
 
 def parse_cineby_url(url):
     """Return (media_type, tmdb_id, season, episode) from a cineby URL."""
-    path = re.sub(r"^https?://[^/]+", "", url).strip("/")
+    path = re.sub(r"^https?://[^/]+", "", url)
+    # Drop any query string / fragment before splitting: season URLs carry the
+    # number as ``?s=<n>`` (see cineby_season_url), and leaving it attached would
+    # glue it onto the tmdb id (e.g. ``125988?s=2``), making every downstream
+    # TMDB path malformed so no episodes come back.
+    path = path.split("#", 1)[0].split("?", 1)[0].strip("/")
     parts = path.split("/")
     if len(parts) >= 2 and parts[0] == "movie":
         return "movie", parts[1], None, None
@@ -262,6 +425,7 @@ class CinebyEpisode:
 
         self.__selected_path = None
         self.__stream_url = None
+        self.__lang_detect = None
 
         self.__base_folder = None
         self.__folder_path = None
@@ -349,12 +513,49 @@ class CinebyEpisode:
 
     @property
     def selected_language(self):
-        # cineby streams carry the original (mostly English) audio.
-        return "English Dub"
+        # cineby's default (cdn) stream carries the original audio, labelled
+        # "English Dub"; German is offered only for titles that actually have a
+        # German audio rendition (see available_language_labels).
+        return self.__selected_language_param or ENGLISH_LABEL
 
     @selected_language.setter
     def selected_language(self, value):
-        pass  # single language; ignore
+        self.__selected_language_param = value or None
+        self.__stream_url = None  # re-resolve for the newly selected language
+
+    # ---- language detection -------------------------------------------------
+    def _detect_languages(self):
+        """Cached per-episode probe of which dub languages cineby has."""
+        if self.__lang_detect is None:
+            meta = self._meta or {}
+            title = meta.get("title") or meta.get("name") or self.title
+            year = _year(meta.get("release_date") or meta.get("first_air_date"))
+            imdb = meta.get("imdb_id") or ""
+            season = 1 if self.is_movie else self.season_number
+            episode = 1 if self.is_movie else self.episode_number
+            try:
+                self.__lang_detect = detect_audio_languages(
+                    self.media_type, self.tmdb_id, title, year, imdb, season, episode
+                )
+            except Exception as exc:  # noqa: BLE001 - never block on detection
+                logger.debug(f"cineby language detection failed: {exc}")
+                self.__lang_detect = {"labels": [ENGLISH_LABEL], "german_server": None}
+        return self.__lang_detect
+
+    @property
+    def available_language_labels(self):
+        return self._detect_languages().get("labels", [ENGLISH_LABEL])
+
+    @property
+    def _wants_german(self):
+        return self.selected_language == GERMAN_LABEL
+
+    @property
+    def _separate_audio_rendition(self):
+        # German audio lives as a standalone rendition inside a multi-audio HLS
+        # master, so the shared download() must select it rather than take the
+        # muxed default. English (the default) never needs this.
+        return self._wants_german
 
     @property
     def selected_provider(self):
@@ -370,7 +571,11 @@ class CinebyEpisode:
     # ---- provider surface (single implicit provider) ------------------------
     @property
     def provider_data(self):
-        return {(Audio.ENGLISH, Subtitles.NONE): {"Cineby": self.url}}
+        labels = self.available_language_labels
+        data = {(Audio.ENGLISH, Subtitles.NONE): {"Cineby": self.url}}
+        if GERMAN_LABEL in labels:
+            data[(Audio.GERMAN, Subtitles.NONE)] = {"Cineby": self.url}
+        return data
 
     def provider_link(self, language=None, provider=None):
         return self.url
@@ -381,17 +586,40 @@ class CinebyEpisode:
     @property
     def stream_url(self):
         if self.__stream_url is None:
+            meta = self._meta or {}
+            title = meta.get("title") or meta.get("name") or self.title
+            year = _year(meta.get("release_date") or meta.get("first_air_date"))
+            imdb = meta.get("imdb_id") or ""
+            season = 1 if self.is_movie else self.season_number
+            episode = 1 if self.is_movie else self.episode_number
+
+            # German audio comes from a different server than the default one,
+            # as a separate rendition inside its HLS master. Resolve that master
+            # fresh (its URL carries a short-lived token) from the server that
+            # detection found German on; fail clearly if none has it.
+            if self._wants_german:
+                german_server = self._detect_languages().get("german_server")
+                if not german_server:
+                    raise RuntimeError(
+                        f"cineby: no German audio available for '{self.title}'."
+                    )
+                master = _german_master_url(
+                    self.media_type, self.tmdb_id, title, year, imdb,
+                    season, episode, german_server,
+                )
+                if not master:
+                    raise RuntimeError(
+                        f"cineby: could not resolve the German stream for "
+                        f"'{self.title}' (server {german_server} unreachable)."
+                    )
+                self.__stream_url = master
+                return self.__stream_url
+
             m3u8 = None
 
             # Preferred: resolve straight from cineby's source API and decrypt
             # it — no browser, so it can't be defeated by a flaky headless run.
             try:
-                meta = self._meta or {}
-                title = meta.get("title") or meta.get("name") or self.title
-                year = _year(meta.get("release_date") or meta.get("first_air_date"))
-                imdb = meta.get("imdb_id") or ""
-                season = 1 if self.is_movie else self.season_number
-                episode = 1 if self.is_movie else self.episode_number
                 m3u8 = resolve_stream_via_api(
                     self.media_type, self.tmdb_id, title, year, imdb, season, episode
                 )
@@ -552,7 +780,14 @@ class CinebySeason:
 
     @property
     def language_labels(self):
-        return ["English Dub"]
+        # Availability is a per-title property (German either exists for the show
+        # or it doesn't), so defer to the series-level probe instead of testing
+        # every season — see CinebySeries.available_language_labels.
+        try:
+            return list(self.series.available_language_labels)
+        except Exception as exc:  # noqa: BLE001 - never break the episode listing
+            logger.debug(f"cineby season language labels failed: {exc}")
+            return [ENGLISH_LABEL]
 
     def download(self):
         for episode in self.episodes:
@@ -576,6 +811,7 @@ class CinebySeries:
         self.is_movie = self.media_type == "movie"
         self.__meta = None
         self.__seasons = None
+        self.__lang_labels = None
 
     @property
     def _meta(self):
@@ -585,6 +821,27 @@ class CinebySeries:
             else:
                 self.__meta = tmdb_get(f"/tv/{self.tmdb_id}") or {}
         return self.__meta
+
+    @property
+    def available_language_labels(self):
+        """Dub labels offered for this title (English always; German if present).
+
+        Cache-only: reports German once the per-title probe (run by the language
+        dropdown via ``/api/providers``) has cached its result, but never probes
+        itself — it feeds the episode-listing badges, which must not block on a
+        multi-request server scan. So on a series' first open the badges read
+        English-only and gain German after the dropdown loads.
+        """
+        if self.__lang_labels is None:
+            meta = self._meta or {}
+            title = meta.get("title") or meta.get("name") or self.title
+            year = _year(meta.get("release_date") or meta.get("first_air_date"))
+            imdb = meta.get("imdb_id") or ""
+            detected = detect_audio_languages(
+                self.media_type, self.tmdb_id, title, year, imdb, 1, 1, probe=False
+            )
+            self.__lang_labels = detected.get("labels", [ENGLISH_LABEL])
+        return self.__lang_labels
 
     @property
     def title(self):

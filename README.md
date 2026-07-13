@@ -65,6 +65,11 @@ For full user guides, tutorials, and troubleshooting, visit the [official docume
   > still run without errors — when kinox blocks one, the queue shows a **"Solve on
   > Kinox"** button that opens the title page so you can solve the captcha and hit
   > **Retry**. Prefer the other sites for now.
+  >
+  > **Cineby German audio is unreliable:** Cineby lists a German audio track for
+  > almost everything, so the downloader offers **German Dub** accordingly — but in
+  > practice those German tracks often just don't work. That's a problem with Cineby's
+  > own sources, not with the downloader, so expect to fall back to English fairly often.
 - **Planned Releases** – Queue titles that aren't out yet; they download automatically once available
 - **Discord Request Bot** – Let others request movies/series from Discord, with owner approval
 - **Interface Language** – Switch the whole UI between English and German

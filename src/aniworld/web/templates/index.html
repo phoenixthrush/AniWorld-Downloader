@@ -120,7 +120,10 @@
       window.KINOX_LANGS = { "1": "German Dub", "2": "English Dub" };
       window.BURNINGSERIES_LANGS = { "1": "German Dub", "2": "English Dub" };
       window.FILMPALAST_LANGS = { "1": "German Dub", "2": "English Dub" };
-      window.CINEBY_LANGS = { "1": "English Dub" };
+      // German Dub is only kept visible for titles that actually have it —
+      // /api/providers reports the available dubs per title and the language
+      // select hides the ones it omits.
+      window.CINEBY_LANGS = { "4": "English Dub", "1": "German Dub" };
       window.DEFAULT_WEB_LANGUAGE = {{ default_web_language | tojson }};
       window.HTV_ENABLED = {{ htv_enabled | tojson }};
       window.BURNINGSERIES_ENABLED = {{ burningseries_enabled | tojson }};
