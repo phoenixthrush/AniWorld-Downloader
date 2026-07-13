@@ -7,10 +7,14 @@
       <button class="segmented-btn active" id="labelAniworld" onclick="switchSite('aniworld')">AniWorld</button>
       <button class="segmented-btn" id="labelMangaFire" onclick="switchSite('mangafire')">MangaFire</button>
       <button class="segmented-btn" id="labelSto" onclick="switchSite('sto')">SerienStream</button>
+      {% if burningseries_enabled %}
       <button class="segmented-btn" id="labelBurningSeries" onclick="switchSite('burningseries')">BurningSeries</button>
+      {% endif %}
       <button class="segmented-btn" id="labelMegakino" onclick="switchSite('megakino')">MegaKino</button>
       <button class="segmented-btn" id="labelCineby" onclick="switchSite('cineby')">Cineby</button>
+      {% if kinox_enabled %}
       <button class="segmented-btn" id="labelKinox" onclick="switchSite('kinox')">Kinox</button>
+      {% endif %}
       <button class="segmented-btn" id="labelFilmPalast" onclick="switchSite('filmpalast')">FilmPalast</button>
       {% if htv_enabled %}
       <button class="segmented-btn" id="labelHtv" onclick="switchSite('htv')">Hanime</button>
@@ -119,6 +123,8 @@
       window.CINEBY_LANGS = { "1": "English Dub" };
       window.DEFAULT_WEB_LANGUAGE = {{ default_web_language | tojson }};
       window.HTV_ENABLED = {{ htv_enabled | tojson }};
+      window.BURNINGSERIES_ENABLED = {{ burningseries_enabled | tojson }};
+      window.KINOX_ENABLED = {{ kinox_enabled | tojson }};
     </script>
     <div class="episodes-header">
       <h3 data-i18n="index.episodes">Episodes</h3>
