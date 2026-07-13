@@ -833,6 +833,36 @@ def _download_hls_manual(m3u8_url, headers, temp_ts, label=""):
             )
 
 
+def _hls_rendition_download(stream_url, temp_prefix, headers, audio_code, ep_label):
+    """Fetch an HLS stream, selecting the ``audio_code`` audio rendition.
+
+    Used when the wanted audio (e.g. a German dub on cineby) is a *separate*
+    ``#EXT-X-MEDIA:TYPE=AUDIO`` rendition inside a multi-audio master rather than
+    the muxed default — the plain FFmpeg/manual paths would grab the default
+    track instead. Returns ``(video_path, audio_path)`` (``audio_path`` is None
+    when the stream turned out to be muxed after all), or None when the parallel
+    downloader can't handle the playlist and the caller should fall back.
+    """
+    from .hls import HLSUnsupported, download_hls_parallel
+
+    try:
+        written = download_hls_parallel(
+            stream_url,
+            temp_prefix,
+            headers=headers,
+            preferred_audio_lang=audio_code,
+            label=ep_label,
+        )
+    except HLSUnsupported as exc:
+        logger.debug(f"[HLS] rendition download unsupported ({exc}); falling back")
+        return None
+    if not written:
+        return None
+    video = written[0]
+    audio = written[1] if len(written) >= 2 else None
+    return video, audio
+
+
 def _download_full_stream(
     stream_url,
     temp_full,
@@ -965,6 +995,12 @@ def download(self):
 
                 full_stream_needed = need_audio and need_video
 
+                # Some providers (cineby's German dub) serve the wanted audio as
+                # a separate HLS rendition rather than the muxed default; the
+                # episode opts into rendition-aware fetching so we pick the right
+                # track instead of the default one.
+                select_rendition = getattr(self, "_separate_audio_rendition", False)
+
                 temp_audio = self._episode_path.with_suffix(".temp_audio.mkv")
                 temp_video = self._episode_path.with_suffix(".temp_video.mkv")
                 temp_full = self._episode_path.with_suffix(".temp_full.mkv")
@@ -979,16 +1015,49 @@ def download(self):
                         stream_metadata["metadata:s:v:0"] = f"language={sub_video_code}"
 
                     video_codec = get_video_codec()
-                    _download_full_stream(
-                        stream_url,
-                        temp_full,
-                        input_kwargs,
-                        headers,
-                        stream_metadata,
-                        video_codec,
-                        ep_label,
-                        audio_code,
-                    )
+                    rendition_done = False
+                    if select_rendition:
+                        from .hls import cleanup_temp_files
+
+                        temp_prefix = temp_full.with_suffix(".hlswork")
+                        result = _hls_rendition_download(
+                            stream_url, temp_prefix, headers, audio_code, ep_label
+                        )
+                        if result is not None:
+                            video_path, audio_path = result
+                            try:
+                                if audio_path is not None:
+                                    node = ffmpeg.output(
+                                        ffmpeg.input(str(video_path)).video,
+                                        ffmpeg.input(str(audio_path)).audio,
+                                        str(temp_full),
+                                        vcodec=video_codec,
+                                        acodec=video_codec,
+                                        **stream_metadata,
+                                    )
+                                else:
+                                    node = ffmpeg.input(str(video_path)).output(
+                                        str(temp_full),
+                                        vcodec=video_codec,
+                                        acodec=video_codec,
+                                        **stream_metadata,
+                                    )
+                                _run_ffmpeg_with_progress(node, label=ep_label)
+                                rendition_done = True
+                            finally:
+                                cleanup_temp_files(temp_prefix)
+
+                    if not rendition_done:
+                        _download_full_stream(
+                            stream_url,
+                            temp_full,
+                            input_kwargs,
+                            headers,
+                            stream_metadata,
+                            video_codec,
+                            ep_label,
+                            audio_code,
+                        )
 
                     if self._episode_path.exists():
                         inputs = [
@@ -1010,15 +1079,42 @@ def download(self):
                 if need_audio:
                     logger.debug(f"[DOWNLOADING] audio stream via {provider_name}")
                     video_codec = get_video_codec()
-                    _run_ffmpeg_with_progress(
-                        ffmpeg.input(stream_url, **input_kwargs).output(
-                            str(temp_audio),
-                            acodec=video_codec,
-                            map="0:a:0?",
-                            **{"metadata:s:a:0": f"language={audio_code}"},
-                        ),
-                        label=ep_label,
-                    )
+                    audio_done = False
+                    if select_rendition:
+                        # Pull just the wanted audio rendition (e.g. the German
+                        # dub) rather than the master's default track.
+                        from .hls import cleanup_temp_files
+
+                        temp_prefix = temp_audio.with_suffix(".hlswork")
+                        result = _hls_rendition_download(
+                            stream_url, temp_prefix, headers, audio_code, ep_label
+                        )
+                        if result is not None:
+                            _, audio_path = result
+                            audio_src = audio_path or result[0]
+                            try:
+                                _run_ffmpeg_with_progress(
+                                    ffmpeg.input(str(audio_src)).output(
+                                        str(temp_audio),
+                                        acodec=video_codec,
+                                        map="0:a:0?",
+                                        **{"metadata:s:a:0": f"language={audio_code}"},
+                                    ),
+                                    label=ep_label,
+                                )
+                                audio_done = True
+                            finally:
+                                cleanup_temp_files(temp_prefix)
+                    if not audio_done:
+                        _run_ffmpeg_with_progress(
+                            ffmpeg.input(stream_url, **input_kwargs).output(
+                                str(temp_audio),
+                                acodec=video_codec,
+                                map="0:a:0?",
+                                **{"metadata:s:a:0": f"language={audio_code}"},
+                            ),
+                            label=ep_label,
+                        )
 
                 if need_video:
                     logger.debug(f"[DOWNLOADING] video stream via {provider_name}")

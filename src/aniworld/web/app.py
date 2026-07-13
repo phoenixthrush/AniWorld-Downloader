@@ -1690,8 +1690,16 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             if prov.name == "MangaFire":
                 return jsonify({"providers": {}})
             if prov.name == "Cineby":
-                # Single implicit provider; stream is captured from the site.
-                return jsonify({"providers": {"English Dub": ["Cineby"]}})
+                # Single implicit provider, but the audio language varies: the
+                # original is always there, German only when the title has a
+                # German audio rendition. Probe the given episode to find out.
+                labels = ["English Dub"]
+                try:
+                    episode = prov.episode_cls(url=url)
+                    labels = list(episode.available_language_labels) or labels
+                except Exception as exc:
+                    logger.warning(f"Cineby language detection failed: {exc}")
+                return jsonify({"providers": {label: ["Cineby"] for label in labels}})
             if prov.name == "MegaKino":
                 episode = prov.episode_cls(url=url, selected_language="German Dub")
             else:
