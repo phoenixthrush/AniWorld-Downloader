@@ -1133,6 +1133,130 @@ h1 {
   background: rgba(239, 68, 68, 0.2);
 }
 
+/* ===== Custom path default sites ===== */
+.path-site-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  max-width: 340px;
+}
+
+.path-site-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  color: #c8cad0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.path-site-chip input {
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
+/* ===== Discord status ===== */
+.discord-status {
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+.discord-status-on {
+  color: #34d399;
+}
+.discord-status-off {
+  color: #6b7280;
+}
+.discord-status-err {
+  color: #f87171;
+}
+
+/* ===== Planned releases ===== */
+.planned-label {
+  display: block;
+  font-size: 0.78rem;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.planned-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.planned-main {
+  flex: 2;
+  min-width: 0;
+}
+
+.planned-title {
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.planned-meta {
+  color: #6b7280;
+  font-size: 0.8rem;
+  margin-top: 2px;
+}
+
+.planned-status {
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.planned-status-waiting {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.planned-status-found {
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.12);
+}
+
+.planned-status-error {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.planned-check {
+  flex: 1;
+  color: #9ca3af;
+  font-size: 0.8rem;
+}
+
+.planned-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-secondary {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #c8cad0;
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  border-color: #2563eb;
+}
+
 /* ===== SSO ===== */
 .auth-divider {
   display: flex;
@@ -1783,6 +1907,57 @@ h1 {
 .queue-captcha-btn:hover {
   background: rgba(239, 68, 68, 0.22);
   border-color: rgba(239, 68, 68, 0.6);
+}
+
+/* Kinox-only: solve-captcha link + retry shown under a failed kinox item */
+.queue-captcha-solve {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.queue-captcha-note {
+  font-size: 0.75rem;
+  color: #f8b4b4;
+  flex: 1 1 auto;
+}
+
+.queue-captcha-link,
+.queue-retry-btn {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.queue-captcha-link {
+  background: rgba(239, 68, 68, 0.14);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #f87171;
+}
+
+.queue-captcha-link:hover {
+  background: rgba(239, 68, 68, 0.24);
+}
+
+.queue-retry-btn {
+  background: rgba(96, 165, 250, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.4);
+  color: #60a5fa;
+}
+
+.queue-retry-btn:hover {
+  background: rgba(96, 165, 250, 0.22);
 }
 
 .captcha-overlay {

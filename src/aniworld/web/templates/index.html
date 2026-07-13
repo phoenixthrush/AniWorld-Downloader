@@ -5,9 +5,13 @@
     <div class="segmented-track" id="segmentedTrack">
       <div class="segmented-thumb" id="segmentedThumb"></div>
       <button class="segmented-btn active" id="labelAniworld" onclick="switchSite('aniworld')">AniWorld</button>
-      <button class="segmented-btn" id="labelSto" onclick="switchSite('sto')">SerienStream</button>
-      <button class="segmented-btn" id="labelMegakino" onclick="switchSite('megakino')">MegaKino</button>
       <button class="segmented-btn" id="labelMangaFire" onclick="switchSite('mangafire')">MangaFire</button>
+      <button class="segmented-btn" id="labelSto" onclick="switchSite('sto')">SerienStream</button>
+      <button class="segmented-btn" id="labelBurningSeries" onclick="switchSite('burningseries')">BurningSeries</button>
+      <button class="segmented-btn" id="labelMegakino" onclick="switchSite('megakino')">MegaKino</button>
+      <button class="segmented-btn" id="labelCineby" onclick="switchSite('cineby')">Cineby</button>
+      <button class="segmented-btn" id="labelKinox" onclick="switchSite('kinox')">Kinox</button>
+      <button class="segmented-btn" id="labelFilmPalast" onclick="switchSite('filmpalast')">FilmPalast</button>
       {% if htv_enabled %}
       <button class="segmented-btn" id="labelHtv" onclick="switchSite('htv')">Hanime</button>
       {% endif %}
@@ -15,8 +19,8 @@
   </div>
   <div class="search-bar">
     <input type="text" id="searchInput" placeholder="Search for anime..." autofocus />
-    <button id="searchBtn" onclick="doSearch()">Search</button>
-    <button class="btn-random" id="randomBtn" onclick="doRandom()">
+    <button id="searchBtn" onclick="doSearch()" data-i18n="index.search">Search</button>
+    <button class="btn-random" id="randomBtn" onclick="doRandom()" data-i18n="index.random">
       Random
     </button>
   </div>
@@ -42,6 +46,22 @@
     <div class="browse-section" id="popularMoviesSection" style="display: none">
       <h2 class="browse-heading">Popular Movies</h2>
       <div class="browse-grid" id="popularMoviesGrid"></div>
+    </div>
+    <div class="browse-section" id="kinoxMoviesSection" style="display: none">
+      <h2 class="browse-heading" data-i18n="browse.new_movies">New Movies</h2>
+      <div class="browse-grid" id="kinoxMoviesGrid"></div>
+    </div>
+    <div class="browse-section" id="filmpalastMoviesSection" style="display: none">
+      <h2 class="browse-heading" data-i18n="browse.new_movies">New Movies</h2>
+      <div class="browse-grid" id="filmpalastMoviesGrid"></div>
+    </div>
+    <div class="browse-section" id="burningseriesSection" style="display: none">
+      <h2 class="browse-heading" data-i18n="browse.recent_series">Recently Updated</h2>
+      <div class="browse-grid" id="burningseriesGrid"></div>
+    </div>
+    <div class="browse-section" id="cinebySection" style="display: none">
+      <h2 class="browse-heading" data-i18n="browse.trending_movies">Trending Movies</h2>
+      <div class="browse-grid" id="cinebyGrid"></div>
     </div>
     <div class="browse-section" id="mangaFireTrendingSection" style="display: none">
       <h2 class="browse-heading">MangaFire Trending</h2>
@@ -84,25 +104,29 @@
       <label class="select-all-label"><input type="checkbox" id="showUnofficial" onchange="toggleShowUnofficial()" /> Show unofficial chapters</label>
     </div>
     <div class="custom-path-row" id="customPathRow" style="display: none">
-      <label class="custom-path-label">Download Folder</label>
+      <label class="custom-path-label" data-i18n="index.download_folder">Download Folder</label>
       <select id="customPathSelect">
-        <option value="">Default</option>
+        <option value="" data-i18n="index.default">Default</option>
       </select>
     </div>
     <script>
       window.ANIWORLD_LANGS = {{ lang_labels | tojson }};
       window.STO_LANGS = {{ sto_lang_labels | tojson }};
       window.MEGAKINO_LANGS = {{ megakino_lang_labels | tojson }};
+      window.KINOX_LANGS = { "1": "German Dub", "2": "English Dub" };
+      window.BURNINGSERIES_LANGS = { "1": "German Dub", "2": "English Dub" };
+      window.FILMPALAST_LANGS = { "1": "German Dub", "2": "English Dub" };
+      window.CINEBY_LANGS = { "1": "English Dub" };
       window.DEFAULT_WEB_LANGUAGE = {{ default_web_language | tojson }};
       window.HTV_ENABLED = {{ htv_enabled | tojson }};
     </script>
     <div class="episodes-header">
-      <h3>Episodes</h3>
+      <h3 data-i18n="index.episodes">Episodes</h3>
       <div style="display: flex; align-items: center; gap: 16px">
         <label class="select-all-label"><input type="checkbox" id="autoSyncCheck" onchange="toggleAutoSync()" />
-          Keep Updated (Auto-Sync)</label>
+          <span data-i18n="index.autosync">Keep Updated (Auto-Sync)</span></label>
         <label class="select-all-label"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()" />
-          Select All</label>
+          <span data-i18n="index.selectall">Select All</span></label>
       </div>
     </div>
     <div class="season-accordion" id="seasonAccordion"></div>
@@ -111,13 +135,13 @@
       <span id="statusText"></span>
     </div>
     <div class="modal-actions">
-      <button class="btn-download-selected" id="downloadSelectedBtn" onclick="startDownload(false)">
+      <button class="btn-download-selected" id="downloadSelectedBtn" onclick="startDownload(false)" data-i18n="index.download_selected">
         Download Selected
       </button>
-      <button class="btn-download-all" id="downloadAllBtn" onclick="startDownload(true)">
+      <button class="btn-download-all" id="downloadAllBtn" onclick="startDownload(true)" data-i18n="index.download_all">
         Download All
       </button>
-      <button class="btn-download-all-langs" id="downloadAllLangsBtn" onclick="startDownloadAllLangs()" style="display: none">
+      <button class="btn-download-all-langs" id="downloadAllLangsBtn" onclick="startDownloadAllLangs()" style="display: none" data-i18n="index.download_all_langs">
         Download All Languages
       </button>
     </div>

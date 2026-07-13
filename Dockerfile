@@ -46,6 +46,12 @@ ENV ANIWORLD_DOWNLOAD_PATH=/app/Downloads
 # Virtual display for headless Chromium (patchright) — headed mode works via Xvfb
 ENV DISPLAY=:99
 
+# Install the patchright browser into a shared, world-readable location instead
+# of a per-user cache. The browser install runs as root but the app runs as the
+# unprivileged "aniworld" user, so without this the runtime can't find Chromium
+# (it looks in /home/aniworld/.cache and the root install went to /root/.cache).
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
 # Copy packaging metadata first to maximize Docker layer cache hits for dependency installs
 COPY pyproject.toml /app/
 COPY README.md LICENSE MANIFEST.in /app/
@@ -59,8 +65,11 @@ COPY src/ /app/src/
 # Install the project into the image
 RUN pip install --no-cache-dir .
 
-# Pre-install patchright Chromium into the image so it's available at runtime
-RUN python -m patchright install chromium
+# Pre-install patchright Chromium into the image so it's available at runtime.
+# Installs into PLAYWRIGHT_BROWSERS_PATH (/ms-playwright) and makes it readable
+# by every user so the unprivileged runtime user can launch it.
+RUN python -m patchright install chromium \
+    && chmod -R a+rX /ms-playwright
 
 # Ensure the runtime directories are still writable after COPY overwrote ownership
 RUN chown -R aniworld:aniworld /app/Downloads /home/aniworld/.aniworld

@@ -41,3 +41,32 @@ def merge_env(example_path: Path, env_path: Path):
 
     # Load the merged env file
     load_dotenv(env_path)
+
+
+def persist_env_values(env_path: Path, updates: dict):
+    """Write specific KEY=VALUE pairs into the .env file, preserving the rest.
+
+    Only the given keys are touched: existing lines (comments, other keys,
+    formatting) are kept as-is, matching keys are rewritten in place, and any
+    missing keys are appended at the end. Used to persist settings that must
+    survive a restart (e.g. the Discord bot config) while every other web-UI
+    setting stays session-only.
+    """
+    env_path = Path(env_path)
+    env_path.parent.mkdir(parents=True, exist_ok=True)
+    lines = env_path.read_text().splitlines() if env_path.exists() else []
+
+    remaining = dict(updates)
+    out = []
+    for line in lines:
+        m = ENV_LINE_RE.match(line)
+        key = m.group(1).strip() if m else None
+        if key is not None and key in remaining:
+            out.append(f"{key}={remaining.pop(key)}")
+        else:
+            out.append(line)
+
+    for key, value in remaining.items():
+        out.append(f"{key}={value}")
+
+    env_path.write_text("\n".join(out) + "\n")

@@ -20,11 +20,19 @@ from ..logger import get_logger
 from ..models.mangafire_to.series import search_series as query_mangafire
 from ..providers import resolve_provider
 from ..search import (
+    fetch_burningseries_series,
+    fetch_cineby_movies,
+    fetch_filmpalast_movies,
+    fetch_kinox_movies,
     fetch_new_animes,
     fetch_new_series,
     fetch_popular_animes,
     fetch_popular_movies,
     fetch_popular_series,
+    query_burningseries,
+    query_cineby,
+    query_filmpalast,
+    query_kinox,
     query_megakino,
     query_s_to,
     random_anime,
@@ -33,6 +41,7 @@ from ..search import query as aniworld_query
 from .db import (
     add_autosync_job,
     add_custom_path,
+    update_custom_path,
     add_to_queue,
     cancel_queue_item,
     clear_captcha_url,
@@ -48,8 +57,13 @@ from .db import (
     get_queue_stats,
     get_running,
     get_sync_stats,
+    add_planned_job,
+    get_planned_job,
+    get_planned_jobs,
+    remove_planned_job,
     init_autosync_db,
     init_custom_paths_db,
+    init_planned_db,
     init_queue_db,
     is_queue_cancelled,
     is_series_queued_or_running,
@@ -57,6 +71,7 @@ from .db import (
     remove_autosync_job,
     remove_custom_path,
     remove_from_queue,
+    requeue_item,
     set_captcha_url,
     set_queue_status,
     update_autosync_job,
@@ -85,6 +100,199 @@ def _get_working_providers():
 
 WORKING_PROVIDERS = _get_working_providers()
 WORKING_PROVIDER_LOOKUP = {provider.lower(): provider for provider in WORKING_PROVIDERS}
+
+# Site keys the front-end uses; custom paths can be the default for any of them
+SITE_KEYS = (
+    "aniworld",
+    "sto",
+    "megakino",
+    "mangafire",
+    "htv",
+    "kinox",
+    "burningseries",
+    "filmpalast",
+    "cineby",
+)
+
+
+def _normalize_default_sites(value):
+    """Validate a default_sites value into a clean CSV of known site keys."""
+    if isinstance(value, (list, tuple)):
+        raw = value
+    else:
+        raw = str(value or "").split(",")
+    seen = []
+    for item in raw:
+        key = str(item).strip().lower()
+        if key in SITE_KEYS and key not in seen:
+            seen.append(key)
+    return ",".join(seen)
+
+
+# Languages the web interface itself can be displayed in
+SUPPORTED_UI_LANGUAGES = ("en", "de")
+
+# Containers the downloader can write
+SUPPORTED_OUTPUT_FORMATS = ("mkv", "mp4")
+
+# Discord bot settings that live in the .env file
+DISCORD_ENV_KEYS = {
+    "enabled": "ANIWORLD_DISCORD_BOT_ENABLED",
+    "token": "ANIWORLD_DISCORD_TOKEN",
+    "owner_id": "ANIWORLD_DISCORD_OWNER_ID",
+    "mode": "ANIWORLD_DISCORD_MODE",
+    "request_role_id": "ANIWORLD_DISCORD_REQUEST_ROLE_ID",
+    "guild_id": "ANIWORLD_DISCORD_GUILD_ID",
+    "language": "ANIWORLD_DISCORD_LANGUAGE",
+    "announce_channel_id": "ANIWORLD_DISCORD_ANNOUNCE_CHANNEL_ID",
+}
+DISCORD_LANGUAGES = ("en", "de")
+
+DISCORD_MODES = ("standard", "advanced")
+
+# Placeholder shown instead of the real token so it never leaves the server
+SECRET_PLACEHOLDER = "••••••••"
+
+
+def _current_naming_template():
+    from ..config import NAMING_TEMPLATE
+
+    return os.environ.get("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
+
+
+def _naming_template_extension():
+    """Return the output container implied by the naming template."""
+    last_segment = _current_naming_template().rstrip('"').split("/")[-1]
+    if "." in last_segment:
+        ext = last_segment.rsplit(".", 1)[1].strip().strip('"').lower()
+        if ext:
+            return ext
+    return "mkv"
+
+
+def _naming_template_with_extension(extension):
+    """Rewrite the naming template so it ends in `.<extension>`."""
+    template = _current_naming_template()
+    quoted = template.startswith('"') and template.endswith('"')
+    if quoted:
+        template = template[1:-1]
+
+    parts = template.split("/")
+    last = parts[-1]
+    if "." in last:
+        last = last.rsplit(".", 1)[0]
+    parts[-1] = f"{last}.{extension}"
+    rebuilt = "/".join(parts)
+    return f'"{rebuilt}"' if quoted else rebuilt
+
+
+def _discord_settings():
+    """Read the current Discord bot configuration from the environment."""
+    return {
+        "enabled": os.environ.get(DISCORD_ENV_KEYS["enabled"], "0") == "1",
+        "token_set": bool(os.environ.get(DISCORD_ENV_KEYS["token"], "").strip()),
+        "owner_id": os.environ.get(DISCORD_ENV_KEYS["owner_id"], ""),
+        "mode": os.environ.get(DISCORD_ENV_KEYS["mode"], "standard"),
+        "request_role_id": os.environ.get(DISCORD_ENV_KEYS["request_role_id"], ""),
+        "guild_id": os.environ.get(DISCORD_ENV_KEYS["guild_id"], ""),
+        "language": os.environ.get(DISCORD_ENV_KEYS["language"], "en"),
+        "announce_channel_id": os.environ.get(
+            DISCORD_ENV_KEYS["announce_channel_id"], ""
+        ),
+    }
+
+
+def _apply_discord_settings(payload, env_updates):
+    """Validate a Discord settings payload into `env_updates`.
+
+    Returns an error string on failure, otherwise None.
+    """
+    if not isinstance(payload, dict):
+        return "discord must be an object"
+
+    if "enabled" in payload:
+        env_updates[DISCORD_ENV_KEYS["enabled"]] = "1" if payload["enabled"] else "0"
+
+    if "token" in payload:
+        token = str(payload["token"]).strip()
+        # The UI sends the placeholder back when the field was left untouched
+        if token != SECRET_PLACEHOLDER:
+            env_updates[DISCORD_ENV_KEYS["token"]] = token
+
+    if "mode" in payload:
+        mode = str(payload["mode"]).strip().lower()
+        if mode not in DISCORD_MODES:
+            return f"Invalid discord mode: {mode}"
+        env_updates[DISCORD_ENV_KEYS["mode"]] = mode
+
+    if "language" in payload:
+        language = str(payload["language"]).strip().lower()
+        if language not in DISCORD_LANGUAGES:
+            return f"Invalid discord language: {language}"
+        env_updates[DISCORD_ENV_KEYS["language"]] = language
+
+    for field in ("owner_id", "request_role_id", "guild_id", "announce_channel_id"):
+        if field in payload:
+            value = str(payload[field]).strip()
+            if value and not value.isdigit():
+                return f"Invalid discord {field}: must be a numeric ID"
+            env_updates[DISCORD_ENV_KEYS[field]] = value
+
+    return None
+
+
+def _persist_discord_env(env_updates):
+    """Persist only the Discord bot keys to ~/.aniworld/.env.
+
+    Every other web-UI setting is intentionally in-memory only (see
+    api_settings_update). The bot config is the one exception: a token that
+    vanished on restart would be useless, so the ANIWORLD_DISCORD_* keys are
+    written through to the .env file. They live in .env.example too, so the
+    startup merge_env keeps them across restarts.
+    """
+    discord_keys = set(DISCORD_ENV_KEYS.values())
+    subset = {k: v for k, v in env_updates.items() if k in discord_keys}
+    if not subset:
+        return
+    try:
+        from pathlib import Path
+
+        from ..env import persist_env_values
+
+        env_path = Path.home() / ".aniworld" / ".env"
+        persist_env_values(env_path, subset)
+    except Exception as exc:
+        logger.warning(f"Could not persist Discord settings to .env: {exc}")
+
+
+def _notify_discord_completed(item):
+    """Tell the Discord bot a requested download finished (DM + optional announce)."""
+    try:
+        from .discord_bot import notify_completed
+
+        media_type = "movie" if int(item.get("total_episodes") or 1) <= 1 else "series"
+        notify_completed(
+            item.get("title") or "Unknown",
+            media_type,
+            item.get("language") or "",
+            item.get("discord_user_id"),
+        )
+    except Exception as exc:
+        logger.info(f"Discord completion notice skipped: {exc}")
+
+
+def _reconcile_discord_bot():
+    """Start/stop/restart the Discord bot after a settings change."""
+    try:
+        from .discord_bot import reconcile
+    except ImportError as exc:
+        logger.warning(f"Discord bot unavailable: {exc}")
+        return
+    try:
+        reconcile()
+    except Exception as exc:
+        logger.error(f"Discord bot reconcile failed: {exc}", exc_info=True)
+
 
 ANIWORLD_LANGUAGE_BADGE_ORDER = (
     "German Dub",
@@ -394,7 +602,10 @@ def _queue_worker():
                         "selected_language": item["language"],
                         "selected_provider": item["provider"],
                     }
-                    if prov.name != "MegaKino":
+                    # `series` is only ever populated for MangaFire; passing it
+                    # (even as None) to movie models that don't accept the kwarg
+                    # would raise, so only forward it when it's real.
+                    if prov.name != "MegaKino" and series is not None:
                         ep_kwargs["series"] = series
                     if selected_pages is not None:
                         ep_kwargs["selected_pages"] = selected_pages
@@ -409,7 +620,27 @@ def _queue_worker():
                 except Exception as e:
                     _captcha_mod._local.queue_id = None
                     logger.error(f"Download failed for {ep_url}: {e}")
-                    errors.append({"url": ep_url, "error": str(e)})
+                    err_entry = {"url": ep_url, "error": str(e)}
+                    # kinox (and only kinox) guards each download with a captcha
+                    # every visitor gets. Attach the kinox title page so the UI
+                    # can offer a "solve on kinox, then retry" button.
+                    try:
+                        from ..models.kinox.series import (
+                            KINOX_CAPTCHA_MARKER,
+                            kinox_captcha_page_url,
+                        )
+
+                        if (
+                            locals().get("prov") is not None
+                            and prov.name == "Kinox"
+                            and KINOX_CAPTCHA_MARKER in str(e)
+                        ):
+                            err_entry["captcha_url"] = kinox_captcha_page_url(
+                                chapter_url
+                            )
+                    except Exception:
+                        pass
+                    errors.append(err_entry)
                     update_queue_errors(item["id"], json.dumps(errors))
 
                 # Check for cancellation after each episode
@@ -425,6 +656,10 @@ def _queue_worker():
                     "failed" if errors and len(errors) == len(episodes) else "completed"
                 )
                 set_queue_status(item["id"], status)
+
+                # Notify the Discord requester (DM) + optional announce channel.
+                if status == "completed" and item.get("source") == "discord":
+                    _notify_discord_completed(item)
 
         except Exception as e:
             logger.error(f"Queue worker error: {e}", exc_info=True)
@@ -665,10 +900,34 @@ def _autosync_worker():
                         continue
                 _run_autosync_for_job(job)
 
+            # Planned releases ride the same cadence as auto-sync.
+            _run_planned_checks(now, interval)
+
             time.sleep(10)
         except Exception as e:
             logger.error("Auto-sync worker error: %s", e, exc_info=True)
             time.sleep(30)
+
+
+def _run_planned_checks(now, interval):
+    """Check waiting planned items whose per-item interval has elapsed."""
+    from datetime import datetime, timedelta
+
+    from .db import get_planned_jobs
+    from .planned import check_planned_job
+
+    for job in get_planned_jobs():
+        if job.get("status") != "waiting":
+            continue
+        last_check = job.get("last_check")
+        if last_check:
+            try:
+                last_dt = datetime.strptime(last_check, "%Y-%m-%d %H:%M:%S")
+            except (ValueError, TypeError):
+                last_dt = datetime.min
+            if now < last_dt + timedelta(seconds=interval):
+                continue
+        check_planned_job(job)
 
 
 def _ensure_autosync_worker():
@@ -682,12 +941,37 @@ def _ensure_autosync_worker():
 
 
 def _get_version():
+    # Prefer the installed package metadata…
     try:
-        from importlib.metadata import version
+        from importlib.metadata import PackageNotFoundError, version
 
-        return version("aniworld")
+        try:
+            v = version("aniworld")
+            if v:
+                return v
+        except PackageNotFoundError:
+            pass
     except Exception:
-        return ""
+        pass
+    # …otherwise (running from source) read it from pyproject.toml.
+    try:
+        import re
+        from pathlib import Path
+
+        for parent in Path(__file__).resolve().parents:
+            pyproject = parent / "pyproject.toml"
+            if pyproject.exists():
+                m = re.search(
+                    r'^\s*version\s*=\s*"([^"]+)"',
+                    pyproject.read_text(encoding="utf-8"),
+                    re.MULTILINE,
+                )
+                if m:
+                    return m.group(1)
+                break
+    except Exception:
+        pass
+    return ""
 
 
 def _proxy_image_url(url: str) -> str:
@@ -849,10 +1133,18 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 "app_version": app_version,
             }
 
+    @app.context_processor
+    def _inject_ui_language():
+        lang = os.environ.get("ANIWORLD_UI_LANGUAGE", "en").lower()
+        if lang not in SUPPORTED_UI_LANGUAGES:
+            lang = "en"
+        return {"ui_language": lang}
+
     # Initialize download queue, custom paths and autosync (works with or without auth)
     init_queue_db()
     init_custom_paths_db()
     init_autosync_db()
+    init_planned_db()
 
     # Wire up captcha hooks so the Playwright module can signal the Web UI
     from ..playwright import captcha as _captcha_mod
@@ -867,6 +1159,12 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     if not _debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         _ensure_queue_worker()
         _ensure_autosync_worker()
+        try:
+            from .discord_bot import start_if_enabled
+
+            start_if_enabled()
+        except Exception as exc:
+            logger.warning(f"Discord bot not started: {exc}")
 
     @app.after_request
     def _set_security_headers(response):
@@ -939,9 +1237,16 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                         "poster_url": _proxy_image_url(_normalize_image_url(poster)),
                     }
                 )
-        elif site == "megakino":
-            mk_results = query_megakino(keyword) or []
-            for item in mk_results:
+        elif site in ("megakino", "kinox", "filmpalast", "burningseries", "cineby"):
+            query_fn = {
+                "megakino": query_megakino,
+                "kinox": query_kinox,
+                "filmpalast": query_filmpalast,
+                "burningseries": query_burningseries,
+                "cineby": query_cineby,
+            }[site]
+            site_results = query_fn(keyword) or []
+            for item in site_results:
                 url = item.get("url", "")
                 if not url:
                     continue
@@ -1072,8 +1377,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
         try:
             prov = resolve_provider(url)
-            if prov.name == "MegaKino":
-                series = prov.series_cls(url=url)
+            if prov.name in ("MegaKino", "FilmPalast"):
                 return jsonify(
                     {
                         "seasons": [
@@ -1087,13 +1391,19 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                     }
                 )
             series = prov.series_cls(url=url)
+            # burning-series has no per-season episode count on the series page,
+            # so reading season.episode_count here would fetch every season page
+            # up front (a series with 30+ seasons = 30+ serial requests = the
+            # modal "loading…" forever). Skip it: the count fills in lazily as
+            # each season is expanded and its episodes load.
+            defer_counts = prov.name == "BurningSeries"
             seasons_data = []
             for season in series.seasons:
                 seasons_data.append(
                     {
                         "url": season.url,
                         "season_number": season.season_number,
-                        "episode_count": season.episode_count,
+                        "episode_count": None if defer_counts else season.episode_count,
                         "are_movies": getattr(season, "are_movies", False),
                         "chapter_type": getattr(season, "chapter_type", ""),
                     }
@@ -1119,12 +1429,18 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         try:
             prov = resolve_provider(url)
 
-            if prov.name == "MegaKino":
-                series = prov.series_cls(url=url)
+            if prov.name in ("MegaKino", "FilmPalast"):
                 episode = prov.episode_cls(url=url, selected_language="German Dub")
-                title = getattr(series, "title_cleaned", None) or getattr(
-                    series, "title", ""
+                title = getattr(episode, "title_cleaned", None) or getattr(
+                    episode, "title", ""
                 )
+                try:
+                    available_languages = _episode_language_labels(
+                        episode.provider_data
+                    )
+                except Exception as exc:
+                    logger.warning(f"{prov.name} language detection failed: {exc}")
+                    available_languages = ["German Dub"]
                 episodes_data = [
                     {
                         "url": url,
@@ -1132,9 +1448,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                         "title_de": "",
                         "title_en": title,
                         "downloaded": False,
-                        "available_languages": _episode_language_labels(
-                            episode.provider_data
-                        ),
+                        "available_languages": available_languages,
                     }
                 ]
                 return jsonify({"episodes": episodes_data})
@@ -1310,6 +1624,17 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             except Exception:
                 pass
 
+            # Kinox / BurningSeries / Cineby resolve their stream per episode, so
+            # read the language once at the season level for the listing and skip
+            # the per-episode provider_data probe.
+            season_lang_labels = None
+            if prov.name in ("Kinox", "BurningSeries", "Cineby"):
+                try:
+                    season_lang_labels = list(getattr(season, "language_labels", []) or [])
+                except Exception as exc:
+                    logger.warning(f"{prov.name} language detection failed: {exc}")
+                    season_lang_labels = ["German Dub"]
+
             episodes_data = []
             for ep in season.episodes:
                 if prov.name == "MangaFire":
@@ -1318,7 +1643,10 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                     ep.season.season_number,
                     ep.episode_number,
                 ) in downloaded_eps
-                available_languages = _episode_language_labels(ep.provider_data)
+                if season_lang_labels is not None:
+                    available_languages = season_lang_labels
+                else:
+                    available_languages = _episode_language_labels(ep.provider_data)
                 if prov.name == "HanimeTV" and not available_languages:
                     available_languages = ["Japanese"]
 
@@ -1355,6 +1683,9 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             prov = resolve_provider(url)
             if prov.name == "MangaFire":
                 return jsonify({"providers": {}})
+            if prov.name == "Cineby":
+                # Single implicit provider; stream is captured from the site.
+                return jsonify({"providers": {"English Dub": ["Cineby"]}})
             if prov.name == "MegaKino":
                 episode = prov.episode_cls(url=url, selected_language="German Dub")
             else:
@@ -1490,6 +1821,14 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     @app.route("/api/queue/completed", methods=["DELETE"])
     def api_queue_clear():
         clear_completed()
+        return jsonify({"ok": True})
+
+    @app.route("/api/queue/<int:queue_id>/retry", methods=["POST"])
+    def api_queue_retry(queue_id):
+        """Re-queue a failed/cancelled item (e.g. after solving the kinox captcha)."""
+        if not requeue_item(queue_id):
+            return jsonify({"error": "item not found or not retryable"}), 400
+        _ensure_queue_worker()
         return jsonify({"ok": True})
 
     # ── Captcha endpoints ─────────────────────────────────────────────────────
@@ -1658,6 +1997,50 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         ]
         return jsonify({"results": proxied})
 
+    @app.route("/api/kinox-movies")
+    def api_kinox_movies():
+        results = _cached_browse("kinox_movies", fetch_kinox_movies)
+        if results is None:
+            return jsonify({"error": "Failed to fetch kinox movies"}), 500
+        proxied = [
+            {**r, "poster_url": _proxy_image_url(r.get("poster_url", ""))}
+            for r in results
+        ]
+        return jsonify({"results": proxied})
+
+    @app.route("/api/filmpalast-movies")
+    def api_filmpalast_movies():
+        results = _cached_browse("filmpalast_movies", fetch_filmpalast_movies)
+        if results is None:
+            return jsonify({"error": "Failed to fetch filmpalast movies"}), 500
+        proxied = [
+            {**r, "poster_url": _proxy_image_url(r.get("poster_url", ""))}
+            for r in results
+        ]
+        return jsonify({"results": proxied})
+
+    @app.route("/api/burningseries-series")
+    def api_burningseries_series():
+        results = _cached_browse("burningseries_series", fetch_burningseries_series)
+        if results is None:
+            return jsonify({"error": "Failed to fetch burning-series"}), 500
+        proxied = [
+            {**r, "poster_url": _proxy_image_url(r.get("poster_url", ""))}
+            for r in results
+        ]
+        return jsonify({"results": proxied})
+
+    @app.route("/api/cineby-movies")
+    def api_cineby_movies():
+        results = _cached_browse("cineby_movies", fetch_cineby_movies)
+        if results is None:
+            return jsonify({"error": "Failed to fetch cineby"}), 500
+        proxied = [
+            {**r, "poster_url": _proxy_image_url(r.get("poster_url", ""))}
+            for r in results
+        ]
+        return jsonify({"results": proxied})
+
     @app.route("/api/htv-trending")
     def api_htv_trending():
         results = _cached_browse("htv_trending", _fetch_htv_trending)
@@ -1751,17 +2134,27 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         if sync_provider not in WORKING_PROVIDERS and provider_fallback_order:
             sync_provider = provider_fallback_order[0]
         enable_htv = os.environ.get("ANIWORLD_ENABLE_HTV", "0")
+        movie_folder = os.environ.get("ANIWORLD_MOVIE_FOLDER", "1")
+        ui_language = os.environ.get("ANIWORLD_UI_LANGUAGE", "en").lower()
+        if ui_language not in SUPPORTED_UI_LANGUAGES:
+            ui_language = "en"
         return jsonify(
             {
                 "download_path": resolved,
                 "lang_separation": lang_separation,
                 "disable_english_sub": disable_english_sub,
                 "enable_htv": enable_htv,
+                "movie_folder": movie_folder,
+                "ui_language": ui_language,
+                "output_format": _naming_template_extension(),
                 "sync_schedule": sync_schedule,
                 "sync_language": sync_language,
                 "sync_provider": sync_provider,
                 "provider_fallback_order": provider_fallback_order,
                 "available_providers": list(WORKING_PROVIDERS),
+                "available_ui_languages": list(SUPPORTED_UI_LANGUAGES),
+                "available_output_formats": list(SUPPORTED_OUTPUT_FORMATS),
+                "discord": _discord_settings(),
             }
         )
 
@@ -1777,34 +2170,50 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     @app.route("/api/settings", methods=["PUT"])
     def api_settings_update():
         data = request.get_json(silent=True) or {}
+        env_updates = {}
+
         if "download_path" in data:
-            os.environ["ANIWORLD_DOWNLOAD_PATH"] = str(data["download_path"]).strip()
+            env_updates["ANIWORLD_DOWNLOAD_PATH"] = str(data["download_path"]).strip()
         if "lang_separation" in data:
-            os.environ["ANIWORLD_LANG_SEPARATION"] = (
+            env_updates["ANIWORLD_LANG_SEPARATION"] = (
                 "1" if data["lang_separation"] else "0"
             )
         if "disable_english_sub" in data:
-            os.environ["ANIWORLD_DISABLE_ENGLISH_SUB"] = (
+            env_updates["ANIWORLD_DISABLE_ENGLISH_SUB"] = (
                 "1" if data["disable_english_sub"] else "0"
+            )
+        if "movie_folder" in data:
+            env_updates["ANIWORLD_MOVIE_FOLDER"] = "1" if data["movie_folder"] else "0"
+        if "ui_language" in data:
+            ui_lang = str(data["ui_language"]).strip().lower()
+            if ui_lang not in SUPPORTED_UI_LANGUAGES:
+                return jsonify({"error": f"Invalid ui_language: {ui_lang}"}), 400
+            env_updates["ANIWORLD_UI_LANGUAGE"] = ui_lang
+        if "output_format" in data:
+            fmt = str(data["output_format"]).strip().lower().lstrip(".")
+            if fmt not in SUPPORTED_OUTPUT_FORMATS:
+                return jsonify({"error": f"Invalid output_format: {fmt}"}), 400
+            env_updates["ANIWORLD_NAMING_TEMPLATE"] = _naming_template_with_extension(
+                fmt
             )
         if "sync_schedule" in data:
             sched = str(data["sync_schedule"])
             if sched != "0" and sched not in SYNC_SCHEDULE_MAP:
                 return jsonify({"error": f"Invalid sync_schedule: {sched}"}), 400
-            os.environ["ANIWORLD_SYNC_SCHEDULE"] = sched
+            env_updates["ANIWORLD_SYNC_SCHEDULE"] = sched
         if "sync_language" in data:
             lang = str(data["sync_language"])
             valid_langs = set(LANG_LABELS.values()) | {"All Languages"}
             if lang not in valid_langs:
                 return jsonify({"error": f"Invalid sync_language: {lang}"}), 400
-            os.environ["ANIWORLD_SYNC_LANGUAGE"] = lang
+            env_updates["ANIWORLD_SYNC_LANGUAGE"] = lang
         if "sync_provider" in data:
             prov = str(data["sync_provider"])
             if prov not in WORKING_PROVIDERS:
                 return jsonify({"error": f"Invalid sync_provider: {prov}"}), 400
-            os.environ["ANIWORLD_SYNC_PROVIDER"] = prov
+            env_updates["ANIWORLD_SYNC_PROVIDER"] = prov
         if "enable_htv" in data:
-            os.environ["ANIWORLD_ENABLE_HTV"] = "1" if data["enable_htv"] else "0"
+            env_updates["ANIWORLD_ENABLE_HTV"] = "1" if data["enable_htv"] else "0"
         if "provider_fallback_order" in data:
             raw_order = data["provider_fallback_order"]
             if isinstance(raw_order, list):
@@ -1842,13 +2251,39 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                     {"error": "provider_fallback_order contains duplicates"}
                 ), 400
 
-            os.environ["ANIWORLD_PROVIDER_FALLBACK_ORDER"] = ",".join(
+            env_updates["ANIWORLD_PROVIDER_FALLBACK_ORDER"] = ",".join(
                 parse_provider_order(
                     ",".join(requested_order),
                     allowed_providers=WORKING_PROVIDERS,
                 )
             )
+
+        if "discord" in data:
+            error = _apply_discord_settings(data["discord"], env_updates)
+            if error:
+                return jsonify({"error": error}), 400
+
+        # Settings are intentionally in-memory only for the running process.
+        # To persist across restarts, users set them in their .env file.
+        for key, value in env_updates.items():
+            os.environ[key] = value
+
+        if "discord" in data:
+            # The Discord bot config is the one setting that must survive a
+            # restart, so persist just those keys to .env (see the helper).
+            _persist_discord_env(env_updates)
+            _reconcile_discord_bot()
+
         return jsonify({"ok": True})
+
+    @app.route("/api/discord/status")
+    def api_discord_status():
+        try:
+            from .discord_bot import get_status
+
+            return jsonify(get_status())
+        except Exception as exc:
+            return jsonify({"running": False, "error": str(exc)[:120]})
 
     @app.route("/api/custom-paths")
     def api_custom_paths():
@@ -1862,13 +2297,94 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         path = (data.get("path") or "").strip()
         if not name or not path:
             return jsonify({"error": "name and path are required"}), 400
-        path_id = add_custom_path(name, path)
+        default_sites = _normalize_default_sites(data.get("default_sites"))
+        path_id = add_custom_path(name, path, default_sites)
         return jsonify({"ok": True, "id": path_id})
+
+    @app.route("/api/custom-paths/<int:path_id>", methods=["PUT"])
+    def api_custom_paths_update(path_id):
+        data = request.get_json(silent=True) or {}
+        name = data.get("name")
+        path = data.get("path")
+        default_sites = (
+            _normalize_default_sites(data.get("default_sites"))
+            if "default_sites" in data
+            else None
+        )
+        update_custom_path(
+            path_id,
+            name=name.strip() if isinstance(name, str) else None,
+            path=path.strip() if isinstance(path, str) else None,
+            default_sites=default_sites,
+        )
+        return jsonify({"ok": True})
 
     @app.route("/api/custom-paths/<int:path_id>", methods=["DELETE"])
     def api_custom_paths_delete(path_id):
         remove_custom_path(path_id)
         return jsonify({"ok": True})
+
+    # ===== Planned Releases Page =====
+
+    @app.route("/planned")
+    def planned_page():
+        return render_template(
+            "planned.html",
+            available_providers=WORKING_PROVIDERS,
+            site_keys=SITE_KEYS,
+        )
+
+    @app.route("/api/planned")
+    def api_planned_list():
+        username, is_admin = _get_current_user_info()
+        jobs = get_planned_jobs(added_by=None if is_admin else username)
+        return jsonify({"jobs": jobs})
+
+    @app.route("/api/planned", methods=["POST"])
+    def api_planned_create():
+        data = request.get_json(silent=True) or {}
+        title = (data.get("title") or "").strip()
+        if not title:
+            return jsonify({"error": "title is required"}), 400
+
+        media_type = (data.get("media_type") or "").strip().lower()
+        if media_type not in ("movie", "series"):
+            return jsonify({"error": "media_type must be 'movie' or 'series'"}), 400
+
+        provider = str(data.get("provider", "VOE"))
+        if provider not in WORKING_PROVIDERS:
+            provider = WORKING_PROVIDERS[0] if WORKING_PROVIDERS else "VOE"
+
+        username, _ = _get_current_user_info()
+        job_id = add_planned_job(
+            title=title,
+            # No single site any more: the worker scans every site of this type.
+            site="any",
+            media_type=media_type,
+            language=str(data.get("language", "German Dub")),
+            provider=provider,
+            custom_path_id=data.get("custom_path_id"),
+            auto_sync=1 if data.get("auto_sync") else 0,
+            added_by=username,
+        )
+        return jsonify({"ok": True, "id": job_id})
+
+    @app.route("/api/planned/<int:job_id>", methods=["DELETE"])
+    def api_planned_delete(job_id):
+        ok, err = remove_planned_job(job_id)
+        if not ok:
+            return jsonify({"error": err}), 404
+        return jsonify({"ok": True})
+
+    @app.route("/api/planned/<int:job_id>/check", methods=["POST"])
+    def api_planned_check(job_id):
+        job = get_planned_job(job_id)
+        if not job:
+            return jsonify({"error": "Job not found"}), 404
+        from .planned import check_planned_job
+
+        found = check_planned_job(job)
+        return jsonify({"ok": True, "found": found})
 
     # ===== Auto-Sync Page =====
 
@@ -2270,13 +2786,18 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             "api_settings",
             "api_settings_public_ip",
             "api_settings_update",
+            "api_discord_status",
             "api_library_delete",
             "api_custom_paths_add",
+            "api_custom_paths_update",
             "api_custom_paths_delete",
             "api_autosync_create",
             "api_autosync_update",
             "api_autosync_delete",
             "api_autosync_trigger",
+            "api_planned_create",
+            "api_planned_delete",
+            "api_planned_check",
         }
 
         # Wrap all non-auth, non-static view functions with login_required

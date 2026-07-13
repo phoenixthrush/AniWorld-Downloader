@@ -38,10 +38,124 @@ async function loadSettings() {
       : [];
     updateSyncProviderDropdown(availableProviders, data.sync_provider);
     renderProviderFallbackOrder(data.provider_fallback_order || availableProviders);
+
+    const uiLanguage = document.getElementById("uiLanguage");
+    if (uiLanguage && data.ui_language) uiLanguage.value = data.ui_language;
+    const outputFormat = document.getElementById("outputFormat");
+    if (outputFormat && data.output_format) outputFormat.value = data.output_format;
+    const movieFolder = document.getElementById("movieFolder");
+    if (movieFolder) movieFolder.checked = data.movie_folder !== "0";
+
+    if (data.discord) applyDiscordSettings(data.discord);
   } catch (e) {
     showToast("Failed to load settings: " + e.message);
   }
 }
+
+async function putSettings(payload, successMsg) {
+  try {
+    const resp = await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await resp.json();
+    if (data.error) {
+      showToast(data.error);
+      return false;
+    }
+    if (successMsg) showToast(successMsg);
+    return true;
+  } catch (e) {
+    showToast("Failed to save: " + e.message);
+    return false;
+  }
+}
+
+function saveUiLanguage() {
+  const value = document.getElementById("uiLanguage").value;
+  // setLanguage() persists to the server and re-renders the page instantly.
+  if (typeof window.setLanguage === "function") window.setLanguage(value);
+  else putSettings({ ui_language: value });
+}
+
+function saveOutputFormat() {
+  const value = document.getElementById("outputFormat").value;
+  putSettings({ output_format: value }, "Output format saved");
+}
+
+function saveMovieFolder() {
+  const checked = document.getElementById("movieFolder").checked;
+  putSettings({ movie_folder: checked }, "Setting saved");
+}
+
+// ===== Discord bot =====
+
+function applyDiscordSettings(d) {
+  const enabled = document.getElementById("discordEnabled");
+  const owner = document.getElementById("discordOwner");
+  const mode = document.getElementById("discordMode");
+  const role = document.getElementById("discordRole");
+  const guild = document.getElementById("discordGuild");
+  const language = document.getElementById("discordLanguage");
+  const announce = document.getElementById("discordAnnounce");
+  const token = document.getElementById("discordToken");
+  if (enabled) enabled.checked = !!d.enabled;
+  if (owner) owner.value = d.owner_id || "";
+  if (mode) mode.value = d.mode || "standard";
+  if (role) role.value = d.request_role_id || "";
+  if (guild) guild.value = d.guild_id || "";
+  if (language) language.value = d.language || "en";
+  if (announce) announce.value = d.announce_channel_id || "";
+  // Show a placeholder when a token is already stored; leave blank to keep it.
+  if (token) token.placeholder = d.token_set ? "••••••••" : "";
+  loadDiscordStatus();
+}
+
+async function saveDiscord() {
+  const token = document.getElementById("discordToken").value;
+  const payload = {
+    discord: {
+      enabled: document.getElementById("discordEnabled").checked,
+      owner_id: document.getElementById("discordOwner").value.trim(),
+      mode: document.getElementById("discordMode").value,
+      request_role_id: document.getElementById("discordRole").value.trim(),
+      guild_id: document.getElementById("discordGuild").value.trim(),
+      language: document.getElementById("discordLanguage").value,
+      announce_channel_id: document.getElementById("discordAnnounce").value.trim(),
+    },
+  };
+  // Only send the token when the user actually typed a new one.
+  if (token && token !== "••••••••") payload.discord.token = token;
+
+  const ok = await putSettings(payload, "Discord settings saved");
+  if (ok) {
+    document.getElementById("discordToken").value = "";
+    setTimeout(loadDiscordStatus, 1500);
+  }
+}
+
+async function loadDiscordStatus() {
+  const el = document.getElementById("discordStatus");
+  if (!el) return;
+  try {
+    const resp = await fetch("/api/discord/status");
+    const data = await resp.json();
+    if (data.running) {
+      el.textContent = "● " + (data.user ? data.user : "online");
+      el.className = "discord-status discord-status-on";
+    } else if (data.error) {
+      el.textContent = "● " + data.error;
+      el.className = "discord-status discord-status-err";
+    } else {
+      el.textContent = "○ offline";
+      el.className = "discord-status discord-status-off";
+    }
+  } catch (e) {
+    el.textContent = "";
+  }
+}
+
 
 async function saveLangSeparation() {
   try {
@@ -335,16 +449,47 @@ async function loadCustomPaths() {
   }
 }
 
+const PATH_SITE_OPTIONS = [
+  ["aniworld", "AniWorld"],
+  ["sto", "SerienStream"],
+  ["megakino", "MegaKino"],
+  ["kinox", "Kinox"],
+  ["burningseries", "BurningSeries"],
+  ["filmpalast", "FilmPalast"],
+  ["mangafire", "MangaFire"],
+  ["htv", "Hanime"],
+];
+
 function renderCustomPaths(paths) {
   customPathsBody.innerHTML = "";
   if (!paths.length) {
     const tr = document.createElement("tr");
     tr.innerHTML =
-      '<td colspan="3" style="color:#6b7280;text-align:center">No custom paths</td>';
+      '<td colspan="4" style="color:#6b7280;text-align:center">No custom paths</td>';
     customPathsBody.appendChild(tr);
     return;
   }
   paths.forEach(function (p) {
+    const active = (p.default_sites || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const chips = PATH_SITE_OPTIONS.map(function ([key, label]) {
+      const checked = active.includes(key) ? "checked" : "";
+      return (
+        '<label class="path-site-chip">' +
+        '<input type="checkbox" ' +
+        checked +
+        ' onchange="togglePathSite(' +
+        p.id +
+        ",'" +
+        key +
+        "',this.checked)\"> " +
+        esc(label) +
+        "</label>"
+      );
+    }).join("");
+
     const tr = document.createElement("tr");
     tr.innerHTML =
       "<td>" +
@@ -353,11 +498,40 @@ function renderCustomPaths(paths) {
       "<td style=\"font-family:'SF Mono','Fira Code',monospace;font-size:.82rem\">" +
       esc(p.path) +
       "</td>" +
+      '<td><div class="path-site-chips">' +
+      chips +
+      "</div></td>" +
       '<td><button class="btn-del" onclick="deleteCustomPath(' +
       p.id +
       ')">Delete</button></td>';
     customPathsBody.appendChild(tr);
   });
+}
+
+async function togglePathSite(pathId, siteKey, enabled) {
+  try {
+    const resp = await fetch("/api/custom-paths");
+    const data = await resp.json();
+    const path = (data.paths || []).find((p) => p.id === pathId);
+    const active = new Set(
+      (path && path.default_sites ? path.default_sites : "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    );
+    if (enabled) active.add(siteKey);
+    else active.delete(siteKey);
+
+    const save = await fetch("/api/custom-paths/" + pathId, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ default_sites: Array.from(active) }),
+    });
+    const result = await save.json();
+    if (result.error) showToast(result.error);
+  } catch (e) {
+    showToast("Failed to update default sites: " + e.message);
+  }
 }
 
 async function addCustomPath() {

@@ -1,8 +1,9 @@
 import re
 from urllib.parse import urljoin, urlparse
 
-from ...config import GLOBAL_SESSION, SERIENSTREAM_SERIES_PATTERN, logger
+from ...config import SERIENSTREAM_SERIES_PATTERN, logger
 from ..common import clean_title
+from .http import sto_get
 
 
 class SerienstreamSeries:
@@ -165,7 +166,7 @@ class SerienstreamSeries:
     def _html(self):
         if self.__html is None:
             logger.debug(f"fetching ({self.url})...")
-            resp = GLOBAL_SESSION.get(self.url)
+            resp = sto_get(self.url)
             self.__html = resp.text
         return self.__html
 

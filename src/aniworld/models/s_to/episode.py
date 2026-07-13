@@ -13,6 +13,7 @@ from ...config import (
 )
 from ...extractors import provider_functions
 from ..common import check_downloaded
+from .http import sto_get, sto_host
 from ..common.common import (
     download as episode_download,
 )
@@ -296,7 +297,7 @@ class SerienstreamEpisode:
             from ...playwright.captcha import solve_sto_modal
 
             # Try plain HTTP first — works when no modal is shown
-            resp = GLOBAL_SESSION.get(self.redirect_url)
+            resp = sto_get(self.redirect_url)
             if urlparse(resp.url).netloc != urlparse(self.redirect_url).netloc:
                 # Redirect left serienstream.to — no modal, plain session worked
                 self.__provider_url = resp.url
@@ -445,7 +446,7 @@ class SerienstreamEpisode:
             if not self.url:
                 raise ValueError("Episode URL is missing for HTML fetch.")
             logger.debug(f"fetching ({self.url})...")
-            resp = GLOBAL_SESSION.get(self.url)
+            resp = sto_get(self.url)
             self.__html = resp.text
         return self.__html
 
@@ -517,7 +518,7 @@ class SerienstreamEpisode:
                 continue
 
             provider_data.setdefault(key, {})[provider_name] = (
-                f"https://serienstream.to{play_url}"
+                f"https://{sto_host()}{play_url}"
             )
 
         return provider_data

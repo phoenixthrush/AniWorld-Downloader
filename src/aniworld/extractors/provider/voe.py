@@ -27,6 +27,36 @@ VOE_SCRIPT_PATTERN = re.compile(
     r'<script type="application/json">\s*"(?:\\.|[^"\\])*"\s*</script>', re.DOTALL
 )
 JUNK_PARTS = ["@$", "^^", "~@", "%?", "*~", "!!", "#&"]
+# Any direct playlist URL, used as a last-resort fallback.
+M3U8_URL_PATTERN = re.compile(r"https?://[^\s'\"<>]+?\.m3u8[^\s'\"<>]*")
+
+
+def _voe_get(url, headers, timeout):
+    """Fetch a VOE URL and return (text, final_url, status_code).
+
+    Prefers curl_cffi with a real Chrome TLS fingerprint so we pass voe.sx's
+    Cloudflare gate (the plain niquests session gets the challenge page instead,
+    which is why the source could not be found). Falls back to the shared
+    session when curl_cffi isn't installed.
+    """
+    try:
+        from curl_cffi import requests as _curl_requests
+
+        resp = _curl_requests.get(
+            url,
+            headers=headers,
+            impersonate="chrome124",
+            allow_redirects=True,
+            timeout=timeout,
+        )
+        return resp.text, str(resp.url), resp.status_code
+    except ImportError:
+        pass
+    except Exception as exc:  # noqa: BLE001 - fall back to niquests on any curl error
+        logger.debug(f"VOE curl_cffi fetch failed ({exc}); using niquests")
+
+    resp = GLOBAL_SESSION.get(url, headers=headers, timeout=timeout)
+    return resp.text, str(resp.url), resp.status_code
 
 
 # -----------------------------
@@ -147,21 +177,17 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
                 )
                 time.sleep(wait_time)
 
-            # First request to VOE
-            resp = GLOBAL_SESSION.get(
-                embeded_voe_link, headers=enhanced_headers, timeout=timeout
+            # First request to VOE (curl_cffi impersonation, niquests fallback)
+            html, _final, status = _voe_get(
+                embeded_voe_link, enhanced_headers, timeout
             )
-            resp.raise_for_status()
-            html = resp.text
 
             # Captcha on VOE page -> solve and retry this request
-            if is_captcha_page(html, resp.status_code):
+            if is_captcha_page(html, status):
                 solve_captcha(embeded_voe_link)
-                resp = GLOBAL_SESSION.get(
-                    embeded_voe_link, headers=enhanced_headers, timeout=timeout
+                html, _final, status = _voe_get(
+                    embeded_voe_link, enhanced_headers, timeout
                 )
-                resp.raise_for_status()
-                html = resp.text
 
             # Try extracting source directly from the VOE embed page first
             source = extract_voe_source_from_html(html)
@@ -169,49 +195,40 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
                 logger.info(f"VOE source extracted on attempt {attempt + 1}")
                 return source
 
-            # Fallback: follow the redirect URL embedded in the page
-            redirect_match = REDIRECT_PATTERN.search(html)
+            # Fallback: follow a redirect embedded in the page. VOE rotates the
+            # embed domain, so accept an /e/ link on any host and also a plain
+            # window.location redirect.
+            redirect_match = REDIRECT_PATTERN.search(html) or re.search(
+                r"""(?:location\.href|window\.location(?:\.href)?)\s*=\s*['"]"""
+                r"""(https?://[^'"<>\s]+)['"]""",
+                html,
+            )
             if redirect_match:
                 redirect_url = redirect_match.group(1).strip()
-
-                # Second request with retry
-                for redirect_attempt in range(max_retries):
-                    try:
-                        if redirect_attempt > 0:
-                            wait_time = 2**redirect_attempt
-                            logger.warning(
-                                f"Redirect retry {redirect_attempt + 1}/{max_retries}, waiting {wait_time}s..."
-                            )
-                            time.sleep(wait_time)
-
-                        resp = GLOBAL_SESSION.get(
-                            redirect_url, headers=enhanced_headers, timeout=timeout
+                try:
+                    html2, _f2, status2 = _voe_get(
+                        redirect_url, enhanced_headers, timeout
+                    )
+                    if is_captcha_page(html2, status2):
+                        solve_captcha(redirect_url)
+                        html2, _f2, status2 = _voe_get(
+                            redirect_url, enhanced_headers, timeout
                         )
-                        resp.raise_for_status()
-                        html = resp.text
+                    source = extract_voe_source_from_html(html2)
+                    if source:
+                        return source
+                    m3u8 = M3U8_URL_PATTERN.search(html2)
+                    if m3u8:
+                        return m3u8.group(0)
+                except Exception as err:  # noqa: BLE001
+                    logger.debug(f"VOE redirect fetch failed: {err}")
 
-                        # Captcha on redirect target solve and retry
-                        if is_captcha_page(html, resp.status_code):
-                            solve_captcha(redirect_url)
-                            resp = GLOBAL_SESSION.get(
-                                redirect_url, headers=enhanced_headers, timeout=timeout
-                            )
-                            resp.raise_for_status()
-                            html = resp.text
-                        break
-                    except (niquests.RequestException, Exception) as err:
-                        if redirect_attempt == max_retries - 1:
-                            raise ValueError(
-                                f"Failed to fetch redirect URL after {max_retries} attempts: {err}"
-                            ) from err
-                        continue
+            # Last resort: a bare m3u8 URL anywhere on the original page.
+            m3u8 = M3U8_URL_PATTERN.search(html)
+            if m3u8:
+                return m3u8.group(0)
 
-            source = extract_voe_source_from_html(html)
-            if not source:
-                raise ValueError("No VOE video source found in page.")
-
-            logger.debug(f"VOE source extracted on attempt {attempt + 1}")
-            return source
+            raise ValueError("No VOE video source found in page.")
 
         except (niquests.RequestException, Exception) as err:
             if attempt == max_retries - 1:
