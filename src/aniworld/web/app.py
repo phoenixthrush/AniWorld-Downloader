@@ -1196,6 +1196,10 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         if default_web_language not in LANG_LABELS.values():
             default_web_language = "German Dub"
         htv_enabled = os.environ.get("ANIWORLD_ENABLE_HTV", "0") == "1"
+        burningseries_enabled = (
+            os.environ.get("ANIWORLD_ENABLE_BURNINGSERIES", "0") == "1"
+        )
+        kinox_enabled = os.environ.get("ANIWORLD_ENABLE_KINOX", "0") == "1"
         return render_template(
             "index.html",
             lang_labels=LANG_LABELS,
@@ -1204,6 +1208,8 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             supported_providers=WORKING_PROVIDERS,
             default_web_language=default_web_language,
             htv_enabled=htv_enabled,
+            burningseries_enabled=burningseries_enabled,
+            kinox_enabled=kinox_enabled,
         )
 
     @app.route("/api/search", methods=["POST"])

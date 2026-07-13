@@ -320,9 +320,18 @@ const htvTrendingGrid = document.getElementById("htvTrendingGrid");
 
 const segmentedThumb = document.getElementById("segmentedThumb");
 const htvEnabled = window.HTV_ENABLED;
-const sites = htvEnabled
-  ? ["aniworld", "mangafire", "sto", "burningseries", "megakino", "cineby", "kinox", "filmpalast", "htv"]
-  : ["aniworld", "mangafire", "sto", "burningseries", "megakino", "cineby", "kinox", "filmpalast"];
+const burningseriesEnabled = window.BURNINGSERIES_ENABLED;
+const kinoxEnabled = window.KINOX_ENABLED;
+// BurningSeries and Kinox are opt-in via .env (ANIWORLD_ENABLE_BURNINGSERIES /
+// ANIWORLD_ENABLE_KINOX) and hidden unless enabled, same as the Hanime tab.
+const sites = ["aniworld", "mangafire", "sto", "burningseries", "megakino", "cineby", "kinox", "filmpalast", "htv"].filter(
+  (site) => {
+    if (site === "htv") return htvEnabled;
+    if (site === "burningseries") return burningseriesEnabled;
+    if (site === "kinox") return kinoxEnabled;
+    return true;
+  },
+);
 
 // Movie-only sites behave like MegaKino (single item, no seasons).
 const movieSites = ["megakino", "filmpalast"];
@@ -477,7 +486,7 @@ function rebuildLanguageSelect() {
 // Restore site state from localStorage
 (function syncSiteState() {
   const saved = localStorage.getItem("selectedSite");
-  const initial = saved && saved !== "aniworld" && sites.includes(saved) && !(saved === "htv" && !htvEnabled) ? saved : "aniworld";
+  const initial = saved && saved !== "aniworld" && sites.includes(saved) ? saved : "aniworld";
   if (initial !== "aniworld") {
     switchSite(initial);
   } else {
