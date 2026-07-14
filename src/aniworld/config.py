@@ -381,8 +381,8 @@ HANIME_TV_SERIES_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-# serienstream.to went down at times; serienstream.cx is the current mirror.
-_STO_HOST = r"(www\.)?(serienstream\.(?:to|cx)|s\.to)"
+# serienstream.to went down at times; serienstream.cx and 186.2.175.5 are mirrors.
+_STO_HOST = r"(?:(?:www\.)?(?:serienstream\.(?:to|cx)|s\.to)|186\.2\.175\.5)"
 
 SERIENSTREAM_SERIES_PATTERN = re.compile(
     rf"^https?://{_STO_HOST}/serie/[a-zA-Z0-9\-]+/?$", re.IGNORECASE
