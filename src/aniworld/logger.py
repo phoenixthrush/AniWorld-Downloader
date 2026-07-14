@@ -112,6 +112,11 @@ def get_logger(name=__name__, level=None):
         level = level or (logging.DEBUG if env_debug == "1" else logging.WARNING)
         _global_logger.setLevel(level)
 
+        # Captcha-flow diagnostics are WARNING-level so they always land in
+        # aniworld.log, but they're too noisy for the terminal during normal
+        # use — only show ERROR+ there unless debug mode is on.
+        console_handler.setLevel(logging.ERROR if env_debug != "1" else level)
+
         # Reduce noise from urllib3
         logging.getLogger("urllib3").setLevel(logging.WARNING)
         logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)

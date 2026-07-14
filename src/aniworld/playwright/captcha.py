@@ -1,7 +1,10 @@
 import queue as _queue_module
 import random as _random
+import re as _re
 import threading as _threading
 import time as _time
+from html import unescape as _html_unescape
+from urllib.parse import urlparse as _urlparse
 
 # Threading-local: set queue_id from the web worker to enable interactive mode
 _local = _threading.local()
@@ -20,6 +23,368 @@ _captcha_state = None  # None or {"url": ..., "started_at": ..., "solved": bool}
 
 # Serialise concurrent solve attempts
 _captcha_lock = _threading.Lock()
+
+
+def _is_download_abort_requested() -> bool:
+    from ..models.common.common import is_download_abort_requested
+
+    return is_download_abort_requested()
+
+
+def _ensure_network_binding_ready() -> None:
+    """No-op: VPN/network binding support is not part of this branch."""
+    return
+
+
+_SOURCE_REDIRECT_NETLOCS = {"s.to", "www.s.to", "serienstream.to", "www.serienstream.to"}
+_PROVIDER_NETLOC_HINTS = ("voe", "vidmoly", "vidoza", "dood", "d000d", "do0od")
+_URL_RE = _re.compile(r"(?:https?:\\?/\\?/|\\?/\\?/)[^\s'\"<>]+")
+
+
+def _is_source_redirect_url(url: str) -> bool:
+    try:
+        return _urlparse(url).netloc.lower() in _SOURCE_REDIRECT_NETLOCS
+    except Exception:
+        return False
+
+
+def _is_external_provider_url(url: str) -> bool:
+    try:
+        parsed = _urlparse(url)
+        netloc = parsed.netloc.lower()
+        return (
+            bool(parsed.scheme and parsed.netloc)
+            and not _is_source_redirect_url(url)
+            and any(hint in netloc for hint in _PROVIDER_NETLOC_HINTS)
+        )
+    except Exception:
+        return False
+
+
+def _clean_candidate_url(url: str) -> str:
+    url = _html_unescape(str(url or "").strip())
+    url = url.replace("\\/", "/")
+    if url.startswith("//"):
+        url = f"https:{url}"
+    return url.rstrip(".,);]'\"")
+
+
+def _extract_provider_url_from_text(text: str):
+    if not text:
+        return None
+
+    for match in _URL_RE.finditer(text):
+        candidate = _clean_candidate_url(match.group(0))
+        if _is_external_provider_url(candidate):
+            return candidate
+
+    return None
+
+
+def _extract_provider_url_from_page(page):
+    urls = []
+    try:
+        urls.append(page.url)
+    except Exception:
+        pass
+
+    try:
+        urls.extend(
+            page.evaluate(
+                """
+                () => {
+                    const attrs = ["src", "href", "action", "data-src", "data-url", "data-link"];
+                    const out = [];
+                    for (const node of document.querySelectorAll("*")) {
+                        for (const attr of attrs) {
+                            const value = node.getAttribute && node.getAttribute(attr);
+                            if (value) out.push(value);
+                        }
+                    }
+                    return out;
+                }
+                """
+            )
+        )
+    except Exception:
+        pass
+
+    for frame in getattr(page, "frames", []):
+        try:
+            urls.append(frame.url)
+        except Exception:
+            pass
+        try:
+            urls.extend(
+                frame.evaluate(
+                    """
+                    () => Array.from(document.querySelectorAll("iframe, a, form, script"))
+                        .flatMap((node) => ["src", "href", "action"].map((attr) => node.getAttribute(attr)))
+                        .filter(Boolean)
+                    """
+                )
+            )
+        except Exception:
+            pass
+
+    for url in urls:
+        candidate = _clean_candidate_url(url)
+        if _is_external_provider_url(candidate):
+            return candidate
+
+    try:
+        candidate = _extract_provider_url_from_text(page.content())
+        if candidate:
+            return candidate
+    except Exception:
+        pass
+
+    for frame in getattr(page, "frames", []):
+        try:
+            candidate = _extract_provider_url_from_text(frame.content())
+            if candidate:
+                return candidate
+        except Exception:
+            pass
+
+    return None
+
+
+def _remember_provider_candidate(captured_urls, url):
+    candidate = _clean_candidate_url(url)
+    if _is_external_provider_url(candidate):
+        captured_urls.append(candidate)
+        return candidate
+    return None
+
+
+def _remember_provider_navigation(captured_urls, request_or_response):
+    """Like _remember_provider_candidate but only for actual document navigations.
+
+    Plain "request"/"response" events also fire for preconnect/prefetch hints to
+    the provider domain that never become a real player session — those produced
+    bogus VOE URLs that looked captured but immediately failed (net::ERR_ABORTED).
+    """
+    try:
+        req = getattr(request_or_response, "request", None)
+        req = req() if callable(req) else (req or request_or_response)
+        if req.resource_type != "document":
+            return None
+    except Exception:
+        return None
+    return _remember_provider_candidate(captured_urls, request_or_response.url)
+
+
+def _summarize_browser_urls(context):
+    seen = []
+    for page in getattr(context, "pages", []):
+        for url in [getattr(page, "url", "")]:
+            if url and url not in seen:
+                seen.append(url)
+        for frame in getattr(page, "frames", []):
+            url = getattr(frame, "url", "")
+            if url and url not in seen:
+                seen.append(url)
+    return seen[-8:]
+
+
+_STREAM_URL_HINTS = (".m3u8", ".mp4", ".ts", "/hls/", "/stream")
+
+
+def _attach_diagnostics(page, logger=None, label: str = "") -> None:
+    """Log browser console errors and failed/stream-related requests for debugging."""
+    if logger is None:
+        return
+    prefix = f"[{label}] " if label else ""
+
+    def on_console(msg):
+        try:
+            if msg.type in ("error", "warning"):
+                logger.warning(f"{prefix}console {msg.type}: {msg.text}")
+        except Exception:
+            pass
+
+    def on_request_failed(req):
+        try:
+            logger.warning(
+                f"{prefix}request failed: {req.url} ({req.failure})"
+            )
+        except Exception:
+            pass
+
+    def on_response(resp):
+        try:
+            url = resp.url
+            if any(hint in url.lower() for hint in _STREAM_URL_HINTS):
+                logger.warning(f"{prefix}stream-like response: {resp.status} {url}")
+        except Exception:
+            pass
+
+    try:
+        page.on("console", on_console)
+        page.on("requestfailed", on_request_failed)
+        page.on("response", on_response)
+        page.on("pageerror", lambda exc: logger.warning(f"{prefix}page error: {exc}"))
+    except Exception:
+        pass
+
+
+def _resolve_source_redirect_in_browser(context, redirect_url: str, logger=None):
+    page = None
+    captured_urls = []
+    try:
+        page = context.new_page()
+        _attach_diagnostics(page, logger, label="redirect")
+        page.on("request", lambda req: _remember_provider_navigation(captured_urls, req))
+        page.on(
+            "response",
+            lambda resp: _remember_provider_navigation(captured_urls, resp),
+        )
+        page.on(
+            "framenavigated",
+            lambda frame: _remember_provider_candidate(captured_urls, frame.url),
+        )
+        page.goto(redirect_url, wait_until="domcontentloaded", timeout=15000)
+        deadline = _time.time() + 30
+        turnstile_clicked = False
+        altcha_clicked = False
+
+        while _time.time() < deadline:
+            if _is_download_abort_requested():
+                if logger:
+                    logger.warning("CAPTCHA solve aborted (Ctrl+C)")
+                break
+
+            if captured_urls:
+                return captured_urls[-1]
+
+            provider_url = _extract_provider_url_from_page(page)
+            if provider_url:
+                return provider_url
+
+            # The redirect endpoint may itself be gated by its own Turnstile/ALTCHA
+            # challenge before forwarding to the external provider.
+            token_ready = _is_turnstile_token_ready(page)
+            altcha_ready = _is_altcha_token_ready(page)
+
+            if not token_ready and not turnstile_clicked:
+                if _click_turnstile(page, logger):
+                    turnstile_clicked = True
+                    page.wait_for_timeout(_random.randint(2000, 4000))
+                    continue
+            elif not token_ready and turnstile_clicked:
+                turnstile_clicked = False
+
+            if not altcha_ready and not altcha_clicked:
+                if _click_altcha(page, logger):
+                    altcha_clicked = True
+                    page.wait_for_timeout(_random.randint(1500, 3000))
+                    continue
+            elif not altcha_ready and altcha_clicked:
+                altcha_clicked = False
+
+            if token_ready and altcha_ready:
+                try:
+                    _click_submit_button(page, logger)
+                except Exception:
+                    pass
+
+            page.wait_for_timeout(500)
+    except Exception as exc:
+        if logger:
+            logger.debug(f"Could not resolve s.to redirect in browser: {exc}")
+    finally:
+        if page is not None:
+            try:
+                page.close()
+            except Exception:
+                pass
+
+    return None
+
+
+def _redirect_path_with_query(redirect_url: str) -> str:
+    parsed = _urlparse(redirect_url or "")
+    if not parsed.path:
+        return ""
+    return parsed.path + (f"?{parsed.query}" if parsed.query else "")
+
+
+def _click_sto_provider(page, provider_name, language_label, redirect_url=None, logger=None):
+    redirect_path = _redirect_path_with_query(redirect_url)
+    try:
+        result = page.evaluate(
+            """
+            ({ providerName, languageLabel, redirectPath }) => {
+                const norm = (value) => String(value || "").trim().toLowerCase();
+                const wantedProvider = norm(providerName);
+                const wantedLanguage = norm(languageLabel);
+                const wantedPath = String(redirectPath || "");
+                const nodes = Array.from(document.querySelectorAll("[data-play-url]"));
+
+                let target = nodes.find((node) => {
+                    const playUrl = node.getAttribute("data-play-url") || "";
+                    return wantedPath && playUrl === wantedPath;
+                });
+
+                if (!target) {
+                    target = nodes.find((node) => {
+                        return norm(node.getAttribute("data-provider-name")) === wantedProvider
+                            && norm(node.getAttribute("data-language-label")) === wantedLanguage;
+                    });
+                }
+
+                if (!target) {
+                    return { ok: false, reason: "provider element not found" };
+                }
+
+                const candidates = [
+                    target,
+                    target.closest("a, button, [role='button'], li"),
+                ].filter((node, index, items) => node && items.indexOf(node) === index);
+
+                for (const clickable of candidates) {
+                    try {
+                        clickable.click();
+                        return {
+                            ok: true,
+                            mode: "click",
+                            playUrl: target.getAttribute("data-play-url") || "",
+                        };
+                    } catch (err) {
+                        // Try the next candidate.
+                    }
+                }
+
+                const playUrl = target.getAttribute("data-play-url");
+                if (playUrl) {
+                    window.location.href = playUrl;
+                    return { ok: true, mode: "navigate", playUrl };
+                }
+                return { ok: false, reason: "click failed and no play URL found" };
+            }
+            """,
+            {
+                "providerName": provider_name,
+                "languageLabel": language_label,
+                "redirectPath": redirect_path,
+            },
+        )
+        if result and result.get("ok"):
+            if logger:
+                logger.warning(
+                    "Selected s.to provider "
+                    f"{provider_name}/{language_label} via {result.get('mode')}"
+                )
+            page.wait_for_timeout(1200)
+            return True
+        if logger:
+            logger.debug(f"s.to provider selection failed: {result}")
+    except Exception as exc:
+        if logger:
+            logger.debug(f"s.to provider selection error: {exc}")
+
+    return False
 
 
 def _click_turnstile(page, logger=None) -> bool:
@@ -53,10 +418,14 @@ def _click_turnstile(page, logger=None) -> bool:
             page.mouse.up()
 
             if logger:
-                logger.info("Turnstile checkbox clicked")
+                logger.warning("Turnstile checkbox clicked")
             return True
-        except Exception:
+        except Exception as err:
+            if logger:
+                logger.warning(f"Turnstile click attempt failed for {selector}: {err}")
             continue
+    if logger:
+        logger.warning("No Turnstile iframe found to click")
     return False
 
 
@@ -69,6 +438,63 @@ def _is_turnstile_token_ready(page) -> bool:
             " return !!(el && el.value && el.value.length > 20); }"
         )
     except Exception:
+        return False
+
+
+def _is_altcha_token_ready(page) -> bool:
+    """Check whether the ALTCHA widget (if present) already has a solved payload.
+
+    Returns True when no ALTCHA widget is on the page (nothing to solve).
+
+    Uses a Playwright locator rather than page.evaluate() + el.shadowRoot —
+    ALTCHA's shadow root is closed, so plain JS from the page can't see into
+    it (el.shadowRoot is null there) even though the click worked fine.
+    Playwright's locator engine pierces closed shadow roots regardless.
+    """
+    try:
+        widget = page.locator("altcha-widget").first
+        if widget.count() == 0:
+            return True
+        input_loc = widget.locator("input[name='altcha']").first
+        if input_loc.count() == 0:
+            return False
+        value = input_loc.input_value(timeout=500)
+        return bool(value and len(value) > 10)
+    except Exception:
+        return False
+
+
+def _click_altcha(page, logger=None) -> bool:
+    """Click the ALTCHA "I'm not a robot" checkbox if the widget is present.
+
+    Uses real mouse move + down/up (like Turnstile) instead of locator.click() —
+    a plain .click() reached the element but the widget never registered it as
+    a genuine interaction, so the PoW/verification never started.
+    """
+    try:
+        widget = page.locator("altcha-widget").first
+        widget.wait_for(state="visible", timeout=2500)
+        checkbox = widget.locator("input[type='checkbox']").first
+        checkbox.wait_for(state="visible", timeout=2000)
+        box = checkbox.bounding_box()
+        if not box:
+            return False
+
+        x = box["x"] + box["width"] / 2 + _random.uniform(-2, 2)
+        y = box["y"] + box["height"] / 2 + _random.uniform(-2, 2)
+
+        page.mouse.move(x, y, steps=_random.randint(8, 20))
+        page.wait_for_timeout(_random.randint(80, 250))
+        page.mouse.down()
+        page.wait_for_timeout(_random.randint(40, 100))
+        page.mouse.up()
+
+        if logger:
+            logger.warning("ALTCHA checkbox clicked")
+        return True
+    except Exception as err:
+        if logger:
+            logger.warning(f"ALTCHA click attempt failed: {err}")
         return False
 
 
@@ -110,8 +536,9 @@ def _neutralize_click_blockers(page) -> None:
 def _click_submit_button(page, logger=None) -> bool:
     """Click the modal submit button with robust fallbacks for intercepted clicks."""
     selectors = (
-        'button[type="submit"]',
         "button:has-text('Weiter')",
+        "input[type='submit']",
+        'button[type="submit"]',
     )
 
     for selector in selectors:
@@ -120,6 +547,42 @@ def _click_submit_button(page, logger=None) -> bool:
             button.wait_for(state="visible", timeout=2000)
         except Exception:
             continue
+
+        # Wait briefly for the button to become enabled — right after the
+        # captcha resolves it's often still disabled for a moment, and a
+        # force-click on a disabled button "succeeds" without doing anything.
+        try:
+            for _ in range(10):
+                if button.is_enabled():
+                    break
+                page.wait_for_timeout(200)
+            else:
+                if logger:
+                    logger.warning("Submit button stayed disabled, skipping")
+                continue
+        except Exception:
+            pass
+
+        try:
+            button.scroll_into_view_if_needed(timeout=1000)
+        except Exception:
+            pass
+
+        # Real mouse click via bounding box — more human-like than locator
+        # .click(), which some bot checks distinguish from a genuine pointer
+        # event sequence (move + down + up).
+        try:
+            box = button.bounding_box()
+            if box:
+                x = box["x"] + box["width"] / 2
+                y = box["y"] + box["height"] / 2
+                page.mouse.move(x, y, steps=5)
+                page.wait_for_timeout(100)
+                page.mouse.click(x, y)
+                return True
+        except Exception as err:
+            if logger:
+                logger.warning(f"Submit mouse click failed: {err}")
 
         try:
             button.click(timeout=2000)
@@ -131,8 +594,9 @@ def _click_submit_button(page, logger=None) -> bool:
         _neutralize_click_blockers(page)
 
         try:
-            button.click(force=True, timeout=2000)
-            return True
+            if button.is_enabled():
+                button.click(force=True, timeout=2000)
+                return True
         except Exception as err:
             if logger:
                 logger.warning(f"Submit force-click failed: {err}")
@@ -141,15 +605,16 @@ def _click_submit_button(page, logger=None) -> bool:
             clicked = page.evaluate(
                 """
                 () => {
-                    const byType = document.querySelector("button[type='submit']");
-                    if (byType) {
-                        byType.click();
-                        return true;
-                    }
+                    const enabled = (el) => el && !el.disabled;
                     const byText = Array.from(document.querySelectorAll("button"))
-                        .find((b) => (b.textContent || "").trim().toLowerCase() === "weiter");
+                        .find((b) => enabled(b) && (b.textContent || "").trim().toLowerCase() === "weiter");
                     if (byText) {
                         byText.click();
+                        return true;
+                    }
+                    const byType = document.querySelector("button[type='submit']:not([disabled]), input[type='submit']:not([disabled])");
+                    if (byType) {
+                        byType.click();
                         return true;
                     }
                     return false;
@@ -249,6 +714,7 @@ def _solve_captcha_cli(url: str) -> bool:
         try:
             from ..autodeps import _ensure_xvfb
 
+            _ensure_network_binding_ready()
             _ensure_xvfb()
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=False)
@@ -262,6 +728,10 @@ def _solve_captcha_cli(url: str) -> bool:
                 turnstile_clicked = False
 
                 while _time.time() - start < timeout:
+                    if _is_download_abort_requested():
+                        logger.warning("CAPTCHA solve aborted (Ctrl+C)")
+                        break
+
                     # Standard Cloudflare full-page challenge
                     if any(c["name"] == "cf_clearance" for c in context.cookies()):
                         solved = True
@@ -384,6 +854,7 @@ def _solve_captcha_interactive(url: str, queue_id: int) -> bool:
     try:
         from ..autodeps import _ensure_xvfb
 
+        _ensure_network_binding_ready()
         _ensure_xvfb()
         with sync_playwright() as p:
             # headless=False required for Cloudflare/Turnstile to work.
@@ -406,6 +877,10 @@ def _solve_captcha_interactive(url: str, queue_id: int) -> bool:
             solved = False
             turnstile_clicked = False
             for _ in range(300):  # up to ~5 minutes
+                if _is_download_abort_requested():
+                    logger.warning("CAPTCHA solve aborted (Ctrl+C)")
+                    break
+
                 # Stream screenshot to Web UI
                 try:
                     shot = page.screenshot(type="jpeg", quality=65)
@@ -739,7 +1214,12 @@ def _inject_session_cookies(context, url: str) -> None:
         pass
 
 
-def solve_sto_modal(episode_url: str, provider_name: str, language_label: str):
+def solve_sto_modal(
+    episode_url: str,
+    provider_name: str,
+    language_label: str,
+    redirect_url: str | None = None,
+):
     """
     Open the serienstream.to episode page in a browser, click the provider button,
     solve the Turnstile modal, click Weiter, and return the player-iframe
@@ -773,19 +1253,49 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str):
 
     global _captcha_state
     try:
+        import os as _os
+
+        debug_visible = _os.environ.get("ANIWORLD_CAPTCHA_VISIBLE") == "1"
         extra_args = (
             ["--window-position=-32000,-32000", "--window-size=1280,720"]
-            if queue_id is not None
+            if queue_id is not None and not debug_visible
             else []
         )
 
+        _ensure_network_binding_ready()
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=False, args=extra_args)
             context = browser.new_context(
                 viewport={"width": 1280, "height": 720},
             )
             _inject_session_cookies(context, episode_url)
+            captured_urls = []
+            captured_pages = set()
+
+            def attach_page_capture(capture_page):
+                if capture_page in captured_pages:
+                    return
+                captured_pages.add(capture_page)
+                _attach_diagnostics(capture_page, logger, label="modal")
+                capture_page.on(
+                    "request",
+                    lambda req: _remember_provider_navigation(captured_urls, req),
+                )
+                capture_page.on(
+                    "response",
+                    lambda resp: _remember_provider_navigation(captured_urls, resp),
+                )
+                capture_page.on(
+                    "framenavigated",
+                    lambda frame: _remember_provider_candidate(
+                        captured_urls, frame.url
+                    ),
+                )
+
+            context.on("page", attach_page_capture)
             page = context.new_page()
+            attach_page_capture(page)
+            _attach_diagnostics(page, logger, label="modal")
 
             with _captcha_state_lock:
                 _captcha_state = {
@@ -796,17 +1306,40 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str):
 
             logger.warning(f"Opening episode page for modal solving: {episode_url}")
             page.goto(episode_url, wait_until="domcontentloaded")
+            _click_sto_provider(
+                page, provider_name, language_label, redirect_url, logger
+            )
 
             # Single poll loop: streams screenshots from the start, clicks
             # Turnstile checkbox, clicks Weiter once, then waits for result.
-            from urllib.parse import urlparse as _urlparse
-
             final_url = None
+            source_redirect_seen_at = None
             weiter_clicked = False
             turnstile_clicked = False
+            altcha_clicked = False
+            altcha_clicked_at = None
+            both_ready_at = None
             start = _time.time()
+            loop_count = 0
+            last_state_logged = None
 
             while _time.time() - start < 90:
+                loop_count += 1
+                if _is_download_abort_requested():
+                    logger.warning("CAPTCHA solve aborted (Ctrl+C)")
+                    break
+
+                if captured_urls:
+                    final_url = captured_urls[-1]
+                    logger.warning(f"Provider URL captured from browser event: {final_url}")
+                    break
+
+                provider_url = _extract_provider_url_from_page(page)
+                if provider_url:
+                    final_url = provider_url
+                    logger.warning(f"Provider URL found in page DOM: {final_url}")
+                    break
+
                 # WebUI: stream screenshots + forward user clicks
                 if session_obj is not None:
                     try:
@@ -825,6 +1358,16 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str):
 
                 if not weiter_clicked:
                     token_ready = _is_turnstile_token_ready(page)
+                    altcha_ready = _is_altcha_token_ready(page)
+
+                    state = (token_ready, altcha_ready, turnstile_clicked, altcha_clicked)
+                    if state != last_state_logged:
+                        logger.warning(
+                            f"[modal] state: turnstile_ready={token_ready} "
+                            f"altcha_ready={altcha_ready} turnstile_clicked={turnstile_clicked} "
+                            f"altcha_clicked={altcha_clicked} (loop {loop_count})"
+                        )
+                        last_state_logged = state
 
                     # Click Turnstile checkbox if token not yet filled
                     if not token_ready and not turnstile_clicked:
@@ -835,11 +1378,45 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str):
                     elif not token_ready and turnstile_clicked:
                         # Turnstile may have reset — allow re-click
                         turnstile_clicked = False
+                        both_ready_at = None
 
-                    if token_ready:
+                    # Click ALTCHA checkbox if widget present and not yet solved.
+                    # The widget runs a client-side proof-of-work after the click,
+                    # which can take several seconds — re-clicking too soon restarts
+                    # that computation, so give it a grace period before retrying.
+                    if not altcha_ready and not altcha_clicked:
+                        if _click_altcha(page, logger):
+                            altcha_clicked = True
+                            altcha_clicked_at = _time.time()
+                            page.wait_for_timeout(_random.randint(1500, 3000))
+                            continue
+                    elif not altcha_ready and altcha_clicked:
+                        if altcha_clicked_at is not None and _time.time() - altcha_clicked_at < 8:
+                            page.wait_for_timeout(500)
+                            continue
+                        # Still not solved after the grace period — allow re-click
+                        altcha_clicked = False
+                        altcha_clicked_at = None
+                        both_ready_at = None
+
+                    if token_ready and altcha_ready:
+                        if both_ready_at is None:
+                            both_ready_at = _time.time()
+                            try:
+                                buttons_info = page.evaluate(
+                                    "() => Array.from(document.querySelectorAll('button, input[type=submit]'))"
+                                    ".map(b => ({tag: b.tagName, type: b.type, text: (b.textContent||b.value||'').trim(),"
+                                    " disabled: b.disabled, visible: !!(b.offsetWidth || b.offsetHeight)}))"
+                                )
+                                logger.warning(f"[modal] buttons on page: {buttons_info}")
+                            except Exception:
+                                pass
+                        if _time.time() - both_ready_at < 1.5:
+                            page.wait_for_timeout(300)
+                            continue
                         try:
                             if _click_submit_button(page, logger):
-                                logger.warning("Submit clicked (Turnstile solved)")
+                                logger.warning("Submit clicked (Turnstile/ALTCHA solved)")
                                 weiter_clicked = True
                             else:
                                 logger.warning("Submit click failed (will retry)")
@@ -849,31 +1426,70 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str):
                 else:
                     # Weiter was clicked – poll for the VOE URL
                     for frame in page.frames:
-                        if frame.name == "player-iframe":
-                            fu = frame.url
-                            if fu and fu not in ("about:blank", ""):
+                        fu = frame.url
+                        if fu and fu not in ("about:blank", ""):
+                            if _is_external_provider_url(fu):
                                 final_url = fu
                                 break
-                    if final_url:
-                        logger.warning(f"player-iframe URL found: {final_url}")
+                            if _is_source_redirect_url(fu):
+                                final_url = fu
+                                if source_redirect_seen_at is None:
+                                    source_redirect_seen_at = _time.time()
+                    if final_url and _is_external_provider_url(final_url):
+                        logger.warning(f"player frame URL found: {final_url}")
                         break
 
                     # Also check if a new tab was opened
                     for pg in context.pages:
                         if pg is not page:
+                            attach_page_capture(pg)
+                            provider_url = _extract_provider_url_from_page(pg)
+                            if provider_url:
+                                final_url = provider_url
+                                break
                             pu = pg.url
                             if pu and pu not in ("about:blank", ""):
-                                if (
-                                    _urlparse(pu).netloc
-                                    != _urlparse(episode_url).netloc
-                                ):
+                                if _is_external_provider_url(pu):
                                     final_url = pu
                                     break
-                    if final_url:
+                                if _is_source_redirect_url(pu):
+                                    final_url = pu
+                                    if source_redirect_seen_at is None:
+                                        source_redirect_seen_at = _time.time()
+                    if final_url and _is_external_provider_url(final_url):
                         logger.warning(f"New page URL found: {final_url}")
+                        break
+                    if (
+                        final_url
+                        and _is_source_redirect_url(final_url)
+                        and source_redirect_seen_at is not None
+                        and _time.time() - source_redirect_seen_at > 4
+                    ):
                         break
 
                 _time.sleep(0.8)
+
+            if final_url and _is_source_redirect_url(final_url):
+                resolved_url = _resolve_source_redirect_in_browser(
+                    context, final_url, logger
+                )
+                if resolved_url:
+                    logger.warning(f"Resolved player redirect URL: {resolved_url}")
+                    final_url = resolved_url
+
+            if not final_url and redirect_url:
+                resolved_url = _resolve_source_redirect_in_browser(
+                    context, redirect_url, logger
+                )
+                if resolved_url:
+                    logger.warning(f"Resolved provider redirect URL: {resolved_url}")
+                    final_url = resolved_url
+
+            if not final_url or _is_source_redirect_url(final_url):
+                logger.warning(
+                    "Could not resolve external provider URL. Browser URLs seen: "
+                    f"{_summarize_browser_urls(context)}"
+                )
 
             if final_url:
                 for cookie in context.cookies():

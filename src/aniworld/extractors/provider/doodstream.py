@@ -5,13 +5,14 @@ import time
 import warnings
 from urllib.parse import urljoin
 
-import niquests
 from urllib3.exceptions import InsecureRequestWarning
 
 try:
-    from ...config import DEFAULT_USER_AGENT
+    from ...config import DEFAULT_USER_AGENT, GLOBAL_SESSION
+    from ...playwright.captcha import solve_captcha
 except ImportError:
-    from aniworld.config import DEFAULT_USER_AGENT
+    from aniworld.config import DEFAULT_USER_AGENT, GLOBAL_SESSION
+    from aniworld.playwright.captcha import solve_captcha
 
 warnings.simplefilter("ignore", InsecureRequestWarning)
 
@@ -51,9 +52,19 @@ def _generate_random_string(length=10):
 def _get_embed_page(embed_url, headers=None):
     """Fetch HTML content of the embed page."""
     headers = headers or _get_headers()
-    resp = niquests.get(embed_url, headers=headers, verify=False)
+    resp = GLOBAL_SESSION.get(embed_url, headers=headers, verify=False)
+    html = resp.text
+    if "Just a moment..." in html and "cloudflare" in html.lower():
+        logging.warning(
+            "Cloudflare challenge on Doodstream - solving via browser: %s", resp.url
+        )
+        solve_captcha(embed_url)
+        resp = GLOBAL_SESSION.get(embed_url, headers=headers, verify=False)
+        html = resp.text
+        if "Just a moment..." in html and "cloudflare" in html.lower():
+            raise ValueError(f"Doodstream Cloudflare challenge unsolvable: {resp.url}")
     resp.raise_for_status()
-    return resp.text
+    return html
 
 
 def _get_pass_md5_url(embed_html, embed_url):
@@ -86,7 +97,7 @@ def get_direct_link_from_doodstream(embed_url):
     pass_md5_url = _get_pass_md5_url(embed_html, embed_url)
     token = _get_token(embed_html, embed_url)
 
-    md5_resp = niquests.get(pass_md5_url, headers=headers, verify=False)
+    md5_resp = GLOBAL_SESSION.get(pass_md5_url, headers=headers, verify=False)
     md5_resp.raise_for_status()
     video_base_url = md5_resp.text.strip()
     if not video_base_url:
