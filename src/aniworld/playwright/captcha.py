@@ -234,6 +234,14 @@ def _install_network_adblock(context, home_netloc: str, weiter_event=None) -> No
                 return
             if rtype in ("document", "sub_frame", "script", "xhr",
                          "fetch", "media", "websocket"):
+                if _env_flag("ANIWORLD_CAPTCHA_DEBUG_LOG"):
+                    try:
+                        from ..logger import get_logger
+                        get_logger(__name__).warning(
+                            f"[captcha adblock] aborted {rtype} {req.url}"
+                        )
+                    except Exception:
+                        pass
                 route.abort()
                 return
             route.continue_()
@@ -400,6 +408,94 @@ def _env_flag(name: str) -> bool:
     """True when the given environment variable is set to "1"."""
     import os
     return os.environ.get(name, "0") == "1"
+
+
+def _focus_page(page) -> None:
+    """Bring the solving page/window to the front before interacting with it
+    — but ONLY in visible/manual mode.
+
+    Cloudflare Turnstile's risk engine treats an unfocused/backgrounded
+    window as a bot signal (confirmed: Cloudflare's own error-code docs list
+    600xxx as "Generic challenge failure — Bot behavior detected", and losing
+    OS focus mid-challenge reproducibly triggers it). Real users can't click
+    a widget in a window that isn't focused, so a synthetic click delivered
+    to a backgrounded window is itself suspicious.
+
+    BUT: in the default background/off-screen mode (the normal WebUI/queue
+    path) this must never actually steal OS focus — bring_to_front() can
+    yank foreground focus away from whatever the user is doing (e.g. kicking
+    them out of a fullscreen game) just because a queued download hit a
+    captcha in the background. Only when the user explicitly opted into a
+    visible window (ANIWORLD_CAPTCHA_VISIBLE=1 / manual solving) are they
+    already looking at and expecting to interact with this window, so
+    focus-stealing there is intentional, not a surprise interruption.
+    Off-screen mode instead relies on _stealth_launch_args() keeping the
+    window at a plausible (not physically-impossible) off-screen position
+    so Turnstile's screenX/screenY check doesn't fail regardless of focus."""
+    if not _env_flag("ANIWORLD_CAPTCHA_VISIBLE"):
+        return
+    try:
+        page.bring_to_front()
+    except Exception:
+        pass
+
+
+# Turnstile-relevant hosts worth logging network responses for — keeps this
+# noise-free instead of dumping every image/CSS/analytics request.
+_DEBUG_LOG_HOST_MARKERS = ("cloudflare.com", "challenges.cloudflare.com",
+                           "cdn-cgi/challenge-platform", "turnstile")
+
+
+def _attach_debug_listeners(page, logger) -> None:
+    """Mirror the browser's console/network/page errors into our own logger.
+
+    Reproduces what a human would see by opening DevTools — but doing that
+    manually is exactly what triggers Cloudflare Turnstile error 600010
+    (Turnstile has a debugger; statement that fires when DevTools is open and
+    fails the challenge as a side effect, independent of any real bot
+    signal). Hooking page.on(...) from Playwright gets the same information
+    without a human ever opening DevTools, so a real failure can be told
+    apart from that observer-effect artifact. Only active when
+    ANIWORLD_CAPTCHA_DEBUG_LOG=1 — noisy, opt-in for troubleshooting."""
+    if not _env_flag("ANIWORLD_CAPTCHA_DEBUG_LOG"):
+        return
+
+    def _on_console(msg):
+        try:
+            if msg.type in ("error", "warning"):
+                logger.warning(f"[captcha browser console:{msg.type}] {msg.text}")
+        except Exception:
+            pass
+
+    def _on_pageerror(err):
+        try:
+            logger.warning(f"[captcha browser pageerror] {err}")
+        except Exception:
+            pass
+
+    def _on_response(resp):
+        try:
+            u = resp.url
+            if resp.status >= 400 and any(m in u for m in _DEBUG_LOG_HOST_MARKERS):
+                logger.warning(f"[captcha browser response] {resp.status} {u}")
+        except Exception:
+            pass
+
+    def _on_requestfailed(req):
+        try:
+            if any(m in req.url for m in _DEBUG_LOG_HOST_MARKERS):
+                failure = req.failure
+                logger.warning(f"[captcha browser requestfailed] {req.url} -> {failure}")
+        except Exception:
+            pass
+
+    try:
+        page.on("console", _on_console)
+        page.on("pageerror", _on_pageerror)
+        page.on("response", _on_response)
+        page.on("requestfailed", _on_requestfailed)
+    except Exception:
+        pass
 
 
 def _captcha_timeout(default_seconds: int) -> int:
@@ -605,6 +701,7 @@ def _click_turnstile(page, logger=None) -> bool:
             return False
 
         _remove_ad_overlays(page)
+        _focus_page(page)
 
         # Checkbox sits on the left of the widget, vertically centred.
         if box["width"] > 40:
@@ -863,6 +960,7 @@ def _click_human_checkbox(page, logger=None) -> bool:
             loc = ctx.locator('[data-aw-human-cb="1"]').first
             loc.wait_for(state="attached", timeout=1000)
             loc.scroll_into_view_if_needed(timeout=1500)
+            _focus_page(page)
             loc.click(timeout=2000)
             if logger:
                 logger.warning("Clicked plain 'not a robot' checkbox")
@@ -871,6 +969,87 @@ def _click_human_checkbox(page, logger=None) -> bool:
             if logger:
                 logger.warning(f"Human-checkbox click failed: {e}")
             return False
+    return False
+
+
+# ---------------------------------------------------------------------------
+# ALTCHA support (proof-of-work widget, seen stacked next to Turnstile on
+# some serienstream.to modals)
+# ---------------------------------------------------------------------------
+# ALTCHA (https://altcha.org) is not an iframe challenge and not a plain
+# checkbox — it's a <altcha-widget> custom element that runs a client-side
+# proof-of-work computation and exposes a small JS API: el.getState() reports
+# 'unverified' | 'verifying' | 'verified' | 'error' | 'expired' | 'code', and
+# el.verify() starts the computation. Driving it through simulated mouse
+# clicks would mean reaching into its (often closed) Shadow DOM for whatever
+# internal checkbox its 'checkbox'/'switch' display type renders — the
+# documented .verify() method does exactly what that click would trigger, so
+# we call it directly instead. Searches every frame, same as the other
+# challenge kinds, since a modal can embed the widget in a sub-frame.
+
+_ALTCHA_STATE_JS = """
+() => {
+  const el = document.querySelector('altcha-widget');
+  if (!el) return null;
+  try {
+    if (typeof el.getState === 'function') return el.getState();
+  } catch (e) {}
+  return el.getAttribute('state') || 'unverified';
+}
+"""
+
+_ALTCHA_VERIFY_JS = """
+() => {
+  const el = document.querySelector('altcha-widget');
+  if (!el) return false;
+  try {
+    const state = (typeof el.getState === 'function') ? el.getState() : null;
+    // Already done or already computing — don't restart a running PoW.
+    if (state === 'verified' || state === 'verifying') return true;
+    if (typeof el.verify === 'function') {
+      el.verify();
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
+"""
+
+
+def _altcha_widget_state(page):
+    """Return the ALTCHA widget's state ('unverified'/'verifying'/'verified'/
+    'error'/'expired'/'code'), or None if no <altcha-widget> is present on the
+    page or in any frame."""
+    for ctx in [page] + list(page.frames):
+        try:
+            r = ctx.evaluate(_ALTCHA_STATE_JS)
+        except Exception:
+            r = None
+        if r:
+            return r
+    return None
+
+
+def _trigger_altcha_widget(page, logger=None) -> bool:
+    """Start (or confirm already-running) ALTCHA proof-of-work verification by
+    calling the widget's own .verify() method, rather than trying to click
+    through its Shadow-DOM internals."""
+    if _env_flag("ANIWORLD_CAPTCHA_MANUAL"):
+        if logger:
+            logger.debug("Captcha manual mode — auto-verify skipped (altcha)")
+        return True
+    _focus_page(page)
+    for ctx in [page] + list(page.frames):
+        try:
+            ok = ctx.evaluate(_ALTCHA_VERIFY_JS)
+        except Exception:
+            ok = False
+        if ok:
+            if logger:
+                logger.warning("Triggered ALTCHA proof-of-work verification")
+            return True
+    if logger:
+        logger.debug("No altcha-widget found to verify")
     return False
 
 
@@ -924,9 +1103,10 @@ def _looks_like_challenge_iframe(u: str, kind: str) -> bool:
 def _present_challenge_kinds(page) -> set:
     """Which challenge kinds currently need attention on the page: the iframe
     captchas ('turnstile' / 'recaptcha' / 'hcaptcha') plus 'checkbox' for a
-    plain in-page "I'm not a robot" checkbox (VOE's fake-captcha pattern). A
-    modal can show more than one at once (e.g. Turnstile + a plain checkbox
-    stacked below it), so this returns a set."""
+    plain in-page "I'm not a robot" checkbox (VOE's fake-captcha pattern) plus
+    'altcha' for a proof-of-work <altcha-widget>. A modal can show more than
+    one at once (e.g. Turnstile + a plain checkbox stacked below it, or
+    Turnstile + ALTCHA), so this returns a set."""
     kinds = set()
     try:
         for fr in page.frames:
@@ -937,6 +1117,8 @@ def _present_challenge_kinds(page) -> set:
         pass
     if _human_checkbox_state(page) is not None:
         kinds.add("checkbox")
+    if _altcha_widget_state(page) is not None:
+        kinds.add("altcha")
     return kinds
 
 
@@ -945,6 +1127,8 @@ def _is_challenge_token_ready(page, kind: str) -> bool:
     to the plain 'checkbox' kind (ready == the box is ticked)."""
     if kind == "checkbox":
         return _human_checkbox_state(page) == "checked"
+    if kind == "altcha":
+        return _altcha_widget_state(page) == "verified"
     js = _TOKEN_READY_JS.get(kind)
     if not js:
         return False
@@ -972,6 +1156,8 @@ def _click_challenge_checkbox(page, kind: str, logger=None) -> bool:
     """
     if kind == "checkbox":
         return _click_human_checkbox(page, logger)
+    if kind == "altcha":
+        return _trigger_altcha_widget(page, logger)
 
     if _env_flag("ANIWORLD_CAPTCHA_MANUAL"):
         if logger:
@@ -1028,6 +1214,7 @@ def _click_challenge_checkbox(page, kind: str, logger=None) -> bool:
             return False
 
         _remove_ad_overlays(page)
+        _focus_page(page)
 
         if box["width"] > 40:
             inset = min(30.0, box["width"] * 0.12)
@@ -1069,18 +1256,32 @@ class _ChallengeSolver:
     def __init__(self):
         self._clicked = {}
         self._last_click = {}
+        self._first_seen = {}
 
     def ready_to_submit(self, page, logger=None) -> bool:
         kinds = _present_challenge_kinds(page)
         if not kinds:
             return False
         all_ready = True
+        now = _time.time()
         for kind in kinds:
             if _is_challenge_token_ready(page, kind):
                 continue
             all_ready = False
-            now = _time.time()
+            if kind not in self._first_seen:
+                self._first_seen[kind] = now
             if not self._clicked.get(kind):
+                # Give a freshly-rendered widget 3-4s to finish settling
+                # before the very first click. Clicking the instant its
+                # iframe/element appears in the DOM lands before Cloudflare's
+                # own JS has finished wiring up its listeners and risk
+                # assessment for that widget — an interaction that arrives
+                # "too early" reads as invalid/scripted and fails the
+                # challenge outright, independent of how human the click
+                # itself looks. Only the first click per kind waits; retries
+                # after the 8s grace period below click immediately.
+                if now - self._first_seen[kind] < _random.uniform(3.0, 4.0):
+                    continue
                 if _click_challenge_checkbox(page, kind, logger):
                     self._clicked[kind] = True
                     self._last_click[kind] = now
@@ -1137,6 +1338,8 @@ def is_captcha_page(html: str, status_code: int = 200) -> bool:
         "<title>stream wird vorbereitet...</title>",
         # serienstream.to inline Turnstile modal
         "player-prepare-turnstile",
+        # ALTCHA proof-of-work widget, sometimes stacked next to Turnstile
+        "altcha-widget",
     ]
     return any(ind in lower for ind in indicators)
 
@@ -1199,7 +1402,9 @@ def _solve_captcha_cli(url: str) -> bool:
                 browser = p.chromium.launch(headless=False)
                 context = browser.new_context(ignore_https_errors=True)
                 page = context.new_page()
+                _attach_debug_listeners(page, logger)
                 page.goto(url, wait_until="domcontentloaded")
+                _focus_page(page)
 
                 timeout = _captcha_timeout(300)  # default 5 minutes
                 start = _time.time()
@@ -1236,6 +1441,7 @@ def _solve_captcha_cli(url: str) -> bool:
                     # only submit once every widget on the page has a token.
                     if challenge_solver.ready_to_submit(page, logger):
                         try:
+                            _focus_page(page)
                             if _click_submit_button(page, logger):
                                 page.wait_for_timeout(2000)
                         except Exception:
@@ -1337,7 +1543,9 @@ def _solve_captcha_interactive(url: str, queue_id: int) -> bool:
             _handle = _launch_browser_context(p, offscreen=not _env_flag("ANIWORLD_CAPTCHA_VISIBLE"))
             context = _handle.context
             page = context.new_page()
+            _attach_debug_listeners(page, logger)
             page.goto(url)
+            _focus_page(page)
             _sync_session_user_agent(page)
 
             with _captcha_state_lock:
@@ -1392,6 +1600,7 @@ def _solve_captcha_interactive(url: str, queue_id: int) -> bool:
                 # only submit once every widget on the page has a token.
                 if challenge_solver.ready_to_submit(page, logger):
                     try:
+                        _focus_page(page)
                         if _click_submit_button(page, logger):
                             page.wait_for_timeout(2000)
                     except Exception:
@@ -1744,6 +1953,7 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str,
 
             _inject_session_cookies(context, episode_url)
             page = context.new_page()
+            _attach_debug_listeners(page, logger)
 
             with _captcha_state_lock:
                 _captcha_state = {
@@ -1798,6 +2008,7 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str,
 
             logger.debug(f"Opening episode page for modal solving: {start_url}")
             page.goto(start_url, wait_until="domcontentloaded")
+            _focus_page(page)
             _sync_session_user_agent(page)
 
             # The captcha modal is triggered by clicking the provider's play
@@ -1957,6 +2168,7 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str,
                             # Remove ad overlays before clicking Weiter so the
                             # submit button click isn't hijacked by the overlay.
                             _remove_ad_overlays(page)
+                            _focus_page(page)
                             # Signal BEFORE the click so the new-tab handler
                             # never races ahead of the flag being set.
                             _weiter_submitted.set()
