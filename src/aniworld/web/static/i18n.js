@@ -79,6 +79,11 @@
       "settings.movie_folder": "Wrap movies in their own folder",
       "settings.movie_folder_hint":
         "When off, a movie is saved directly into the download path instead of a \"Title (Year)\" folder.",
+      "settings.custom_css": "Custom CSS",
+      "settings.custom_css_install": "Install CSS",
+      "settings.custom_css_restore": "Restore original CSS",
+      "settings.custom_css_hint":
+        "Upload a CSS file to change the interface. The page reloads immediately after installation.",
       "settings.output_format": "Output Format",
       "settings.output_format_hint":
         "Container for downloaded files. MP4 is the most compatible with players and Plex.",
@@ -193,6 +198,11 @@
       "settings.movie_folder": "Filme in eigenen Ordner packen",
       "settings.movie_folder_hint":
         "Wenn aus, wird ein Film direkt in den Download-Pfad gespeichert statt in einen \"Titel (Jahr)\"-Ordner.",
+      "settings.custom_css": "Eigenes CSS",
+      "settings.custom_css_install": "CSS installieren",
+      "settings.custom_css_restore": "Originales CSS wiederherstellen",
+      "settings.custom_css_hint":
+        "Lade eine CSS-Datei hoch, um die Oberfläche anzupassen. Die Seite wird danach sofort neu geladen.",
       "settings.output_format": "Ausgabeformat",
       "settings.output_format_hint":
         "Container für heruntergeladene Dateien. MP4 ist am kompatibelsten mit Playern und Plex.",

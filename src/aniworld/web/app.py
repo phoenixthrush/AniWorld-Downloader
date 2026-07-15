@@ -1,11 +1,13 @@
 import json
 import os
 import re
+import tempfile
 import threading
 import time
+from pathlib import Path
 
 import requests
-from flask import Flask, jsonify, redirect, render_template, request, url_for
+from flask import Flask, jsonify, redirect, render_template, request, send_file, url_for
 from flask_wtf.csrf import CSRFProtect
 
 from ..config import (
@@ -80,6 +82,46 @@ from .db import (
 )
 
 logger = get_logger(__name__)
+
+
+ORIGINAL_STYLE_CSS_URL = (
+    "https://raw.githubusercontent.com/phoenixthrush/AniWorld-Downloader/"
+    "models/src/aniworld/web/static/style.css"
+)
+
+
+def _custom_stylesheet_path() -> Path:
+    """Return the persistent stylesheet location used by the web UI."""
+    return Path.home() / ".aniworld" / "style.css"
+
+
+def _write_style_css(path: Path, css: str) -> None:
+    """Atomically write a stylesheet without leaving a partially written file."""
+    if not isinstance(css, str) or not css.strip():
+        raise ValueError("CSS content must not be empty")
+
+    encoded = css.encode("utf-8")
+
+    temp_path = None
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            mode="wb", dir=path.parent, prefix=".style-", suffix=".tmp", delete=False
+        ) as temp_file:
+            temp_file.write(encoded)
+            temp_path = Path(temp_file.name)
+        os.replace(temp_path, path)
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
+
+
+def _active_stylesheet_path(app: Flask) -> Path:
+    """Use the persisted stylesheet when present, otherwise the bundled default."""
+    custom_stylesheet = _custom_stylesheet_path()
+    if custom_stylesheet.is_file():
+        return custom_stylesheet
+    return Path(app.static_folder) / "style.css"
 
 
 def _get_working_providers():
@@ -1100,7 +1142,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         def _check_setup():
             if request.endpoint and request.endpoint.startswith("auth."):
                 return None
-            if request.endpoint == "static":
+            if request.endpoint in {"static", "stylesheet"}:
                 return None
             if not app.config.get("FORCE_SSO", False) and not has_any_admin():
                 return redirect(url_for("auth.setup"))
@@ -1138,7 +1180,13 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         lang = os.environ.get("ANIWORLD_UI_LANGUAGE", "en").lower()
         if lang not in SUPPORTED_UI_LANGUAGES:
             lang = "en"
-        return {"ui_language": lang}
+        stylesheet = _active_stylesheet_path(app)
+        try:
+            stat = stylesheet.stat()
+            css_version = f"{stat.st_mtime_ns:x}-{stat.st_size:x}"
+        except OSError:
+            css_version = "unknown"
+        return {"ui_language": lang, "css_version": css_version}
 
     # Initialize download queue, custom paths and autosync (works with or without auth)
     init_queue_db()
@@ -1187,6 +1235,22 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                     return jsonify(
                         {"error": "Content-Type must be application/json"}
                     ), 415
+
+    @app.route("/assets/style.css")
+    def stylesheet():
+        """Serve the active stylesheet, including custom CSS before login/setup."""
+        try:
+            response = send_file(
+                _active_stylesheet_path(app),
+                mimetype="text/css",
+                conditional=True,
+                max_age=0,
+            )
+        except OSError:
+            logger.exception("Could not serve stylesheet")
+            return "", 404
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
     @app.route("/")
     def index():
@@ -2181,6 +2245,37 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             logger.warning("Failed to resolve public IP: %s", exc)
             return jsonify({"ok": False, "error": "Failed to fetch public IP"}), 502
 
+    @app.route("/api/settings/custom-css", methods=["POST"])
+    def api_settings_custom_css():
+        data = request.get_json(silent=True) or {}
+        css = data.get("css")
+        if not isinstance(css, str):
+            return jsonify({"error": "CSS content is required"}), 400
+
+        try:
+            _write_style_css(_custom_stylesheet_path(), css)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        except OSError:
+            logger.exception("Could not install custom CSS")
+            return jsonify({"error": "Could not save the custom CSS"}), 500
+        return jsonify({"ok": True})
+
+    @app.route("/api/settings/custom-css/restore", methods=["POST"])
+    def api_settings_restore_css():
+        try:
+            response = requests.get(ORIGINAL_STYLE_CSS_URL, timeout=15)
+            response.raise_for_status()
+            css = response.content.decode("utf-8")
+            _write_style_css(_custom_stylesheet_path(), css)
+        except (requests.RequestException, UnicodeDecodeError, ValueError) as exc:
+            logger.warning("Could not download the original stylesheet: %s", exc)
+            return jsonify({"error": "Could not download the original CSS from GitHub"}), 502
+        except OSError:
+            logger.exception("Could not restore original CSS")
+            return jsonify({"error": "Could not save the original CSS"}), 500
+        return jsonify({"ok": True})
+
     @app.route("/api/settings", methods=["PUT"])
     def api_settings_update():
         data = request.get_json(silent=True) or {}
@@ -2800,6 +2895,8 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             "api_settings",
             "api_settings_public_ip",
             "api_settings_update",
+            "api_settings_custom_css",
+            "api_settings_restore_css",
             "api_discord_status",
             "api_library_delete",
             "api_custom_paths_add",
@@ -2818,6 +2915,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         # (admin_required for settings endpoints)
         _exempt = {
             "static",
+            "stylesheet",
             "auth.login",
             "auth.logout",
             "auth.setup",

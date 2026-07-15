@@ -221,6 +221,16 @@ endblock %} {% block content %}
     <div class="settings-hint" data-i18n="settings.movie_folder_hint">
       When off, a movie is saved directly into the download path instead of a "Title (Year)" folder.
     </div>
+
+    <h3 class="settings-subtitle" style="margin-top: 22px" data-i18n="settings.custom_css">Custom CSS</h3>
+    <div class="settings-row">
+      <input type="file" id="customCssFile" accept=".css,text/css" />
+      <button type="button" id="installCustomCssBtn" onclick="installCustomCss()" data-i18n="settings.custom_css_install">Install CSS</button>
+      <button type="button" id="restoreOriginalCssBtn" onclick="restoreOriginalCss()" data-i18n="settings.custom_css_restore">Restore original CSS</button>
+    </div>
+    <div class="settings-hint" data-i18n="settings.custom_css_hint">
+      Upload a CSS file to change the interface. The page reloads immediately after installation.
+    </div>
   </div>
 
   <div class="settings-section">

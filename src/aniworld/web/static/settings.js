@@ -89,6 +89,66 @@ function saveMovieFolder() {
   putSettings({ movie_folder: checked }, "Setting saved");
 }
 
+async function updateCustomCss(url, payload, buttons) {
+  buttons.forEach((button) => {
+    if (button) button.disabled = true;
+  });
+  try {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) {
+      throw new Error(data.error || "Failed to update CSS");
+    }
+    window.location.reload();
+  } catch (e) {
+    showToast("Failed to update CSS: " + e.message);
+    buttons.forEach((button) => {
+      if (button) button.disabled = false;
+    });
+  }
+}
+
+async function installCustomCss() {
+  const fileInput = document.getElementById("customCssFile");
+  const installButton = document.getElementById("installCustomCssBtn");
+  const restoreButton = document.getElementById("restoreOriginalCssBtn");
+  const file = fileInput && fileInput.files[0];
+  if (!file) {
+    showToast("Choose a CSS file first");
+    return;
+  }
+  if (!file.name.toLowerCase().endsWith(".css")) {
+    showToast("Only .css files can be installed");
+    return;
+  }
+  try {
+    const css = await file.text();
+    await updateCustomCss(
+      "/api/settings/custom-css",
+      { css },
+      [installButton, restoreButton],
+    );
+  } catch (e) {
+    showToast("Failed to read CSS file: " + e.message);
+  }
+}
+
+function restoreOriginalCss() {
+  if (!confirm("Restore the original CSS from GitHub?")) return;
+  updateCustomCss(
+    "/api/settings/custom-css/restore",
+    {},
+    [
+      document.getElementById("installCustomCssBtn"),
+      document.getElementById("restoreOriginalCssBtn"),
+    ],
+  );
+}
+
 // ===== Discord bot =====
 
 function applyDiscordSettings(d) {
