@@ -20,6 +20,7 @@ from ..config import (
 from ..extractors import provider_functions
 from ..extractors.provider.hanime_tv import fetch_hanime_search_db
 from ..logger import get_logger
+from ..models.common import cancellation as _cancellation
 from ..models.mangafire_to.series import search_series as query_mangafire
 from ..providers import resolve_provider
 from ..search import (
@@ -94,6 +95,27 @@ ORIGINAL_STYLE_CSS_URL = (
 def _custom_stylesheet_path() -> Path:
     """Return the persistent stylesheet location used by the web UI."""
     return Path.home() / ".aniworld" / "style.css"
+
+
+def _original_css_backup_path() -> Path:
+    """Local backup of the ORIGINAL stylesheet, used when GitHub is unreachable."""
+    return Path.home() / ".aniworld" / "style.original.css"
+
+
+def _backup_original_css(app: Flask) -> None:
+    """Keep a copy of the bundled (original) stylesheet as a restore fallback.
+
+    Only the packaged original is ever backed up — never the user's custom
+    stylesheet from ~/.aniworld/style.css.
+    """
+    try:
+        bundled = Path(app.static_folder) / "style.css"
+        if bundled.is_file():
+            _write_style_css(
+                _original_css_backup_path(), bundled.read_text(encoding="utf-8")
+            )
+    except Exception:
+        logger.exception("Could not back up the original stylesheet")
 
 
 def _write_style_css(path: Path, css: str) -> None:
@@ -351,17 +373,24 @@ STO_LANGUAGE_BADGE_ORDER = (
 
 
 def _episode_language_labels(provider_data):
+    # A provider can legitimately have no compatible stream host for an
+    # episode.  Models represent that state with ``None``; it is not an API
+    # failure and must not be treated like a mapping below.
+    if provider_data is None:
+        return []
+
     labels = []
     seen = set()
 
-    if hasattr(provider_data, "_data"):
+    provider_mapping = getattr(provider_data, "_data", None)
+    if hasattr(provider_mapping, "items"):
         lang_tuple_to_label = {}
         for key, (audio, subtitles) in LANG_KEY_MAP.items():
             label = LANG_LABELS.get(key)
             if label:
                 lang_tuple_to_label[(audio.value, subtitles.value)] = label
 
-        for (audio, subtitles), providers in provider_data._data.items():
+        for (audio, subtitles), providers in provider_mapping.items():
             label = lang_tuple_to_label.get((audio.value, subtitles.value))
             if not label or label in seen or not providers:
                 continue
@@ -369,7 +398,7 @@ def _episode_language_labels(provider_data):
             seen.add(label)
 
         order = ANIWORLD_LANGUAGE_BADGE_ORDER
-    else:
+    elif hasattr(provider_data, "items"):
         sto_label_map = {
             ("German", "None"): "German Dub",
             ("English", "None"): "English Dub",
@@ -382,6 +411,15 @@ def _episode_language_labels(provider_data):
             seen.add(label)
 
         order = STO_LANGUAGE_BADGE_ORDER
+
+    else:
+        # Keep the episode endpoint resilient if a provider implementation
+        # returns an unexpected value while its page is changing.
+        logger.warning(
+            "Ignoring unsupported provider data of type %s",
+            type(provider_data).__name__,
+        )
+        return []
 
     sort_order = {label: index for index, label in enumerate(order)}
     labels.sort(key=lambda label: (sort_order.get(label, len(sort_order)), label))
@@ -635,10 +673,25 @@ def _queue_worker():
                         ep_kwargs["selected_path"] = selected_path
                     episode = prov.episode_cls(**ep_kwargs)
                     _captcha_mod._local.queue_id = item["id"]
+                    _cancellation.begin(item["id"])
                     try:
+                        # Re-check after begin(): a cancel that arrived between
+                        # episodes (before the event existed) must not let the
+                        # next episode start.
+                        if is_queue_cancelled(item["id"]):
+                            raise _cancellation.DownloadCancelledError(
+                                "Download cancelled by user"
+                            )
                         episode.download()
                     finally:
+                        _cancellation.end()
                         _captcha_mod._local.queue_id = None
+                except _cancellation.DownloadCancelledError:
+                    logger.info(
+                        f"Download aborted mid-episode for queue item {item['id']}"
+                    )
+                    update_queue_progress(item["id"], i, "")
+                    break
                 except Exception as e:
                     _captcha_mod._local.queue_id = None
                     logger.error(f"Download failed for {ep_url}: {e}")
@@ -1066,6 +1119,12 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     app = Flask(__name__)
     app_version = _get_version()
 
+    # Refresh the offline backup of the original stylesheet on every start so
+    # a CSS reset works even when GitHub is unreachable. The bundled file is
+    # always the packaged original — custom CSS lives in ~/.aniworld/style.css
+    # and is never backed up.
+    _backup_original_css(app)
+
     base_url = os.environ.get("ANIWORLD_WEB_BASE_URL", "").strip().rstrip("/")
     if base_url:
         from urllib.parse import urlparse
@@ -1490,7 +1549,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                     )
                 except Exception as exc:
                     logger.warning(f"{prov.name} language detection failed: {exc}")
-                    available_languages = ["German Dub"]
+                    available_languages = []
                 episodes_data = [
                     {
                         "url": url,
@@ -1683,7 +1742,11 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                     season_lang_labels = list(getattr(season, "language_labels", []) or [])
                 except Exception as exc:
                     logger.warning(f"{prov.name} language detection failed: {exc}")
-                    season_lang_labels = ["German Dub"]
+                    # Do not advertise a language when a source lookup failed:
+                    # it lets the browser queue downloads that can never start.
+                    season_lang_labels = (
+                        ["English Dub"] if prov.name == "Cineby" else []
+                    )
 
             episodes_data = []
             for ep in season.episodes:
@@ -1750,10 +1813,19 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 episode = prov.episode_cls(url=url)
             pd = episode.provider_data
 
+            # MegaKino returns ``None`` when its page exposes no supported
+            # stream host.  Return an empty result so the UI can report that
+            # state instead of raising ``AttributeError: NoneType has no
+            # attribute 'items'``.
+            if pd is None:
+                logger.info("No compatible providers found for %s", url)
+                return jsonify({"providers": {}})
+
             disable_eng_sub = os.environ.get("ANIWORLD_DISABLE_ENGLISH_SUB", "0") == "1"
             provider_info = {}
 
-            if hasattr(pd, "_data"):
+            provider_mapping = getattr(pd, "_data", None)
+            if hasattr(provider_mapping, "items"):
                 # AniWorld: ProviderData object
                 lang_tuple_to_label = {}
                 for key, (audio, subtitles) in LANG_KEY_MAP.items():
@@ -1761,7 +1833,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                     if label:
                         lang_tuple_to_label[(audio.value, subtitles.value)] = label
 
-                for (audio, subtitles), providers in pd._data.items():
+                for (audio, subtitles), providers in provider_mapping.items():
                     label = lang_tuple_to_label.get((audio.value, subtitles.value))
                     if not label:
                         continue
@@ -1774,7 +1846,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                     ]
                     if working:
                         provider_info[label] = working
-            else:
+            elif hasattr(pd, "items"):
                 # serienstream.to: plain dict with (Audio, Subtitles) enum tuple keys
                 sto_label_map = {
                     ("German", "None"): "German Dub",
@@ -1787,6 +1859,12 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                     working = [p for p in providers.keys() if p in WORKING_PROVIDERS]
                     if working:
                         provider_info[label] = working
+            else:
+                logger.warning(
+                    "Ignoring unsupported provider data of type %s for %s",
+                    type(pd).__name__,
+                    url,
+                )
 
             return jsonify({"providers": provider_info})
         except Exception as e:
@@ -1863,6 +1941,10 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         ok, err = cancel_queue_item(queue_id)
         if not ok:
             return jsonify({"error": err}), 400
+        # Abort the in-flight download immediately (kills the running ffmpeg
+        # and stops segment loops) instead of letting the episode finish.
+        if _cancellation.cancel(queue_id):
+            logger.info(f"Killed in-flight download for queue item {queue_id}")
         return jsonify({"ok": True})
 
     @app.route("/api/queue/<int:queue_id>/move", methods=["POST"])
@@ -2243,18 +2325,63 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
     @app.route("/api/settings/custom-css/restore", methods=["POST"])
     def api_settings_restore_css():
+        css = None
+        source = "github"
         try:
             response = requests.get(ORIGINAL_STYLE_CSS_URL, timeout=15)
             response.raise_for_status()
             css = response.content.decode("utf-8")
-            _write_style_css(_custom_stylesheet_path(), css)
+            if not css.strip():
+                raise ValueError("downloaded stylesheet is empty")
         except (requests.RequestException, UnicodeDecodeError, ValueError) as exc:
-            logger.warning("Could not download the original stylesheet: %s", exc)
-            return jsonify({"error": "Could not download the original CSS from GitHub"}), 502
-        except OSError:
+            logger.warning(
+                "Could not download the original stylesheet, "
+                "falling back to the local backup: %s",
+                exc,
+            )
+            css = None
+
+        if css is not None:
+            # Keep the offline backup in sync with the known-good original.
+            try:
+                _write_style_css(_original_css_backup_path(), css)
+            except (OSError, ValueError):
+                logger.exception("Could not refresh the original-CSS backup")
+        else:
+            # GitHub failed — restore from the original backup (never a custom
+            # stylesheet), with the bundled file as last resort.
+            source = "backup"
+            for fallback in (
+                _original_css_backup_path(),
+                Path(app.static_folder) / "style.css",
+            ):
+                try:
+                    if fallback.is_file():
+                        css = fallback.read_text(encoding="utf-8")
+                        if css.strip():
+                            break
+                        css = None
+                except OSError:
+                    logger.exception("Could not read CSS fallback %s", fallback)
+                    css = None
+
+        if css is None:
+            return (
+                jsonify(
+                    {
+                        "error": "Could not download the original CSS from GitHub "
+                        "and no local backup exists"
+                    }
+                ),
+                502,
+            )
+
+        try:
+            _write_style_css(_custom_stylesheet_path(), css)
+        except (OSError, ValueError):
             logger.exception("Could not restore original CSS")
             return jsonify({"error": "Could not save the original CSS"}), 500
-        return jsonify({"ok": True})
+        return jsonify({"ok": True, "source": source})
 
     @app.route("/api/settings", methods=["PUT"])
     def api_settings_update():

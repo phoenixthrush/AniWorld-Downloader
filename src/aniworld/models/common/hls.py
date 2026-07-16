@@ -27,6 +27,8 @@ try:
 except ImportError:
     from aniworld.config import DEFAULT_USER_AGENT, logger
 
+from . import cancellation
+
 
 class HLSUnsupported(Exception):
     """The playlist uses a feature this downloader cannot handle."""
@@ -124,6 +126,7 @@ def _default_headers(headers):
 
 
 def _fetch_text(url, headers):
+    cancellation.raise_if_cancelled()
     resp = _session().get(url, headers=headers, timeout=SEGMENT_TIMEOUT)
     resp.raise_for_status()
     return resp.text
@@ -133,6 +136,7 @@ def _fetch_bytes(url, headers):
     """Fetch a URL, retrying transient failures."""
     last_error = None
     for attempt in range(SEGMENT_RETRIES):
+        cancellation.raise_if_cancelled()
         try:
             resp = _session().get(url, headers=headers, timeout=SEGMENT_TIMEOUT)
             resp.raise_for_status()
@@ -143,6 +147,7 @@ def _fetch_bytes(url, headers):
         except Exception as err:
             last_error = err
             if attempt < SEGMENT_RETRIES - 1:
+                cancellation.raise_if_cancelled()
                 time.sleep(2**attempt)
     raise RuntimeError(f"failed to fetch {url}: {last_error}") from last_error
 
@@ -452,6 +457,7 @@ def _download_playlist(playlist_url, headers, temp_prefix, suffix, tracker_facto
 
         if concurrency == 1:
             for segment in segments:
+                cancellation.raise_if_cancelled()
                 chunk = _fetch_segment(segment)
                 handle.write(chunk)
                 tracker.advance(len(chunk))
@@ -463,18 +469,30 @@ def _download_playlist(playlist_url, headers, temp_prefix, suffix, tracker_facto
         pending = deque()
         next_index = 0
 
-        with ThreadPoolExecutor(max_workers=concurrency) as pool:
+        pool = ThreadPoolExecutor(max_workers=concurrency)
+        try:
             while next_index < len(segments) and len(pending) < window:
                 pending.append(pool.submit(_fetch_segment, segments[next_index]))
                 next_index += 1
 
             while pending:
+                cancellation.raise_if_cancelled()
                 chunk = pending.popleft().result()
                 handle.write(chunk)
                 tracker.advance(len(chunk))
                 if next_index < len(segments):
                     pending.append(pool.submit(_fetch_segment, segments[next_index]))
                     next_index += 1
+        except BaseException:
+            # ``ThreadPoolExecutor.__exit__`` always waits for in-flight work.
+            # Avoid that here: cancellation must return immediately even when a
+            # host has a segment request stuck near its network timeout.
+            for future in pending:
+                future.cancel()
+            pool.shutdown(wait=False, cancel_futures=True)
+            raise
+        else:
+            pool.shutdown(wait=True)
 
     return output_path
 

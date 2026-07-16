@@ -1016,10 +1016,30 @@ async function fetchProviders(episodeUrl) {
       availableProviders = data.providers;
       filterLanguageSelectToAvailable();
       updateProviderDropdown();
+      if (!usesImplicitProvider() && !hasUsableProvider()) {
+        providerSelect.disabled = true;
+        downloadAllBtn.disabled = true;
+        downloadSelectedBtn.disabled = true;
+        showToast("No compatible download provider is available for this title.");
+      } else {
+        providerSelect.disabled = false;
+        downloadAllBtn.disabled = false;
+        downloadSelectedBtn.disabled = false;
+      }
     }
   } catch (e) {
     // If provider fetch fails, keep the static list
   }
+}
+
+function hasUsableProvider() {
+  return Object.values(availableProviders || {}).some(
+    (providers) => Array.isArray(providers) && providers.length > 0,
+  );
+}
+
+function usesImplicitProvider() {
+  return currentSeriesUrl.includes("hanime.tv/") || isMangaFireUrl(currentSeriesUrl);
 }
 
 function filterLanguageSelectToAvailable() {
@@ -1045,6 +1065,7 @@ function filterLanguageSelectToAvailable() {
 }
 
 function resetProviderDropdown() {
+  providerSelect.disabled = false;
   providerSelect.innerHTML = "";
   if (currentSite !== "megakino") {
     staticProviders.forEach((p) => {
@@ -1121,6 +1142,17 @@ async function startDownload(all) {
     : isMangaFireDl
       ? "MangaFire"
       : providerSelect.value;
+
+  if (
+    !isHtvDl &&
+    !isMangaFireDl &&
+    (!availableProviders ||
+      !Array.isArray(availableProviders[language]) ||
+      !availableProviders[language].includes(provider))
+  ) {
+    showToast("No compatible provider is available for the selected language.");
+    return;
+  }
 
   downloadAllBtn.disabled = true;
   downloadSelectedBtn.disabled = true;

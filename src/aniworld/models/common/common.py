@@ -16,6 +16,8 @@ import ffmpeg
 import niquests
 
 from ...autodeps import DependencyManager
+from . import cancellation
+from .cancellation import DownloadCancelledError
 
 try:
     from ...autodeps import get_player_path, get_syncplay_path
@@ -357,6 +359,8 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
     # Use shorter stats_period for smoother progress (1s in non-debug, 10s in debug)
     stats_period = "10" if debug_mode else "1"
 
+    cancellation.raise_if_cancelled()
+
     args = ffmpeg.compile(node, overwrite_output=overwrite_output)
     if "-stats_period" not in args:
         args.insert(-1, "-stats_period")
@@ -368,6 +372,9 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
         stderr=subprocess.PIPE,
         universal_newlines=False,
     )
+    # Let a queue cancel kill ffmpeg mid-download instead of waiting for the
+    # episode to finish.
+    cancellation.register_process(process)
 
     # --- reader thread: reads stderr byte-by-byte and pushes complete lines ---
     line_queue = queue.Queue()
@@ -522,7 +529,9 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
 
     reader_thread.join(timeout=5)
     process.wait()
+    cancellation.unregister_process(process)
     if process.returncode != 0:
+        cancellation.raise_if_cancelled()
         detail = (
             "\n".join(stderr_lines[-20:])
             if stderr_lines
@@ -616,6 +625,7 @@ def _download_direct_http(episode_path, stream_url, file_name):
 
         with open(temp_file, "wb") as f:
             for chunk in resp.iter_content(chunk_size=1024 * 1024):
+                cancellation.raise_if_cancelled()
                 f.write(chunk)
                 downloaded += len(chunk)
 
@@ -718,10 +728,19 @@ def download_hanime(self):
 
     dl_url = get_download_url_from_hanime_tv(self._api_data)
 
-    if dl_url:
-        _download_direct_http(self._episode_path, dl_url, self._file_name)
-    else:
-        _download_hls_stream(self._episode_path, self.stream_url, self._file_name)
+    try:
+        if dl_url:
+            _download_direct_http(self._episode_path, dl_url, self._file_name)
+        else:
+            _download_hls_stream(self._episode_path, self.stream_url, self._file_name)
+    except DownloadCancelledError:
+        _cleanup_partial_downloads(self._episode_path)
+        _remove_empty_dirs(
+            self._folder_path,
+            self._base_folder,
+            protected=getattr(self, "selected_path", None),
+        )
+        raise
 
 
 class _HLSManualUnsupported(Exception):
@@ -832,6 +851,7 @@ def _download_hls_manual(m3u8_url, headers, temp_ts, label=""):
     try:
         with open(temp_ts, "wb") as out:
             for index, seg_url in enumerate(segments, start=1):
+                cancellation.raise_if_cancelled()
                 out.write(
                     _fetch_hls_segment(session, seg_url, req_headers, seg_hosts)
                 )
@@ -933,6 +953,23 @@ def _download_full_stream(
         ),
         label=ep_label,
     )
+
+
+def _cleanup_partial_downloads(episode_path):
+    """Remove every temp/partial file a download may have left next to the episode."""
+    for suffix in (
+        ".temp_full.mkv",
+        ".temp_audio.mkv",
+        ".temp_video.mkv",
+        ".temp_dl.mp4",
+        ".seg.ts",
+        ".new.mkv",
+        ".convert.mkv",
+        ".convert.mp4",
+    ):
+        temp = episode_path.with_suffix(suffix)
+        if temp.exists():
+            temp.unlink()
 
 
 def download(self):
@@ -1181,18 +1218,18 @@ def download(self):
 
                 return
 
+            except DownloadCancelledError:
+                # User cancelled: clean up and abort right away — no retries,
+                # no provider fallback.
+                _cleanup_partial_downloads(self._episode_path)
+                _remove_empty_dirs(
+                    self._folder_path,
+                    self._base_folder,
+                    protected=getattr(self, "selected_path", None),
+                )
+                raise
             except Exception as e:
-                for suffix in (
-                    ".temp_full.mkv",
-                    ".temp_audio.mkv",
-                    ".temp_video.mkv",
-                    ".new.mkv",
-                    ".convert.mkv",
-                    ".convert.mp4",
-                ):
-                    temp = self._episode_path.with_suffix(suffix)
-                    if temp.exists():
-                        temp.unlink()
+                _cleanup_partial_downloads(self._episode_path)
 
                 provider_errors[provider_name] = e
                 logger.warning(

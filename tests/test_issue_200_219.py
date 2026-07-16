@@ -1,17 +1,23 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import niquests
 
+from aniworld.config import Audio, Subtitles
 from aniworld.extractors.provider import hanime_tv
 from aniworld.models.common import common
+from aniworld.models.common import cancellation, hls
+from aniworld.models.common.common import ProviderData
 from aniworld.models.common.common import (
     _build_blocking_player_command,
     _build_mpv_network_args,
 )
 from aniworld.playwright import captcha
 from aniworld.playwright.captcha import _is_hanime_manifest_response
+from aniworld.web import app as web_app
 
 
 _HANIME_HTML = """
@@ -274,6 +280,144 @@ class PlayerCommandIntegrationTests(unittest.TestCase):
         self.assertFalse(
             any(arg.startswith("--http-header-fields=") for arg in mpv_options)
         )
+
+
+class ProviderDataApiTests(unittest.TestCase):
+    def setUp(self):
+        # Do not start the queue/autosync threads while exercising route logic.
+        self.worker_patches = (
+            patch.object(web_app, "_ensure_queue_worker"),
+            patch.object(web_app, "_ensure_autosync_worker"),
+        )
+        for worker_patch in self.worker_patches:
+            worker_patch.start()
+        self.app = web_app.create_app().test_client()
+
+    def tearDown(self):
+        for worker_patch in reversed(self.worker_patches):
+            worker_patch.stop()
+
+    def test_missing_provider_data_is_an_empty_language_list(self):
+        self.assertEqual(web_app._episode_language_labels(None), [])
+
+    def test_malformed_provider_data_is_an_empty_language_list(self):
+        self.assertEqual(
+            web_app._episode_language_labels(SimpleNamespace(_data=None)), []
+        )
+
+    def test_providers_endpoint_accepts_missing_megakino_streams(self):
+        provider = SimpleNamespace(
+            name="MegaKino",
+            episode_cls=lambda **kwargs: SimpleNamespace(provider_data=None),
+        )
+
+        with patch.object(web_app, "resolve_provider", return_value=provider):
+            response = self.app.get("/api/providers?url=https://megakino.example/movie")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {"providers": {}})
+
+    def test_episodes_endpoint_accepts_missing_megakino_streams(self):
+        provider = SimpleNamespace(
+            name="MegaKino",
+            episode_cls=lambda **kwargs: SimpleNamespace(
+                title_cleaned="Example Movie", title="Example Movie", provider_data=None
+            ),
+        )
+
+        with patch.object(web_app, "resolve_provider", return_value=provider):
+            response = self.app.get("/api/episodes?url=https://megakino.example/movie")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.get_json()["episodes"][0]["available_languages"], []
+        )
+
+    def test_providers_endpoint_accepts_malformed_provider_data(self):
+        provider = SimpleNamespace(
+            name="MegaKino",
+            episode_cls=lambda **kwargs: SimpleNamespace(
+                provider_data=SimpleNamespace(_data=None)
+            ),
+        )
+
+        with patch.object(web_app, "resolve_provider", return_value=provider):
+            response = self.app.get("/api/providers?url=https://megakino.example/movie")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {"providers": {}})
+
+    def test_providers_endpoint_keeps_supported_provider_data(self):
+        provider_data = ProviderData(
+            {(Audio.GERMAN, Subtitles.NONE): {"VOE": "https://voe.example/e/123"}}
+        )
+        provider = SimpleNamespace(
+            name="MegaKino",
+            episode_cls=lambda **kwargs: SimpleNamespace(provider_data=provider_data),
+        )
+
+        with patch.object(web_app, "resolve_provider", return_value=provider):
+            response = self.app.get("/api/providers?url=https://megakino.example/movie")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {"providers": {"German Dub": ["VOE"]}})
+
+
+class DownloadCancellationTests(unittest.TestCase):
+    def tearDown(self):
+        cancellation.end()
+
+    def test_cancel_kills_registered_process_and_raises(self):
+        process = Mock()
+        cancellation.begin(42)
+        cancellation.register_process(process)
+
+        self.assertTrue(cancellation.cancel(42))
+        process.kill.assert_called_once_with()
+        with self.assertRaises(cancellation.DownloadCancelledError):
+            cancellation.raise_if_cancelled()
+
+    def test_parallel_hls_cancellation_does_not_wait_for_workers(self):
+        class Future:
+            def __init__(self):
+                self.cancel = Mock()
+
+        class Pool:
+            instance = None
+
+            def __init__(self, **kwargs):
+                self.shutdown = Mock()
+                self.futures = []
+                Pool.instance = self
+
+            def submit(self, *args):
+                future = Future()
+                self.futures.append(future)
+                return future
+
+        with TemporaryDirectory() as temp_dir:
+            with (
+                patch.object(hls, "_fetch_text", return_value="#EXTM3U\n#EXT-X-ENDLIST\n"),
+                patch.object(hls, "_parse_media_playlist", return_value=([("one", None, 0)], None)),
+                patch.object(hls, "get_concurrency", return_value=2),
+                patch.object(hls, "ThreadPoolExecutor", Pool),
+                patch.object(
+                    hls.cancellation,
+                    "raise_if_cancelled",
+                    side_effect=cancellation.DownloadCancelledError(),
+                ),
+            ):
+                with self.assertRaises(cancellation.DownloadCancelledError):
+                    hls._download_playlist(
+                        "https://example.invalid/list.m3u8",
+                        {},
+                        Path(temp_dir) / "episode",
+                        ".hls_video",
+                        lambda total: SimpleNamespace(advance=Mock()),
+                    )
+
+        Pool.instance.shutdown.assert_called_once_with(wait=False, cancel_futures=True)
+        self.assertTrue(all(future.cancel.called for future in Pool.instance.futures))
 
 
 if __name__ == "__main__":

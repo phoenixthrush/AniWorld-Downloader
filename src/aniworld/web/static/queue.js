@@ -276,7 +276,7 @@ function renderQueue(items) {
         captchaBtn +
         '<button class="queue-cancel" onclick="cancelQueueItem(' +
         item.id +
-        ')" title="Cancel after current episode">Cancel</button>';
+        ')" title="Cancel download immediately">Cancel</button>';
     }
 
     const userHtml = item.username
@@ -359,7 +359,7 @@ async function cancelQueueItem(id) {
       if (typeof showToast === "function") showToast(data.error);
     } else {
       if (typeof showToast === "function")
-        showToast("Cancelling after current episode...");
+        showToast("Cancelling download...");
     }
     loadQueue();
   } catch (e) {
