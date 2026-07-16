@@ -18,6 +18,7 @@ from ..config import (
     parse_provider_order,
 )
 from ..extractors import provider_functions
+from ..extractors.provider.hanime_tv import fetch_hanime_search_db
 from ..logger import get_logger
 from ..models.mangafire_to.series import search_series as query_mangafire
 from ..providers import resolve_provider
@@ -400,40 +401,34 @@ _STO_SERIES_LINK_PATTERN = re.compile(
 )
 
 
-_HTV_SEARCH_URL = "https://search.htv-services.com/"
-
-
 def _search_htv(keyword):
-    """Search hanime.tv via their search API."""
-    try:
-        resp = requests.post(
-            _HTV_SEARCH_URL,
-            json={
-                "search_text": keyword,
-                "tags": [],
-                "tags_mode": "AND",
-                "brands": [],
-                "blacklist": [],
-                "order_by": "likes",
-                "ordering": "desc",
-                "page": 0,
-            },
-            headers={"Content-Type": "application/json"},
-            timeout=10,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        import json as _json
+    """Search hanime.tv against its full video database, filtered locally.
 
-        hits_raw = data.get("hits", "[]")
-        if isinstance(hits_raw, str):
-            hits = _json.loads(hits_raw)
-        else:
-            hits = hits_raw
-        return hits
+    The old search.htv-services.com API no longer exists; hanime.tv now ships
+    the whole catalogue to the client and searches it in the browser. We do
+    the same: fetch the database once (cached, with a Patchright fallback when
+    plain HTTP is blocked) and match the keyword here. Returns entries shaped
+    like the old API hits (name/slug/cover_url/...), ordered by likes.
+    """
+    try:
+        videos = fetch_hanime_search_db()
     except Exception as e:
         logger.warning(f"HTV search failed: {e}")
         return []
+    if not videos:
+        return []
+
+    terms = [t for t in keyword.lower().split() if t]
+    hits = [
+        v
+        for v in videos
+        if all(
+            t in f"{v.get('name', '')} {v.get('search_titles', '')}".lower()
+            for t in terms
+        )
+    ]
+    hits.sort(key=lambda v: v.get("likes") or 0, reverse=True)
+    return hits
 
 
 def _megakino_episode_payload(url, title, episode, season_number=1):
@@ -449,32 +444,14 @@ def _megakino_episode_payload(url, title, episode, season_number=1):
 
 
 def _fetch_htv_trending():
-    """Fetch latest videos from hanime.tv via search API."""
+    """Fetch the latest hanime.tv videos from the cached video database."""
     try:
-        resp = requests.post(
-            _HTV_SEARCH_URL,
-            json={
-                "search_text": "",
-                "tags": [],
-                "tags_mode": "AND",
-                "brands": [],
-                "blacklist": [],
-                "order_by": "created_at",
-                "ordering": "desc",
-                "page": 0,
-            },
-            headers={"Content-Type": "application/json"},
-            timeout=10,
+        videos = fetch_hanime_search_db()
+        if not videos:
+            return None
+        hits = sorted(
+            videos, key=lambda v: v.get("created_at_unix") or 0, reverse=True
         )
-        resp.raise_for_status()
-        data = resp.json()
-        import json as _json
-
-        hits_raw = data.get("hits", "[]")
-        if isinstance(hits_raw, str):
-            hits = _json.loads(hits_raw)
-        else:
-            hits = hits_raw
         results = []
         seen = set()
         for h in hits:
@@ -494,6 +471,9 @@ def _fetch_htv_trending():
                     "genre": ", ".join(h.get("tags", [])[:3]),
                 }
             )
+            # The old search API returned one page; keep the browse row short.
+            if len(results) >= 24:
+                break
         return results
     except Exception as e:
         logger.warning(f"HTV trending fetch failed: {e}")

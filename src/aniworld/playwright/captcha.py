@@ -1878,6 +1878,78 @@ def playwright_get_hanime_page_html(url: str, timeout: int = 40) -> str | None:
         return None
 
 
+def playwright_get_hanime_search_db(timeout: int = 90) -> str | None:
+    """Capture hanime.tv's full search database JSON via the real search page.
+
+    hanime.tv's search runs client-side: the search page downloads the complete
+    video database (one ~4 MB JSON array) from guest.freeanimehentai.net and a
+    web worker filters it in the browser. A plain HTTP GET of that endpoint
+    normally works (see aniworld.extractors.provider.hanime_tv); this browser
+    capture is the fallback for when the endpoint blocks non-browser clients.
+    The page only requests the database once the search box is used, so a
+    throwaway query is typed to trigger it.
+    """
+    try:
+        from patchright.sync_api import sync_playwright
+    except ImportError:
+        raise RuntimeError(
+            "patchright is not installed. Install it with: "
+            "pip install patchright && patchright install chromium"
+        )
+
+    from ..logger import get_logger
+
+    logger = get_logger(__name__)
+    body = None
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True, args=["--disable-gpu"])
+            try:
+                context = browser.new_context(
+                    viewport={"width": 1280, "height": 720}, locale="en-US"
+                )
+                _inject_session_cookies(context, "https://hanime.tv/search")
+                page = context.new_page()
+
+                def _capture(response):
+                    nonlocal body
+                    if body is None and "search_hvs" in response.url and response.status == 200:
+                        try:
+                            body = response.text()
+                        except Exception:
+                            pass
+
+                page.on("response", _capture)
+                logger.debug("Opening hanime search page to capture the video database")
+                page.goto(
+                    "https://hanime.tv/search",
+                    wait_until="domcontentloaded",
+                    timeout=40000,
+                )
+
+                try:
+                    box = page.locator("input[type='search'], input[type='text']").first
+                    box.wait_for(state="visible", timeout=10000)
+                    box.click()
+                    box.type("a", delay=80)
+                except Exception:
+                    pass
+
+                deadline = _time.time() + timeout
+                while _time.time() < deadline and body is None:
+                    page.wait_for_timeout(500)
+            finally:
+                browser.close()
+    except Exception as exc:
+        logger.error(f"Failed to capture hanime search database: {exc}")
+        return None
+
+    if body:
+        logger.info("Captured hanime search database via Patchright")
+    return body
+
+
 def playwright_get_cineby_stream_url(url: str, timeout: int = 40) -> str:
     """Open the vidking player embed and capture the playable HLS (m3u8) URL.
 

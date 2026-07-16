@@ -1,5 +1,7 @@
 import json
 import re
+import threading
+import time
 from datetime import datetime, timezone
 
 import niquests
@@ -8,18 +10,108 @@ try:
     from ...config import DEFAULT_USER_AGENT, logger
     from ...playwright.captcha import (
         playwright_get_hanime_page_html,
+        playwright_get_hanime_search_db,
         playwright_get_hanime_stream_url,
     )
 except ImportError:
     from aniworld.config import DEFAULT_USER_AGENT, logger
     from aniworld.playwright.captcha import (
         playwright_get_hanime_page_html,
+        playwright_get_hanime_search_db,
         playwright_get_hanime_stream_url,
     )
 
 
 HANIME_VIDEO_URL = "https://hanime.tv/videos/hentai/{slug}"
 _HANIME_HEADERS = {"User-Agent": DEFAULT_USER_AGENT, "Referer": "https://hanime.tv/"}
+
+# hanime.tv ships its whole video catalogue (one JSON array, ~4 MB) to the
+# browser and searches it client-side; this is that endpoint. The old
+# search.htv-services.com API this project used no longer exists (its DNS
+# records are gone).
+HANIME_SEARCH_DB_URL = "https://guest.freeanimehentai.net/api/v11/search_hvs"
+_SEARCH_DB_TTL_SECONDS = 6 * 60 * 60
+_SEARCH_DB_RETRY_SECONDS = 5 * 60
+
+_search_db_lock = threading.Lock()
+_search_db_cache = {"videos": None, "by_slug": {}, "fetched_at": 0.0, "failed_at": 0.0}
+
+
+def _parse_search_db(raw):
+    """Validate/parse the search database payload into a list of video dicts."""
+    if isinstance(raw, (str, bytes, bytearray)):
+        try:
+            raw = json.loads(raw)
+        except (json.JSONDecodeError, ValueError):
+            return None
+    if not isinstance(raw, list):
+        return None
+    videos = [v for v in raw if isinstance(v, dict) and v.get("slug")]
+    return videos or None
+
+
+def fetch_hanime_search_db(allow_browser=True):
+    """Return hanime.tv's full video database (list of dicts), cached in memory.
+
+    Tries a plain HTTP GET first (works for normal clients); when that is
+    blocked and ``allow_browser`` is set, captures the payload with Patchright
+    from the real search page. Failed refreshes are retried after a short
+    cooldown and return the last good (possibly stale) copy, or None when the
+    database was never fetched.
+    """
+    now = time.time()
+    with _search_db_lock:
+        cached = _search_db_cache["videos"]
+        if cached is not None and now - _search_db_cache["fetched_at"] < _SEARCH_DB_TTL_SECONDS:
+            return cached
+        if now - _search_db_cache["failed_at"] < _SEARCH_DB_RETRY_SECONDS:
+            return cached
+
+        videos = None
+        try:
+            resp = niquests.get(
+                HANIME_SEARCH_DB_URL,
+                headers={
+                    **_HANIME_HEADERS,
+                    "Accept": "application/json",
+                    "Origin": "https://hanime.tv",
+                },
+                timeout=20,
+            )
+            resp.raise_for_status()
+            videos = _parse_search_db(resp.json())
+        except Exception as exc:  # noqa: BLE001 - fall through to the browser
+            logger.debug(f"Direct hanime search-db fetch failed: {exc}")
+
+        if videos is None and allow_browser:
+            logger.warning(
+                "Hanime rejected the direct search-database request; "
+                "retrying with Patchright"
+            )
+            try:
+                videos = _parse_search_db(playwright_get_hanime_search_db())
+            except Exception as exc:  # noqa: BLE001 - keep the stale copy
+                logger.warning(f"Patchright hanime search-db capture failed: {exc}")
+
+        if videos is None:
+            _search_db_cache["failed_at"] = now
+            return _search_db_cache["videos"]
+
+        _search_db_cache["videos"] = videos
+        _search_db_cache["by_slug"] = {v["slug"]: v for v in videos}
+        _search_db_cache["fetched_at"] = now
+        _search_db_cache["failed_at"] = 0.0
+        return videos
+
+
+def _search_db_entry(slug):
+    """Return the cached database entry for a slug, or None. Best-effort."""
+    try:
+        if fetch_hanime_search_db(allow_browser=False) is None:
+            return None
+    except Exception:  # noqa: BLE001 - enrichment must never break scraping
+        return None
+    return _search_db_cache["by_slug"].get(slug)
 
 
 def _regex_group(pattern, text, *, flags=0, group=1, default=""):
@@ -62,6 +154,13 @@ def _slug_to_title(slug):
     return title.title()
 
 
+def _slug_to_episode_title(slug):
+    """Readable per-episode title, keeping the trailing episode number."""
+    if not slug:
+        return ""
+    return slug.replace("-", " ").strip().title()
+
+
 def _build_synthetic_payload(slug, html):
     title_text = _regex_group(
         r'<meta\s+property=["\']og:title["\']\s+content=["\']([^"\']+)["\']',
@@ -70,10 +169,19 @@ def _build_synthetic_payload(slug, html):
     title_match = re.match(r"^Watch\s+(.+?)\s+Hentai Video", title_text, re.IGNORECASE)
     video_title = title_match.group(1).strip() if title_match else _slug_to_title(slug)
 
+    # The real synopsis is server-rendered inside an expandable panel; the
+    # og:description is only generic SEO boilerplate ("Watch X latest hentai
+    # online free...") and is kept as fallback.
     description = _regex_group(
-        r'<meta\s+property=["\']og:description["\']\s+content=["\']([^"\']+)["\']',
+        r"data-expand-content[^>]*>\s*<span>(.*?)</span>",
         html,
+        flags=re.DOTALL,
     )
+    if not description:
+        description = _regex_group(
+            r'<meta\s+property=["\']og:description["\']\s+content=["\']([^"\']+)["\']',
+            html,
+        )
     poster_url = _regex_group(
         r'<meta\s+property=["\']og:image["\']\s+content=["\']([^"\']+)["\']',
         html,
@@ -100,7 +208,8 @@ def _build_synthetic_payload(slug, html):
     upload_dt = _parse_iso_datetime(upload_date)
 
     brand_link_match = re.search(
-        r'<a\s+href=["\'](/brands/[^"\']+)["\'][^>]*>.*?<strong[^>]*>([^<]+)</strong>',
+        r'<a\s+href=["\'](/(?:browse/)?brands/[^"\']+)["\'][^>]*>'
+        r".*?<strong[^>]*>([^<]+)</strong>",
         html,
         re.DOTALL,
     )
@@ -119,29 +228,32 @@ def _build_synthetic_payload(slug, html):
     ]
     tags = _dedupe_preserve_order([tag for tag in tag_texts if tag])
 
-    video_links = []
-    for match in re.finditer(
-        r'<a\s+href=["\'](/videos/hentai/[^"\']+)["\']',
-        html,
-    ):
-        href = match.group(1).strip()
-        if not href:
-            continue
-        if href.startswith("/"):
-            href = f"https://hanime.tv{href}"
-        video_links.append(href)
-    episode_urls = _dedupe_preserve_order(video_links)
-    episode_slugs = [url.rstrip("/").split("/")[-1] for url in episode_urls]
-    episode_slugs = sorted(episode_slugs, key=_episode_sort_key)
-    episode_urls = [HANIME_VIDEO_URL.format(slug=s) for s in episode_slugs]
-    if slug not in episode_slugs:
-        episode_slugs.insert(0, slug)
-        episode_urls.insert(0, HANIME_VIDEO_URL.format(slug=slug))
-
+    # Franchise episodes live in the "More from <franchise>" section. Only
+    # links inside that section count — the page also renders recommendation
+    # links to unrelated videos elsewhere, which must not become episodes.
     related_heading = re.search(r"More from\s+([^<]+)</h2>", html, re.IGNORECASE)
     franchise_title = related_heading.group(1).strip() if related_heading else ""
     if not franchise_title:
         franchise_title = re.sub(r"\s*\d+$", "", video_title).strip() or video_title
+
+    episode_html = ""
+    if related_heading:
+        section_end = html.find("</section>", related_heading.end())
+        episode_html = html[
+            related_heading.end(): section_end if section_end != -1 else len(html)
+        ]
+
+    episode_slugs = _dedupe_preserve_order(
+        match.group(1).strip()
+        for match in re.finditer(
+            r'<a\s+href=["\']/videos/hentai/([^"\'/]+)/?["\']',
+            episode_html,
+        )
+    )
+    if slug not in episode_slugs:
+        episode_slugs.append(slug)
+    episode_slugs = sorted(episode_slugs, key=_episode_sort_key)
+    episode_urls = [HANIME_VIDEO_URL.format(slug=s) for s in episode_slugs]
 
     tag_objects = [
         {
@@ -172,7 +284,7 @@ def _build_synthetic_payload(slug, html):
             "name": franchise_title,
         },
         "hentai_franchise_hentai_videos": [
-            {"slug": s, "name": _slug_to_title(s)} for s in episode_slugs
+            {"slug": s, "name": _slug_to_episode_title(s)} for s in episode_slugs
         ],
         "brand": {
             "id": None,
@@ -182,6 +294,55 @@ def _build_synthetic_payload(slug, html):
         "tags": tag_objects,
         "videos_manifest": {},
     }
+
+
+def _enrich_payload_from_db(payload, slug):
+    """Fill page-scrape gaps from the search database. Strictly best-effort.
+
+    The database carries fields the page markup lacks or garbles: exact video
+    titles (episode names would otherwise be reconstructed from slugs), the
+    full description, brand, tags and release dates.
+    """
+    entry = _search_db_entry(slug)
+    if entry:
+        hv = payload["hentai_video"]
+        hv["id"] = entry.get("id")
+        for src_key, dst_key in (
+            ("name", "name"),
+            ("description", "description"),
+            ("cover_url", "cover_url"),
+            ("poster_url", "poster_url"),
+            ("released_at", "released_at"),
+            ("released_at_unix", "released_at_unix"),
+            ("brand", "brand"),
+        ):
+            if entry.get(src_key):
+                hv[dst_key] = entry[src_key]
+
+        tag_names = [t for t in entry.get("tags") or [] if isinstance(t, str)]
+        if tag_names:
+            tag_objects = [
+                {
+                    "id": None,
+                    "slug": re.sub(r"[^a-z0-9]+", "-", tag.lower()).strip("-"),
+                    "text": tag,
+                }
+                for tag in tag_names
+            ]
+            hv["hentai_tags"] = tag_objects
+            payload["tags"] = tag_objects
+
+        if entry.get("brand"):
+            payload["brand"]["title"] = payload["brand"]["title"] or entry["brand"]
+        if entry.get("brand_id"):
+            payload["brand"]["id"] = entry["brand_id"]
+
+    for video in payload.get("hentai_franchise_hentai_videos") or []:
+        db_video = _search_db_entry(video.get("slug"))
+        if db_video and db_video.get("name"):
+            video["name"] = db_video["name"]
+
+    return payload
 
 
 def fetch_hanime_api_data(slug):
@@ -202,7 +363,7 @@ def fetch_hanime_api_data(slug):
                 "Could not retrieve the Hanime page through HTTP or Patchright"
             ) from exc
 
-    return _build_synthetic_payload(slug, html)
+    return _enrich_payload_from_db(_build_synthetic_payload(slug, html), slug)
 
 
 def get_direct_link_from_hanime_tv(api_data):

@@ -6,8 +6,6 @@ from ...config import logger
 from ...extractors.provider.hanime_tv import fetch_hanime_api_data
 from ..common import clean_title
 
-HANIME_SEARCH_URL = "https://search.htv-services.com/"
-
 
 class HanimeTVSeries:
     """

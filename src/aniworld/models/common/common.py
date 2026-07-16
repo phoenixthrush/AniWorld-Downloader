@@ -678,6 +678,10 @@ def _download_hls_stream(episode_path, stream_url, file_name, audio_lang="jpn"):
             "reconnect": 1,
             "reconnect_streamed": 1,
             "reconnect_delay_max": 30,
+            # hanime.tv HLS manifests live under /hls/<token> (no .m3u8 in the
+            # URL) and disguise their MPEG-TS segments as .html files; strict
+            # FFmpeg builds refuse those through the HLS demuxer without this.
+            "allowed_extensions": "ALL",
         }
 
         _download_full_stream(
