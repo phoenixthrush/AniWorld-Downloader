@@ -1744,7 +1744,7 @@ def playwright_get_iframe_url(url: str, timeout: int = 20) -> str:
 
 
 def playwright_get_hanime_stream_url(url: str) -> str:
-    """Open a hanime page in Playwright and capture the first playable HLS URL."""
+    """Open a Hanime page and capture a playable HLS manifest URL."""
     try:
         from patchright.sync_api import sync_playwright
     except ImportError:
@@ -1765,30 +1765,57 @@ def playwright_get_hanime_stream_url(url: str) -> str:
                 headless=True,
                 args=["--disable-gpu"],
             )
-            context = browser.new_context(viewport={"width": 1280, "height": 720})
+            context = browser.new_context(
+                viewport={"width": 1280, "height": 720}, locale="en-US"
+            )
             _inject_session_cookies(context, url)
             page = context.new_page()
 
             def _capture_manifest(response):
                 nonlocal final_url
                 response_url = response.url
+                content_type = response.headers.get("content-type", "")
                 if (
                     not final_url
-                    and "m3u8s.highwinds-cdn.com" in response_url
-                    and response.status in (200, 206)
+                    and _is_hanime_manifest_response(
+                        response_url, response.status, content_type
+                    )
                 ):
                     final_url = response_url
 
             page.on("response", _capture_manifest)
             logger.warning(f"Opening hanime page for stream capture: {url}")
-            page.goto(url, wait_until="domcontentloaded")
+            try:
+                page.goto(url, wait_until="domcontentloaded", timeout=40000)
+            except Exception as exc:
+                logger.debug(f"Hanime navigation did not settle cleanly: {exc}")
+
+            try:
+                page.wait_for_selector("video, button", timeout=10000)
+            except Exception:
+                pass
+            try:
+                page.mouse.click(640, 360)
+            except Exception:
+                pass
+            try:
+                page.evaluate(
+                    "() => { const video = document.querySelector('video');"
+                    " if (video) { video.muted = true;"
+                    " if (video.paused) video.play().catch(() => {}); } }"
+                )
+            except Exception:
+                pass
 
             deadline = _time.time() + 20
             while _time.time() < deadline and not final_url:
                 page.wait_for_timeout(500)
 
             if not final_url:
-                page.reload(wait_until="domcontentloaded")
+                try:
+                    page.reload(wait_until="domcontentloaded", timeout=30000)
+                except Exception as exc:
+                    logger.debug(f"Hanime reload did not settle cleanly: {exc}")
                 deadline = _time.time() + 15
                 while _time.time() < deadline and not final_url:
                     page.wait_for_timeout(500)
@@ -1801,6 +1828,53 @@ def playwright_get_hanime_stream_url(url: str) -> str:
 
     except Exception as e:
         logger.error(f"Failed to capture hanime stream URL: {e}", exc_info=True)
+        return None
+
+
+def _is_hanime_manifest_response(url: str, status: int, content_type: str) -> bool:
+    """Return whether a successful response is an HLS playlist, not an ad asset."""
+    from urllib.parse import urlsplit
+
+    if status not in (200, 206):
+        return False
+
+    path = urlsplit(url).path.lower()
+    content_type = (content_type or "").lower()
+    return path.endswith(".m3u8") or any(
+        mime_type in content_type
+        for mime_type in ("application/vnd.apple.mpegurl", "application/x-mpegurl")
+    )
+
+
+def playwright_get_hanime_page_html(url: str, timeout: int = 40) -> str | None:
+    """Load Hanime page markup via Patchright when direct HTTP is blocked."""
+    try:
+        from patchright.sync_api import sync_playwright
+    except ImportError:
+        raise RuntimeError(
+            "patchright is not installed. Install it with: "
+            "pip install patchright && patchright install chromium"
+        )
+
+    from ..logger import get_logger
+
+    logger = get_logger(__name__)
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True, args=["--disable-gpu"])
+            try:
+                context = browser.new_context(
+                    viewport={"width": 1280, "height": 720}, locale="en-US"
+                )
+                _inject_session_cookies(context, url)
+                page = context.new_page()
+                logger.debug(f"Opening Hanime page with Patchright: {url}")
+                page.goto(url, wait_until="domcontentloaded", timeout=timeout * 1000)
+                return page.content()
+            finally:
+                browser.close()
+    except Exception as exc:
+        logger.error(f"Failed to load Hanime page with Patchright: {exc}", exc_info=True)
         return None
 
 

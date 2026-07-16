@@ -241,11 +241,31 @@ def _build_provider_failure_message(action_name, provider_errors):
     return f"{action_name} failed for all providers. {details}"
 
 
-def _build_blocking_player_command(player_path, stream_url):
+def _build_mpv_network_args(headers):
+    """Build mpv network options without corrupting comma-containing header values."""
+    headers = dict(headers or {})
+    args = []
+
+    user_agent = headers.pop("User-Agent", None)
+    if user_agent:
+        args.append(f"--user-agent={user_agent}")
+
+    referrer = headers.pop("Referer", None)
+    if referrer:
+        args.append(f"--referrer={referrer}")
+
+    for name, value in headers.items():
+        args.append(f"--http-header-fields-append={name}: {value}")
+
+    return args
+
+
+def _build_blocking_player_command(player_path, stream_url, mpv_options=()):
+    """Build a blocking player command, preserving IINA's raw-mpv delimiter."""
     player_name = os.path.basename(str(player_path)).lower()
     if player_name.startswith("iina"):
-        return [player_path, "--keep-running", stream_url]
-    return [player_path, stream_url]
+        return [player_path, "--keep-running", stream_url, "--", *mpv_options]
+    return [player_path, stream_url, *mpv_options]
 
 
 def _resolve_stream_url_with_fallback(self, action_name):
@@ -1241,16 +1261,14 @@ def watch(self):
                 _reset_provider_resolution_cache(self)
                 stream_url = self.stream_url
                 headers = PROVIDER_HEADERS_W.get(provider_name, {})
-                cmd = _build_blocking_player_command(player_path, stream_url)
-
-                if skip_flags:
-                    cmd.extend(skip_flags)
-
-                cmd.extend(base_args)
-
-                if headers:
-                    header_args = [f"{k}: {v}" for k, v in headers.items()]
-                    cmd.append("--http-header-fields=" + ",".join(header_args))
+                mpv_options = [
+                    *skip_flags,
+                    *base_args,
+                    *_build_mpv_network_args(headers),
+                ]
+                cmd = _build_blocking_player_command(
+                    player_path, stream_url, mpv_options
+                )
 
                 print(format_command_for_shell(cmd))
                 process = subprocess.run(cmd)
@@ -1363,10 +1381,7 @@ def syncplay(self):
     )
 
     headers = PROVIDER_HEADERS_W.get(provider_name, {})
-
-    if headers:
-        header_args = [f"{k}: {v}" for k, v in headers.items()]
-        cmd.append("--http-header-fields=" + ",".join(header_args))
+    cmd.extend(_build_mpv_network_args(headers))
 
     print(format_command_for_shell(cmd))
     logger.debug("\n" + format_command_for_shell(cmd))

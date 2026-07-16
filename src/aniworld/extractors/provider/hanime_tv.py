@@ -6,10 +6,16 @@ import niquests
 
 try:
     from ...config import DEFAULT_USER_AGENT, logger
-    from ...playwright.captcha import playwright_get_hanime_stream_url
+    from ...playwright.captcha import (
+        playwright_get_hanime_page_html,
+        playwright_get_hanime_stream_url,
+    )
 except ImportError:
     from aniworld.config import DEFAULT_USER_AGENT, logger
-    from aniworld.playwright.captcha import playwright_get_hanime_stream_url
+    from aniworld.playwright.captcha import (
+        playwright_get_hanime_page_html,
+        playwright_get_hanime_stream_url,
+    )
 
 
 HANIME_VIDEO_URL = "https://hanime.tv/videos/hentai/{slug}"
@@ -179,11 +185,24 @@ def _build_synthetic_payload(slug, html):
 
 
 def fetch_hanime_api_data(slug):
+    """Fetch Hanime metadata, using Patchright when its HTTP endpoint blocks us."""
     page_url = HANIME_VIDEO_URL.format(slug=slug)
     logger.debug(f"scraping hanime page ({page_url})...")
-    resp = niquests.get(page_url, headers=_HANIME_HEADERS, timeout=15)
-    resp.raise_for_status()
-    return _build_synthetic_payload(slug, resp.text)
+    try:
+        resp = niquests.get(page_url, headers=_HANIME_HEADERS, timeout=15)
+        resp.raise_for_status()
+        html = resp.text
+    except niquests.exceptions.RequestException as exc:
+        logger.warning(
+            "Hanime rejected the direct metadata request; retrying with Patchright"
+        )
+        html = playwright_get_hanime_page_html(page_url)
+        if not html:
+            raise RuntimeError(
+                "Could not retrieve the Hanime page through HTTP or Patchright"
+            ) from exc
+
+    return _build_synthetic_payload(slug, html)
 
 
 def get_direct_link_from_hanime_tv(api_data):
