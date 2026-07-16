@@ -740,13 +740,35 @@ class AniworldEpisode:
 
         from ...aniskip import get_skip_times
 
-        mal_id = self.series.mal_id
-        logger.debug(f"Fetching MAL IDs for series: {mal_id}")
+        mal_ids = self.series.mal_id
+        logger.debug(f"Fetching MAL IDs for series: {mal_ids}")
 
         season_number = self.season.season_number - 1
-        logger.debug(f"Using season number: {season_number + 1}")
-
         episode_number = self.episode_number
+        logger.debug(f"Using season number: {season_number + 1}")
         logger.debug(f"Using episode number: {episode_number}")
 
-        return get_skip_times(mal_id[season_number], episode_number)
+        # AniSkip is an optional enhancement.  Jikan can return no MAL IDs
+        # (for example during a timeout), so never let that stop an episode
+        # from being displayed, downloaded or serialized.
+        if (
+            not isinstance(mal_ids, (list, tuple))
+            or season_number < 0
+            or season_number >= len(mal_ids)
+            or not isinstance(mal_ids[season_number], int)
+            or mal_ids[season_number] <= 0
+            or not isinstance(episode_number, int)
+            or episode_number <= 0
+        ):
+            logger.warning(
+                "Skipping AniSkip lookup: no valid MAL ID for season %s of %s",
+                season_number + 1,
+                self.url,
+            )
+            return None
+
+        try:
+            return get_skip_times(mal_ids[season_number], episode_number)
+        except Exception as exc:  # optional remote metadata must not fail a download
+            logger.warning("AniSkip lookup failed for %s: %s", self.url, exc)
+            return None

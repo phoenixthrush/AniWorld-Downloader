@@ -2338,3 +2338,481 @@ h1 {
     padding: 20px 14px;
   }
 }
+
+/* ===== Mobile-first interaction layout =====
+ * These rules deliberately come last so that phone-specific layouts can
+ * simplify the desktop UI without changing the desktop experience.
+ */
+@media (max-width: 720px) {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+
+  /* Flex items otherwise keep the minimum width of the long site switcher. */
+  .top-bar,
+  .container,
+  .site-footer {
+    align-self: stretch;
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* Prevent Safari from zooming into form controls and keep taps comfortable. */
+  input,
+  select {
+    font-size: 16px;
+  }
+
+  .top-bar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 12px 8px;
+  }
+
+  .top-bar-right {
+    width: 100%;
+    max-width: 100%;
+    gap: 4px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .top-bar-right::-webkit-scrollbar {
+    display: none;
+  }
+
+  .top-bar-link {
+    align-items: center;
+    display: inline-flex;
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 8px 12px;
+  }
+
+  .container {
+    padding: 20px 12px 28px;
+  }
+
+  h1 {
+    font-size: 1.45rem;
+    margin-bottom: 14px;
+  }
+
+  .segmented-control {
+    justify-content: flex-start;
+    margin: 0 -12px 18px;
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding: 0 12px 4px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .segmented-control::-webkit-scrollbar {
+    display: none;
+  }
+
+  .segmented-track {
+    flex: 0 0 auto;
+  }
+
+  .segmented-btn {
+    min-height: 44px;
+    padding: 8px 14px;
+    scroll-snap-align: start;
+  }
+
+  .search-bar {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    margin-bottom: 24px;
+    min-width: 0;
+  }
+
+  .search-bar input {
+    grid-column: 1 / -1;
+    min-height: 46px;
+    min-width: 0;
+    padding: 11px 14px;
+  }
+
+  .search-bar button {
+    min-height: 46px;
+    padding: 10px 12px;
+  }
+
+  .results,
+  .browse-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+    min-width: 0;
+  }
+
+  .card,
+  .browse-card {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .card img {
+    aspect-ratio: 2 / 3;
+    height: auto;
+  }
+
+  .browse-section {
+    margin-bottom: 32px;
+  }
+
+  .browse-heading {
+    font-size: 1.2rem;
+    margin-bottom: 12px;
+  }
+
+  /* Full-screen dialogs avoid narrow, hard-to-scroll modal cards. */
+  .overlay,
+  .queue-overlay,
+  .captcha-overlay {
+    height: 100dvh;
+    overscroll-behavior: contain;
+  }
+
+  .modal,
+  .queue-modal,
+  .captcha-modal {
+    border-left: 0;
+    border-radius: 0;
+    border-right: 0;
+    margin: 0;
+    max-width: none;
+    min-height: 100dvh;
+    padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
+    width: 100%;
+  }
+
+  .modal .close,
+  .queue-modal .close,
+  .captcha-modal .close {
+    font-size: 1.8rem;
+    height: 44px;
+    right: 8px;
+    top: 8px;
+    width: 44px;
+  }
+
+  .modal-header {
+    align-items: center;
+    flex-direction: column;
+    gap: 14px;
+    margin: 28px 0 18px;
+    text-align: center;
+  }
+
+  .modal-header img {
+    height: auto;
+    max-height: 180px;
+    width: 120px;
+  }
+
+  .modal-meta .desc {
+    max-height: none;
+  }
+
+  .controls {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .controls select,
+  .custom-path-row select {
+    min-height: 46px;
+    width: 100%;
+  }
+
+  .custom-path-row {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .custom-path-label {
+    white-space: normal;
+  }
+
+  .episodes-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .episodes-header > div {
+    flex-wrap: wrap;
+    gap: 6px 12px !important;
+    width: 100%;
+  }
+
+  .select-all-label,
+  .season-header .season-all-label {
+    align-items: center;
+    display: inline-flex;
+    min-height: 40px;
+  }
+
+  .select-all-label input,
+  .season-header .season-all-label input,
+  .episode-item input {
+    height: 20px;
+    width: 20px;
+  }
+
+  .season-accordion {
+    max-height: 52dvh;
+  }
+
+  .season-header {
+    gap: 10px;
+    min-height: 48px;
+    padding: 10px 12px;
+  }
+
+  .season-header .season-label {
+    min-width: 0;
+  }
+
+  .episode-item {
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px 10px;
+  }
+
+  .episode-item input {
+    margin: 2px 0 0;
+  }
+
+  .episode-item .ep-num {
+    width: 38px;
+  }
+
+  .episode-item .ep-main {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 5px 8px;
+  }
+
+  .episode-item .ep-title {
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .episode-item .ep-language-badges {
+    flex-basis: 100%;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .modal-actions button {
+    min-height: 46px;
+    width: 100%;
+  }
+
+  .toast {
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    left: 12px;
+    max-width: none;
+    right: 12px;
+  }
+
+  /* Queue controls and messages remain readable and tappable. */
+  .queue-modal-title {
+    margin: 28px 48px 16px 0;
+  }
+
+  .queue-list {
+    max-height: none;
+  }
+
+  .queue-item {
+    padding: 14px 12px;
+  }
+
+  .queue-item-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .queue-item-title {
+    white-space: normal;
+  }
+
+  .queue-item-right {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    margin-left: auto;
+  }
+
+  .queue-remove,
+  .queue-move,
+  .queue-cancel,
+  .queue-captcha-btn,
+  .queue-captcha-link,
+  .queue-retry-btn,
+  .btn-del,
+  .btn-secondary {
+    align-items: center;
+    display: inline-flex;
+    justify-content: center;
+    min-height: 40px;
+  }
+
+  /* Settings, Auto-Sync and planned downloads use a single-column form flow. */
+  .settings-container,
+  .library-container {
+    padding: 22px 12px;
+  }
+
+  .settings-container h1,
+  .library-container h1 {
+    margin-bottom: 20px;
+  }
+
+  .settings-section {
+    border-radius: 12px;
+    padding: 16px 14px;
+  }
+
+  .settings-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .settings-row > div,
+  .settings-row > input,
+  .settings-row > select,
+  .settings-row > label,
+  .settings-row > button {
+    flex: 0 0 auto !important;
+    min-width: 0 !important;
+    width: 100%;
+  }
+
+  .settings-row input,
+  .settings-row button,
+  .settings-row select,
+  .settings-ip-card button,
+  .add-user-row input,
+  .add-user-row select,
+  .add-user-row button {
+    min-height: 46px;
+  }
+
+  .add-user-row {
+    flex-direction: column;
+  }
+
+  .add-user-row input,
+  .add-user-row select,
+  .add-user-row button {
+    width: 100%;
+  }
+
+  .settings-ip-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .user-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .planned-row {
+    align-items: stretch;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .planned-main,
+  .planned-check {
+    flex-basis: 100%;
+  }
+
+  .planned-actions {
+    width: 100%;
+  }
+
+  .planned-actions .btn-secondary {
+    flex: 1;
+  }
+
+  /* Keep the nested library rows compact without squeezing their content. */
+  .library-location-header,
+  .library-title-header {
+    padding: 12px;
+  }
+
+  .library-season-header {
+    padding: 10px 12px 10px 24px;
+  }
+
+  .library-episode {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    padding: 10px 12px 10px 36px;
+  }
+
+  .library-ep-file {
+    min-width: 120px;
+  }
+}
+
+@media (max-width: 380px) {
+  .top-bar-brand {
+    font-size: 0.92rem;
+  }
+
+  .segmented-btn {
+    font-size: 0.82rem;
+    padding-inline: 12px;
+  }
+
+  .results,
+  .browse-grid {
+    gap: 10px;
+  }
+
+  .modal,
+  .queue-modal,
+  .captcha-modal {
+    padding-inline: 12px;
+  }
+
+  .episode-item .ep-num {
+    width: 32px;
+  }
+}
+
+@media (hover: none) {
+  .card:hover,
+  .browse-card:hover {
+    box-shadow: none;
+    transform: none;
+  }
+}
