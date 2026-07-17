@@ -81,7 +81,7 @@ def query_megakino(keyword):
     base_url = f"https://{MEGAKINO_DOMAIN}"
     token_url = f"{base_url}/index.php?yg=token"
     headers = {"Accept-Encoding": "identity"}
-    
+
     session = niquests.Session()
 
     try:
@@ -218,7 +218,7 @@ def _fetch_megakino_homepage():
     base_url = f"https://{MEGAKINO_DOMAIN}"
     token_url = f"{base_url}/index.php?yg=token"
     headers = {"Accept-Encoding": "identity"}
-    
+
     session = niquests.Session()
 
     try:
@@ -800,7 +800,11 @@ def query_filmpalast(keyword):
                     poster = base + poster
 
             results.append(
-                {"title": html_module.unescape(title), "url": movie_url, "poster_url": poster}
+                {
+                    "title": html_module.unescape(title),
+                    "url": movie_url,
+                    "poster_url": poster,
+                }
             )
         return results[:30]
 
@@ -858,7 +862,11 @@ def query_kinox(keyword):
                 poster = base + poster
 
         results.append(
-            {"title": html_module.unescape(title), "url": movie_url, "poster_url": poster}
+            {
+                "title": html_module.unescape(title),
+                "url": movie_url,
+                "poster_url": poster,
+            }
         )
     return results[:30]
 
@@ -1018,7 +1026,12 @@ def fetch_filmpalast_movies():
                 poster = base + poster
 
         results.append(
-            {"title": html_module.unescape(title), "url": url, "poster_url": poster, "genre": ""}
+            {
+                "title": html_module.unescape(title),
+                "url": url,
+                "poster_url": poster,
+                "genre": "",
+            }
         )
     return results[:30]
 
@@ -1068,7 +1081,12 @@ def fetch_kinox_movies():
                 poster = base + poster
 
         results.append(
-            {"title": html_module.unescape(title), "url": url, "poster_url": poster, "genre": ""}
+            {
+                "title": html_module.unescape(title),
+                "url": url,
+                "poster_url": poster,
+                "genre": "",
+            }
         )
     return results[:30]
 
@@ -1088,7 +1106,9 @@ def _bs_cover(session, base, slug):
     except Exception:
         return ""
     m = re.search(
-        r'<img[^>]*src="([^"]*/cover/[^"]+\.(?:jpg|jpeg|png|webp))"', html, re.IGNORECASE
+        r'<img[^>]*src="([^"]*/cover/[^"]+\.(?:jpg|jpeg|png|webp))"',
+        html,
+        re.IGNORECASE,
     )
     if not m:
         return ""
@@ -1141,8 +1161,10 @@ def fetch_burningseries_series():
     try:
         with ThreadPoolExecutor(max_workers=12) as pool:
             covers = list(
-                pool.map(lambda s: _bs_cover(cover_session, base, s),
-                         [it["slug"] for it in items])
+                pool.map(
+                    lambda s: _bs_cover(cover_session, base, s),
+                    [it["slug"] for it in items],
+                )
             )
     finally:
         try:

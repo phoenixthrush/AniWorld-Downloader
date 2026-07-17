@@ -178,9 +178,7 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
                 time.sleep(wait_time)
 
             # First request to VOE (curl_cffi impersonation, niquests fallback)
-            html, _final, status = _voe_get(
-                embeded_voe_link, enhanced_headers, timeout
-            )
+            html, _final, status = _voe_get(embeded_voe_link, enhanced_headers, timeout)
 
             # Captcha on VOE page -> solve and retry this request
             if is_captcha_page(html, status):
@@ -295,9 +293,7 @@ if __name__ == "__main__":
         print("Preview image:", get_preview_image_link_from_voe(link))
         print("=" * 25)
 
-        print(
-            f'mpv "{direct_link}" --user-agent="{DEFAULT_USER_AGENT}"'
-        )
+        print(f'mpv "{direct_link}" --user-agent="{DEFAULT_USER_AGENT}"')
 
         print("=" * 25)
     except ValueError as e:

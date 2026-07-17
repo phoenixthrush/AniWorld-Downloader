@@ -690,7 +690,9 @@ def _download_hls_stream(episode_path, stream_url, file_name, audio_lang="jpn"):
                 label=ep_label,
             )
         except HLSUnsupported as exc:
-            logger.debug(f"[HLS] parallel Hanime download unsupported ({exc}); using FFmpeg")
+            logger.debug(
+                f"[HLS] parallel Hanime download unsupported ({exc}); using FFmpeg"
+            )
             written = []
 
         if written:
@@ -768,7 +770,9 @@ def download_hanime(self):
                 )
                 time.sleep(attempt)
 
-    raise RuntimeError(f"Hanime download failed after 3 attempts: {last_error}") from last_error
+    raise RuntimeError(
+        f"Hanime download failed after 3 attempts: {last_error}"
+    ) from last_error
 
 
 class _HLSManualUnsupported(Exception):
@@ -879,9 +883,7 @@ def _download_hls_manual(m3u8_url, headers, temp_ts, label=""):
     try:
         with open(temp_ts, "wb") as out:
             for index, seg_url in enumerate(segments, start=1):
-                out.write(
-                    _fetch_hls_segment(session, seg_url, req_headers, seg_hosts)
-                )
+                out.write(_fetch_hls_segment(session, seg_url, req_headers, seg_hosts))
                 percent = round(index / total * 100, 1)
                 with _ffmpeg_progress_lock:
                     _ffmpeg_progress.update(

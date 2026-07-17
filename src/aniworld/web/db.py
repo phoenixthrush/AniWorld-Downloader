@@ -38,7 +38,9 @@ def _retry_db(func, *args, **kwargs):
         try:
             return func(*args, **kwargs)
         except sqlite3.OperationalError as e:
-            if ("locked" in str(e).lower() or "busy" in str(e).lower()) and attempt < 14:
+            if (
+                "locked" in str(e).lower() or "busy" in str(e).lower()
+            ) and attempt < 14:
                 time.sleep(delay + random.uniform(0, 0.05))
                 delay = min(delay * 2, 5.0)
             else:
@@ -1141,5 +1143,3 @@ def get_general_stats():
         }
     finally:
         conn.close()
-
-

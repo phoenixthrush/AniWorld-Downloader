@@ -88,7 +88,7 @@ def search_site(site, title):
                 url = base + link
             else:
                 url = link
-        clean = (item.get("title") or item.get("name") or title)
+        clean = item.get("title") or item.get("name") or title
         clean = clean.replace("<em>", "").replace("</em>", "").strip()
         out.append({"title": clean, "url": url})
     return out

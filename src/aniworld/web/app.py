@@ -471,7 +471,9 @@ def _queue_worker():
                         try:
                             set_queue_status(item["id"], "running")
                         except Exception as e:
-                            logger.error(f"Failed to set status to 'running': {e}", exc_info=True)
+                            logger.error(
+                                f"Failed to set status to 'running': {e}", exc_info=True
+                            )
                             item = None
 
             if not item:
@@ -1587,7 +1589,9 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             season_lang_labels = None
             if prov.name in ("Kinox", "BurningSeries", "Cineby"):
                 try:
-                    season_lang_labels = list(getattr(season, "language_labels", []) or [])
+                    season_lang_labels = list(
+                        getattr(season, "language_labels", []) or []
+                    )
                 except Exception as exc:
                     logger.warning(f"{prov.name} language detection failed: {exc}")
                     season_lang_labels = ["German Dub"]

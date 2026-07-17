@@ -397,9 +397,7 @@ class _ProgressTracker:
                 active=True,
             )
 
-        self._common._print_cli_progress(
-            percent, counter, self._bandwidth, self.label
-        )
+        self._common._print_cli_progress(percent, counter, self._bandwidth, self.label)
 
 
 # -----------------------------------------------------------------------------
@@ -559,5 +557,10 @@ def download_hls_parallel(
 def cleanup_temp_files(temp_prefix):
     """Remove any partial files a previous HLS attempt may have left behind."""
     temp_prefix = Path(temp_prefix)
-    for suffix in (".hls_video.ts", ".hls_video.mp4", ".hls_audio.ts", ".hls_audio.mp4"):
+    for suffix in (
+        ".hls_video.ts",
+        ".hls_video.mp4",
+        ".hls_audio.ts",
+        ".hls_audio.mp4",
+    ):
         temp_prefix.with_suffix(suffix).unlink(missing_ok=True)

@@ -511,9 +511,9 @@ class FilmPalastEpisode:
         if not isinstance(provider_data, ProviderData):
             return None
 
-        provider_dict = provider_data.get((Audio.GERMAN, Subtitles.NONE)) or provider_data.get(
-            (Audio.ENGLISH, Subtitles.NONE)
-        )
+        provider_dict = provider_data.get(
+            (Audio.GERMAN, Subtitles.NONE)
+        ) or provider_data.get((Audio.ENGLISH, Subtitles.NONE))
         if not provider_dict:
             return None
 

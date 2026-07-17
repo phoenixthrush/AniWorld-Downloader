@@ -49,7 +49,7 @@ _active_sessions_lock = _threading.Lock()
 
 # Optional hooks set by aniworld.web.app to avoid circular imports
 _on_captcha_start = None  # callable(queue_id: int, url: str)
-_on_captcha_end = None    # callable(queue_id: int)
+_on_captcha_end = None  # callable(queue_id: int)
 
 # Global captcha state for status polling (CLI / non-queue callers)
 _captcha_state_lock = _threading.Lock()
@@ -66,11 +66,18 @@ _captcha_lock = _threading.Lock()
 # actual player; any other new tab is treated as an ad and closed immediately.
 _KNOWN_PROVIDER_NETLOCS = {
     "voe.sx",
-    "vidoza.net", "vidoza.to",
-    "streamtape.com", "streamtape.to",
-    "doodstream.com", "dood.to", "dood.watch",
-    "filemoon.sx", "filemoon.to",
-    "vidmoly.to", "vidmoly.net", "vidmoly.biz",
+    "vidoza.net",
+    "vidoza.to",
+    "streamtape.com",
+    "streamtape.to",
+    "doodstream.com",
+    "dood.to",
+    "dood.watch",
+    "filemoon.sx",
+    "filemoon.to",
+    "vidmoly.to",
+    "vidmoly.net",
+    "vidmoly.biz",
     "luluvdo.com",
     "vidara.to",
     "veev.to",
@@ -114,8 +121,11 @@ def _is_known_provider_url(url: str) -> bool:
     """Return True when *url* belongs to a known video-provider domain."""
     try:
         from urllib.parse import urlparse as _up
+
         netloc = _up(url).netloc.lower().lstrip("www.")
-        return any(netloc == p or netloc.endswith("." + p) for p in _KNOWN_PROVIDER_NETLOCS)
+        return any(
+            netloc == p or netloc.endswith("." + p) for p in _KNOWN_PROVIDER_NETLOCS
+        )
     except Exception:
         return False
 
@@ -129,11 +139,13 @@ def _is_captcha_infra_url(url: str) -> bool:
     it to the VOE extractor (→ 403, "Keine VOE-Videoquelle gefunden").
     """
     u = (url or "").lower()
-    return ("challenges.cloudflare.com" in u
-            or "cdn-cgi/challenge-platform" in u
-            or "/turnstile/" in u
-            or "hcaptcha.com" in u
-            or "recaptcha" in u)
+    return (
+        "challenges.cloudflare.com" in u
+        or "cdn-cgi/challenge-platform" in u
+        or "/turnstile/" in u
+        or "hcaptcha.com" in u
+        or "recaptcha" in u
+    )
 
 
 # JavaScript injected at document start: a MutationObserver that continuously
@@ -228,15 +240,26 @@ def _install_network_adblock(context, home_netloc: str, weiter_event=None) -> No
             rtype = req.resource_type
             # After submit the provider result may navigate to an unknown alias
             # domain — allow its top-level navigation / iframe so we can read it.
-            if (weiter_event is not None and weiter_event.is_set()
-                    and rtype in ("document", "sub_frame")):
+            if (
+                weiter_event is not None
+                and weiter_event.is_set()
+                and rtype in ("document", "sub_frame")
+            ):
                 route.continue_()
                 return
-            if rtype in ("document", "sub_frame", "script", "xhr",
-                         "fetch", "media", "websocket"):
+            if rtype in (
+                "document",
+                "sub_frame",
+                "script",
+                "xhr",
+                "fetch",
+                "media",
+                "websocket",
+            ):
                 if _env_flag("ANIWORLD_CAPTCHA_DEBUG_LOG"):
                     try:
                         from ..logger import get_logger
+
                         get_logger(__name__).warning(
                             f"[captcha adblock] aborted {rtype} {req.url}"
                         )
@@ -294,6 +317,7 @@ _WEBGL_SPOOF_JS = """
 
 def _in_docker() -> bool:
     import os
+
     return os.path.exists("/.dockerenv") or os.environ.get("ANIWORLD_DOCKER") == "1"
 
 
@@ -309,6 +333,7 @@ def _webgl_spoof_enabled() -> bool:
     A/B test with ANIWORLD_SPOOF_WEBGL=1; the real fix is a GPU or Mesa llvmpipe.
     """
     import os
+
     return os.environ.get("ANIWORLD_SPOOF_WEBGL", "0") == "1"
 
 
@@ -322,6 +347,7 @@ def _persistent_profile_enabled() -> bool:
     ANIWORLD_NO_PERSISTENT_PROFILE=1.
     """
     import os
+
     if os.environ.get("ANIWORLD_NO_PERSISTENT_PROFILE", "0") == "1":
         return False
     if os.environ.get("ANIWORLD_PERSISTENT_PROFILE") == "1":
@@ -342,13 +368,17 @@ def _resolve_profile_dir() -> str:
         return _PROFILE_DIR_CACHE
     import os
     import tempfile
+
     candidate = os.environ.get("ANIWORLD_BROWSER_PROFILE")
     if not candidate:
         try:
             from ..config import ANIWORLD_CONFIG_DIR
+
             candidate = str(ANIWORLD_CONFIG_DIR / "browser-profile")
         except Exception:
-            candidate = os.path.join(os.path.expanduser("~"), ".aniworld", "browser-profile")
+            candidate = os.path.join(
+                os.path.expanduser("~"), ".aniworld", "browser-profile"
+            )
     try:
         os.makedirs(candidate, exist_ok=True)
         _PROFILE_DIR_CACHE = candidate
@@ -401,12 +431,14 @@ def _network_adblock_enabled() -> bool:
     """Network ad-blocking is on by default; kill-switch via ANIWORLD_NO_ADBLOCK=1
     (use it to rule the ad-blocker out when the captcha won't load)."""
     import os
+
     return os.environ.get("ANIWORLD_NO_ADBLOCK", "0") != "1"
 
 
 def _env_flag(name: str) -> bool:
     """True when the given environment variable is set to "1"."""
     import os
+
     return os.environ.get(name, "0") == "1"
 
 
@@ -442,8 +474,12 @@ def _focus_page(page) -> None:
 
 # Turnstile-relevant hosts worth logging network responses for — keeps this
 # noise-free instead of dumping every image/CSS/analytics request.
-_DEBUG_LOG_HOST_MARKERS = ("cloudflare.com", "challenges.cloudflare.com",
-                           "cdn-cgi/challenge-platform", "turnstile")
+_DEBUG_LOG_HOST_MARKERS = (
+    "cloudflare.com",
+    "challenges.cloudflare.com",
+    "cdn-cgi/challenge-platform",
+    "turnstile",
+)
 
 
 def _attach_debug_listeners(page, logger) -> None:
@@ -485,7 +521,9 @@ def _attach_debug_listeners(page, logger) -> None:
         try:
             if any(m in req.url for m in _DEBUG_LOG_HOST_MARKERS):
                 failure = req.failure
-                logger.warning(f"[captcha browser requestfailed] {req.url} -> {failure}")
+                logger.warning(
+                    f"[captcha browser requestfailed] {req.url} -> {failure}"
+                )
         except Exception:
             pass
 
@@ -502,6 +540,7 @@ def _captcha_timeout(default_seconds: int) -> int:
     """Captcha solve timeout in seconds; overridable via ANIWORLD_CAPTCHA_TIMEOUT
     (falls back to *default_seconds* when unset or invalid)."""
     import os
+
     raw = os.environ.get("ANIWORLD_CAPTCHA_TIMEOUT", "")
     try:
         v = int(raw)
@@ -545,6 +584,7 @@ def _sync_session_user_agent(page) -> None:
     if ua and isinstance(ua, str):
         try:
             from ..config import GLOBAL_SESSION
+
             GLOBAL_SESSION.headers["User-Agent"] = ua
         except Exception:
             pass
@@ -576,7 +616,9 @@ class _BrowserHandle:
                 pass
 
 
-def _launch_browser_context(p, offscreen=False, ad_home=None, weiter_event=None) -> "_BrowserHandle":
+def _launch_browser_context(
+    p, offscreen=False, ad_home=None, weiter_event=None
+) -> "_BrowserHandle":
     """Launch a hardened patchright context.
 
     Prefers a persistent profile (stable fingerprint + warm cf_clearance, which
@@ -630,10 +672,12 @@ def _click_turnstile(page, logger=None) -> bool:
 
     def _looks_like_turnstile(u):
         u = (u or "").lower()
-        return ("challenges.cloudflare.com" in u
-                or "cdn-cgi/challenge-platform" in u
-                or "turnstile" in u
-                or "hcaptcha.com" in u)
+        return (
+            "challenges.cloudflare.com" in u
+            or "cdn-cgi/challenge-platform" in u
+            or "turnstile" in u
+            or "hcaptcha.com" in u
+        )
 
     # Locate the Turnstile iframe ELEMENT.  It is frequently nested inside
     # another iframe (the serienstream.to modal / player-iframe), so a
@@ -692,7 +736,7 @@ def _click_turnstile(page, logger=None) -> bool:
             b = iframe_el.bounding_box()
             if b and b["width"] > 0 and b["height"] > 0:
                 box = b
-                if b["width"] > 40:   # fully laid out — good to click
+                if b["width"] > 40:  # fully laid out — good to click
                     break
             page.wait_for_timeout(150)
         if not box:
@@ -951,7 +995,9 @@ def _click_human_checkbox(page, logger=None) -> bool:
         return True
     for ctx in [page] + list(page.frames):
         try:
-            found = ctx.evaluate(_HUMAN_CHECKBOX_MARK_JS, list(_HUMAN_CHECKBOX_KEYWORDS))
+            found = ctx.evaluate(
+                _HUMAN_CHECKBOX_MARK_JS, list(_HUMAN_CHECKBOX_KEYWORDS)
+            )
         except Exception:
             found = False
         if not found:
@@ -1101,9 +1147,7 @@ _CHALLENGE_IFRAME_SELECTORS = {
         "iframe[src*='google.com/recaptcha']",
         "iframe[src*='recaptcha.net']",
     ),
-    "hcaptcha": (
-        "iframe[src*='hcaptcha.com']",
-    ),
+    "hcaptcha": ("iframe[src*='hcaptcha.com']",),
 }
 
 _TOKEN_READY_JS = {
@@ -1128,9 +1172,11 @@ _TOKEN_READY_JS = {
 def _looks_like_challenge_iframe(u: str, kind: str) -> bool:
     u = (u or "").lower()
     if kind == "turnstile":
-        return ("challenges.cloudflare.com" in u
-                or "cdn-cgi/challenge-platform" in u
-                or "turnstile" in u)
+        return (
+            "challenges.cloudflare.com" in u
+            or "cdn-cgi/challenge-platform" in u
+            or "turnstile" in u
+        )
     if kind == "recaptcha":
         return "google.com/recaptcha" in u or "recaptcha.net" in u
     if kind == "hcaptcha":
@@ -1424,6 +1470,7 @@ def _solve_captcha_cli(url: str) -> bool:
 
     from ..config import GLOBAL_SESSION
     from ..logger import get_logger
+
     logger = get_logger(__name__)
 
     with _captcha_lock:
@@ -1431,10 +1478,13 @@ def _solve_captcha_cli(url: str) -> bool:
         with _captcha_state_lock:
             _captcha_state = {"url": url, "started_at": _time.time(), "solved": False}
 
-        logger.warning(f"CAPTCHA detected for {url} — opening browser for manual solving")
+        logger.warning(
+            f"CAPTCHA detected for {url} — opening browser for manual solving"
+        )
 
         try:
             from ..autodeps import _ensure_xvfb
+
             _ensure_xvfb()
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=False)
@@ -1556,6 +1606,7 @@ def _solve_captcha_interactive(url: str, queue_id: int) -> bool:
 
     from ..config import GLOBAL_SESSION
     from ..logger import get_logger
+
     logger = get_logger(__name__)
 
     session = CaptchaSession()
@@ -1571,6 +1622,7 @@ def _solve_captcha_interactive(url: str, queue_id: int) -> bool:
     global _captcha_state
     try:
         from ..autodeps import _ensure_xvfb
+
         _ensure_xvfb()
         with sync_playwright() as p:
             # headless=False required for Cloudflare/Turnstile to work.
@@ -1578,7 +1630,9 @@ def _solve_captcha_interactive(url: str, queue_id: int) -> bool:
             # Hardened context: persistent profile, realistic locale/timezone/
             # viewport, overlay + WebGL defences.  No network ad-block here — this
             # generic solver must let foreign provider iframes load.
-            _handle = _launch_browser_context(p, offscreen=not _env_flag("ANIWORLD_CAPTCHA_VISIBLE"))
+            _handle = _launch_browser_context(
+                p, offscreen=not _env_flag("ANIWORLD_CAPTCHA_VISIBLE")
+            )
             context = _handle.context
             page = context.new_page()
             _attach_debug_listeners(page, logger)
@@ -1699,6 +1753,7 @@ def _extract_iframe_url(page, current_url: str) -> str:
     """
     try:
         from urllib.parse import urlparse
+
         current_netloc = urlparse(current_url).netloc.lstrip("www.")
         for frame in page.frames:
             u = frame.url
@@ -1717,6 +1772,7 @@ def playwright_get_page_url(url: str) -> str:
     (following redirects) using the shared GLOBAL_SESSION."""
     solve_captcha(url)
     from ..config import GLOBAL_SESSION
+
     return GLOBAL_SESSION.get(url).url
 
 
@@ -1725,6 +1781,7 @@ def _inject_session_cookies(context, url: str) -> None:
     try:
         from urllib.parse import urlparse
         from ..config import GLOBAL_SESSION
+
         base = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
         cookies = [
             {"name": c.name, "value": c.value, "url": base}
@@ -1970,8 +2027,9 @@ def playwright_get_cineby_stream_url(url: str, timeout: int = 40) -> str:
         return None
 
 
-def solve_sto_modal(episode_url: str, provider_name: str, language_label: str,
-                    redirect_url: str = None):
+def solve_sto_modal(
+    episode_url: str, provider_name: str, language_label: str, redirect_url: str = None
+):
     """
     Navigate to the provider redirect URL (or fall back to the episode page),
     solve any Turnstile modal that appears, and return the player-iframe URL
@@ -1996,6 +2054,7 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str,
 
     from ..config import GLOBAL_SESSION
     from ..logger import get_logger
+
     logger = get_logger(__name__)
 
     queue_id = getattr(_local, "queue_id", None)
@@ -2013,6 +2072,7 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str,
     global _captcha_state
     try:
         from ..autodeps import _ensure_xvfb
+
         _ensure_xvfb()
 
         # The Turnstile captcha modal lives on the episode page itself. It is
@@ -2025,19 +2085,23 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str,
 
         with sync_playwright() as p:
             from urllib.parse import urlparse as _urlparse
+
             # Episode-page netloc — the "home" domain.  Any other netloc is
             # either an ad (blocked) or the provider result (allowed post-submit).
             sto_netloc = _urlparse(episode_url).netloc
 
             # Created before the context so the ad-blocker can read it:
             # navigations after submit are the provider result, not ads.
-            _weiter_submitted = _threading.Event()   # set when submit is clicked
+            _weiter_submitted = _threading.Event()  # set when submit is clicked
 
             # Hardened, ad-blocked context: persistent profile, realistic
             # locale/timezone/viewport, overlay + WebGL fingerprint defences.
             _handle = _launch_browser_context(
-                p, offscreen=(queue_id is not None) and not _env_flag("ANIWORLD_CAPTCHA_VISIBLE"),
-                ad_home=sto_netloc, weiter_event=_weiter_submitted,
+                p,
+                offscreen=(queue_id is not None)
+                and not _env_flag("ANIWORLD_CAPTCHA_VISIBLE"),
+                ad_home=sto_netloc,
+                weiter_event=_weiter_submitted,
             )
             context = _handle.context
 
@@ -2074,6 +2138,7 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str,
                     if not pu or pu in ("about:blank", ""):
                         return
                     from urllib.parse import urlparse as _up2
+
                     if _up2(pu).netloc == sto_netloc:
                         return  # still on the episode site — not a provider result
                     # Keep if: Weiter was already submitted, OR it's a known provider
@@ -2159,7 +2224,9 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str,
                 # WebUI: stream screenshots + forward user clicks
                 if session_obj is not None:
                     try:
-                        session_obj._store_screenshot(page.screenshot(type="jpeg", quality=65))
+                        session_obj._store_screenshot(
+                            page.screenshot(type="jpeg", quality=65)
+                        )
                     except Exception:
                         pass
                     while not session_obj._click_queue.empty():
@@ -2184,8 +2251,10 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str,
                     if frame.name == "player-iframe":
                         fu = frame.url
                         if fu and fu not in ("about:blank", ""):
-                            if (_urlparse(fu).netloc not in ("", sto_netloc)
-                                    and not _is_captcha_infra_url(fu)):
+                            if _urlparse(fu).netloc not in (
+                                "",
+                                sto_netloc,
+                            ) and not _is_captcha_infra_url(fu):
                                 final_url = fu
                                 break
                 if final_url:
@@ -2221,11 +2290,16 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str,
                 if not final_url:
                     try:
                         pu = page.url
-                        if (pu and _urlparse(pu).netloc not in ("", sto_netloc)
-                                and not _is_captcha_infra_url(pu)):
+                        if (
+                            pu
+                            and _urlparse(pu).netloc not in ("", sto_netloc)
+                            and not _is_captcha_infra_url(pu)
+                        ):
                             if weiter_clicked or _is_known_provider_url(pu):
                                 final_url = pu
-                                logger.warning(f"Page navigated to provider: {final_url}")
+                                logger.warning(
+                                    f"Page navigated to provider: {final_url}"
+                                )
                     except Exception:
                         pass
                 if final_url:
@@ -2263,7 +2337,9 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str,
                             # never races ahead of the flag being set.
                             _weiter_submitted.set()
                             if _click_submit_button(page, logger):
-                                logger.warning("Submit clicked (all captcha tokens ready)")
+                                logger.warning(
+                                    "Submit clicked (all captcha tokens ready)"
+                                )
                                 weiter_clicked = True
                             page.wait_for_timeout(1200)
                         except Exception as e:
@@ -2281,7 +2357,9 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str,
 
             if session_obj is not None:
                 try:
-                    session_obj._store_screenshot(page.screenshot(type="jpeg", quality=65))
+                    session_obj._store_screenshot(
+                        page.screenshot(type="jpeg", quality=65)
+                    )
                 except Exception:
                     pass
 
@@ -2298,6 +2376,7 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str,
 
     except Exception as e:
         from ..logger import get_logger
+
         get_logger(__name__).error(f"Fehler in solve_sto_modal: {e}", exc_info=True)
         with _captcha_state_lock:
             _captcha_state = None

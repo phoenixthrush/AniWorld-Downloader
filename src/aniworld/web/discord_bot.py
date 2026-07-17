@@ -285,7 +285,9 @@ def notify_completed(title, media_type, language, discord_user_id):
         return
     try:
         asyncio.run_coroutine_threadsafe(
-            _announce_and_dm(client, config, title, media_type, language, discord_user_id),
+            _announce_and_dm(
+                client, config, title, media_type, language, discord_user_id
+            ),
             loop,
         )
     except Exception as exc:  # pragma: no cover
@@ -315,7 +317,9 @@ async def _announce_and_dm(client, config, title, media_type, language, user_id)
             description=t(config, "available_desc", title=title, language=language),
             color=0x22C55E,
         )
-        embed.add_field(name=t(config, "f_type"), value=t(config, type_key), inline=True)
+        embed.add_field(
+            name=t(config, "f_type"), value=t(config, type_key), inline=True
+        )
         embed.add_field(name=t(config, "f_language"), value=language, inline=True)
         await channel.send(embed=embed)
     except Exception as exc:
@@ -438,8 +442,12 @@ def _build_client(config):
             color=0x2563EB,
         )
         type_key = "type_movie" if ctx["media_type"] == "movie" else "type_series"
-        embed.add_field(name=t(config, "f_type"), value=t(config, type_key), inline=True)
-        embed.add_field(name=t(config, "f_language"), value=ctx["language"], inline=True)
+        embed.add_field(
+            name=t(config, "f_type"), value=t(config, type_key), inline=True
+        )
+        embed.add_field(
+            name=t(config, "f_language"), value=ctx["language"], inline=True
+        )
         embed.add_field(name=t(config, "f_site"), value=ctx["site"], inline=True)
         embed.add_field(
             name=t(config, "f_requested_by"), value=ctx["requester_name"], inline=False
@@ -572,7 +580,9 @@ def _build_client(config):
     async def movie_request(interaction, title: str):
         await _start_request(interaction, title, "movie")
 
-    @tree.command(name=t(config, "cmd_series"), description=t(config, "cmd_series_desc"))
+    @tree.command(
+        name=t(config, "cmd_series"), description=t(config, "cmd_series_desc")
+    )
     @app_commands.describe(title=t(config, "arg_series_title"))
     async def series_request(interaction, title: str):
         await _start_request(interaction, title, "series")
@@ -658,9 +668,9 @@ def _stop_locked():
         # Remove the registered slash commands first so nothing lingers on the
         # server while the bot is off, then close the connection.
         try:
-            asyncio.run_coroutine_threadsafe(
-                _clear_commands(client), loop
-            ).result(timeout=20)
+            asyncio.run_coroutine_threadsafe(_clear_commands(client), loop).result(
+                timeout=20
+            )
         except Exception as exc:
             logger.warning("Discord: clearing commands on stop failed: %s", exc)
         asyncio.run_coroutine_threadsafe(client.close(), loop)

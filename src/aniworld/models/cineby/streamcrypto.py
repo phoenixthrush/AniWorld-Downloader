@@ -19,10 +19,22 @@ _GOLDEN = 2654435769  # 0x9E3779B9
 _MAGIC = bytes([109, 118, 109, 49])  # "mvm1"
 # 16 constants (the SHA-256 round constants), indexed by i & 15.
 _U = [
-    1116352408, 1899447441, 3049323471, 3921009573,
-    961987163, 1508970993, 2453635748, 2870763221,
-    3624381080, 310598401, 607225278, 1426881987,
-    1925078388, 2162078206, 2614888103, 3248222580,
+    1116352408,
+    1899447441,
+    3049323471,
+    3921009573,
+    961987163,
+    1508970993,
+    2453635748,
+    2870763221,
+    3624381080,
+    310598401,
+    607225278,
+    1426881987,
+    1925078388,
+    2162078206,
+    2614888103,
+    3248222580,
 ]
 
 
@@ -114,4 +126,4 @@ def decrypt_sources(encrypted, seed, media_id):
         data[i] ^= ks[i]
     if bytes(data[: len(_MAGIC)]) != _MAGIC:
         raise ValueError("STREAMCRYPTO: bad seed or tampered payload")
-    return json.loads(bytes(data[len(_MAGIC):]).decode("utf-8"))
+    return json.loads(bytes(data[len(_MAGIC) :]).decode("utf-8"))

@@ -37,9 +37,7 @@ if __name__ == "__main__":
         print("Preview image:", get_preview_image_link_from_luluvdo(link))
         print("=" * 25)
 
-        print(
-            f'mpv "{direct_link}" --user-agent="{DEFAULT_USER_AGENT}"'
-        )
+        print(f'mpv "{direct_link}" --user-agent="{DEFAULT_USER_AGENT}"')
 
         print("=" * 25)
     except ValueError as e:

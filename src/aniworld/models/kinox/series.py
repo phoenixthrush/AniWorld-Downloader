@@ -172,9 +172,7 @@ def _resolve_embed(rel, referer):
             "kinox: verification captcha required — open the title on kinox, "
             f"solve the captcha there, then retry the download {KINOX_CAPTCHA_MARKER}"
         )
-    raise RuntimeError(
-        f"kinox: redirect failed (status {resp.status_code}, {final})"
-    )
+    raise RuntimeError(f"kinox: redirect failed (status {resp.status_code}, {final})")
 
 
 class _KinoxLanguageMixin:
@@ -284,7 +282,8 @@ class KinoxEpisode(_KinoxLanguageMixin):
     def selected_language(self):
         if self.__selected_language is None:
             self.__selected_language = self._normalize_language(
-                self.__selected_language_param or os.getenv("ANIWORLD_LANGUAGE", "German Dub")
+                self.__selected_language_param
+                or os.getenv("ANIWORLD_LANGUAGE", "German Dub")
             )
         return self.__selected_language
 
@@ -349,7 +348,9 @@ class KinoxEpisode(_KinoxLanguageMixin):
 
     def _provider_bucket(self):
         data = self.provider_data or {}
-        audio = Audio.ENGLISH if self.selected_language == "English Dub" else Audio.GERMAN
+        audio = (
+            Audio.ENGLISH if self.selected_language == "English Dub" else Audio.GERMAN
+        )
         return data.get((audio, Subtitles.NONE)) or next(iter(data.values()), {})
 
     def provider_link(self, language=None, provider=None):
@@ -409,7 +410,9 @@ class KinoxEpisode(_KinoxLanguageMixin):
             elif self.is_movie:
                 self.__base_folder = Path(self.selected_path) / self._movie_basename
             else:
-                self.__base_folder = Path(self.selected_path) / self.series.title_cleaned
+                self.__base_folder = (
+                    Path(self.selected_path) / self.series.title_cleaned
+                )
         return self.__base_folder
 
     @property
@@ -418,7 +421,9 @@ class KinoxEpisode(_KinoxLanguageMixin):
             if self.is_movie:
                 self.__folder_path = self._base_folder
             else:
-                self.__folder_path = self._base_folder / f"Season {self.season_number:02d}"
+                self.__folder_path = (
+                    self._base_folder / f"Season {self.season_number:02d}"
+                )
         return self.__folder_path
 
     @property
@@ -505,7 +510,11 @@ class KinoxSeason(_KinoxLanguageMixin):
         if self.are_movies:
             return [
                 KinoxEpisode(
-                    self.url, season=self, series=self.series, episode_number=1, is_movie=True
+                    self.url,
+                    season=self,
+                    series=self.series,
+                    episode_number=1,
+                    is_movie=True,
                 )
             ]
         numbers = self.series.episode_numbers(self.season_number)
@@ -559,7 +568,9 @@ class KinoxSeries:
     def title(self):
         if self.__title is None:
             m = re.search(
-                r'<meta property="og:title" content="([^"]+)"', self._html, re.IGNORECASE
+                r'<meta property="og:title" content="([^"]+)"',
+                self._html,
+                re.IGNORECASE,
             )
             title = m.group(1) if m else (self.slug or "").replace("_", " ")
             # og:title reads "Title (Year) Stream online anschauen …" — trim it.
@@ -575,7 +586,9 @@ class KinoxSeries:
     @property
     def release_year(self):
         if self.__release_year is None:
-            m = re.search(r'class="Year"[^>]*>\s*\(?(\d{4})\)?', self._html, re.IGNORECASE)
+            m = re.search(
+                r'class="Year"[^>]*>\s*\(?(\d{4})\)?', self._html, re.IGNORECASE
+            )
             if not m:
                 m = re.search(
                     r'<meta property="og:title" content="[^"]*\((\d{4})\)',
@@ -631,7 +644,9 @@ class KinoxSeries:
         )
         if not m:
             return []
-        return [g.strip() for g in html_lib.unescape(m.group(1)).split(",") if g.strip()]
+        return [
+            g.strip() for g in html_lib.unescape(m.group(1)).split(",") if g.strip()
+        ]
 
     @property
     def language_labels(self):
@@ -671,7 +686,10 @@ class KinoxSeries:
             else:
                 sel = self._season_selection()
                 numbers = sorted(
-                    {int(m.group(1)) for m in re.finditer(r'<option\s+value="(\d+)"', sel.group(0))}
+                    {
+                        int(m.group(1))
+                        for m in re.finditer(r'<option\s+value="(\d+)"', sel.group(0))
+                    }
                 )
                 self.__seasons = [
                     KinoxSeason(kinox_season_url(slug, n), series=self, season_number=n)

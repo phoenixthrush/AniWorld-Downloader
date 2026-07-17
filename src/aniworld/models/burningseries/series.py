@@ -145,7 +145,9 @@ def _bs_curl_get(url, referer=None, timeout=12):
         pass
     except Exception as exc:  # noqa: BLE001
         logger.debug(f"burning-series curl_cffi fetch failed ({exc}); using niquests")
-    resp = get_session().get(url, headers=headers, allow_redirects=True, timeout=timeout)
+    resp = get_session().get(
+        url, headers=headers, allow_redirects=True, timeout=timeout
+    )
     return resp.text, str(resp.url)
 
 
@@ -185,7 +187,9 @@ def _resolve_hoster_link(hoster_path, referer):
             # use a VPN" interstitial instead of the player. Detect it to give a
             # clear reason instead of a vague failure.
             low = player_html[:6000].lower()
-            if "vpn" in low and ("burning series" in low or "zensur" in low or "gesperrt" in low):
+            if "vpn" in low and (
+                "burning series" in low or "zensur" in low or "gesperrt" in low
+            ):
                 vpn_blocked = True
                 last_err = RuntimeError("VPN required")
                 continue
@@ -338,7 +342,8 @@ class BurningSeriesEpisode(_BSLanguageMixin):
     def selected_language(self):
         if self.__selected_language is None:
             self.__selected_language = self._normalize_language(
-                self.__selected_language_param or os.getenv("ANIWORLD_LANGUAGE", "German Dub")
+                self.__selected_language_param
+                or os.getenv("ANIWORLD_LANGUAGE", "German Dub")
             )
         return self.__selected_language
 
@@ -387,12 +392,16 @@ class BurningSeriesEpisode(_BSLanguageMixin):
         if not providers:
             return {}
 
-        audio = Audio.ENGLISH if _bs_lang(self.selected_language) == "en" else Audio.GERMAN
+        audio = (
+            Audio.ENGLISH if _bs_lang(self.selected_language) == "en" else Audio.GERMAN
+        )
         return {(audio, Subtitles.NONE): providers}
 
     def _provider_bucket(self):
         data = self.provider_data or {}
-        audio = Audio.ENGLISH if self.selected_language == "English Dub" else Audio.GERMAN
+        audio = (
+            Audio.ENGLISH if self.selected_language == "English Dub" else Audio.GERMAN
+        )
         return data.get((audio, Subtitles.NONE)) or next(iter(data.values()), {})
 
     def provider_link(self, language=None, provider=None):
@@ -518,9 +527,7 @@ class BurningSeriesSeason(_BSLanguageMixin):
             html = bs_get_with_fallback(f"/serie/{slug}/{self.season_number}/{lang}")
         except Exception:
             return []
-        table = re.search(
-            r'<table class="episodes">(.*?)</table>', html, re.DOTALL
-        )
+        table = re.search(r'<table class="episodes">(.*?)</table>', html, re.DOTALL)
         if not table:
             return []
         rows = []
@@ -611,7 +618,9 @@ class BurningSeriesSeries:
         if self.__title is None:
             m = re.search(r"<h2[^>]*>(.*?)</h2>", self._html, re.DOTALL | re.IGNORECASE)
             if not m:
-                m = re.search(r"<h1[^>]*>(.*?)</h1>", self._html, re.DOTALL | re.IGNORECASE)
+                m = re.search(
+                    r"<h1[^>]*>(.*?)</h1>", self._html, re.DOTALL | re.IGNORECASE
+                )
             if m:
                 title = re.sub(r"<[^>]+>", " ", m.group(1))
                 # The heading also carries the season nav ("… Staffel 1"); drop it.
@@ -661,11 +670,7 @@ class BurningSeriesSeries:
         if not block:
             return []
         names = re.findall(r">([^<>]+)<", block.group(1))
-        return [
-            html_module.unescape(n).strip()
-            for n in names
-            if n.strip()
-        ]
+        return [html_module.unescape(n).strip() for n in names if n.strip()]
 
     @property
     def poster_url(self):
@@ -712,7 +717,9 @@ class BurningSeriesSeries:
                 ordered = [1]
             self.__seasons = [
                 BurningSeriesSeason(
-                    f"{bs_current_base()}/serie/{self.slug}/{n}", series=self, season_number=n
+                    f"{bs_current_base()}/serie/{self.slug}/{n}",
+                    series=self,
+                    season_number=n,
                 )
                 for n in ordered
             ]

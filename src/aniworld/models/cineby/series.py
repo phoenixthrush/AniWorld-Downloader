@@ -88,6 +88,7 @@ def _fetch(url, params=None, timeout=15):
 
 def _best_source(sources):
     """Pick the highest-quality m3u8 from a decrypted sources list."""
+
     def quality(src):
         m = re.match(r"(\d+)", str(src.get("quality", "")))
         return int(m.group(1)) if m else 0
@@ -237,7 +238,9 @@ def _fetch_decrypted_sources(
             )
             if attempt + 1 < attempts:
                 time.sleep(1.0 * (attempt + 1))
-    logger.debug(f"cineby {endpoint} sources unavailable for tmdb {tmdb_id}: {last_err}")
+    logger.debug(
+        f"cineby {endpoint} sources unavailable for tmdb {tmdb_id}: {last_err}"
+    )
     return None
 
 
@@ -258,7 +261,9 @@ def _hls_master_from_sources(sources):
     return None
 
 
-def _german_master_url(media_type, tmdb_id, title, year, imdb_id, season, episode, endpoint):
+def _german_master_url(
+    media_type, tmdb_id, title, year, imdb_id, season, episode, endpoint
+):
     """Freshly resolve the German-carrying server's HLS master URL (or None)."""
     data = _fetch_decrypted_sources(
         endpoint, media_type, tmdb_id, title, year, imdb_id, season, episode
@@ -484,7 +489,11 @@ class CinebyEpisode:
     @property
     def series(self):
         if self._series is None:
-            base = cineby_movie_url(self.tmdb_id) if self.is_movie else cineby_tv_url(self.tmdb_id)
+            base = (
+                cineby_movie_url(self.tmdb_id)
+                if self.is_movie
+                else cineby_tv_url(self.tmdb_id)
+            )
             self._series = CinebySeries(base)
         return self._series
 
@@ -604,8 +613,14 @@ class CinebyEpisode:
                         f"cineby: no German audio available for '{self.title}'."
                     )
                 master = _german_master_url(
-                    self.media_type, self.tmdb_id, title, year, imdb,
-                    season, episode, german_server,
+                    self.media_type,
+                    self.tmdb_id,
+                    title,
+                    year,
+                    imdb,
+                    season,
+                    episode,
+                    german_server,
                 )
                 if not master:
                     raise RuntimeError(
@@ -668,7 +683,9 @@ class CinebyEpisode:
             elif self.is_movie:
                 self.__base_folder = Path(self.selected_path) / self._movie_basename
             else:
-                self.__base_folder = Path(self.selected_path) / self.series.title_cleaned
+                self.__base_folder = (
+                    Path(self.selected_path) / self.series.title_cleaned
+                )
         return self.__base_folder
 
     @property
@@ -677,7 +694,9 @@ class CinebyEpisode:
             if self.is_movie:
                 self.__folder_path = self._base_folder
             else:
-                self.__folder_path = self._base_folder / f"Season {self.season_number:02d}"
+                self.__folder_path = (
+                    self._base_folder / f"Season {self.season_number:02d}"
+                )
         return self.__folder_path
 
     @property
@@ -724,12 +743,16 @@ class CinebyEpisode:
 
 
 class CinebySeason:
-    def __init__(self, url, series=None, season_number=None, are_movies=None, tmdb_id=None):
+    def __init__(
+        self, url, series=None, season_number=None, are_movies=None, tmdb_id=None
+    ):
         self.url = url
         self._series = series
         media_type, url_tmdb, _, _ = parse_cineby_url(url)
         self.tmdb_id = tmdb_id or url_tmdb
-        self.are_movies = are_movies if are_movies is not None else (media_type == "movie")
+        self.are_movies = (
+            are_movies if are_movies is not None else (media_type == "movie")
+        )
         if season_number is None:
             qs = parse_qs(urlparse(url).query)
             s = qs.get("s", [None])[0]

@@ -176,9 +176,7 @@ def _build_synthetic_payload(slug, html):
     description = (
         ldjson.get("description") or _meta_content(html, "og:description") or ""
     )
-    poster_url = (
-        ldjson.get("thumbnailUrl") or _meta_content(html, "og:image") or ""
-    )
+    poster_url = ldjson.get("thumbnailUrl") or _meta_content(html, "og:image") or ""
 
     upload_date = ldjson.get("uploadDate") or ""
     upload_dt = _parse_iso_datetime(upload_date)
