@@ -991,10 +991,28 @@ _ALTCHA_STATE_JS = """
 () => {
   const el = document.querySelector('altcha-widget');
   if (!el) return null;
+  // Preferred: the widget's JS API (works in normal browser contexts).
   try {
     if (typeof el.getState === 'function') return el.getState();
   } catch (e) {}
-  return el.getAttribute('state') || 'unverified';
+  // Fallback for automation contexts where the custom element's methods are
+  // not visible to page.evaluate (seen with patchright: window.customElements
+  // is null in the evaluate context even though the widget works fine in the
+  // page's main world). The widget mirrors its state onto the inner .altcha
+  // container's data-state attribute and, once solved, fills a hidden
+  // <input name="altcha"> with the signed payload — plain DOM, always readable.
+  try {
+    const box = el.querySelector('.altcha');
+    if (box) {
+      const ds = box.getAttribute('data-state');
+      if (ds) return ds;
+    }
+  } catch (e) {}
+  try {
+    const payload = document.querySelector('input[name="altcha"]');
+    if (payload && payload.value && payload.value.length > 20) return 'verified';
+  } catch (e) {}
+  return 'unverified';
 }
 """
 
@@ -1002,12 +1020,32 @@ _ALTCHA_VERIFY_JS = """
 () => {
   const el = document.querySelector('altcha-widget');
   if (!el) return false;
+  // Read current state via the JS API, falling back to the data-state
+  // attribute (see _ALTCHA_STATE_JS for why the API can be unreachable).
+  let state = null;
+  try { if (typeof el.getState === 'function') state = el.getState(); } catch (e) {}
+  if (!state) {
+    try {
+      const box = el.querySelector('.altcha');
+      state = box ? box.getAttribute('data-state') : null;
+    } catch (e) {}
+  }
+  // Already done or already computing — don't restart a running PoW.
+  if (state === 'verified' || state === 'verifying') return true;
+  // Preferred: the widget's own verify() method (normal browser contexts).
   try {
-    const state = (typeof el.getState === 'function') ? el.getState() : null;
-    // Already done or already computing — don't restart a running PoW.
-    if (state === 'verified' || state === 'verifying') return true;
     if (typeof el.verify === 'function') {
       el.verify();
+      return true;
+    }
+  } catch (e) {}
+  // Fallback: click the widget's light-DOM checkbox. The click event reaches
+  // the widget's change listener in the page's main world and starts the
+  // proof-of-work exactly like a real user click.
+  try {
+    const cb = el.querySelector('input[type="checkbox"]');
+    if (cb && !cb.checked && !cb.disabled) {
+      cb.click();
       return true;
     }
   } catch (e) {}
