@@ -241,6 +241,25 @@ def _build_provider_failure_message(action_name, provider_errors):
     return f"{action_name} failed for all providers. {details}"
 
 
+def _build_player_header_args(headers):
+    # mpv parses --http-header-fields as a comma-separated list, so values
+    # containing commas (User-Agent's "(KHTML, like Gecko)", Accept-Language's
+    # "en-US,en;q=0.5") get split into malformed header lines and CDNs reply
+    # with "400 Bad Request" (issue #200). Use the dedicated single-value
+    # options where they exist and append the rest one at a time, which
+    # bypasses list splitting entirely.
+    args = []
+    for key, value in headers.items():
+        key_lower = key.lower()
+        if key_lower == "user-agent":
+            args.append(f"--user-agent={value}")
+        elif key_lower == "referer":
+            args.append(f"--referrer={value}")
+        else:
+            args.append(f"--http-header-fields-append={key}: {value}")
+    return args
+
+
 def _build_blocking_player_command(player_path, stream_url):
     player_name = os.path.basename(str(player_path)).lower()
     if player_name.startswith("iina"):
@@ -1301,8 +1320,7 @@ def watch(self):
                 cmd.extend(base_args)
 
                 if headers:
-                    header_args = [f"{k}: {v}" for k, v in headers.items()]
-                    cmd.append("--http-header-fields=" + ",".join(header_args))
+                    cmd.extend(_build_player_header_args(headers))
 
                 print(format_command_for_shell(cmd))
                 process = subprocess.run(cmd)
@@ -1417,8 +1435,7 @@ def syncplay(self):
     headers = PROVIDER_HEADERS_W.get(provider_name, {})
 
     if headers:
-        header_args = [f"{k}: {v}" for k, v in headers.items()]
-        cmd.append("--http-header-fields=" + ",".join(header_args))
+        cmd.extend(_build_player_header_args(headers))
 
     print(format_command_for_shell(cmd))
     logger.debug("\n" + format_command_for_shell(cmd))
