@@ -16,6 +16,7 @@ from ..config import (
     parse_provider_order,
 )
 from ..extractors import provider_functions
+from ..extractors.provider.hanime_tv import fetch_hanime_trending, search_hanime
 from ..logger import get_logger
 from ..models.mangafire_to.series import search_series as query_mangafire
 from ..providers import resolve_provider
@@ -358,37 +359,10 @@ _STO_SERIES_LINK_PATTERN = re.compile(
 )
 
 
-_HTV_SEARCH_URL = "https://search.htv-services.com/"
-
-
 def _search_htv(keyword):
-    """Search hanime.tv via their search API."""
+    """Search directly through hanime.tv's own sitemap."""
     try:
-        resp = requests.post(
-            _HTV_SEARCH_URL,
-            json={
-                "search_text": keyword,
-                "tags": [],
-                "tags_mode": "AND",
-                "brands": [],
-                "blacklist": [],
-                "order_by": "likes",
-                "ordering": "desc",
-                "page": 0,
-            },
-            headers={"Content-Type": "application/json"},
-            timeout=10,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        import json as _json
-
-        hits_raw = data.get("hits", "[]")
-        if isinstance(hits_raw, str):
-            hits = _json.loads(hits_raw)
-        else:
-            hits = hits_raw
-        return hits
+        return search_hanime(keyword)
     except Exception as e:
         logger.warning(f"HTV search failed: {e}")
         return []
@@ -407,32 +381,9 @@ def _megakino_episode_payload(url, title, episode, season_number=1):
 
 
 def _fetch_htv_trending():
-    """Fetch latest videos from hanime.tv via search API."""
+    """Fetch trending cards directly from hanime.tv."""
     try:
-        resp = requests.post(
-            _HTV_SEARCH_URL,
-            json={
-                "search_text": "",
-                "tags": [],
-                "tags_mode": "AND",
-                "brands": [],
-                "blacklist": [],
-                "order_by": "created_at",
-                "ordering": "desc",
-                "page": 0,
-            },
-            headers={"Content-Type": "application/json"},
-            timeout=10,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        import json as _json
-
-        hits_raw = data.get("hits", "[]")
-        if isinstance(hits_raw, str):
-            hits = _json.loads(hits_raw)
-        else:
-            hits = hits_raw
+        hits = fetch_hanime_trending()
         results = []
         seen = set()
         for h in hits:

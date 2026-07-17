@@ -646,40 +646,83 @@ def _download_direct_http(episode_path, stream_url, file_name):
 
 
 def _download_hls_stream(episode_path, stream_url, file_name, audio_lang="jpn"):
-    """Download a video via HLS stream using ffmpeg. Shared helper."""
+    """Download a Hanime HLS stream with per-segment retries."""
     ep_label = os.path.splitext(file_name)[0] if file_name else ""
     temp_full = episode_path.with_suffix(".temp_full.mkv")
+    temp_prefix = episode_path.with_suffix(".hanime_hls")
 
     try:
         logger.debug(f"[DOWNLOADING] {ep_label} via HLS stream")
         video_codec = get_video_codec()
+        from ...config import DEFAULT_USER_AGENT
+        from .hls import HLSUnsupported, cleanup_temp_files, download_hls_parallel
 
-        input_kwargs = {
-            "reconnect": 1,
-            "reconnect_streamed": 1,
-            "reconnect_delay_max": 30,
+        headers = {
+            "User-Agent": DEFAULT_USER_AGENT,
+            "Referer": "https://hanime.tv/",
+            "Origin": "https://hanime.tv",
         }
+        try:
+            written = download_hls_parallel(
+                stream_url,
+                temp_prefix,
+                headers=headers,
+                preferred_audio_lang=audio_lang,
+                label=ep_label,
+            )
+        except HLSUnsupported as exc:
+            logger.debug(f"[HLS] parallel Hanime download unsupported ({exc}); using FFmpeg")
+            written = []
 
-        _download_full_stream(
-            stream_url,
-            temp_full,
-            input_kwargs,
-            None,
-            {"metadata:s:a:0": f"language={audio_lang}"},
-            video_codec,
-            ep_label,
-            audio_lang,
-        )
+        if written:
+            if len(written) > 1:
+                node = ffmpeg.output(
+                    ffmpeg.input(str(written[0])).video,
+                    ffmpeg.input(str(written[1])).audio,
+                    str(temp_full),
+                    vcodec=video_codec,
+                    acodec="copy",
+                    **{"metadata:s:a:0": f"language={audio_lang}"},
+                )
+            else:
+                node = ffmpeg.input(str(written[0])).output(
+                    str(temp_full),
+                    vcodec=video_codec,
+                    acodec="copy",
+                    **{"metadata:s:a:0": f"language={audio_lang}"},
+                )
+            _run_ffmpeg_with_progress(node, label=ep_label)
+        else:
+            _download_full_stream(
+                stream_url,
+                temp_full,
+                {
+                    "reconnect": 1,
+                    "reconnect_streamed": 1,
+                    "reconnect_delay_max": 30,
+                    "allowed_extensions": "ALL",
+                },
+                headers,
+                {"metadata:s:a:0": f"language={audio_lang}"},
+                video_codec,
+                ep_label,
+                audio_lang,
+            )
 
         _finalize_episode(temp_full, episode_path, ep_label)
     except Exception:
         if temp_full.exists():
             temp_full.unlink()
         raise
+    finally:
+        try:
+            cleanup_temp_files(temp_prefix)
+        except (ImportError, NameError, UnboundLocalError):
+            pass
 
 
 def download_hanime(self):
-    """Download a hanime.tv episode via direct download or HLS."""
+    """Download through Hanime only, refreshing expired streams on failure."""
     if platform.system() == "Windows":
         manager = DependencyManager()
         manager.fetch_binary("ffmpeg")
@@ -689,15 +732,24 @@ def download_hanime(self):
         return
 
     os.makedirs(self._folder_path, exist_ok=True)
+    last_error = None
+    for attempt in range(1, 4):
+        try:
+            if attempt == 1:
+                stream_url = self.stream_url
+            else:
+                stream_url = self.refresh_stream_url()
+            _download_hls_stream(self._episode_path, stream_url, self._file_name)
+            return
+        except Exception as exc:
+            last_error = exc
+            if attempt < 3:
+                logger.warning(
+                    f"Hanime download attempt {attempt}/3 failed: {exc}; retrying with a fresh stream"
+                )
+                time.sleep(attempt)
 
-    from ...extractors.provider.hanime_tv import get_download_url_from_hanime_tv
-
-    dl_url = get_download_url_from_hanime_tv(self._api_data)
-
-    if dl_url:
-        _download_direct_http(self._episode_path, dl_url, self._file_name)
-    else:
-        _download_hls_stream(self._episode_path, self.stream_url, self._file_name)
+    raise RuntimeError(f"Hanime download failed after 3 attempts: {last_error}") from last_error
 
 
 class _HLSManualUnsupported(Exception):
@@ -891,7 +943,7 @@ def _download_full_stream(
                     ffmpeg.input(str(temp_ts)).output(
                         str(temp_full),
                         vcodec=video_codec,
-                        acodec=video_codec,
+                        acodec="copy",
                         **stream_metadata,
                     ),
                     label=ep_label,
@@ -904,7 +956,7 @@ def _download_full_stream(
         ffmpeg.input(stream_url, **input_kwargs).output(
             str(temp_full),
             vcodec=video_codec,
-            acodec=video_codec,
+            acodec="copy",
             **stream_metadata,
         ),
         label=ep_label,

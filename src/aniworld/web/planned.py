@@ -24,7 +24,6 @@ from ..search import (
 from .db import (
     add_autosync_job,
     add_to_queue,
-    get_custom_path_by_id,
     get_planned_jobs,
     update_planned_job,
 )

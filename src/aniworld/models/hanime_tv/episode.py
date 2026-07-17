@@ -83,8 +83,11 @@ class HanimeTVEpisode:
     def _is_valid_url(url):
         return bool(
             re.match(
-                r"^https?://(?:www\.)?hanime\.tv/videos/hentai/[A-Za-z0-9\-]+/?$",
+                r"^https?://(?:www\.)?hanime\.tv/"
+                r"(?:videos/hentai|hentai/video|playlists/[0-9a-z]+/video)/"
+                r"[A-Za-z0-9\-]+/?$",
                 url,
+                re.IGNORECASE,
             )
         )
 
@@ -174,6 +177,11 @@ class HanimeTVEpisode:
     def stream_url(self):
         if self.__stream_url is None:
             self.__stream_url = get_direct_link_from_hanime_tv(self._api_data)
+        return self.__stream_url
+
+    def refresh_stream_url(self):
+        """Discard an expired manifest and resolve a fresh Hanime stream."""
+        self.__stream_url = get_direct_link_from_hanime_tv(self._api_data, refresh=True)
         return self.__stream_url
 
     @property
