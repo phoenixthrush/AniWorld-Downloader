@@ -1781,21 +1781,26 @@ def playwright_get_iframe_url(url: str, timeout: int = 20) -> str:
         raise
 
 
-def playwright_get_hanime_stream_url(url: str) -> str:
-    """Open a hanime page in Playwright and capture the first playable HLS URL."""
+def playwright_get_hanime_manifest_token(url: str, timeout: int = 15) -> str:
+    """Capture Hanime's official player-handshake token.
+
+    Only first-party Hanime hosts are allowed during this short browser run.
+    Images, fonts, media and unrelated APIs are blocked because the handshake
+    only needs Hanime's page scripts and ``auth.hanime.tv``.
+    """
     try:
         from patchright.sync_api import sync_playwright
     except ImportError:
         raise RuntimeError(
-            "patchright ist nicht installiert. "
-            "Bitte installieren mit: pip install patchright && patchright install chromium"
+            "patchright is not installed. Install it with: "
+            "pip install patchright && patchright install chromium"
         )
 
     from ..logger import get_logger
 
     logger = get_logger(__name__)
-
-    final_url = None
+    token = None
+    timeout = max(1, int(timeout))
 
     try:
         with sync_playwright() as p:
@@ -1803,43 +1808,90 @@ def playwright_get_hanime_stream_url(url: str) -> str:
                 headless=True,
                 args=["--disable-gpu"],
             )
-            context = browser.new_context(viewport={"width": 1280, "height": 720})
+            context = browser.new_context(
+                viewport={"width": 1280, "height": 720},
+                service_workers="block",
+            )
             _inject_session_cookies(context, url)
+
+            def _first_party_only(route):
+                from urllib.parse import urlparse
+
+                request = route.request
+                host = (urlparse(request.url).hostname or "").lower()
+                is_hanime = (
+                    host == "hanime.tv"
+                    or host.endswith(".hanime.tv")
+                    or host == "hanime-cdn.com"
+                    or host.endswith(".hanime-cdn.com")
+                )
+                if not is_hanime or request.resource_type in (
+                    "image",
+                    "font",
+                    "media",
+                ):
+                    route.abort()
+                else:
+                    route.continue_()
+
+            context.route("**/*", _first_party_only)
             page = context.new_page()
 
-            def _capture_manifest(response):
-                nonlocal final_url
-                response_url = response.url
-                if (
-                    not final_url
-                    and "m3u8s.highwinds-cdn.com" in response_url
-                    and response.status in (200, 206)
-                ):
-                    final_url = response_url
+            def _capture_handshake(response):
+                nonlocal token
+                if token or "/api/v11/handshake" not in response.url:
+                    return
+                if response.status != 200:
+                    return
+                try:
+                    token = response.header_value("x-token")
+                except Exception:
+                    token = None
 
-            page.on("response", _capture_manifest)
-            logger.warning(f"Opening hanime page for stream capture: {url}")
-            page.goto(url, wait_until="domcontentloaded")
+            page.on("response", _capture_handshake)
+            logger.debug(f"Opening Hanime page for player handshake: {url}")
+            try:
+                page.goto(
+                    url,
+                    wait_until="domcontentloaded",
+                    timeout=timeout * 1000,
+                )
+            except Exception:
+                # A slow secondary resource must not discard a handshake that
+                # was already captured while the document was loading.
+                if not token:
+                    raise
 
-            deadline = _time.time() + 20
-            while _time.time() < deadline and not final_url:
-                page.wait_for_timeout(500)
+            deadline = _time.monotonic() + timeout
+            while _time.monotonic() < deadline and not token:
+                page.wait_for_timeout(100)
 
-            if not final_url:
-                page.reload(wait_until="domcontentloaded")
-                deadline = _time.time() + 15
-                while _time.time() < deadline and not final_url:
-                    page.wait_for_timeout(500)
-
+            context.close()
             browser.close()
 
-        if final_url:
-            logger.info(f"Captured hanime manifest URL: {final_url}")
-        return final_url
-
     except Exception as e:
-        logger.error(f"Failed to capture hanime stream URL: {e}", exc_info=True)
-        return None
+        logger.error(f"Failed to capture Hanime handshake: {e}", exc_info=True)
+        raise RuntimeError(f"Failed to capture Hanime handshake: {e}") from e
+
+    if not token:
+        raise TimeoutError(f"Hanime player handshake timed out after {timeout}s")
+    return token
+
+
+def playwright_get_hanime_stream_url(url: str) -> str:
+    """Compatibility wrapper returning the best URL from the new handshake."""
+    from ..extractors.provider.hanime_tv import (
+        _parse_hanime_manifest_token,
+        get_direct_link_from_hanime_tv,
+    )
+
+    token = playwright_get_hanime_manifest_token(url)
+    slug = url.rstrip("/").split("/")[-1]
+    api_data = {
+        "hentai_video": {"slug": slug},
+        "videos_manifest": _parse_hanime_manifest_token(token),
+    }
+    return get_direct_link_from_hanime_tv(api_data)
 
 
 def playwright_get_cineby_stream_url(url: str, timeout: int = 40) -> str:

@@ -6,8 +6,6 @@ from ...config import logger
 from ...extractors.provider.hanime_tv import fetch_hanime_api_data
 from ..common import clean_title
 
-HANIME_SEARCH_URL = "https://search.htv-services.com/"
-
 
 class HanimeTVSeries:
     """
@@ -89,8 +87,11 @@ class HanimeTVSeries:
 
         return bool(
             re.match(
-                r"^https?://(?:www\.)?hanime\.tv/videos/hentai/[A-Za-z0-9\-]+/?$",
+                r"^https?://(?:www\.)?hanime\.tv/"
+                r"(?:videos/hentai|hentai/video|playlists/[0-9a-z]+/video)/"
+                r"[A-Za-z0-9\-]+/?$",
                 url,
+                re.IGNORECASE,
             )
         )
 

@@ -5,7 +5,6 @@ from html import unescape
 from pathlib import Path
 
 from ...config import (
-    GLOBAL_SESSION,
     NAMING_TEMPLATE,
     SERIENSTREAM_EPISODE_PATTERN,
     build_provider_attempt_order,

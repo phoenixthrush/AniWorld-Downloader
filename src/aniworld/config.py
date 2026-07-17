@@ -377,7 +377,9 @@ ANIWORLD_EPISODE_PATTERN = re.compile(
 )
 
 HANIME_TV_SERIES_PATTERN = re.compile(
-    r"^https?://(?:www\.)?hanime\.tv/videos/hentai/[A-Za-z0-9\-]+/?$",
+    r"^https?://(?:www\.)?hanime\.tv/"
+    r"(?:videos/hentai|hentai/video|playlists/[0-9a-z]+/video)/"
+    r"[A-Za-z0-9\-]+/?$",
     re.IGNORECASE,
 )
 

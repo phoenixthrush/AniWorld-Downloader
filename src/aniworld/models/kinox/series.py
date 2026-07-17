@@ -18,7 +18,6 @@ try:
         Audio,
         Subtitles,
         build_provider_attempt_order,
-        logger,
     )
     from ...extractors import provider_functions
     from ..common import check_downloaded, movie_folder_enabled
@@ -33,7 +32,6 @@ except ImportError:
         Audio,
         Subtitles,
         build_provider_attempt_order,
-        logger,
     )
     from aniworld.extractors import provider_functions
     from aniworld.models.common import check_downloaded, movie_folder_enabled

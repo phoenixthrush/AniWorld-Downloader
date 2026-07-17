@@ -24,7 +24,7 @@ try:
     from ..common.common import download as episode_download
     from ..common.common import syncplay as episode_syncplay
     from ..common.common import watch as episode_watch
-    from ..common.http import get_html, get_session
+    from ..common.http import get_session
 except ImportError:
     from aniworld.config import (
         Audio,
@@ -36,7 +36,7 @@ except ImportError:
     from aniworld.models.common.common import download as episode_download
     from aniworld.models.common.common import syncplay as episode_syncplay
     from aniworld.models.common.common import watch as episode_watch
-    from aniworld.models.common.http import get_html, get_session
+    from aniworld.models.common.http import get_session
 
 CINEBY_BASE = "https://www.cineby.at"
 TMDB_PROXY = "https://db.wingsdatabase.com/3"
