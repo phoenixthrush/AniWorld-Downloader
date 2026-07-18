@@ -138,6 +138,16 @@ def _extract_video_cards(html):
     return cards
 
 
+def _synopsis_from_page(html):
+    """Extract the Synopsis section rendered on the video page."""
+    match = re.search(
+        r"<h2\b[^>]*>\s*Synopsis\s*</h2>.*?data-expand-content[^>]*>(.*?)</div>",
+        html,
+        re.IGNORECASE | re.DOTALL,
+    )
+    return unescape(match.group(1)).strip() if match else ""
+
+
 def _more_from_section(html):
     match = re.search(
         r"<section\b[^>]*>\s*<h2\b[^>]*>\s*More\s+from\s+([^<]+)</h2>"
@@ -174,7 +184,10 @@ def _build_synthetic_payload(slug, html):
         or _slug_to_video_title(slug)
     )
     description = (
-        ldjson.get("description") or _meta_content(html, "og:description") or ""
+        _synopsis_from_page(html)
+        or ldjson.get("description")
+        or _meta_content(html, "og:description")
+        or ""
     )
     poster_url = ldjson.get("thumbnailUrl") or _meta_content(html, "og:image") or ""
 
