@@ -1,6 +1,7 @@
 const searchInput = document.getElementById("searchInput");
 const searchBtn = document.getElementById("searchBtn");
 const searchSpinner = document.getElementById("searchSpinner");
+const browseSpinner = document.getElementById("browseSpinner");
 const resultsDiv = document.getElementById("results");
 const overlay = document.getElementById("overlay");
 const languageSelect = document.getElementById("languageSelect");
@@ -47,7 +48,10 @@ function makeBrowseLoader(endpoint, grid) {
   return async function (force = false) {
     if (!force && loadedAt && Date.now() - loadedAt < BROWSE_REFRESH_MS) return;
     if (promise) return promise;
+    const showSpinner = !loadedAt || force;
     loadedAt = Date.now();
+    if (showSpinner && browseSpinner) browseSpinner.style.display = "block";
+    if (showSpinner && grid) grid.innerHTML = "";
     promise = (async () => {
       try {
         const resp = await fetch(endpoint);
@@ -57,6 +61,7 @@ function makeBrowseLoader(endpoint, grid) {
       } catch (e) {
         loadedAt = 0;
       } finally {
+        if (showSpinner && browseSpinner) browseSpinner.style.display = "none";
         promise = null;
       }
     })();
@@ -170,7 +175,11 @@ let stoBrowsePromise = null;
 async function loadStoBrowse(force = false) {
   if (!force && stoLoadedAt && Date.now() - stoLoadedAt < BROWSE_REFRESH_MS) return;
   if (stoBrowsePromise) return stoBrowsePromise;
+  const showSpinner = !stoLoadedAt || force;
   stoLoadedAt = Date.now();
+  if (showSpinner && browseSpinner) browseSpinner.style.display = "block";
+  if (showSpinner && newSeriesGrid) newSeriesGrid.innerHTML = "";
+  if (showSpinner && popularSeriesGrid) popularSeriesGrid.innerHTML = "";
   stoBrowsePromise = (async () => {
     try {
       const [newResp, popResp] = await Promise.all([
@@ -185,6 +194,7 @@ async function loadStoBrowse(force = false) {
     } catch (e) {
       stoLoadedAt = 0;
     } finally {
+      if (showSpinner && browseSpinner) browseSpinner.style.display = "none";
       stoBrowsePromise = null;
     }
   })();
@@ -196,7 +206,10 @@ let mkBrowsePromise = null;
 async function loadMegakinoBrowse(force = false) {
   if (!force && mkLoadedAt && Date.now() - mkLoadedAt < BROWSE_REFRESH_MS) return;
   if (mkBrowsePromise) return mkBrowsePromise;
+  const showSpinner = !mkLoadedAt || force;
   mkLoadedAt = Date.now();
+  if (showSpinner && browseSpinner) browseSpinner.style.display = "block";
+  if (showSpinner && popularMoviesGrid) popularMoviesGrid.innerHTML = "";
   mkBrowsePromise = (async () => {
     try {
       const resp = await fetch("/api/popular-movies");
@@ -206,6 +219,7 @@ async function loadMegakinoBrowse(force = false) {
     } catch (e) {
       mkLoadedAt = 0;
     } finally {
+      if (showSpinner && browseSpinner) browseSpinner.style.display = "none";
       mkBrowsePromise = null;
     }
   })();
@@ -217,7 +231,10 @@ let htvBrowsePromise = null;
 async function loadHtvBrowse(force = false) {
   if (!force && htvLoadedAt && Date.now() - htvLoadedAt < BROWSE_REFRESH_MS) return;
   if (htvBrowsePromise) return htvBrowsePromise;
+  const showSpinner = !htvLoadedAt || force;
   htvLoadedAt = Date.now();
+  if (showSpinner && browseSpinner) browseSpinner.style.display = "block";
+  if (showSpinner && htvTrendingGrid) htvTrendingGrid.innerHTML = "";
   htvBrowsePromise = (async () => {
     try {
       const resp = await fetch("/api/htv-trending");
@@ -227,6 +244,7 @@ async function loadHtvBrowse(force = false) {
     } catch (e) {
       htvLoadedAt = 0;
     } finally {
+      if (showSpinner && browseSpinner) browseSpinner.style.display = "none";
       htvBrowsePromise = null;
     }
   })();
@@ -238,7 +256,10 @@ let mangaFireBrowsePromise = null;
 async function loadMangaFireBrowse(force = false) {
   if (!force && mangaFireLoadedAt && Date.now() - mangaFireLoadedAt < BROWSE_REFRESH_MS) return;
   if (mangaFireBrowsePromise) return mangaFireBrowsePromise;
+  const showSpinner = !mangaFireLoadedAt || force;
   mangaFireLoadedAt = Date.now();
+  if (showSpinner && browseSpinner) browseSpinner.style.display = "block";
+  if (showSpinner && mangaFireTrendingGrid) mangaFireTrendingGrid.innerHTML = "";
   mangaFireBrowsePromise = (async () => {
     try {
       const resp = await fetch("/api/mangafire-trending");
@@ -248,6 +269,7 @@ async function loadMangaFireBrowse(force = false) {
     } catch (e) {
       mangaFireLoadedAt = 0;
     } finally {
+      if (showSpinner && browseSpinner) browseSpinner.style.display = "none";
       mangaFireBrowsePromise = null;
     }
   })();
@@ -532,7 +554,11 @@ let aniBrowsePromise = null;
 async function loadAniworldBrowse(force = false) {
   if (!force && aniLoadedAt && Date.now() - aniLoadedAt < BROWSE_REFRESH_MS) return;
   if (aniBrowsePromise) return aniBrowsePromise;
+  const showSpinner = !aniLoadedAt || force;
   aniLoadedAt = Date.now();
+  if (showSpinner && browseSpinner) browseSpinner.style.display = "block";
+  if (showSpinner && newAnimesGrid) newAnimesGrid.innerHTML = "";
+  if (showSpinner && popularAnimesGrid) popularAnimesGrid.innerHTML = "";
   aniBrowsePromise = (async () => {
     try {
       const [newResp, popResp] = await Promise.all([
@@ -547,6 +573,7 @@ async function loadAniworldBrowse(force = false) {
     } catch (e) {
       aniLoadedAt = 0;
     } finally {
+      if (showSpinner && browseSpinner) browseSpinner.style.display = "none";
       aniBrowsePromise = null;
     }
   })();
