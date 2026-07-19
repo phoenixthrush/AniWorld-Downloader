@@ -495,6 +495,11 @@ h1 {
   outline: none;
 }
 
+.controls select option {
+  background: #0a0a0f;
+  color: #c8cad0;
+}
+
 .custom-path-row {
   display: flex;
   align-items: center;
@@ -533,6 +538,11 @@ h1 {
 .custom-path-row select:focus {
   border-color: #2563eb;
   outline: none;
+}
+
+.custom-path-row select option {
+  background: #0a0a0f;
+  color: #c8cad0;
 }
 
 /* Episodes header */
