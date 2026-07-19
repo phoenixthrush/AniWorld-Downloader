@@ -4,7 +4,16 @@ import secrets
 import time
 from functools import wraps
 
-from authlib.integrations.flask_client import OAuth
+try:
+    from authlib.integrations.flask_client import OAuth
+    _SSO_AVAILABLE = True
+except ImportError:
+    class DummyOAuth:
+        def init_app(self, app): pass
+        def register(self, *args, **kwargs): pass
+    OAuth = DummyOAuth
+    _SSO_AVAILABLE = False
+
 from flask import (
     Blueprint,
     current_app,
@@ -63,6 +72,18 @@ def init_oidc(app, force_sso=False):
         app.config["OIDC_ADMIN_SUBJECT"] = None
         app.config["FORCE_SSO"] = force_sso
         return
+
+    if not _SSO_AVAILABLE:
+        logger.error("SSO enabled but authlib is not installed. SSO login will be unavailable.")
+        if force_sso:
+            raise RuntimeError("SSO login is forced, but authlib is not installed.")
+        app.config["OIDC_ENABLED"] = False
+        app.config["OIDC_DISPLAY_NAME"] = "SSO"
+        app.config["OIDC_ADMIN_USER"] = None
+        app.config["OIDC_ADMIN_SUBJECT"] = None
+        app.config["FORCE_SSO"] = False
+        return
+
 
     oauth.init_app(app)
     oauth.register(

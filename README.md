@@ -7,6 +7,7 @@ AniWorld Downloader is a cross-platform tool for streaming and downloading conte
 ![GitHub Release](https://img.shields.io/github/v/release/phoenixthrush/AniWorld-Downloader)
 [![PyPI Downloads](https://static.pepy.tech/badge/aniworld)](https://pepy.tech/projects/aniworld)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/aniworld)
+[![Docker Image Size](https://ghcr-badge.egpl.dev/phoenixthrush/aniworld-downloader/size)](https://github.com/phoenixthrush/AniWorld-Downloader/pkgs/container/aniworld-downloader)
 ![GitHub License](https://img.shields.io/github/license/phoenixthrush/AniWorld-Downloader)
 ![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/phoenixthrush/AniWorld-Downloader)
 [![PayPal Donate](https://img.shields.io/badge/PayPal-Donate-blue?logo=paypal)](https://www.paypal.com/paypalme/justnekochan)
@@ -201,33 +202,44 @@ Before submitting contributions, please check the repository for existing issues
 
 ## Dependencies
 
-AniWorld Downloader uses a small set of Python packages for networking, terminal UI, media handling, web features, authentication, and configuration.
+AniWorld Downloader uses a small set of Python packages for networking, terminal UI, media handling, web features, and configuration.
 
 ### Core dependencies
 
-- **niquests** – HTTP requests
+- **niquests** – HTTP requests (replaces `requests`)
 - **npyscreen** – Text-based terminal UI
 - **ffmpeg-python** – Python bindings for FFmpeg (requires FFmpeg installed on your system)
 - **python-dotenv** – Loads environment variables from a `.env` file
-- **rich** – Styled terminal output
-- **fake-useragent** – Generates user-agent strings
 - **packaging** – Version parsing and comparison
 - **cryptography** – Cryptographic utilities
 - **patchright** – Browser automation support for captcha handling
 
 ### Web / server dependencies
 
-- **requests** – Standard HTTP library
 - **flask** – Web framework
 - **flask-wtf** – Forms and CSRF protection for Flask
-- **authlib** – OAuth and authentication helpers
 - **waitress** – Production WSGI server
+
+### Optional dependencies (Extras)
+
+Some features require optional packages which can be installed on demand:
+- **SSO Login (OIDC):** Requires `authlib` (`pip install aniworld[sso]`)
+- **Discord Bot:** Requires `discord.py` (`pip install aniworld[discord]`)
+
+To install AniWorld Downloader with **all** optional features:
+```bash
+# For PyPI release
+pip install aniworld[all]
+
+# For local development
+pip install -e .[all]
+```
 
 ### Platform-specific dependencies
 
 - **windows-curses** – Enables curses support for `npyscreen` on Windows (installed only on Windows and only for Python versions below 3.14)
 
-All dependencies are installed automatically when AniWorld Downloader is installed with `pip`.
+All core and web dependencies are installed automatically when AniWorld Downloader is installed with `pip`.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
