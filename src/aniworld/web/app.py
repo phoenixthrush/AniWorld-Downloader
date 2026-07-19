@@ -4,7 +4,7 @@ import re
 import threading
 import time
 
-import requests
+import niquests as requests
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_wtf.csrf import CSRFProtect
 
@@ -1894,11 +1894,11 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             proxy_headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
             if "hanime" in target:
                 proxy_headers["Referer"] = "https://hanime.tv/"
-            resp = requests.get(target, headers=proxy_headers, timeout=10, stream=True)
+            resp = requests.get(target, headers=proxy_headers, timeout=10)
             resp.raise_for_status()
             content_type = resp.headers.get("Content-Type", "image/jpeg")
             return Response(
-                resp.iter_content(chunk_size=8192),
+                resp.content,
                 content_type=content_type,
                 headers={"Cache-Control": "public, max-age=3600"},
             )
