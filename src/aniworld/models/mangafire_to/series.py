@@ -2,7 +2,9 @@ import re
 from os import getenv
 from pathlib import Path
 from pprint import pprint
+import shutil
 from urllib.parse import quote, urlparse
+import zipfile
 
 import niquests
 
@@ -388,7 +390,7 @@ class MangaFireToChapter:
         chapter_index: int = 0,
         total_chapters: int = 0,
     ) -> Path:
-        """Download all chapter pages."""
+        """Download all chapter pages as a .cbz file."""
         chapter_title = (
             getattr(self._series, "title", "")
             if self._series is not None
@@ -408,13 +410,19 @@ class MangaFireToChapter:
         else:
             folder = Path(folder)
 
-        folder.mkdir(parents=True, exist_ok=True)
-
+        cbz_path = folder.with_suffix(".cbz")
+        
         chapter_progress = (
             f"{chapter_index:03}/{total_chapters:03}"
             if chapter_index and total_chapters
             else "---/---"
         )
+
+        if cbz_path.exists():
+            print(f"[SKIP] [{chapter_progress}] {cbz_path.name}")
+            return cbz_path
+
+        folder.mkdir(parents=True, exist_ok=True)
 
         print(f"[{chapter_progress}] {self}")
 
@@ -428,7 +436,16 @@ class MangaFireToChapter:
         for page in pages:
             page.download(folder, total_pages=total_pages)
 
-        return folder
+        print(f"[ZIP] Creating {cbz_path.name}...")
+        with zipfile.ZipFile(cbz_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            for page in pages:
+                file_path = folder / page.file_name
+                if file_path.exists():
+                    zf.write(file_path, arcname=page.file_name)
+                    
+        shutil.rmtree(folder, ignore_errors=True)
+
+        return cbz_path
 
     def debug_pages(self) -> None:
         """Print raw chapter data."""
