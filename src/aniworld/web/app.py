@@ -751,9 +751,30 @@ def _run_autosync_for_job(job):
             lang_total_found = 0
             for season in series.seasons:
                 season_obj = prov.season_cls(url=season.url, series=series)
+                
+                ep_lang_map = {}
+                if hasattr(season_obj, "_html"):
+                    html = season_obj._html
+                    if html:
+                        for tr in re.findall(r'<tr[^>]*itemtype="http://schema.org/Episode".*?</tr>', html, re.IGNORECASE | re.DOTALL):
+                            m = re.search(r'href="(/[^"]+)"', tr)
+                            if m:
+                                e_url = m.group(1)
+                                lgs = set()
+                                if "german.svg" in tr: lgs.add("German Dub")
+                                if "japanese-german.svg" in tr: lgs.add("German Sub")
+                                if "japanese-english.svg" in tr: lgs.add("English Sub")
+                                if "english.svg" in tr: lgs.add("English Dub")
+                                ep_lang_map[e_url] = lgs
+                                
                 for ep in season_obj.episodes:
-                    # Depending on provider, might need to pre-filter by language here
-                    # But the downloader expects full episode URLs and it will pick the right language within them.
+                    if ep_lang_map:
+                        from urllib.parse import urlparse
+                        ep_path = urlparse(ep.url).path
+                        lgs = ep_lang_map.get(ep_path)
+                        if lgs is not None and target_lang not in lgs:
+                            continue
+
                     lang_total_found += 1
                     key = (ep.season.season_number, ep.episode_number)
                     if key not in downloaded_eps:
