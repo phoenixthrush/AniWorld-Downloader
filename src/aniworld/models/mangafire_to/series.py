@@ -418,14 +418,6 @@ class MangaFireToChapter:
             else "---/---"
         )
 
-        if cbz_path.exists():
-            print(f"[SKIP] [{chapter_progress}] {cbz_path.name}")
-            return cbz_path
-
-        folder.mkdir(parents=True, exist_ok=True)
-
-        print(f"[{chapter_progress}] {self}")
-
         pages = self.pages
         if self.selected_pages is not None:
             selected = {int(page_number) for page_number in self.selected_pages}
@@ -433,12 +425,29 @@ class MangaFireToChapter:
 
         total_pages = len(pages)
 
-        for page in pages:
+        existing_files = set()
+        if cbz_path.exists():
+            try:
+                with zipfile.ZipFile(cbz_path, "r") as zf:
+                    existing_files = set(zf.namelist())
+            except zipfile.BadZipFile:
+                pass
+
+        pages_to_download = [p for p in pages if p.file_name not in existing_files]
+
+        if not pages_to_download:
+            print(f"[SKIP] [{chapter_progress}] {cbz_path.name} (all selected pages already in archive)")
+            return cbz_path
+
+        folder.mkdir(parents=True, exist_ok=True)
+        print(f"[{chapter_progress}] {self}")
+
+        for page in pages_to_download:
             page.download(folder, total_pages=total_pages)
 
-        print(f"[ZIP] Creating {cbz_path.name}...")
-        with zipfile.ZipFile(cbz_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            for page in pages:
+        print(f"[ZIP] Updating {cbz_path.name}...")
+        with zipfile.ZipFile(cbz_path, "a", zipfile.ZIP_DEFLATED) as zf:
+            for page in pages_to_download:
                 file_path = folder / page.file_name
                 if file_path.exists():
                     zf.write(file_path, arcname=page.file_name)
