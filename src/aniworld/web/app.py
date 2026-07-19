@@ -4,7 +4,7 @@ import re
 import threading
 import time
 
-import requests
+import niquests as requests
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_wtf.csrf import CSRFProtect
 
@@ -16,7 +16,6 @@ from ..config import (
     parse_provider_order,
 )
 from ..extractors import provider_functions
-from ..extractors.provider.hanime_tv import fetch_hanime_trending, search_hanime
 from ..logger import get_logger
 from ..models.mangafire_to.series import search_series as query_mangafire
 from ..providers import resolve_provider
@@ -359,10 +358,37 @@ _STO_SERIES_LINK_PATTERN = re.compile(
 )
 
 
+_HTV_SEARCH_URL = "https://search.htv-services.com/"
+
+
 def _search_htv(keyword):
-    """Search directly through hanime.tv's own sitemap."""
+    """Search hanime.tv via their search API."""
     try:
-        return search_hanime(keyword)
+        resp = requests.post(
+            _HTV_SEARCH_URL,
+            json={
+                "search_text": keyword,
+                "tags": [],
+                "tags_mode": "AND",
+                "brands": [],
+                "blacklist": [],
+                "order_by": "likes",
+                "ordering": "desc",
+                "page": 0,
+            },
+            headers={"Content-Type": "application/json"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        import json as _json
+
+        hits_raw = data.get("hits", "[]")
+        if isinstance(hits_raw, str):
+            hits = _json.loads(hits_raw)
+        else:
+            hits = hits_raw
+        return hits
     except Exception as e:
         logger.warning(f"HTV search failed: {e}")
         return []
@@ -381,9 +407,32 @@ def _megakino_episode_payload(url, title, episode, season_number=1):
 
 
 def _fetch_htv_trending():
-    """Fetch trending cards directly from hanime.tv."""
+    """Fetch latest videos from hanime.tv via search API."""
     try:
-        hits = fetch_hanime_trending()
+        resp = requests.post(
+            _HTV_SEARCH_URL,
+            json={
+                "search_text": "",
+                "tags": [],
+                "tags_mode": "AND",
+                "brands": [],
+                "blacklist": [],
+                "order_by": "created_at",
+                "ordering": "desc",
+                "page": 0,
+            },
+            headers={"Content-Type": "application/json"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        import json as _json
+
+        hits_raw = data.get("hits", "[]")
+        if isinstance(hits_raw, str):
+            hits = _json.loads(hits_raw)
+        else:
+            hits = hits_raw
         results = []
         seen = set()
         for h in hits:
@@ -471,9 +520,7 @@ def _queue_worker():
                         try:
                             set_queue_status(item["id"], "running")
                         except Exception as e:
-                            logger.error(
-                                f"Failed to set status to 'running': {e}", exc_info=True
-                            )
+                            logger.error(f"Failed to set status to 'running': {e}", exc_info=True)
                             item = None
 
             if not item:
@@ -1589,9 +1636,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             season_lang_labels = None
             if prov.name in ("Kinox", "BurningSeries", "Cineby"):
                 try:
-                    season_lang_labels = list(
-                        getattr(season, "language_labels", []) or []
-                    )
+                    season_lang_labels = list(getattr(season, "language_labels", []) or [])
                 except Exception as exc:
                     logger.warning(f"{prov.name} language detection failed: {exc}")
                     season_lang_labels = ["German Dub"]
@@ -1894,11 +1939,11 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             proxy_headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
             if "hanime" in target:
                 proxy_headers["Referer"] = "https://hanime.tv/"
-            resp = requests.get(target, headers=proxy_headers, timeout=10, stream=True)
+            resp = requests.get(target, headers=proxy_headers, timeout=10)
             resp.raise_for_status()
             content_type = resp.headers.get("Content-Type", "image/jpeg")
             return Response(
-                resp.iter_content(chunk_size=8192),
+                resp.content,
                 content_type=content_type,
                 headers={"Cache-Control": "public, max-age=3600"},
             )

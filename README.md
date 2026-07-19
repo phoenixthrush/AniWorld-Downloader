@@ -13,6 +13,8 @@ AniWorld Downloader is a cross-platform tool for streaming and downloading conte
 [![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?logo=discord&logoColor=white)](https://discord.gg/BfDvrKd8V5)
 ![GitHub Repo stars](https://img.shields.io/github/stars/phoenixthrush/AniWorld-Downloader)
 ![GitHub forks](https://img.shields.io/github/forks/phoenixthrush/AniWorld-Downloader)
+[![Docker Image Size](https://ghcr-badge.egpl.dev/phoenixthrush/aniworld-downloader/size)](https://github.com/phoenixthrush/AniWorld-Downloader/pkgs/container/aniworld-downloader)
+
 
 Demo Menu
 :-------------------------:
@@ -27,6 +29,9 @@ https://github.com/user-attachments/assets/d65c4a5c-827a-45d7-a904-78977fd9aef4
 ```bash
 # Install stable release (needs Python installed)
 pip install -U aniworld
+
+# Optional: Install with extras (sso = SSO login, discord = Discord bot, all = both)
+pip install -U "aniworld[all]"
 
 # Or install latest GitHub commit (needs Git installed)
 pip install --upgrade git+https://github.com/phoenixthrush/AniWorld-Downloader.git@models#egg=aniworld
@@ -217,17 +222,20 @@ AniWorld Downloader uses a small set of Python packages for networking, terminal
 
 ### Web / server dependencies
 
-- **requests** – Standard HTTP library
 - **flask** – Web framework
 - **flask-wtf** – Forms and CSRF protection for Flask
-- **authlib** – OAuth and authentication helpers
 - **waitress** – Production WSGI server
+
+### Optional dependencies
+
+- **authlib** – OAuth and authentication helpers (required for OIDC/SSO login; install with `pip install "aniworld[sso]"`)
+- **discord.py** – Discord request bot library (required for Discord integration; install with `pip install "aniworld[discord]"`)
 
 ### Platform-specific dependencies
 
 - **windows-curses** – Enables curses support for `npyscreen` on Windows (installed only on Windows and only for Python versions below 3.14)
 
-All dependencies are installed automatically when AniWorld Downloader is installed with `pip`.
+Core dependencies are installed automatically when AniWorld Downloader is installed with `pip`. Optional dependencies can be installed together using `pip install "aniworld[all]"`.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
