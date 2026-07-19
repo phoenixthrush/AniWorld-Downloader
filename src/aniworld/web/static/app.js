@@ -1132,6 +1132,12 @@ async function startDownload(all) {
       title: currentSeriesTitle,
       series_url: currentSeriesUrl,
     };
+    if (isMangaFireDl) {
+      const formatSelect = document.getElementById("mangaFireFormat");
+      if (formatSelect) {
+        dlBody.mangafire_format = formatSelect.value;
+      }
+    }
     if (customPathSelect && customPathSelect.value) {
       dlBody.custom_path_id = parseInt(customPathSelect.value);
     }

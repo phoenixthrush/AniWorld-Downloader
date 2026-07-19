@@ -199,8 +199,10 @@ class MangaFireToChapter:
         selected_language=None,
         selected_provider=None,
         selected_pages: list[int] | None = None,
+        format: str = "",
     ):
         """Set up the chapter."""
+        self.mangafire_format = format.strip().lower() or getenv("MANGAFIRE_FORMAT", "jpg").strip().lower()
         self._series = series
         self.chapter_url = url
         self.chapter_id = chapter_id
@@ -424,6 +426,13 @@ class MangaFireToChapter:
             pages = [page for page in pages if page.page_number in selected]
 
         total_pages = len(pages)
+
+        if self.mangafire_format != "cbz":
+            folder.mkdir(parents=True, exist_ok=True)
+            print(f"[{chapter_progress}] {self}")
+            for page in pages:
+                page.download(folder, total_pages=total_pages)
+            return folder
 
         existing_files = set()
         if cbz_path.exists():
