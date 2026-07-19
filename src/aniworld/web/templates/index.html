@@ -5,7 +5,6 @@
     <div class="segmented-track" id="segmentedTrack">
       <div class="segmented-thumb" id="segmentedThumb"></div>
       <button class="segmented-btn active" id="labelAniworld" onclick="switchSite('aniworld')">AniWorld</button>
-      <button class="segmented-btn" id="labelMangaFire" onclick="switchSite('mangafire')">MangaFire</button>
       <button class="segmented-btn" id="labelSto" onclick="switchSite('sto')">SerienStream</button>
       {% if burningseries_enabled %}
       <button class="segmented-btn" id="labelBurningSeries" onclick="switchSite('burningseries')">BurningSeries</button>
@@ -19,6 +18,7 @@
       {% if htv_enabled %}
       <button class="segmented-btn" id="labelHtv" onclick="switchSite('htv')">Hanime</button>
       {% endif %}
+      <button class="segmented-btn" id="labelMangaFire" onclick="switchSite('mangafire')">MangaFire</button>
     </div>
   </div>
   <div class="search-bar">
@@ -29,6 +29,7 @@
     </button>
   </div>
   <div class="spinner" id="searchSpinner">Searching...</div>
+  <div class="spinner" id="browseSpinner" style="display: none">Loading provider...</div>
   <div class="results" id="results"></div>
   <div id="browse">
     <div class="browse-section" id="newAnimesSection">
@@ -104,8 +105,14 @@
         {% endfor %}
       </select>
     </div>
-    <div class="controls manga-fire-controls" id="mangaFireControls" style="display: none; margin-top: 12px; gap: 16px; flex-wrap: wrap;">
+    <div class="controls manga-fire-controls" id="mangaFireControls" style="display: none; margin-top: 12px; gap: 16px; flex-wrap: wrap; align-items: center;">
       <label class="select-all-label"><input type="checkbox" id="showUnofficial" onchange="toggleShowUnofficial()" /> Show unofficial chapters</label>
+      <label class="select-all-label" style="display: flex; align-items: center; gap: 8px;">Format:
+        <select id="mangaFireFormat">
+          <option value="jpg">JPG (Images)</option>
+          <option value="cbz">CBZ (Archive)</option>
+        </select>
+      </label>
     </div>
     <div class="custom-path-row" id="customPathRow" style="display: none">
       <label class="custom-path-label" data-i18n="index.download_folder">Download Folder</label>

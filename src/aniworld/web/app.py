@@ -537,10 +537,12 @@ def _queue_worker():
                     series_url = None
                     series = None
                     chapter_url = ep_url
+                    mangafire_format = os.environ.get("MANGAFIRE_FORMAT", "jpg")
                     if isinstance(ep_url, dict):
                         chapter_url = (ep_url.get("url") or "").strip()
                         series_url = (ep_url.get("series_url") or "").strip() or None
                         selected_pages = ep_url.get("selected_pages")
+                        mangafire_format = ep_url.get("mangafire_format", mangafire_format)
                     prov = resolve_provider(chapter_url)
                     if prov.name == "MangaFire":
                         if not series_url:
@@ -555,11 +557,10 @@ def _queue_worker():
                         "selected_language": item["language"],
                         "selected_provider": item["provider"],
                     }
-                    # `series` is only ever populated for MangaFire; passing it
-                    # (even as None) to movie models that don't accept the kwarg
-                    # would raise, so only forward it when it's real.
                     if prov.name != "MegaKino" and series is not None:
                         ep_kwargs["series"] = series
+                    if prov.name == "MangaFire":
+                        ep_kwargs["format"] = mangafire_format
                     if selected_pages is not None:
                         ep_kwargs["selected_pages"] = selected_pages
                     if selected_path:
@@ -1712,6 +1713,14 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         provider = data.get("provider", "VOE")
         title = data.get("title", "Unknown")
         series_url = data.get("series_url", "")
+        mangafire_format = data.get("mangafire_format") or os.environ.get("MANGAFIRE_FORMAT", "jpg")
+
+        if provider == "MangaFire":
+            for i, ep in enumerate(episodes):
+                if isinstance(ep, str):
+                    episodes[i] = {"url": ep, "mangafire_format": mangafire_format}
+                elif isinstance(ep, dict):
+                    episodes[i]["mangafire_format"] = mangafire_format
 
         if not episodes:
             return jsonify({"error": "episodes list is required"}), 400
