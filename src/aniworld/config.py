@@ -109,7 +109,15 @@ def _get_random_user_agent() -> str:
             lines = [line.strip() for line in f if line.strip()]
             if not lines:
                 return fallback
-            return json.loads(random.choice(lines)).get("useragent", fallback)
+            
+            valid_os = {"Windows", "Mac OS X"}
+            # Maximal 50 Versuche, um schnell einen passenden Eintrag zu finden (meistens klappt es im 1. oder 2. Versuch)
+            for _ in range(50):
+                data = json.loads(random.choice(lines))
+                if data.get("os") in valid_os:
+                    return data.get("useragent", fallback)
+            
+            return fallback
     except Exception:
         return fallback
 
