@@ -7,6 +7,7 @@
 # nuitka-project: --assume-yes-for-downloads
 # nuitka-project: --python-flag=-m
 # nuitka-project: --mode=app
+# nuitka-project: --output-filename=AniWorldDownloader
 
 # Include hidden imports (dynamically loaded modules that Nuitka can't detect)
 # nuitka-project: --include-package=urllib3.contrib
