@@ -2002,8 +2002,8 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         if not target or not target.startswith(("http://", "https://")):
             return "", 400
         try:
-            from ..config import GLOBAL_SESSION
-            proxy_headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+            from ..config import GLOBAL_SESSION, DEFAULT_USER_AGENT
+            proxy_headers = {"User-Agent": DEFAULT_USER_AGENT}
             if "hanime" in target:
                 proxy_headers["Referer"] = "https://hanime.tv/"
             resp = GLOBAL_SESSION.get(target, headers=proxy_headers, timeout=10)

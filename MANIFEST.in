@@ -5,3 +5,4 @@ include src/aniworld/aniskip/scripts/autoexit.lua
 include src/aniworld/aniskip/scripts/autostart.lua
 recursive-include src/aniworld/web/templates *.html
 recursive-include src/aniworld/web/static *.css *.js *.svg
+include src/aniworld/browsers.jsonl

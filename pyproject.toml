@@ -15,7 +15,6 @@ dependencies = [
   "ffmpeg-python",                                                            # ???
   "python-dotenv",                                                            # >=3.10
   "rich",                                                                     # >=3.9.0
-  "fake-useragent",                                                           # >=3.9
   "flask",                                                                    # >=3.9
   "flask-wtf",                                                                # >=3.10
   "waitress",                                                                 # >=3.9.0
@@ -66,6 +65,7 @@ aniworld = [
   "web/static/*.css",
   "web/static/*.js",
   "web/static/flags/*.svg",
+  "browsers.jsonl",
 ]
 
 [project.scripts]
