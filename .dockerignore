@@ -1,0 +1,10 @@
+.git
+.github
+Downloads
+aniworld-data
+*.pyc
+__pycache__
+.env
+.venv
+venv
+env
