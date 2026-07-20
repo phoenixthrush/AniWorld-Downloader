@@ -749,11 +749,63 @@ def _run_autosync_for_job(job):
             # Collect all episode URLs that are NOT yet downloaded
             missing_episodes = []
             lang_total_found = 0
+            
             for season in series.seasons:
                 season_obj = prov.season_cls(url=season.url, series=series)
+                
+                ep_lang_map = {}
+                if hasattr(season_obj, "_html"):
+                    html = season_obj._html
+                    if html:
+                        marker = 'itemtype="http://schema.org/Episode"'
+                        pos = 0
+                        while True:
+                            pos = html.find(marker, pos)
+                            if pos == -1:
+                                break
+                            tr_start = html.rfind("<tr", 0, pos)
+                            tr_end = html.find("</tr>", pos)
+                            if tr_start == -1 or tr_end == -1:
+                                pos += len(marker)
+                                continue
+                            
+                            tr_html = html[tr_start:tr_end]
+                            ep_url = None
+                            
+                            url_pos = tr_html.find('itemprop="url"')
+                            if url_pos != -1:
+                                h_start = tr_html.find('href="', url_pos) + 6
+                                h_end = tr_html.find('"', h_start)
+                                ep_url = tr_html[h_start:h_end]
+                            else:
+                                href_pos = tr_html.find("film-")
+                                if href_pos == -1:
+                                    href_pos = tr_html.find("episode-")
+                                if href_pos != -1:
+                                    h_start = tr_html.rfind('href="', 0, href_pos) + 6
+                                    h_end = tr_html.find('"', h_start)
+                                    ep_url = tr_html[h_start:h_end]
+                                    
+                            if ep_url:
+                                from urllib.parse import urlparse
+                                ep_url = urlparse(ep_url).path.rstrip('/')
+                                lgs = set()
+                                if "/german.svg" in tr_html: lgs.add("German Dub")
+                                if "/japanese-german.svg" in tr_html: lgs.add("German Sub")
+                                if "/japanese-english.svg" in tr_html: lgs.add("English Sub")
+                                if "/english.svg" in tr_html: lgs.add("English Dub")
+                                ep_lang_map[ep_url] = lgs
+                            
+                            pos = tr_end
+                                
                 for ep in season_obj.episodes:
-                    # Depending on provider, might need to pre-filter by language here
-                    # But the downloader expects full episode URLs and it will pick the right language within them.
+                    if ep_lang_map:
+                        from urllib.parse import urlparse
+                        ep_path = urlparse(ep.url).path.rstrip('/')
+                        lgs = ep_lang_map.get(ep_path)
+                        if lgs is not None and target_lang not in lgs:
+                            continue
+
                     lang_total_found += 1
                     key = (ep.season.season_number, ep.episode_number)
                     if key not in downloaded_eps:
