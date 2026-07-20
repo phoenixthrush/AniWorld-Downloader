@@ -23,11 +23,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     fi && \
     apt-get update && apt-get install -y --no-install-recommends upx-ucl
 
-# Download static ffmpeg and ffprobe builds, extract and compress them with UPX (cached download)
-RUN --mount=type=cache,target=/root/.cache/ffmpeg \
-    TARGETARCH=${TARGETARCH} python -c "import urllib.request, zipfile, io, os, ssl, platform; ctx = ssl._create_unverified_context(); arch = os.environ.get('TARGETARCH'); arch = ('arm64' if ('arm64' in platform.machine().lower() or 'aarch64' in platform.machine().lower()) else 'amd64') if not arch else arch; suffix = 'linux-arm-64' if arch == 'arm64' else 'linux-64'; cache_dir = '/root/.cache/ffmpeg'; os.makedirs(cache_dir, exist_ok=True); f = lambda u, n, p: (open(p, 'wb').write(urllib.request.urlopen(urllib.request.Request(u, headers={'User-Agent': 'Mozilla'}), context=ctx).read()) if not os.path.exists(p) else None, zipfile.ZipFile(p).extractall('/usr/local/bin'), os.chmod('/usr/local/bin/' + n, 0o755)); f(f'https://github.com/ffbinaries/ffbinaries-prebuilt/releases/download/v4.4.1/ffmpeg-4.4.1-{suffix}.zip', 'ffmpeg', os.path.join(cache_dir, f'ffmpeg-4.4.1-{suffix}.zip')); f(f'https://github.com/ffbinaries/ffbinaries-prebuilt/releases/download/v4.4.1/ffprobe-4.4.1-{suffix}.zip', 'ffprobe', os.path.join(cache_dir, f'ffprobe-4.4.1-{suffix}.zip'))" && \
-    upx -9 /usr/local/bin/ffmpeg && \
-    upx -9 /usr/local/bin/ffprobe
+
 
 # Create a virtual environment for the app
 RUN python -m venv /opt/venv
@@ -111,6 +107,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
     xvfb \
+    ffmpeg \
     libnss3 \
     libnspr4 \
     libatk1.0-0 \
@@ -133,8 +130,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # Copy virtual env, playwright browsers, and compressed static ffmpeg/ffprobe from builder stage
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /ms-playwright /ms-playwright
-COPY --from=builder /usr/local/bin/ffmpeg /usr/local/bin/ffmpeg
-COPY --from=builder /usr/local/bin/ffprobe /usr/local/bin/ffprobe
 
 # Grant read/execute access to browsers directory
 RUN chmod -R a+rX /ms-playwright
