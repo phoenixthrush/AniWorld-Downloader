@@ -8,7 +8,6 @@ def build():
             "-m",
             "nuitka",
             "src/aniworld",
-            "--include-data-file=src/aniworld/browsers.jsonl=aniworld/browsers.jsonl",
         ]
     )
 
