@@ -1194,6 +1194,16 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                         {"error": "Content-Type must be application/json"}
                     ), 415
 
+    @app.route("/favicon.ico")
+    def favicon():
+        import os
+        from flask import send_from_directory
+        return send_from_directory(
+            os.path.join(app.root_path, "static"),
+            "favicon.ico",
+            mimetype="image/vnd.microsoft.icon",
+        )
+
     @app.route("/")
     def index():
         sto_lang_labels = {"1": "German Dub", "2": "English Dub"}
