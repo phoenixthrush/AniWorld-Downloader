@@ -128,8 +128,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     libxext6
 
 # Copy virtual env, playwright browsers, and compressed static ffmpeg/ffprobe from builder stage
-COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /ms-playwright /ms-playwright
+COPY --from=builder /opt/venv /opt/venv
 
 # Grant read/execute access to browsers directory
 RUN chmod -R a+rX /ms-playwright
@@ -153,28 +153,3 @@ EXPOSE 8080
 # This command will be inherited by the final stage
 CMD ["sh", "-c", "Xvfb :99 -screen 0 1280x720x24 -nolisten tcp & sleep 1 && exec aniworld --web-ui --web-expose --no-browser --web-port 8080"]
 
-
-# ==========================================
-# Stage 3: Squashed final runner
-# ==========================================
-FROM scratch AS final
-
-# Copy the entire root filesystem from the runner stage to squash all layers
-COPY --from=runner / /
-
-# Redeclare all necessary metadata since scratch starts empty
-ENV PATH="/opt/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    ANIWORLD_DOWNLOAD_PATH=/app/Downloads \
-    DISPLAY=:99 \
-    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
-    NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
-
-WORKDIR /app
-
-USER aniworld
-
-EXPOSE 8080
-
-CMD ["sh", "-c", "Xvfb :99 -screen 0 1280x720x24 -nolisten tcp & sleep 1 && exec aniworld --web-ui --web-expose --no-browser --web-port 8080"]
