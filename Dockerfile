@@ -41,13 +41,13 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=cache,target=/root/.cache/ms-playwright \
     pip install patchright && \
     python -m patchright install chromium && \
-    rm -rf /ms-playwright/chromium_headless_shell-* && \
     rm -rf /ms-playwright/ffmpeg-* && \
     find /ms-playwright -name "*.pak*" | grep -vE "(resources|chrome_100|chrome_200|de|en-US|en-GB)\.pak" | xargs -r rm -f && \
     arch=$(dpkg --print-architecture) && \
     if [ "$arch" = "amd64" ]; then \
         upx -9 /opt/venv/lib/python3.13/site-packages/patchright/driver/node; \
         upx -9 /ms-playwright/chromium-*/chrome-linux*/chrome; \
+        upx -9 /ms-playwright/chromium_headless_shell-*/chrome-linux*/headless_shell; \
     fi && \
     chmod -R a+rX /ms-playwright && \
     rm -rf /tmp/*
