@@ -34,34 +34,29 @@ ENV PATH="/opt/venv/bin:$PATH" \
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip
 
-# Copy packaging metadata first to maximize caching
-COPY pyproject.toml README.md LICENSE MANIFEST.in /build/
-
-# Install dependencies (including optional dependencies like discord/sso) and compress Node driver immediately
-# This runs BEFORE COPY src/ so that UPX compression is fully cached when changing code files.
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install .[all] && \
-    arch=$(dpkg --print-architecture) && \
-    if [ "$arch" = "amd64" ]; then \
-        upx -9 /opt/venv/lib/python3.13/site-packages/patchright/driver/node; \
-    fi
-
-# Pre-install patchright Chromium (using cache)
-# Playwright/Patchright installs Chromium to /ms-playwright
+# Pre-install patchright and Chromium to cache this huge layer independently of the project's dependencies
+# This runs BEFORE copying any project files so that UPX compression is permanently cached.
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-RUN --mount=type=cache,target=/root/.cache/ms-playwright \
-    python -m patchright install chromium
-
-# OPTIMIZATION: Clean up the Chromium installation to reduce image size
-# Deleting headless shell entirely (saves ~180MB), locales other than de/en, and compressing the 266MB chrome binary using UPX (~170MB saved)
-RUN rm -rf /ms-playwright/chromium_headless_shell-* && \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/root/.cache/ms-playwright \
+    pip install patchright && \
+    python -m patchright install chromium && \
+    rm -rf /ms-playwright/chromium_headless_shell-* && \
     rm -rf /ms-playwright/ffmpeg-* && \
     find /ms-playwright -name "*.pak*" | grep -vE "(resources|chrome_100|chrome_200|de|en-US|en-GB)\.pak" | xargs -r rm -f && \
     arch=$(dpkg --print-architecture) && \
     if [ "$arch" = "amd64" ]; then \
+        upx -9 /opt/venv/lib/python3.13/site-packages/patchright/driver/node; \
         upx -9 /ms-playwright/chromium-*/chrome-linux*/chrome; \
     fi && \
-    rm -rf /root/.cache /tmp/*
+    rm -rf /tmp/*
+
+# Copy packaging metadata first to maximize caching
+COPY pyproject.toml README.md LICENSE MANIFEST.in /build/
+
+# Install dependencies (including optional dependencies like discord/sso)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install .[all]
 
 # Copy the application source code
 COPY src/ /build/src/
@@ -70,8 +65,9 @@ COPY src/ /build/src/
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install .[all]
 
-# Clean up python bytecodes in builder venv
-RUN find /opt/venv -type d -name "__pycache__" -exec rm -rf {} +
+# Clean up python bytecodes and packaging tools in builder venv
+RUN find /opt/venv -type d -name "__pycache__" -exec rm -rf {} + && \
+    pip uninstall -y pip setuptools wheel
 
 
 # ==========================================
