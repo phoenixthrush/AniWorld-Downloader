@@ -749,8 +749,6 @@ def _run_autosync_for_job(job):
             # Collect all episode URLs that are NOT yet downloaded
             missing_episodes = []
             lang_total_found = 0
-            consecutive_unavailable = 0
-            req_prov = job.get("provider")
             
             for season in series.seasons:
                 season_obj = prov.season_cls(url=season.url, series=series)
@@ -810,25 +808,6 @@ def _run_autosync_for_job(job):
                     lang_total_found += 1
                     key = (ep.season.season_number, ep.episode_number)
                     if key not in downloaded_eps:
-                        if consecutive_unavailable > 2:
-                            continue  # Stop checking further episodes to avoid spamming the site
-                            
-                        # Deep verify to ensure the provider actually hosts this language
-                        try:
-                            if hasattr(ep, "available_providers"):
-                                avail = ep.available_providers(language=target_lang)
-                                if not avail:
-                                    consecutive_unavailable += 1
-                                    continue
-                                if req_prov and req_prov != "Auto":
-                                    if req_prov not in avail:
-                                        consecutive_unavailable += 1
-                                        continue
-                        except Exception as e:
-                            logger.error("Auto-Sync deep verify failed for %s: %s", ep.url, e)
-                            pass
-                            
-                        consecutive_unavailable = 0
                         missing_episodes.append(ep.url)
 
             # In "All Languages" mode we want to make sure the specific language is actually
