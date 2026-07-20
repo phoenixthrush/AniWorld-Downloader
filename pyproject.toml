@@ -65,6 +65,7 @@ aniworld = [
   "web/static/*.css",
   "web/static/*.js",
   "web/static/flags/*.svg",
+  "browsers.jsonl",
 ]
 
 [project.scripts]

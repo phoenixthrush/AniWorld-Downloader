@@ -99,9 +99,21 @@ def get_video_codec():
 
 # NIQUESTS
 
-from .user_agents import USER_AGENTS
+def _get_random_user_agent() -> str:
+    fallback = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+    jsonl_path = Path(__file__).parent / "browsers.jsonl"
+    if not jsonl_path.exists():
+        return fallback
+    try:
+        with open(jsonl_path, "r", encoding="utf-8") as f:
+            lines = [line.strip() for line in f if line.strip()]
+            if not lines:
+                return fallback
+            return json.loads(random.choice(lines)).get("useragent", fallback)
+    except Exception:
+        return fallback
 
-DEFAULT_USER_AGENT = random.choice(USER_AGENTS)
+DEFAULT_USER_AGENT = _get_random_user_agent()
 
 LULUVDO_USER_AGENT = (
     "Mozilla/5.0 (Android 15; Mobile; rv:132.0) Gecko/132.0 Firefox/132.0"
