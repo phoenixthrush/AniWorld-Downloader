@@ -49,6 +49,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         upx -9 /opt/venv/lib/python3.13/site-packages/patchright/driver/node; \
         upx -9 /ms-playwright/chromium-*/chrome-linux*/chrome; \
     fi && \
+    chmod -R a+rX /ms-playwright && \
     rm -rf /tmp/*
 
 # Copy packaging metadata first to maximize caching
@@ -126,9 +127,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # Copy virtual env, playwright browsers, and compressed static ffmpeg/ffprobe from builder stage
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /ms-playwright /ms-playwright
-
-# Grant read/execute access to browsers directory
-RUN chmod -R a+rX /ms-playwright
 
 # Environments
 ENV PATH="/opt/venv/bin:$PATH" \
