@@ -46,6 +46,8 @@ def _extract_file_code(url):
 
     e.g., https://bysezejataos.com/d/56q7gpy3qyo6 -> 56q7gpy3qyo6
     """
+    if not url:
+        return None
     match = FILE_CODE_PATTERN.search(url)
     return match.group("code") if match else None
 
@@ -200,6 +202,8 @@ def _unpack_js(packed, radix, count, keywords):
 
 def _extract_url_from_string(text):
     """Extract a video URL from text content."""
+    if not text:
+        return None
     hls_match = HLS_PATTERN.search(text)
     if hls_match:
         return hls_match.group("url")
@@ -219,6 +223,8 @@ def _extract_url_from_string(text):
 
 def _try_extract_from_html(html):
     """Try to extract video URL from HTML (legacy Filemoon with packed JS)."""
+    if not html:
+        return None
     # Try packed JS
     match = PACKED_JS_PATTERN.search(html)
     if match:
@@ -261,7 +267,9 @@ def get_direct_link_from_filemoon(embeded_filemoon_link, headers=None):
         # Strategy 2: Try legacy HTML scraping (packed JS)
         resp = GLOBAL_SESSION.get(embeded_filemoon_link, headers=headers)
         resp.raise_for_status()
-        html = resp.text
+        # niquests can hand back None text for an empty/undecodable body; keep it
+        # a string so the regex extractors don't raise a confusing TypeError.
+        html = resp.text or ""
 
         url = _try_extract_from_html(html)
         if url:

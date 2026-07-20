@@ -69,16 +69,22 @@ class MegaKinoEpisode:
         selected_language=None,
         selected_provider=None,
     ):
+        url, episode_index = self.__parse_episode_selector(url)
+
         if not self.is_valid_megakino_series_url(url):
             raise ValueError(f"Invalid MegaKino series URL: {url}")
 
         self.url = url
+        # 1-based index of the serial episode this instance targets (None for
+        # movies / when no '#mkep=<n>' marker was given -> first episode).
+        self.__episode_index = episode_index
 
         self.__selected_path_param = selected_path
         self.__selected_language_param = selected_language
         self.__selected_provider_param = selected_provider
 
         self.__provider_data = None
+        self.__series_episodes = None
 
         self.__selected_path = None
         self.__selected_language = None
@@ -142,6 +148,34 @@ class MegaKinoEpisode:
         """Checks if the URL is a valid MegaKino series URL."""
 
         return bool(MEGAKINO_SERIES_PATTERN.match(url))
+
+    @staticmethod
+    def __parse_episode_selector(url):
+        """Split an optional '#mkep=<n>' episode marker off a MegaKino URL.
+
+        Serials list every episode on a single page; the web UI addresses one
+        episode by appending '#mkep=<n>' to the series URL. HTTP never sends the
+        fragment, so it is stripped here and remembered for provider extraction
+        and per-episode file naming.
+        """
+        if not isinstance(url, str):
+            return url, None
+        match = re.search(r"#mkep=(\d+)$", url)
+        if not match:
+            return url, None
+        return url[: match.start()], int(match.group(1))
+
+    @staticmethod
+    def __provider_name_from_url(url):
+        """Map a hoster embed URL to the internal provider name."""
+        host = (urlparse(url).netloc or "").strip().lower()
+        if not host:
+            return None
+        if host.endswith("voe.sx"):
+            return "VOE"
+        if host.endswith("gxplayer.xyz"):
+            return "MegaKino"
+        return host.split(".", 1)[0].upper()
 
     # -----------------------------
     # public properties
@@ -680,24 +714,107 @@ class MegaKinoEpisode:
 
         self.__available_hosts = hosts or None
 
+    @property
+    def is_series(self):
+        """True when the page is a serial (per-episode player selects)."""
+        return bool(self.series_episodes)
+
+    @property
+    def series_episodes(self):
+        """List of serial episodes: {number, id, label, providers}.
+
+        Empty for movie pages, which use the tabs-block iframe layout instead.
+        """
+        if self.__series_episodes is None:
+            self.__series_episodes = self.__extract_series_episodes()
+        return self.__series_episodes
+
+    def __extract_series_episodes(self):
+        # Serials render an episode picker (<select class="... se-select">) whose
+        # option values (ep1, ep2, ...) each map to a provider <select> carrying
+        # that episode's hoster links. Movies have no such picker.
+        select_match = re.search(
+            r"<select\b(?=[^>]*se-select)[^>]*>(.*?)</select>",
+            self._html,
+            re.DOTALL,
+        )
+        if not select_match:
+            return []
+
+        episodes = []
+        for index, option in enumerate(
+            re.finditer(
+                r'<option\s+value=["\']([^"\']+)["\']\s*>(.*?)</option>',
+                select_match.group(1),
+                re.DOTALL,
+            ),
+            start=1,
+        ):
+            episode_id = option.group(1).strip()
+            label = re.sub(r"\s+", " ", option.group(2)).strip() or f"Episode {index}"
+            episodes.append(
+                {
+                    "number": index,
+                    "id": episode_id,
+                    "label": label,
+                    "providers": self.__extract_series_episode_providers(episode_id),
+                }
+            )
+        return episodes
+
+    def __extract_series_episode_providers(self, episode_id):
+        block = re.search(
+            r'<select\b(?=[^>]*id=["\']' + re.escape(episode_id) + r'["\'])'
+            r"(?=[^>]*mr-select)[^>]*>(.*?)</select>",
+            self._html,
+            re.DOTALL,
+        )
+        providers = {}
+        if not block:
+            return providers
+
+        for option in re.finditer(
+            r'<option\s+value=["\']([^"\']+)["\']\s*>(.*?)</option>',
+            block.group(1),
+            re.DOTALL,
+        ):
+            url = option.group(1).strip()
+            provider_name = self.__provider_name_from_url(url)
+            if not provider_name:
+                continue
+            if (
+                f"get_direct_link_from_{provider_name.lower()}"
+                not in provider_functions
+            ):
+                continue
+            providers.setdefault(provider_name, url)
+        return providers
+
+    def __selected_series_providers(self):
+        episodes = self.series_episodes
+        if not episodes:
+            return {}
+        index = self.__episode_index or 1
+        episode = next((ep for ep in episodes if ep["number"] == index), None)
+        return episode["providers"] if episode else {}
+
     def __extract_provider_data(self):
+        # Serials expose every episode on one page; target the selected episode.
+        if self.is_series:
+            providers = self.__selected_series_providers()
+            if not providers:
+                return None
+            return ProviderData({(Audio.GERMAN, Subtitles.NONE): providers})
+
         if self.player_sources is None:
             return None
 
         providers = {}
         for source in self.player_sources:
-            host = (source.get("host") or "").strip().lower()
             url = (source.get("url") or "").strip()
-            if not host or not url:
+            provider_name = self.__provider_name_from_url(url)
+            if not provider_name:
                 continue
-
-            if host.endswith("voe.sx"):
-                provider_name = "VOE"
-            elif host.endswith("gxplayer.xyz"):
-                provider_name = "MegaKino"
-            else:
-                provider_name = host.split(".", 1)[0].upper()
-
             if (
                 f"get_direct_link_from_{provider_name.lower()}"
                 not in provider_functions
@@ -947,7 +1064,12 @@ class MegaKinoEpisode:
     @property
     def _base_folder(self):
         if self.__base_folder is None:
-            if movie_folder_enabled():
+            if self.is_series:
+                # Keep a serial's episodes together in a title folder; the year
+                # is often absent on serial pages, so it is left out.
+                folder_name = clean_title(self.title_cleaned or self.title or "MegaKino")
+                self.__base_folder = Path(self.selected_path) / folder_name
+            elif movie_folder_enabled():
                 folder_name = f"{self.title_cleaned} ({self.release_year})"
                 self.__base_folder = Path(self.selected_path) / folder_name
             else:
@@ -963,7 +1085,11 @@ class MegaKinoEpisode:
     @property
     def _file_name(self):
         if self.__file_name is None:
-            self.__file_name = f"{self.title_cleaned} ({self.release_year})"
+            if self.is_series:
+                episode_number = self.__episode_index or 1
+                self.__file_name = f"{self.title_cleaned} - E{episode_number:02d}"
+            else:
+                self.__file_name = f"{self.title_cleaned} ({self.release_year})"
         return self.__file_name
 
     @property
