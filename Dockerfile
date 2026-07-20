@@ -156,7 +156,7 @@ USER aniworld
 EXPOSE 8080
 
 # This command will be inherited by the final stage
-CMD Xvfb :99 -screen 0 1280x720x24 -nolisten tcp & sleep 1 && exec aniworld --web-ui --web-expose --no-browser --web-port 8080
+CMD ["sh", "-c", "Xvfb :99 -screen 0 1280x720x24 -nolisten tcp & sleep 1 && exec aniworld --web-ui --web-expose --no-browser --web-port 8080"]
 
 
 # ==========================================
@@ -182,4 +182,4 @@ USER aniworld
 
 EXPOSE 8080
 
-CMD Xvfb :99 -screen 0 1280x720x24 -nolisten tcp & sleep 1 && exec aniworld --web-ui --web-expose --no-browser --web-port 8080
+CMD ["sh", "-c", "Xvfb :99 -screen 0 1280x720x24 -nolisten tcp & sleep 1 && exec aniworld --web-ui --web-expose --no-browser --web-port 8080"]
