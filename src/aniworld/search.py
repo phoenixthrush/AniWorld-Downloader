@@ -3,7 +3,7 @@ import os
 import random
 import re
 import niquests
-from urllib.parse import quote_plus, urljoin
+from urllib.parse import quote, quote_plus, urljoin
 
 try:
     from .ascii import display_ascii_art
@@ -746,7 +746,7 @@ def query_filmpalast(keyword):
     base = "https://filmpalast.to"
 
     def _run(term):
-        url = f"{base}/search/title/{quote_plus(term)}"
+        url = f"{base}/search/title/{quote(term)}"
         try:
             resp = GLOBAL_SESSION.get(
                 url,
