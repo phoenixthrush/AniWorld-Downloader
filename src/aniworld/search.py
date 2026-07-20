@@ -71,6 +71,16 @@ def _relevance_score(title: str, keyword: str) -> int:
         return 2
     if k in t:
         return 3
+    # No direct match on the whole phrase: rank by how many of the keyword's
+    # individual words are missing from the title, so partial matches (e.g.
+    # "F1 - Der Film" for "F1 Movie") beat wholly unrelated results.
+    tokens = [tok for tok in re.split(r"\W+", k) if tok]
+    if tokens:
+        title_tokens = set(re.split(r"\W+", t))
+        missing = sum(
+            1 for tok in tokens if tok not in title_tokens and tok not in t
+        )
+        return 4 + missing
     return 4
 
 
@@ -123,8 +133,12 @@ def query_megakino(keyword):
     if not titles_links:
         return []
 
-    keyword_lower = keyword.lower()
-    titles_links = [item for item in titles_links if keyword_lower in item[0].lower()]
+    # MegaKino's own search already decides relevance — it matches titles, alt
+    # titles and page text, not just an exact title substring. Re-filtering to
+    # `keyword in title` dropped valid hits the site returned (e.g. no results
+    # for "F1 Movie" although "F1 - Der Film" was listed; only 9 of 18 "Batman"
+    # hits kept) — issue #248. Trust the site's result set and only reorder so
+    # the closest title matches surface first.
     titles_links.sort(key=lambda item: _relevance_score(item[0], keyword))
 
     return [

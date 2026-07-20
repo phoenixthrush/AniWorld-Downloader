@@ -312,6 +312,9 @@ def _episode_language_labels(provider_data):
     labels = []
     seen = set()
 
+    if not provider_data:
+        return labels
+
     if hasattr(provider_data, "_data"):
         lang_tuple_to_label = {}
         for key, (audio, subtitles) in LANG_KEY_MAP.items():
@@ -1400,6 +1403,26 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         try:
             prov = resolve_provider(url)
             if prov.name in ("MegaKino", "FilmPalast"):
+                # MegaKino serials list many episodes on one page; surface them
+                # as a single season with the real episode count.
+                if prov.name == "MegaKino" and "/serials/" in url.lower():
+                    try:
+                        mk = prov.episode_cls(url=url)
+                        if mk.is_series:
+                            return jsonify(
+                                {
+                                    "seasons": [
+                                        {
+                                            "url": url,
+                                            "season_number": 1,
+                                            "episode_count": len(mk.series_episodes),
+                                            "are_movies": False,
+                                        }
+                                    ]
+                                }
+                            )
+                    except Exception as exc:
+                        logger.warning(f"MegaKino series detection failed: {exc}")
                 return jsonify(
                     {
                         "seasons": [
@@ -1453,6 +1476,21 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
             if prov.name in ("MegaKino", "FilmPalast"):
                 episode = prov.episode_cls(url=url, selected_language="German Dub")
+                if prov.name == "MegaKino" and episode.is_series:
+                    episodes_data = [
+                        {
+                            "url": f"{url}#mkep={ep['number']}",
+                            "episode_number": ep["number"],
+                            "title_de": "",
+                            "title_en": ep["label"] or f"Episode {ep['number']}",
+                            "downloaded": False,
+                            "available_languages": ["German Dub"]
+                            if ep["providers"]
+                            else [],
+                        }
+                        for ep in episode.series_episodes
+                    ]
+                    return jsonify({"episodes": episodes_data})
                 title = getattr(episode, "title_cleaned", None) or getattr(
                     episode, "title", ""
                 )
@@ -1723,6 +1761,8 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             else:
                 episode = prov.episode_cls(url=url)
             pd = episode.provider_data
+            if pd is None:
+                return jsonify({"providers": {}})
 
             disable_eng_sub = os.environ.get("ANIWORLD_DISABLE_ENGLISH_SUB", "0") == "1"
             provider_info = {}
