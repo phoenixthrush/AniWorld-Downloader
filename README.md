@@ -82,10 +82,9 @@ For full user guides, tutorials, and troubleshooting, visit the [official docume
 
 This project is actively being improved. Current work in progress includes:
 
-- [ ] implement GLOBAL_SESSION imports lazy loading
+- [ ] def unzip() for Windows in .zip and .7z files
 - [ ] fix episode download cleanup on KeyboardInterrupt in menu
 - [ ] add support for aniskip feature on IINA
-- [ ] Split Web UI SSO dependencies into separate `extras` section
 - [ ] Implement `keep-watching` argument for continuous playback
 - [ ] Fix Nuitka build crash: use Python 3.12 (non-MSVC builds unsupported on newer versions)
 - [ ] Remove empty lines below actions when running `docker run -it`

@@ -202,7 +202,9 @@ class MangaFireToChapter:
         format: str = "",
     ):
         """Set up the chapter."""
-        self.mangafire_format = format.strip().lower() or getenv("MANGAFIRE_FORMAT", "jpg").strip().lower()
+        self.mangafire_format = (
+            format.strip().lower() or getenv("MANGAFIRE_FORMAT", "jpg").strip().lower()
+        )
         self._series = series
         self.chapter_url = url
         self.chapter_id = chapter_id
@@ -413,7 +415,7 @@ class MangaFireToChapter:
             folder = Path(folder)
 
         cbz_path = folder.with_suffix(".cbz")
-        
+
         chapter_progress = (
             f"{chapter_index:03}/{total_chapters:03}"
             if chapter_index and total_chapters
@@ -445,7 +447,9 @@ class MangaFireToChapter:
         pages_to_download = [p for p in pages if p.file_name not in existing_files]
 
         if not pages_to_download:
-            print(f"[SKIP] [{chapter_progress}] {cbz_path.name} (all selected pages already in archive)")
+            print(
+                f"[SKIP] [{chapter_progress}] {cbz_path.name} (all selected pages already in archive)"
+            )
             return cbz_path
 
         folder.mkdir(parents=True, exist_ok=True)
@@ -460,7 +464,7 @@ class MangaFireToChapter:
                 file_path = folder / page.file_name
                 if file_path.exists():
                     zf.write(file_path, arcname=page.file_name)
-                    
+
         shutil.rmtree(folder, ignore_errors=True)
 
         return cbz_path

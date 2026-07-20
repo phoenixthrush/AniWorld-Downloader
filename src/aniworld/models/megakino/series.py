@@ -367,7 +367,6 @@ class MegaKinoEpisode:
             self.__extract_recommended_entries()
         return self.__recommended_entries
 
-    # TODO: implement html fetch
     @property
     def _html(self):
         if self.__html is None:
@@ -1067,7 +1066,9 @@ class MegaKinoEpisode:
             if self.is_series:
                 # Keep a serial's episodes together in a title folder; the year
                 # is often absent on serial pages, so it is left out.
-                folder_name = clean_title(self.title_cleaned or self.title or "MegaKino")
+                folder_name = clean_title(
+                    self.title_cleaned or self.title or "MegaKino"
+                )
                 self.__base_folder = Path(self.selected_path) / folder_name
             elif movie_folder_enabled():
                 folder_name = f"{self.title_cleaned} ({self.release_year})"

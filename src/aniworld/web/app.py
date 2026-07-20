@@ -545,7 +545,9 @@ def _queue_worker():
                         chapter_url = (ep_url.get("url") or "").strip()
                         series_url = (ep_url.get("series_url") or "").strip() or None
                         selected_pages = ep_url.get("selected_pages")
-                        mangafire_format = ep_url.get("mangafire_format", mangafire_format)
+                        mangafire_format = ep_url.get(
+                            "mangafire_format", mangafire_format
+                        )
                     prov = resolve_provider(chapter_url)
                     if prov.name == "MangaFire":
                         if not series_url:
@@ -752,10 +754,10 @@ def _run_autosync_for_job(job):
             # Collect all episode URLs that are NOT yet downloaded
             missing_episodes = []
             lang_total_found = 0
-            
+
             for season in series.seasons:
                 season_obj = prov.season_cls(url=season.url, series=series)
-                
+
                 ep_lang_map = {}
                 if hasattr(season_obj, "_html"):
                     html = season_obj._html
@@ -771,10 +773,10 @@ def _run_autosync_for_job(job):
                             if tr_start == -1 or tr_end == -1:
                                 pos += len(marker)
                                 continue
-                            
+
                             tr_html = html[tr_start:tr_end]
                             ep_url = None
-                            
+
                             url_pos = tr_html.find('itemprop="url"')
                             if url_pos != -1:
                                 h_start = tr_html.find('href="', url_pos) + 6
@@ -788,23 +790,29 @@ def _run_autosync_for_job(job):
                                     h_start = tr_html.rfind('href="', 0, href_pos) + 6
                                     h_end = tr_html.find('"', h_start)
                                     ep_url = tr_html[h_start:h_end]
-                                    
+
                             if ep_url:
                                 from urllib.parse import urlparse
-                                ep_url = urlparse(ep_url).path.rstrip('/')
+
+                                ep_url = urlparse(ep_url).path.rstrip("/")
                                 lgs = set()
-                                if "/german.svg" in tr_html: lgs.add("German Dub")
-                                if "/japanese-german.svg" in tr_html: lgs.add("German Sub")
-                                if "/japanese-english.svg" in tr_html: lgs.add("English Sub")
-                                if "/english.svg" in tr_html: lgs.add("English Dub")
+                                if "/german.svg" in tr_html:
+                                    lgs.add("German Dub")
+                                if "/japanese-german.svg" in tr_html:
+                                    lgs.add("German Sub")
+                                if "/japanese-english.svg" in tr_html:
+                                    lgs.add("English Sub")
+                                if "/english.svg" in tr_html:
+                                    lgs.add("English Dub")
                                 ep_lang_map[ep_url] = lgs
-                            
+
                             pos = tr_end
-                                
+
                 for ep in season_obj.episodes:
                     if ep_lang_map:
                         from urllib.parse import urlparse
-                        ep_path = urlparse(ep.url).path.rstrip('/')
+
+                        ep_path = urlparse(ep.url).path.rstrip("/")
                         lgs = ep_lang_map.get(ep_path)
                         if lgs is not None and target_lang not in lgs:
                             continue
@@ -1201,6 +1209,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     def favicon():
         import os
         from flask import send_from_directory
+
         return send_from_directory(
             os.path.join(app.root_path, "static"),
             "favicon.ico",
@@ -1815,7 +1824,9 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         provider = data.get("provider", "VOE")
         title = data.get("title", "Unknown")
         series_url = data.get("series_url", "")
-        mangafire_format = data.get("mangafire_format") or os.environ.get("MANGAFIRE_FORMAT", "jpg")
+        mangafire_format = data.get("mangafire_format") or os.environ.get(
+            "MANGAFIRE_FORMAT", "jpg"
+        )
 
         if provider == "MangaFire":
             for i, ep in enumerate(episodes):
@@ -2003,6 +2014,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             return "", 400
         try:
             from ..config import GLOBAL_SESSION, DEFAULT_USER_AGENT
+
             proxy_headers = {"User-Agent": DEFAULT_USER_AGENT}
             if "hanime" in target:
                 proxy_headers["Referer"] = "https://hanime.tv/"

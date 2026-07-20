@@ -190,7 +190,6 @@ class SerienstreamSeries:
 
         return None
 
-    # TODO: description is clamped in html and loaded via js
     def __extract_description(self):
         """
         <span class="description-text">„American Horror Story“ ist eine US-amerikanische Horror - Fernsehserie. Jede ihrer Staffel setzt sich mit einem anderen Thema auseinander. Während die erste Staffel von einem Geisterhaus handelt, in welches die Familie Harmon unwissend einzieht, schildert die zweite Staffel die Geschehnisse in einer Nervenklinik im Jahre 1964. Die dritte Staffel beschäftigt sich mit einer kleinen </span>

@@ -99,6 +99,7 @@ def get_video_codec():
 
 # NIQUESTS
 
+
 def _get_random_user_agent() -> str:
     fallback = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
     jsonl_path = Path(__file__).parent / "browsers.jsonl"
@@ -112,6 +113,7 @@ def _get_random_user_agent() -> str:
             return json.loads(random.choice(lines)).get("useragent", fallback)
     except Exception:
         return fallback
+
 
 DEFAULT_USER_AGENT = _get_random_user_agent()
 

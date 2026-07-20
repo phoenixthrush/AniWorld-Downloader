@@ -77,9 +77,7 @@ def _relevance_score(title: str, keyword: str) -> int:
     tokens = [tok for tok in re.split(r"\W+", k) if tok]
     if tokens:
         title_tokens = set(re.split(r"\W+", t))
-        missing = sum(
-            1 for tok in tokens if tok not in title_tokens and tok not in t
-        )
+        missing = sum(1 for tok in tokens if tok not in title_tokens and tok not in t)
         return 4 + missing
     return 4
 
