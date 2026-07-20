@@ -377,7 +377,7 @@ const thumbColors = {
   cineby: { bg: "linear-gradient(135deg, #22d3ee, #0891b2)", shadow: "0 2px 8px rgba(34, 211, 238, 0.35)" },
   kinox: { bg: "linear-gradient(135deg, #34d399, #059669)", shadow: "0 2px 8px rgba(52, 211, 153, 0.35)" },
   burningseries: { bg: "linear-gradient(135deg, #fb923c, #ea580c)", shadow: "0 2px 8px rgba(251, 146, 60, 0.35)" },
-  filmpalast: { bg: "linear-gradient(135deg, #a78bfa, #7c3aed)", shadow: "0 2px 8px rgba(167, 139, 250, 0.35)" },
+  filmpalast: { bg: "linear-gradient(135deg, #84cc16, #4d7c0f)", shadow: "0 2px 8px rgba(132, 204, 22, 0.35)" },
   mangafire: { bg: "linear-gradient(135deg, #f59e0b, #b45309)", shadow: "0 2px 8px rgba(245, 158, 11, 0.35)" },
   htv: { bg: "linear-gradient(135deg, #ff4fa3, #db2777)", shadow: "0 2px 8px rgba(255, 79, 163, 0.35)" },
 };
