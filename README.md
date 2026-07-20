@@ -254,6 +254,7 @@ AniWorld Downloader builds upon the work of several outstanding open-source proj
 - **[Aniskip](https://api.aniskip.com/api-docs)** – Provides opening and ending skip times for the Aniskip extension
 - **[flag-icons](https://github.com/lipis/flag-icons)** – Collection of SVG country flags
 - **[new-domain-check](https://github.com/Yezun-hikari/new-domain-check)** – Constant checks for new redirects on megakino
+- **[fake-useragent](https://github.com/fake-useragent/fake-useragent)** - Simple useragent faker with real world database
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
