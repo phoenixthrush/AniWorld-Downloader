@@ -787,12 +787,13 @@ def _run_autosync_for_job(job):
                                     ep_url = tr_html[h_start:h_end]
                                     
                             if ep_url:
-                                ep_url = ep_url.rstrip('/')
+                                from urllib.parse import urlparse
+                                ep_url = urlparse(ep_url).path.rstrip('/')
                                 lgs = set()
-                                if "german.svg" in tr_html: lgs.add("German Dub")
-                                if "japanese-german.svg" in tr_html: lgs.add("German Sub")
-                                if "japanese-english.svg" in tr_html: lgs.add("English Sub")
-                                if "english.svg" in tr_html: lgs.add("English Dub")
+                                if "/german.svg" in tr_html: lgs.add("German Dub")
+                                if "/japanese-german.svg" in tr_html: lgs.add("German Sub")
+                                if "/japanese-english.svg" in tr_html: lgs.add("English Sub")
+                                if "/english.svg" in tr_html: lgs.add("English Dub")
                                 ep_lang_map[ep_url] = lgs
                             
                             pos = tr_end
