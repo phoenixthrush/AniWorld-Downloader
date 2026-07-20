@@ -121,6 +121,8 @@ LULUVDO_USER_AGENT = (
 # every run, even though the actual fetch only takes about a second
 GLOBAL_SESSION = Session(
     resolver=["doh+google://"],
+    disable_http3=True,
+    multiplexed=False,
     headers={
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Sec-Fetch-Site": "none",
