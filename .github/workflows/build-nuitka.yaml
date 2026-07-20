@@ -37,7 +37,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ runner.os }} Build
+          include-hidden-files: true
           path: |
-            build/*.exe
-            build/*.bin
-            build/*.app/**/*
+            build/AniWorldDownloader.exe
+            build/AniWorldDownloader
+            build/aniworld.app/**/*

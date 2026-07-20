@@ -39,4 +39,10 @@ import sys
 
 from .entry import aniworld
 
-sys.exit(aniworld())
+
+def main():
+    return aniworld()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

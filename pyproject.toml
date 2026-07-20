@@ -61,6 +61,9 @@ discord = "https://discord.com/invite/BfDvrKd8V5"
 
 [tool.setuptools.package-data]
 aniworld = [
+  ".env.example",
+  "ascii/ASCII.txt",
+  "aniskip/scripts/*.lua",
   "web/templates/*.html",
   "web/static/*.css",
   "web/static/*.js",

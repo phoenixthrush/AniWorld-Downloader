@@ -9,6 +9,11 @@ ENV_LINE_RE = re.compile(r"^([^#\n=]+?)=(.*)$")
 
 def merge_env(example_path: Path, env_path: Path):
     env_path.parent.mkdir(parents=True, exist_ok=True)
+    if not example_path.exists():
+        if env_path.exists():
+            load_dotenv(env_path)
+        return
+
     example_lines = example_path.read_text().splitlines()
 
     # Load existing values from old env
