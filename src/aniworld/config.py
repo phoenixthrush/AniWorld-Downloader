@@ -102,24 +102,29 @@ def get_video_codec():
 def _get_random_user_agent() -> str:
     fallback = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
     jsonl_path = Path(__file__).parent / "browsers.jsonl"
+    
     if not jsonl_path.exists():
         return fallback
+        
+    valid_agents = []
     try:
+        # Stream the file to avoid loading all 10,000 lines into memory
         with open(jsonl_path, "r", encoding="utf-8") as f:
-            lines = [line.strip() for line in f if line.strip()]
-            if not lines:
-                return fallback
-            
-            valid_os = {"Windows", "Mac OS X"}
-            # Maximal 50 Versuche, um schnell einen passenden Eintrag zu finden (meistens klappt es im 1. oder 2. Versuch)
-            for _ in range(50):
-                data = json.loads(random.choice(lines))
-                if data.get("os") in valid_os:
-                    return data.get("useragent", fallback)
-            
-            return fallback
+            for line in f:
+                # Fast string pre-filter before expensive JSON parsing
+                if '"Windows"' in line or '"Mac OS X"' in line:
+                    data = json.loads(line)
+                    if data.get("os") in ("Windows", "Mac OS X"):
+                        ua = data.get("useragent")
+                        if ua:
+                            valid_agents.append(ua)
+                            
+        if valid_agents:
+            return random.choice(valid_agents)
     except Exception:
-        return fallback
+        pass
+        
+    return fallback
 
 DEFAULT_USER_AGENT = _get_random_user_agent()
 
