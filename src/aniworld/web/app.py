@@ -757,9 +757,10 @@ def _run_autosync_for_job(job):
                     html = season_obj._html
                     if html:
                         for tr in re.findall(r'<tr[^>]*itemtype="http://schema.org/Episode".*?</tr>', html, re.IGNORECASE | re.DOTALL):
-                            m = re.search(r'href="(/[^"]+)"', tr)
+                            # Target specific episode/film URLs to avoid capturing generic links
+                            m = re.search(r'href="(/[^"]+/(?:episode|film|ova)-[^"]+)"', tr, re.IGNORECASE)
                             if m:
-                                e_url = m.group(1)
+                                e_url = m.group(1).rstrip('/')
                                 lgs = set()
                                 if "german.svg" in tr: lgs.add("German Dub")
                                 if "japanese-german.svg" in tr: lgs.add("German Sub")
@@ -770,7 +771,7 @@ def _run_autosync_for_job(job):
                 for ep in season_obj.episodes:
                     if ep_lang_map:
                         from urllib.parse import urlparse
-                        ep_path = urlparse(ep.url).path
+                        ep_path = urlparse(ep.url).path.rstrip('/')
                         lgs = ep_lang_map.get(ep_path)
                         if lgs is not None and target_lang not in lgs:
                             continue
