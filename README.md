@@ -88,7 +88,18 @@ Full guides and troubleshooting live in the [documentation](https://www.phoenixt
 | Kinox | Movies and series | Disabled by default because downloads often require a manual captcha |
 | BurningSeries | Series | Disabled by default because access depends on region and reCAPTCHA |
 
-For AniWorld and SerienStream, the downloader currently prioritizes VOE, Vidmoly, Vidoza, and Doodstream. Availability changes often because these are third-party services. A hoster working today can have a bad day tomorrow, so fallback order matters.
+### Stream Providers
+
+| Provider | Status | Last Checked |
+| --- | --- | --- |
+| VOE | Working | 07/26 |
+| Filemoon | Working | 07/26 |
+| Vidmoly | Untested | XX/XX |
+| Vidoza | Untested | XX/XX |
+| Doodstream | Untested | XX/XX |
+| MegaKino | Broken | 07/26 |
+
+Availability depends on the selected site and episode. When a provider fails, the downloader can try the others in your configured fallback order. These are third-party services, so availability can change without warning.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
