@@ -84,9 +84,13 @@ def _relevance_score(title: str, keyword: str) -> int:
 
 def query_megakino(keyword):
     """Search MegaKino and return a list of matching results with posters."""
-    from .models.megakino.series import MEGAKINO_DOMAIN
+    try:
+        from .models.megakino.series import get_megakino_domain
 
-    base_url = f"https://{MEGAKINO_DOMAIN}"
+        base_url = f"https://{get_megakino_domain()}"
+    except Exception as exc:
+        logger.error(f"Failed to resolve MegaKino domain: {exc}")
+        return []
     token_url = f"{base_url}/index.php?yg=token"
     headers = {"Accept-Encoding": "identity"}
 
@@ -225,9 +229,13 @@ def _fetch_megakino_homepage():
     if _megakino_homepage_cache is not None:
         return _megakino_homepage_cache
 
-    from .models.megakino.series import MEGAKINO_DOMAIN
+    try:
+        from .models.megakino.series import get_megakino_domain
 
-    base_url = f"https://{MEGAKINO_DOMAIN}"
+        base_url = f"https://{get_megakino_domain()}"
+    except Exception as exc:
+        logger.error(f"Failed to resolve MegaKino domain: {exc}")
+        return None
     token_url = f"{base_url}/index.php?yg=token"
     headers = {"Accept-Encoding": "identity"}
 
@@ -283,9 +291,11 @@ def _extract_megakino_homepage_section(html, heading_hints, fallback_index):
     if not section_html:
         return []
 
-    from .models.megakino.series import MEGAKINO_DOMAIN
+    from .models.megakino.series import get_megakino_domain
 
-    cards = _extract_megakino_cards(section_html, f"https://{MEGAKINO_DOMAIN}")
+    cards = _extract_megakino_cards(
+        section_html, f"https://{get_megakino_domain()}"
+    )
     return [
         {"title": title, "url": url, "poster_url": poster_url}
         for title, url, poster_url in cards

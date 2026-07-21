@@ -1,5 +1,6 @@
 import os
 import re
+from functools import lru_cache
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
@@ -54,11 +55,22 @@ except ImportError:
         watch as episode_watch,
     )
 
-MEGAKINO_DOMAIN = niquests.get(
+MEGAKINO_DOMAIN_SOURCE = (
     "https://raw.githubusercontent.com/Yezun-hikari/new-domain-check/refs/heads/main/monitors/megakino/domain.txt"
-).text.strip()
+)
 
-# MEGAKINO_DOMAIN = "megakino.to"
+
+@lru_cache(maxsize=1)
+def get_megakino_domain():
+    """Fetch the current MegaKino domain only when MegaKino browsing needs it."""
+    response = niquests.get(MEGAKINO_DOMAIN_SOURCE, timeout=15)
+    response.raise_for_status()
+
+    domain = response.text.strip().lower()
+    domain = re.sub(r"^https?://", "", domain).split("/", 1)[0]
+    if not re.fullmatch(r"(?:[a-z0-9-]+\.)+[a-z]{2,}", domain):
+        raise RuntimeError("MegaKino domain tracker returned an invalid domain")
+    return domain
 
 
 class MegaKinoEpisode:
