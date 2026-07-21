@@ -1,8 +1,8 @@
 name: Build Executable with Nuitka
 
 on:
-  # release:
-  #  types: [published]
+  release:
+    types: [published]
   workflow_dispatch:
 
 jobs:
@@ -12,6 +12,8 @@ jobs:
         os: [macos-latest, ubuntu-latest, windows-latest]
 
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
 
     steps:
       - name: Check-out repository
@@ -42,3 +44,24 @@ jobs:
             build/AniWorldDownloader.exe
             build/AniWorldDownloader
             build/aniworld.app/**/*
+
+      - name: Prepare Release Assets
+        shell: bash
+        run: |
+          cd build || exit 0
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            tar -czf AniWorldDownloader-macOS.tar.gz aniworld.app 2>/dev/null || echo "No aniworld.app found"
+          elif [ "${{ runner.os }}" = "Windows" ]; then
+            mv AniWorldDownloader.exe AniWorldDownloader-Windows.exe 2>/dev/null || mv aniworld.exe AniWorldDownloader-Windows.exe 2>/dev/null || echo "No exe found"
+          else
+            mv AniWorldDownloader AniWorldDownloader-Linux 2>/dev/null || mv aniworld AniWorldDownloader-Linux 2>/dev/null || echo "No linux bin found"
+          fi
+
+      - name: Upload to GitHub Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/AniWorldDownloader-Windows.exe
+            build/AniWorldDownloader-Linux
+            build/AniWorldDownloader-macOS.tar.gz
