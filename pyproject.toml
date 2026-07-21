@@ -1,6 +1,6 @@
 [project]
 name = "aniworld"
-version = "4.8.1"
+version = "4.8.2"
 authors = [{ name = "Phoenixthrush UwU", email = "contact@phoenixthrush.com" }]
 maintainers = [
   { name = "Phoenixthrush UwU", email = "contact@phoenixthrush.com" },
