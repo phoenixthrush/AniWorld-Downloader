@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 # requires version numbers from 06/2026
 dependencies = [
+  "certifi",                                                                  # CA bundle for bundled runtimes
   "niquests",                                                                 # >=3.7
   "npyscreen",                                                                # >=3.7
   "ffmpeg-python",                                                            # ???

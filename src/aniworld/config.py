@@ -8,6 +8,7 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 import random
+import certifi
 from niquests import Session
 from packaging.version import parse as parse_version
 
@@ -20,6 +21,11 @@ try:
     VERSION = version("aniworld")
 except PackageNotFoundError:
     VERSION = None
+
+CA_CERT_BUNDLE = certifi.where()
+os.environ.setdefault("SSL_CERT_FILE", CA_CERT_BUNDLE)
+os.environ.setdefault("REQUESTS_CA_BUNDLE", CA_CERT_BUNDLE)
+os.environ.setdefault("CURL_CA_BUNDLE", CA_CERT_BUNDLE)
 
 
 def get_latest_version():
@@ -99,13 +105,14 @@ def get_video_codec():
 
 # NIQUESTS
 
+
 def _get_random_user_agent() -> str:
     fallback = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
     jsonl_path = Path(__file__).parent / "browsers.jsonl"
-    
+
     if not jsonl_path.exists():
         return fallback
-        
+
     valid_agents = []
     try:
         # Stream the file to avoid loading all 10,000 lines into memory
@@ -118,13 +125,14 @@ def _get_random_user_agent() -> str:
                         ua = data.get("useragent")
                         if ua:
                             valid_agents.append(ua)
-                            
+
         if valid_agents:
             return random.choice(valid_agents)
     except Exception:
         pass
-        
+
     return fallback
+
 
 DEFAULT_USER_AGENT = _get_random_user_agent()
 
@@ -144,6 +152,7 @@ GLOBAL_SESSION = Session(
     resolver=["doh+cloudflare://"],
     disable_http3=True,
     multiplexed=False,
+    verify=CA_CERT_BUNDLE,
     headers={
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Sec-Fetch-Site": "none",
