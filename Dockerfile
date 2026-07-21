@@ -47,11 +47,11 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     chrome_dir=$(ls -d /ms-playwright/chromium-* | grep -v headless_shell | head -n 1) && \
     rm -rf "$headless_dir" && \
     ln -s "$(basename "$chrome_dir")" "$headless_dir" && \
-    ln -s chrome "$chrome_dir/chrome-linux/headless_shell" && \
+    ln -s chrome "$chrome_dir/chrome-linux64/headless_shell" && \
     arch=$(dpkg --print-architecture) && \
     if [ "$arch" = "amd64" ]; then \
         upx -9 /opt/venv/lib/python3.13/site-packages/patchright/driver/node; \
-        upx -9 "$chrome_dir/chrome-linux/chrome"; \
+        upx -9 "$chrome_dir/chrome-linux64/chrome"; \
     fi && \
     chmod -R a+rX /ms-playwright && \
     rm -rf /tmp/*
