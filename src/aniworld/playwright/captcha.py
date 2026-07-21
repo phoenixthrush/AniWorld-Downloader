@@ -1815,7 +1815,7 @@ def playwright_get_iframe_url(url: str, timeout: int = 20) -> str:
 
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=False, args=_stealth_launch_args(True))
+            browser = p.chromium.launch(headless=True, args=["--disable-gpu"])
             context = browser.new_context(viewport={"width": 1280, "height": 720})
             _inject_session_cookies(context, url)
             page = context.new_page()
@@ -1862,8 +1862,8 @@ def playwright_get_hanime_manifest_token(url: str, timeout: int = 15) -> str:
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(
-                headless=False,
-                args=_stealth_launch_args(True),
+                headless=True,
+                args=["--disable-gpu"],
             )
             context = browser.new_context(
                 viewport={"width": 1280, "height": 720},
@@ -1976,7 +1976,7 @@ def playwright_get_cineby_stream_url(url: str, timeout: int = 40) -> str:
 
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=False, args=_stealth_launch_args(True))
+            browser = p.chromium.launch(headless=True, args=["--disable-gpu"])
             context = browser.new_context(
                 viewport={"width": 1280, "height": 720}, locale="en-US"
             )
