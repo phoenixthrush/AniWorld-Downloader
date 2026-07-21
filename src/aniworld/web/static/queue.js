@@ -48,9 +48,16 @@ function formatBandwidth(bwStr) {
   return mbytes.toFixed(1) + " MB/s";
 }
 
+let queueFetchController = null;
+
 async function loadQueue() {
+  if (queueFetchController) {
+    queueFetchController.abort();
+  }
+  const controller = new AbortController();
+  queueFetchController = controller;
   try {
-    const resp = await fetch("/api/queue");
+    const resp = await fetch("/api/queue", { signal: controller.signal });
     const data = await resp.json();
     const items = data.items || [];
     lastFfmpegProgress = data.ffmpeg_progress || {};
@@ -58,6 +65,10 @@ async function loadQueue() {
     updateBadge(items);
   } catch (e) {
     /* ignore */
+  } finally {
+    if (queueFetchController === controller) {
+      queueFetchController = null;
+    }
   }
 }
 
