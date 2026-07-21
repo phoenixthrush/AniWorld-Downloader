@@ -568,6 +568,25 @@ def clear_captcha_url(queue_id: int):
         conn.close()
 
 
+_force_cancelled_queue_ids = set()
+
+def force_cancel_queue_item(queue_id):
+    ok, err = cancel_queue_item(queue_id)
+    if not ok:
+        # If it's already cancelled, we can still force cancel it
+        if err == "Can only cancel running items":
+            conn = get_db()
+            try:
+                row = conn.execute("SELECT status FROM download_queue WHERE id = ?", (queue_id,)).fetchone()
+                if row and row["status"] == "cancelled":
+                    _force_cancelled_queue_ids.add(queue_id)
+                    return True, None
+            finally:
+                conn.close()
+        return False, err
+    _force_cancelled_queue_ids.add(queue_id)
+    return True, None
+
 def cancel_queue_item(queue_id):
     conn = get_db()
     try:
@@ -597,6 +616,12 @@ def is_queue_cancelled(queue_id):
         return row and row["status"] == "cancelled"
     finally:
         conn.close()
+
+def is_queue_force_cancelled(queue_id):
+    return queue_id in _force_cancelled_queue_ids
+
+def clear_force_cancelled(queue_id):
+    _force_cancelled_queue_ids.discard(queue_id)
 
 
 def remove_from_queue(queue_id):
