@@ -146,19 +146,13 @@ function renderQueue(items) {
 
       // Combine episode progress with in-episode ffmpeg progress
       let ffPct = 0;
-      if (isRunning && lastFfmpegProgress.active && item.total_episodes > 0) {
+      if ((isRunning || isCancelling) && lastFfmpegProgress.active && item.total_episodes > 0) {
         ffPct = (lastFfmpegProgress.percent || 0) / item.total_episodes;
       }
       const combinedPct = Math.min(Math.round(epPct + ffPct), 100);
 
       let label;
-      if (isCancelling) {
-        label =
-          item.current_episode +
-          "/" +
-          item.total_episodes +
-          " episodes - finishing current episode...";
-      } else if (item.status === "cancelled") {
+      if (item.status === "cancelled" && !isCancelling) {
         label =
           item.current_episode +
           "/" +
@@ -175,6 +169,9 @@ function renderQueue(items) {
             "%" +
             (bw ? " @ " + bw : "") +
             ")";
+        }
+        if (isCancelling) {
+          epDetail += " - finishing current episode...";
         }
         label = epDetail;
       }
