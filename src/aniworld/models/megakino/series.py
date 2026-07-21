@@ -55,9 +55,7 @@ except ImportError:
         watch as episode_watch,
     )
 
-MEGAKINO_DOMAIN_SOURCE = (
-    "https://raw.githubusercontent.com/Yezun-hikari/new-domain-check/refs/heads/main/monitors/megakino/domain.txt"
-)
+MEGAKINO_DOMAIN_SOURCE = "https://raw.githubusercontent.com/Yezun-hikari/new-domain-check/refs/heads/main/monitors/megakino/domain.txt"
 
 
 @lru_cache(maxsize=1)

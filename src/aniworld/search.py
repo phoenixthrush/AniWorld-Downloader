@@ -293,9 +293,7 @@ def _extract_megakino_homepage_section(html, heading_hints, fallback_index):
 
     from .models.megakino.series import get_megakino_domain
 
-    cards = _extract_megakino_cards(
-        section_html, f"https://{get_megakino_domain()}"
-    )
+    cards = _extract_megakino_cards(section_html, f"https://{get_megakino_domain()}")
     return [
         {"title": title, "url": url, "poster_url": poster_url}
         for title, url, poster_url in cards
