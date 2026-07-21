@@ -21,7 +21,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         echo "$PROXY_CA_CERT_B64" | base64 -d > /usr/local/share/ca-certificates/proxy-ca.crt && \
         update-ca-certificates; \
     fi && \
-    apt-get update && apt-get install -y --no-install-recommends upx-ucl
+    apt-get update && apt-get install -y --no-install-recommends --option=Apt::Retries=3 upx-ucl
 
 
 
@@ -106,7 +106,7 @@ RUN adduser --disabled-password --gecos "" aniworld \
 # Install minimal system dependencies (xvfb and core Chromium shared libraries) (with cache)
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update && apt-get install -y --no-install-recommends \
+    apt-get update && apt-get install -y --no-install-recommends --option=Apt::Retries=3 \
     xvfb \
     ffmpeg \
     libnss3 \
