@@ -1,6 +1,7 @@
 import re
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 try:
@@ -106,8 +107,9 @@ def unzip(file_path, target_dir):
 
     if file_path.suffix.lower() == ".zip":
         if sys.platform.startswith("win"):
-            # TODO: implement
-            pass
+            print(f"Extracting ZIP: {file_path} -> {target_dir}")
+            with zipfile.ZipFile(file_path) as archive:
+                archive.extractall(target_dir)
         else:
             # Use system unzip on macOS/Linux
             print(f"Extracting ZIP: {file_path} -> {target_dir}")
@@ -117,8 +119,25 @@ def unzip(file_path, target_dir):
     elif file_path.suffix.lower() == ".7z":
         # use 7z
         if sys.platform.startswith("win"):
-            # TODO: implement
-            pass
+            try:
+                from ..autodeps import DependencyManager
+            except ImportError:
+                from aniworld.autodeps import DependencyManager
+
+            seven_zip_path = DependencyManager().fetch_binary(
+                "7z", prompt_user=False
+            )
+            print(f"Extracting 7z: {file_path} -> {target_dir}")
+            subprocess.run(
+                [
+                    str(seven_zip_path),
+                    "x",
+                    str(file_path),
+                    f"-o{target_dir}",
+                    "-y",
+                ],
+                check=True,
+            )
         else:
             # Use system 7z on macOS/Linux
             print(f"Extracting 7z: {file_path} -> {target_dir}")
