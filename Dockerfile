@@ -21,7 +21,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         echo "$PROXY_CA_CERT_B64" | base64 -d > /usr/local/share/ca-certificates/proxy-ca.crt && \
         update-ca-certificates; \
     fi && \
-    apt-get update && apt-get install -y --no-install-recommends upx-ucl
+    apt-get update && apt-get install -y --no-install-recommends --option=Apt::Retries=3 upx-ucl
 
 
 
@@ -47,11 +47,12 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     chrome_dir=$(ls -d /ms-playwright/chromium-* | grep -v headless_shell | head -n 1) && \
     rm -rf "$headless_dir" && \
     ln -s "$(basename "$chrome_dir")" "$headless_dir" && \
-    ln -s chrome "$chrome_dir/chrome-linux64/headless_shell" && \
+    chrome_inner_dir=$(ls -d "$chrome_dir"/chrome-* | head -n 1) && \
+    ln -s chrome "$chrome_inner_dir/headless_shell" && \
     arch=$(dpkg --print-architecture) && \
     if [ "$arch" = "amd64" ]; then \
         upx -9 /opt/venv/lib/python3.13/site-packages/patchright/driver/node; \
-        upx -9 "$chrome_dir/chrome-linux64/chrome"; \
+        upx -9 "$chrome_inner_dir/chrome"; \
     fi && \
     chmod -R a+rX /ms-playwright && \
     rm -rf /tmp/*
@@ -106,7 +107,7 @@ RUN adduser --disabled-password --gecos "" aniworld \
 # Install minimal system dependencies (xvfb and core Chromium shared libraries) (with cache)
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update && apt-get install -y --no-install-recommends \
+    apt-get update && apt-get install -y --no-install-recommends --option=Apt::Retries=3 \
     xvfb \
     ffmpeg \
     libnss3 \
