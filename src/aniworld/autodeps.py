@@ -445,10 +445,23 @@ def _ensure_xvfb():
     os.environ["DISPLAY"] = ":99"
 
 
+def _default_playwright_browsers_path() -> Path:
+    """Return Playwright's platform-specific browser cache directory."""
+    if PLATFORM == "Windows":
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        if local_app_data:
+            return Path(local_app_data) / "ms-playwright"
+        return Path.home() / "AppData" / "Local" / "ms-playwright"
+
+    if PLATFORM == "Darwin":
+        return Path.home() / "Library" / "Caches" / "ms-playwright"
+
+    cache_dir = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
+    return cache_dir / "ms-playwright"
+
+
 def ensure_patchright_chromium():
     """Install the patchright Chromium browser if not already present."""
-    import sys
-
     _log = get_logger(__name__)
     try:
         import patchright  # noqa: F401
@@ -458,15 +471,30 @@ def ensure_patchright_chromium():
 
     _ensure_xvfb()
     try:
+        from patchright._impl._driver import compute_driver_executable, get_driver_env
+
+        os.environ.setdefault(
+            "PLAYWRIGHT_BROWSERS_PATH",
+            _default_playwright_browsers_path().resolve().as_posix(),
+        )
+
+        driver_executable, driver_cli = compute_driver_executable()
+        driver_path = Path(driver_executable).resolve()
+        os.environ.setdefault("PLAYWRIGHT_NODEJS_PATH", driver_path.as_posix())
+
+        if PLATFORM != "Windows" and not os.access(driver_path, os.X_OK):
+            driver_path.chmod(driver_path.stat().st_mode | 0o111)
+
         _log.debug("Installing patchright chromium (this may take a moment)...")
         subprocess.run(
-            [sys.executable, "-m", "patchright", "install", "chromium"],
+            [driver_path.as_posix(), driver_cli, "install", "chromium"],
             check=True,
+            env=get_driver_env(),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
         _log.debug("patchright chromium is ready")
-    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+    except (subprocess.CalledProcessError, OSError) as e:
         _log.warning(f"patchright chromium install failed: {e}")
 
 
