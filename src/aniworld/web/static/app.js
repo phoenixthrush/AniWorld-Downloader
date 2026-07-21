@@ -37,6 +37,39 @@ const burningseriesSection = document.getElementById("burningseriesSection");
 const cinebyGrid = document.getElementById("cinebyGrid");
 const cinebySection = document.getElementById("cinebySection");
 
+// Generic cached fetch wrapper
+async function cachedFetch(url, options = {}, ttlMs = 300000) {
+  if (options.method && options.method !== "GET") {
+    return fetch(url, options);
+  }
+  const cacheKey = "fetchCache_" + url;
+  const cached = sessionStorage.getItem(cacheKey);
+  if (cached) {
+    const parsed = JSON.parse(cached);
+    if (Date.now() - parsed.timestamp < ttlMs) {
+      return {
+        ok: true,
+        json: async () => parsed.data
+      };
+    }
+  }
+  const response = await fetch(url, options);
+  if (response.ok) {
+    const cloned = response.clone();
+    cloned.json().then(data => {
+      try {
+        sessionStorage.setItem(cacheKey, JSON.stringify({
+          timestamp: Date.now(),
+          data: data
+        }));
+      } catch (e) {
+        // Ignore quota exceeded errors
+      }
+    }).catch(() => {});
+  }
+  return response;
+}
+
 // Browse loaders for the added sites. Defined up here (before showBrowseSections
 // and the initial syncSiteState run) so switching to one of these sites on load
 // never hits a temporal-dead-zone error. makeBrowseLoader references
@@ -54,7 +87,7 @@ function makeBrowseLoader(endpoint, grid) {
     if (showSpinner && grid) grid.innerHTML = "";
     promise = (async () => {
       try {
-        const resp = await fetch(endpoint);
+        const resp = await cachedFetch(endpoint);
         await loadDownloadedFolders();
         const data = await resp.json();
         if (data.results) renderBrowseCards(grid, data.results);
@@ -183,8 +216,8 @@ async function loadStoBrowse(force = false) {
   stoBrowsePromise = (async () => {
     try {
       const [newResp, popResp] = await Promise.all([
-        fetch("/api/new-series"),
-        fetch("/api/popular-series"),
+        cachedFetch("/api/new-series"),
+        cachedFetch("/api/popular-series"),
       ]);
       await loadDownloadedFolders();
       const newData = await newResp.json();
@@ -212,7 +245,7 @@ async function loadMegakinoBrowse(force = false) {
   if (showSpinner && popularMoviesGrid) popularMoviesGrid.innerHTML = "";
   mkBrowsePromise = (async () => {
     try {
-      const resp = await fetch("/api/popular-movies");
+      const resp = await cachedFetch("/api/popular-movies");
       await loadDownloadedFolders();
       const data = await resp.json();
       if (data.results) renderBrowseCards(popularMoviesGrid, data.results);
@@ -237,7 +270,7 @@ async function loadHtvBrowse(force = false) {
   if (showSpinner && htvTrendingGrid) htvTrendingGrid.innerHTML = "";
   htvBrowsePromise = (async () => {
     try {
-      const resp = await fetch("/api/htv-trending");
+      const resp = await cachedFetch("/api/htv-trending");
       await loadDownloadedFolders();
       const data = await resp.json();
       if (data.results) renderBrowseCards(htvTrendingGrid, data.results);
@@ -262,7 +295,7 @@ async function loadMangaFireBrowse(force = false) {
   if (showSpinner && mangaFireTrendingGrid) mangaFireTrendingGrid.innerHTML = "";
   mangaFireBrowsePromise = (async () => {
     try {
-      const resp = await fetch("/api/mangafire-trending");
+      const resp = await cachedFetch("/api/mangafire-trending");
       await loadDownloadedFolders();
       const data = await resp.json();
       if (data.results) renderBrowseCards(mangaFireTrendingGrid, data.results);
@@ -562,8 +595,8 @@ async function loadAniworldBrowse(force = false) {
   aniBrowsePromise = (async () => {
     try {
       const [newResp, popResp] = await Promise.all([
-        fetch("/api/new-animes"),
-        fetch("/api/popular-animes"),
+        cachedFetch("/api/new-animes"),
+        cachedFetch("/api/popular-animes"),
       ]);
       await loadDownloadedFolders();
       const newData = await newResp.json();
@@ -676,7 +709,7 @@ function renderResults(results) {
 
 async function loadPoster(url, imgEl) {
   try {
-    const resp = await fetch("/api/series?url=" + encodeURIComponent(url));
+    const resp = await cachedFetch("/api/series?url=" + encodeURIComponent(url));
     const data = await resp.json();
     if (data.poster_url) imgEl.src = data.poster_url;
   } catch (e) {
@@ -718,8 +751,8 @@ async function openSeries(url) {
 
   try {
     const [seriesResp, seasonsResp] = await Promise.all([
-      fetch("/api/series?url=" + encodeURIComponent(url)),
-      fetch("/api/seasons?url=" + encodeURIComponent(url)),
+      cachedFetch("/api/series?url=" + encodeURIComponent(url)),
+      cachedFetch("/api/seasons?url=" + encodeURIComponent(url)),
     ]);
     const seriesData = await seriesResp.json();
     const seasonsData = await seasonsResp.json();
@@ -828,7 +861,7 @@ async function loadSeasonEpisodes(index, openToken = currentOpenSeriesToken) {
   if (currentSite === "mangafire" && currentSeriesUrl) {
     epUrl += "&series_url=" + encodeURIComponent(currentSeriesUrl);
   }
-  seasonEpisodesLoading[index] = fetch(epUrl)
+  seasonEpisodesLoading[index] = cachedFetch(epUrl)
     .then((r) => r.json())
     .then((data) => {
       if (openToken !== currentOpenSeriesToken) return [];

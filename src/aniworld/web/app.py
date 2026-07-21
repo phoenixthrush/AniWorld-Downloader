@@ -1066,6 +1066,7 @@ def _hanime_fallback_title(url: str) -> str:
 def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
     app = Flask(__name__)
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 31536000
     app_version = _get_version()
 
     base_url = os.environ.get("ANIWORLD_WEB_BASE_URL", "").strip().rstrip("/")
@@ -1197,6 +1198,8 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         response.headers.setdefault(
             "Referrer-Policy", "strict-origin-when-cross-origin"
         )
+        if request.path.startswith("/api/"):
+            response.headers.setdefault("Cache-Control", "no-store, no-cache, must-revalidate")
         return response
 
     @app.before_request

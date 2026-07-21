@@ -11,12 +11,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ app_version }}" />
   {% block styles %}{% endblock %}
   <script>
     window.ANIWORLD_UI_LANGUAGE = {{ (ui_language or 'en') | tojson }};
   </script>
-  <script src="{{ url_for('static', filename='i18n.js') }}"></script>
+  <script src="{{ url_for('static', filename='i18n.js') }}?v={{ app_version }}"></script>
 </head>
 
 <body>
@@ -64,7 +64,7 @@
   </div>
 
   <div class="toast" id="toast"></div>
-  <script src="{{ url_for('static', filename='queue.js') }}"></script>
+  <script src="{{ url_for('static', filename='queue.js') }}?v={{ app_version }}"></script>
 
   <div class="captcha-overlay" id="captchaOverlay" onclick="if (event.target === this) closeCaptchaModal();">
     <div class="captcha-modal">
