@@ -2403,8 +2403,8 @@ h1 {
   }
 
   .segmented-btn.active {
-    background: linear-gradient(135deg, #9333ea, #7c3aed);
-    box-shadow: 0 2px 8px rgba(147, 51, 234, 0.35);
+    background: var(--active-site-bg, linear-gradient(135deg, #9333ea, #7c3aed));
+    box-shadow: var(--active-site-shadow, 0 2px 8px rgba(147, 51, 234, 0.35));
   }
 
   .settings-container,
