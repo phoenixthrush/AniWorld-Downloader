@@ -347,6 +347,9 @@ def add_to_queue(
     discord_user_id=None,
 ):
     import json
+    import html
+
+    title = html.unescape(title)
 
     conn = get_db()
     try:
@@ -398,10 +401,18 @@ def is_series_queued_or_running(series_url, language=None):
 def get_queue():
     conn = get_db()
     try:
+        import html
         rows = conn.execute(
             "SELECT * FROM download_queue ORDER BY position ASC, id ASC"
         ).fetchall()
-        return [dict(r) for r in rows]
+        
+        results = []
+        for r in rows:
+            d = dict(r)
+            if d.get("title"):
+                d["title"] = html.unescape(d["title"])
+            results.append(d)
+        return results
     finally:
         conn.close()
 
@@ -813,7 +824,14 @@ def get_autosync_jobs(username=None):
             ).fetchall()
         else:
             rows = conn.execute("SELECT * FROM autosync_jobs ORDER BY id").fetchall()
-        return [dict(r) for r in rows]
+        import html
+        results = []
+        for r in rows:
+            d = dict(r)
+            if d.get("title"):
+                d["title"] = html.unescape(d["title"])
+            results.append(d)
+        return results
     finally:
         conn.close()
 
@@ -824,7 +842,13 @@ def get_autosync_job(job_id):
         row = conn.execute(
             "SELECT * FROM autosync_jobs WHERE id = ?", (job_id,)
         ).fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        d = dict(row)
+        if d.get("title"):
+            import html
+            d["title"] = html.unescape(d["title"])
+        return d
     finally:
         conn.close()
 
@@ -961,7 +985,14 @@ def get_planned_jobs(added_by=None):
                 "SELECT * FROM planned_jobs WHERE added_by = ? ORDER BY id DESC",
                 (added_by,),
             ).fetchall()
-        return [dict(r) for r in rows]
+        import html
+        results = []
+        for r in rows:
+            d = dict(r)
+            if d.get("title"):
+                d["title"] = html.unescape(d["title"])
+            results.append(d)
+        return results
     finally:
         conn.close()
 
@@ -972,7 +1003,13 @@ def get_planned_job(job_id):
         row = conn.execute(
             "SELECT * FROM planned_jobs WHERE id = ?", (job_id,)
         ).fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        d = dict(row)
+        if d.get("title"):
+            import html
+            d["title"] = html.unescape(d["title"])
+        return d
     finally:
         conn.close()
 
