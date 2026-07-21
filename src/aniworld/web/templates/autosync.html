@@ -82,5 +82,5 @@ endblock %} {% block content %}
   </div>
 </div>
 {% endblock %} {% block scripts %}
-<script src="{{ url_for('static', filename='autosync.js') }}"></script>
+<script src="{{ url_for('static', filename='autosync.js') }}?v={{ app_version }}"></script>
 {% endblock %}

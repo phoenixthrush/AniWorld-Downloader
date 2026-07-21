@@ -8,5 +8,5 @@ endblock %} {% block content %}
 <script>
   var libraryCanDelete = {{ 'true' if not auth_enabled or (current_user and current_user.role == 'admin') else 'false' }};
 </script>
-<script src="{{ url_for('static', filename='library.js') }}"></script>
+<script src="{{ url_for('static', filename='library.js') }}?v={{ app_version }}"></script>
 {% endblock %}

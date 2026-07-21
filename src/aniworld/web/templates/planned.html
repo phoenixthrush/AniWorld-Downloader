@@ -67,5 +67,5 @@ endblock %} {% block content %}
   </div>
 </div>
 {% endblock %} {% block scripts %}
-<script src="{{ url_for('static', filename='planned.js') }}"></script>
+<script src="{{ url_for('static', filename='planned.js') }}?v={{ app_version }}"></script>
 {% endblock %}

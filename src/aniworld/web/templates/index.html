@@ -22,7 +22,7 @@
     </div>
   </div>
   <div class="search-bar">
-    <input type="text" id="searchInput" placeholder="Search for anime..." autofocus />
+    <input type="text" id="searchInput" placeholder="Search AniWorld..." autofocus />
     <button id="searchBtn" onclick="doSearch()" data-i18n="index.search">Search</button>
     <button class="btn-random" id="randomBtn" onclick="doRandom()" data-i18n="index.random">
       Random
@@ -164,5 +164,5 @@
   </div>
 </div>
 {% endblock %} {% block scripts %}
-<script src="{{ url_for('static', filename='app.js') }}"></script>
+<script src="{{ url_for('static', filename='app.js') }}?v={{ app_version }}"></script>
 {% endblock %}

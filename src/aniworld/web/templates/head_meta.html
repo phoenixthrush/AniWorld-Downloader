@@ -1,10 +1,10 @@
 {% set meta_title = meta_title | default('AniWorld Downloader') %}
 {% set meta_description = meta_description | default('AniWorld Downloader Web UI') %}
-{% set meta_image = url_for('static', filename='og-image.png', _external=True) %}
-<link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='favicon.png') }}" />
-<link rel="icon" type="image/webp" sizes="512x512" href="{{ url_for('static', filename='favicon.webp') }}" />
-<link rel="shortcut icon" href="{{ url_for('favicon') }}" />
-<link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}" />
+{% set meta_image = url_for('static', filename='og-image.png', _external=True) ~ '?v=' ~ app_version %}
+<link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='favicon.png') }}?v={{ app_version }}" />
+<link rel="icon" type="image/webp" sizes="512x512" href="{{ url_for('static', filename='favicon.webp') }}?v={{ app_version }}" />
+<link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}?v={{ app_version }}" />
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}?v={{ app_version }}" />
 <meta name="theme-color" content="#101820" />
 <meta name="application-name" content="AniWorld Downloader" />
 <meta name="description" content="{{ meta_description }}" />
