@@ -16,7 +16,7 @@ SEARCH_URL = "https://aniworld.to/ajax/search"
 RANDOM_URL = "https://aniworld.to/ajax/randomGeneratorSeries"
 NEW_EPISODES_URL = "https://aniworld.to/neue-episoden"
 HOME_URL = "https://aniworld.to"
-MAX_PAGES = 5
+MAX_PAGES = 15
 
 _homepage_cache = None
 _megakino_homepage_cache = None
