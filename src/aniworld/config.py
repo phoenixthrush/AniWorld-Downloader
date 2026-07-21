@@ -152,7 +152,6 @@ GLOBAL_SESSION = Session(
     resolver=["doh+cloudflare://"],
     disable_http3=True,
     multiplexed=False,
-    verify=CA_CERT_BUNDLE,
     headers={
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Sec-Fetch-Site": "none",
@@ -165,6 +164,7 @@ GLOBAL_SESSION = Session(
         "Priority": "u=0, i",
     },
 )
+GLOBAL_SESSION.verify = CA_CERT_BUNDLE
 
 logger.debug("Config initialized successfully")
 logger.debug(
