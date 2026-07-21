@@ -180,7 +180,7 @@ SUPPORTED_PROVIDERS = (
     "Vidmoly",
     "Vidoza",
     "Doodstream",
-    # "Filemoon",
+    "Filemoon",
     # "LoadX",
     # "Luluvdo",
     # "Streamtape",
