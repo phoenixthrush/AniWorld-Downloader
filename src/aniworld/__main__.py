@@ -13,6 +13,10 @@
 # nuitka-project: --include-package=urllib3.contrib
 # nuitka-project: --include-package=aniworld.extractors
 
+# Include Patchright's Node-based browser installer driver.
+# nuitka-project-set: patchright_driver = str(__import__("pathlib").Path(__import__("inspect").getfile(__import__("patchright"))).parent / "driver")
+# nuitka-project: --include-raw-dir={patchright_driver}=patchright/driver
+
 # Include data files/directories
 # nuitka-project: --include-data-dir=src/aniworld/web/templates=aniworld/web/templates
 # nuitka-project: --include-data-dir=src/aniworld/web/static=aniworld/web/static
