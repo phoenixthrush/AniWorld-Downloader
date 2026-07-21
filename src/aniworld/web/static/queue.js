@@ -346,7 +346,9 @@ function renderQueue(items) {
       '<div class="queue-item-header">' +
       '<div class="queue-item-title">' +
       syncBadge +
+      '<a href="' + escQ(item.series_url) + '" target="_blank" rel="noopener noreferrer">' +
       escQ(item.title) +
+      '</a>' +
       "</div>" +
       '<div class="queue-item-right">' +
       statusBadge +

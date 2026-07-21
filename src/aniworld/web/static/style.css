@@ -1691,6 +1691,15 @@ h1 {
   min-width: 0;
 }
 
+.queue-item-title a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.queue-item-title a:hover {
+  text-decoration: underline;
+}
+
 .queue-item-right {
   display: flex;
   align-items: center;
