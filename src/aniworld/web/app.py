@@ -46,7 +46,6 @@ from .db import (
     add_to_queue,
     cancel_queue_item,
     force_cancel_queue_item,
-    clear_force_cancelled,
     is_queue_force_cancelled,
     clear_captcha_url,
     clear_completed,
@@ -608,7 +607,9 @@ def _queue_worker():
                 # Check for cancellation after each episode
                 if is_queue_cancelled(item["id"]):
                     if is_queue_force_cancelled(item["id"]):
-                        logger.info(f"Download force cancelled for queue item {item['id']}")
+                        logger.info(
+                            f"Download force cancelled for queue item {item['id']}"
+                        )
                     else:
                         logger.info(f"Download cancelled for queue item {item['id']}")
                     update_queue_progress(item["id"], i + 1, "")
@@ -1218,8 +1219,8 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
         return send_from_directory(
             os.path.join(app.root_path, "static"),
-            "favicon.ico",
-            mimetype="image/vnd.microsoft.icon",
+            "favicon.png",
+            mimetype="image/png",
         )
 
     @app.route("/")

@@ -68,6 +68,9 @@ aniworld = [
   "web/templates/*.html",
   "web/static/*.css",
   "web/static/*.js",
+  "web/static/*.ico",
+  "web/static/*.png",
+  "web/static/*.webp",
   "web/static/flags/*.svg",
   "browsers.jsonl",
 ]

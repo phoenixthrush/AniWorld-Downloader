@@ -1,0 +1,21 @@
+{% set meta_title = meta_title | default('AniWorld Downloader') %}
+{% set meta_description = meta_description | default('AniWorld Downloader Web UI') %}
+{% set meta_image = url_for('static', filename='og-image.png', _external=True) %}
+<link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='favicon.png') }}" />
+<link rel="icon" type="image/webp" sizes="512x512" href="{{ url_for('static', filename='favicon.webp') }}" />
+<link rel="shortcut icon" href="{{ url_for('favicon') }}" />
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}" />
+<meta name="theme-color" content="#101820" />
+<meta name="application-name" content="AniWorld Downloader" />
+<meta name="description" content="{{ meta_description }}" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="AniWorld Downloader" />
+<meta property="og:title" content="{{ meta_title }}" />
+<meta property="og:description" content="{{ meta_description }}" />
+<meta property="og:image" content="{{ meta_image }}" />
+<meta property="og:image:width" content="512" />
+<meta property="og:image:height" content="512" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="{{ meta_title }}" />
+<meta name="twitter:description" content="{{ meta_description }}" />
+<meta name="twitter:image" content="{{ meta_image }}" />

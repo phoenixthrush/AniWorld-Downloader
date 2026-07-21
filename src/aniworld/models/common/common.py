@@ -502,9 +502,12 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
                 try:
                     from ...web.db import is_queue_force_cancelled
                     from ...playwright.captcha import _local
+
                     qid = getattr(_local, "queue_id", None)
                     if qid is not None and is_queue_force_cancelled(qid):
-                        logger.warning("[FFmpeg] Force cancel requested. Killing process.")
+                        logger.warning(
+                            "[FFmpeg] Force cancel requested. Killing process."
+                        )
                         process.kill()
                         break
                 except Exception:
@@ -1257,6 +1260,7 @@ def download(self):
                 try:
                     from ...web.db import is_queue_force_cancelled
                     from ...playwright.captcha import _local
+
                     qid = getattr(_local, "queue_id", None)
                     if qid is not None and is_queue_force_cancelled(qid):
                         if self._episode_path.exists():
