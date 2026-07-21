@@ -70,7 +70,7 @@
   </div>
 
   <div class="toast" id="toast"></div>
-  <script src="{{ url_for('static', filename='queue.js') }}?v={{ app_version }}"></script>
+  <script src="{{ url_for('static', filename='queue.js') }}?v={{ app_version }}&cb=1"></script>
 
   <div class="captcha-overlay" id="captchaOverlay" onclick="if (event.target === this) closeCaptchaModal();">
     <div class="captcha-modal">
