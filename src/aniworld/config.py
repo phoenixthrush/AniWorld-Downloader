@@ -141,7 +141,7 @@ LULUVDO_USER_AGENT = (
 # in another branch, but for now I just have to sit through the import time
 # every run, even though the actual fetch only takes about a second
 GLOBAL_SESSION = Session(
-    resolver=["doh+google://"],
+    resolver=["doh+cloudflare://"],
     disable_http3=True,
     multiplexed=False,
     headers={
