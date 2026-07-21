@@ -24,7 +24,7 @@ except ImportError:
 HANIME_BASE_URL = "https://hanime.tv"
 HANIME_VIDEO_URL = f"{HANIME_BASE_URL}/videos/hentai/{{slug}}"
 HANIME_SITEMAP_URL = f"{HANIME_BASE_URL}/sitemap.xml"
-HANIME_TRENDING_URL = f"{HANIME_BASE_URL}/browse/trending"
+HANIME_TRENDING_URL = f"{HANIME_BASE_URL}/trending"
 
 _HANIME_HEADERS = {
     "User-Agent": DEFAULT_USER_AGENT,
