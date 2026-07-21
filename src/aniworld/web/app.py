@@ -9,6 +9,7 @@ from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_wtf.csrf import CSRFProtect
 
 from ..config import (
+    ANIWORLD_CONFIG_DIR,
     LANG_KEY_MAP,
     LANG_LABELS,
     SUPPORTED_PROVIDERS,
@@ -245,7 +246,7 @@ def _apply_discord_settings(payload, env_updates):
 
 
 def _persist_discord_env(env_updates):
-    """Persist only the Discord bot keys to ~/.aniworld/.env.
+    """Persist only the Discord bot keys to the app's .env file.
 
     Every other web-UI setting is intentionally in-memory only (see
     api_settings_update). The bot config is the one exception: a token that
@@ -258,11 +259,9 @@ def _persist_discord_env(env_updates):
     if not subset:
         return
     try:
-        from pathlib import Path
-
         from ..env import persist_env_values
 
-        env_path = Path.home() / ".aniworld" / ".env"
+        env_path = ANIWORLD_CONFIG_DIR / ".env"
         persist_env_values(env_path, subset)
     except Exception as exc:
         logger.warning(f"Could not persist Discord settings to .env: {exc}")
@@ -2005,9 +2004,12 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         import platform
         from pathlib import Path
 
-        env_path = Path.home() / ".aniworld" / ".env"
+        env_path = ANIWORLD_CONFIG_DIR / ".env"
         if platform.system() != "Windows":
-            display = "~/.aniworld/.env"
+            try:
+                display = f"~/{env_path.relative_to(Path.home())}"
+            except ValueError:
+                display = str(env_path)
         else:
             display = str(env_path)
         return render_template("settings.html", env_path=display)

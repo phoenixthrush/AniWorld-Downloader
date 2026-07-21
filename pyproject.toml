@@ -50,7 +50,7 @@ all = [
 [project.urls]
 homepage = "https://github.com/phoenixthrush/AniWorld-Downloader"
 changelog = "https://github.com/phoenixthrush/AniWorld-Downloader/commits/models"
-documentation = "https://readthedocs.org"
+documentation = "https://www.phoenixthrush.com/AniWorld-Downloader-Docs/"
 bugs = "https://github.com/phoenixthrush/AniWorld-Downloader/issues"
 issues = "https://github.com/phoenixthrush/AniWorld-Downloader/issues"
 tracker = "https://github.com/phoenixthrush/AniWorld-Downloader/issues"

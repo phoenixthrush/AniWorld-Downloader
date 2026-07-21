@@ -1,10 +1,43 @@
+import os
 import re
+import shutil
 from pathlib import Path
 
-from dotenv import load_dotenv
+from dotenv import dotenv_values, load_dotenv
 
 # match lines like KEY=VALUE, ignoring comments and blank lines
 ENV_LINE_RE = re.compile(r"^([^#\n=]+?)=(.*)$")
+
+
+def initialize_app_env(example_path: Path, default_dir: Path) -> Path:
+    """Resolve the app directory and load its .env file.
+
+    The default .env doubles as the pointer to a relocated app directory. On
+    first relocation, copy the existing file so user settings move with it.
+    """
+    default_dir = Path(default_dir).expanduser().resolve()
+    default_env_path = default_dir / ".env"
+
+    configured_dir = os.environ.get("ANIWORLD_INSTALL_FOLDER")
+    if configured_dir is None and default_env_path.exists():
+        configured_dir = dotenv_values(default_env_path).get("ANIWORLD_INSTALL_FOLDER")
+
+    app_dir = Path(configured_dir or default_dir).expanduser()
+    if not app_dir.is_absolute():
+        app_dir = Path.home() / app_dir
+    app_dir = app_dir.resolve()
+
+    env_path = app_dir / ".env"
+    if (
+        env_path != default_env_path
+        and not env_path.exists()
+        and default_env_path.exists()
+    ):
+        app_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(default_env_path, env_path)
+
+    merge_env(example_path, env_path)
+    return app_dir
 
 
 def merge_env(example_path: Path, env_path: Path):

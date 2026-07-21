@@ -12,7 +12,7 @@ import certifi
 from niquests import Session
 from packaging.version import parse as parse_version
 
-from .env import merge_env
+from .env import initialize_app_env
 from .logger import get_logger
 
 VERSION = None
@@ -58,13 +58,10 @@ def is_newest_version() -> bool:
     return parse_version(VERSION) >= parse_version(latest_version)
 
 
-# AniWorld configuration directory
-ANIWORLD_CONFIG_DIR = Path.home() / ".aniworld"
-
-# Load .env file whenever config is imported
-merge_env(
+# Resolve the app directory and load its .env file whenever config is imported.
+ANIWORLD_CONFIG_DIR = initialize_app_env(
     Path(__file__).resolve().parent / ".env.example",
-    ANIWORLD_CONFIG_DIR / ".env",
+    Path.home() / ".aniworld",
 )
 
 logger = get_logger(__name__)

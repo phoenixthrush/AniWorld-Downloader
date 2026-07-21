@@ -115,7 +115,7 @@ aniworld --examples
 aniworld --version
 ```
 
-Configuration is stored in `~/.aniworld/.env`. The complete list of settings and their defaults is in [`src/aniworld/.env.example`](src/aniworld/.env.example).
+Configuration is stored in `~/.aniworld/.env` by default. Set `ANIWORLD_INSTALL_FOLDER` to relocate the app data, including its configuration and database. The complete list of settings and their defaults is in [`src/aniworld/.env.example`](src/aniworld/.env.example).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

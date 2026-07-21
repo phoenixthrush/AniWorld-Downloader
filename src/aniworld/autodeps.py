@@ -11,12 +11,12 @@ PLATFORM = platform.system()
 
 try:
     from .common import fetch_github_asset_urls
-    from .config import GLOBAL_SESSION
+    from .config import ANIWORLD_CONFIG_DIR, GLOBAL_SESSION
     from .logger import get_logger
 
 except ImportError:
     from aniworld.common import fetch_github_asset_urls
-    from aniworld.config import GLOBAL_SESSION
+    from aniworld.config import ANIWORLD_CONFIG_DIR, GLOBAL_SESSION
     from aniworld.logger import get_logger
 
 
@@ -131,11 +131,7 @@ class DependencyManager:
 
     def __init__(self, install_folder=None):
         self.deps = deps
-        configured_install_folder = (
-            install_folder
-            or os.getenv("ANIWORLD_INSTALL_FOLDER")
-            or (Path.home() / ".aniworld")
-        )
+        configured_install_folder = install_folder or ANIWORLD_CONFIG_DIR
         configured_install_folder = Path(configured_install_folder).expanduser()
         if not configured_install_folder.is_absolute():
             configured_install_folder = Path.home() / configured_install_folder
