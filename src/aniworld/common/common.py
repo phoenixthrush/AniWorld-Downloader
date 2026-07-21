@@ -124,9 +124,7 @@ def unzip(file_path, target_dir):
             except ImportError:
                 from aniworld.autodeps import DependencyManager
 
-            seven_zip_path = DependencyManager().fetch_binary(
-                "7z", prompt_user=False
-            )
+            seven_zip_path = DependencyManager().fetch_binary("7z", prompt_user=False)
             print(f"Extracting 7z: {file_path} -> {target_dir}")
             subprocess.run(
                 [
