@@ -85,8 +85,10 @@ def _decrypt_playback_data(playback):
     key_bytes = b""
     for part in key_parts:
         if not part:
-            return None
-        key_bytes += _base64url_decode(part)
+            continue
+        decoded = _base64url_decode(part)
+        if len(decoded) == 16:
+            key_bytes += decoded
 
     # Try primary payload first, then payload2
     result = _decrypt_payload(playback, key_bytes, "iv", "payload")
