@@ -421,6 +421,10 @@ function updateSliderState(site) {
     if (label) label.classList.toggle("active", site === siteKey);
   }
 
+  const color = thumbColors[site] || thumbColors.aniworld;
+  document.documentElement.style.setProperty('--active-site-bg', color.bg);
+  document.documentElement.style.setProperty('--active-site-shadow', color.shadow);
+
   if (!segmentedThumb) return;
   const btn = document.getElementById(siteLabelIds[site]);
   if (!btn) return;
@@ -429,7 +433,6 @@ function updateSliderState(site) {
   const btnRect = btn.getBoundingClientRect();
   segmentedThumb.style.width = btnRect.width + "px";
   segmentedThumb.style.transform = "translateX(" + (btnRect.left - trackRect.left - 3) + "px)";
-  const color = thumbColors[site] || thumbColors.aniworld;
   segmentedThumb.style.background = color.bg;
   segmentedThumb.style.boxShadow = color.shadow;
 }
