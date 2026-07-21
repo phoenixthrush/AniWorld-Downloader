@@ -19,7 +19,7 @@ Demo Menu
 :-------------------------:
 ![Menu Demo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/models/.github/assets/demo.png?raw=true)
 
-https://github.com/user-attachments/assets/d65c4a5c-827a-45d7-a904-78977fd9aef4
+![CLI Demo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/models/.github/assets/demo.gif?raw=true)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
