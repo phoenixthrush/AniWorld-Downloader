@@ -462,16 +462,16 @@ function switchSite(site) {
   const isMangaFire = site === "mangafire";
   document.querySelector(".search-bar").style.display = "";
   const placeholders = {
-    mangafire: "Search for manga...",
-    htv: "Search Hanime...",
-    sto: "Search for series...",
+    mangafire: "Search MangaFire...",
+    htv: "Search HAnime...",
+    sto: "Search S.to...",
     megakino: "Search MegaKino...",
     cineby: "Search Cineby...",
     kinox: "Search Kinox...",
     burningseries: "Search BurningSeries...",
     filmpalast: "Search FilmPalast...",
   };
-  searchInput.placeholder = placeholders[site] || "Search for anime...";
+  searchInput.placeholder = placeholders[site] || "Search AniWorld...";
 
   // Clear search results
   resultsDiv.innerHTML = "";
