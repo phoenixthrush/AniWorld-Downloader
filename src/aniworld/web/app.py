@@ -45,6 +45,9 @@ from .db import (
     update_custom_path,
     add_to_queue,
     cancel_queue_item,
+    force_cancel_queue_item,
+    clear_force_cancelled,
+    is_queue_force_cancelled,
     clear_captcha_url,
     clear_completed,
     find_autosync_by_url,
@@ -604,7 +607,10 @@ def _queue_worker():
 
                 # Check for cancellation after each episode
                 if is_queue_cancelled(item["id"]):
-                    logger.info(f"Download cancelled for queue item {item['id']}")
+                    if is_queue_force_cancelled(item["id"]):
+                        logger.info(f"Download force cancelled for queue item {item['id']}")
+                    else:
+                        logger.info(f"Download cancelled for queue item {item['id']}")
                     update_queue_progress(item["id"], i + 1, "")
                     break
 
@@ -1894,6 +1900,13 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     @app.route("/api/queue/<int:queue_id>/cancel", methods=["POST"])
     def api_queue_cancel(queue_id):
         ok, err = cancel_queue_item(queue_id)
+        if not ok:
+            return jsonify({"error": err}), 400
+        return jsonify({"ok": True})
+
+    @app.route("/api/queue/<int:queue_id>/force_cancel", methods=["POST"])
+    def api_queue_force_cancel(queue_id):
+        ok, err = force_cancel_queue_item(queue_id)
         if not ok:
             return jsonify({"error": err}), 400
         return jsonify({"ok": True})

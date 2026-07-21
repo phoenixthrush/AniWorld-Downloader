@@ -486,7 +486,7 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
                 elif is_tty:
                     _print_cli_progress(percent, cur_time_str, cur_speed_str, label)
 
-                # --- stall detection ---
+                # --- stall and force cancel detection ---
                 if cur_frame != last_frame or cur_time != last_time:
                     last_frame = cur_frame
                     last_time = cur_time
@@ -498,6 +498,17 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
                     )
                     process.kill()
                     break
+
+                try:
+                    from ...web.db import is_queue_force_cancelled
+                    from ...playwright.captcha import _local
+                    qid = getattr(_local, "queue_id", None)
+                    if qid is not None and is_queue_force_cancelled(qid):
+                        logger.warning("[FFmpeg] Force cancel requested. Killing process.")
+                        process.kill()
+                        break
+                except Exception:
+                    pass
             elif line_str:
                 # Try to capture total duration from ffmpeg header
                 if total_duration == 0.0:
@@ -1242,6 +1253,23 @@ def download(self):
                     temp = self._episode_path.with_suffix(suffix)
                     if temp.exists():
                         temp.unlink()
+
+                try:
+                    from ...web.db import is_queue_force_cancelled
+                    from ...playwright.captcha import _local
+                    qid = getattr(_local, "queue_id", None)
+                    if qid is not None and is_queue_force_cancelled(qid):
+                        if self._episode_path.exists():
+                            self._episode_path.unlink()
+                        _remove_empty_dirs(
+                            self._folder_path,
+                            self._base_folder,
+                            protected=getattr(self, "selected_path", None),
+                        )
+                        raise e
+                except Exception as inner_e:
+                    if inner_e is e:
+                        raise
 
                 provider_errors[provider_name] = e
                 logger.warning(

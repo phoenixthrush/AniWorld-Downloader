@@ -48,9 +48,16 @@ function formatBandwidth(bwStr) {
   return mbytes.toFixed(1) + " MB/s";
 }
 
+let queueFetchController = null;
+
 async function loadQueue() {
+  if (queueFetchController) {
+    queueFetchController.abort();
+  }
+  const controller = new AbortController();
+  queueFetchController = controller;
   try {
-    const resp = await fetch("/api/queue");
+    const resp = await fetch("/api/queue", { signal: controller.signal });
     const data = await resp.json();
     const items = data.items || [];
     lastFfmpegProgress = data.ffmpeg_progress || {};
@@ -58,6 +65,10 @@ async function loadQueue() {
     updateBadge(items);
   } catch (e) {
     /* ignore */
+  } finally {
+    if (queueFetchController === controller) {
+      queueFetchController = null;
+    }
   }
 }
 
@@ -146,19 +157,13 @@ function renderQueue(items) {
 
       // Combine episode progress with in-episode ffmpeg progress
       let ffPct = 0;
-      if (isRunning && lastFfmpegProgress.active && item.total_episodes > 0) {
+      if ((isRunning || isCancelling) && lastFfmpegProgress.active && item.total_episodes > 0) {
         ffPct = (lastFfmpegProgress.percent || 0) / item.total_episodes;
       }
       const combinedPct = Math.min(Math.round(epPct + ffPct), 100);
 
       let label;
-      if (isCancelling) {
-        label =
-          item.current_episode +
-          "/" +
-          item.total_episodes +
-          " episodes - finishing current episode...";
-      } else if (item.status === "cancelled") {
+      if (item.status === "cancelled" && !isCancelling) {
         label =
           item.current_episode +
           "/" +
@@ -175,6 +180,9 @@ function renderQueue(items) {
             "%" +
             (bw ? " @ " + bw : "") +
             ")";
+        }
+        if (isCancelling) {
+          epDetail += " - finishing current episode...";
         }
         label = epDetail;
       }
@@ -277,6 +285,11 @@ function renderQueue(items) {
         '<button class="queue-cancel" onclick="cancelQueueItem(' +
         item.id +
         ')" title="Cancel after current episode">Cancel</button>';
+    } else if (isCancelling) {
+      actionBtn =
+        '<button class="queue-cancel queue-force-cancel" style="background-color: #d32f2f;" onclick="forceCancelQueueItem(' +
+        item.id +
+        ')" title="Immediately kill download and delete partial files">Force Cancel</button>';
     }
 
     const userHtml = item.username
@@ -360,6 +373,24 @@ async function cancelQueueItem(id) {
     } else {
       if (typeof showToast === "function")
         showToast("Cancelling after current episode...");
+    }
+    loadQueue();
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+async function forceCancelQueueItem(id) {
+  try {
+    const resp = await fetch("/api/queue/" + id + "/force_cancel", {
+      method: "POST",
+    });
+    const data = await resp.json();
+    if (data.error) {
+      if (typeof showToast === "function") showToast(data.error);
+    } else {
+      if (typeof showToast === "function")
+        showToast("Force cancelling download...");
     }
     loadQueue();
   } catch (e) {
