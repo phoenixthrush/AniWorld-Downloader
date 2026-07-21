@@ -3,6 +3,38 @@ let queuePollTimer = null;
 let badgePollTimer = null;
 let queueCustomPaths = [];
 
+(function setupMobileNavigation() {
+  const toggle = document.getElementById("mobileNavToggle");
+  const navigation = document.getElementById("mainNavigation");
+  if (!toggle || !navigation) return;
+
+  function setOpen(open) {
+    navigation.classList.toggle("is-open", open);
+    toggle.setAttribute("aria-expanded", String(open));
+    toggle.setAttribute("aria-label", open ? "Close navigation" : "Open navigation");
+  }
+
+  toggle.addEventListener("click", function () {
+    setOpen(toggle.getAttribute("aria-expanded") !== "true");
+  });
+
+  navigation.addEventListener("click", function (event) {
+    if (event.target.closest("a")) setOpen(false);
+  });
+
+  document.addEventListener("click", function (event) {
+    if (!event.target.closest(".top-bar")) setOpen(false);
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") setOpen(false);
+  });
+
+  window.addEventListener("resize", function () {
+    if (window.innerWidth > 768) setOpen(false);
+  });
+})();
+
 (async function loadQueueCustomPaths() {
   try {
     const resp = await fetch("/api/custom-paths");

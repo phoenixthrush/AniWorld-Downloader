@@ -1199,7 +1199,9 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             "Referrer-Policy", "strict-origin-when-cross-origin"
         )
         if request.path.startswith("/api/"):
-            response.headers.setdefault("Cache-Control", "no-store, no-cache, must-revalidate")
+            response.headers.setdefault(
+                "Cache-Control", "no-store, no-cache, must-revalidate"
+            )
         return response
 
     @app.before_request

@@ -25,7 +25,13 @@
       <a href="{{ url_for('index') }}" class="top-bar-brand">AniWorld Downloader{% if app_version %} v{{ app_version }}{% endif
         %}</a>
     </div>
-    <div class="top-bar-right">
+    <button class="mobile-nav-toggle" id="mobileNavToggle" type="button" aria-label="Open navigation"
+      aria-controls="mainNavigation" aria-expanded="false">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+    <div class="top-bar-right" id="mainNavigation">
       <a href="{{ url_for('index') }}" class="top-bar-link" data-i18n="nav.home">Home</a>
       <a href="{{ url_for('library_page') }}" class="top-bar-link" data-i18n="nav.library">Library</a>
       <a href="{{ url_for('autosync_page') }}" class="top-bar-link" data-i18n="nav.autosync">Auto-Sync</a>
