@@ -413,7 +413,26 @@ HANIME_TV_SERIES_PATTERN = re.compile(
 )
 
 # serienstream.to went down at times; serienstream.cx and 186.2.175.5 are mirrors.
-_STO_HOST = r"(?:(?:www\.)?(?:serienstream\.(?:to|cx)|s\.to)|186\.2\.175\.5)"
+
+# Reachable hosts, in preference order. The IP is a last resort and needs a Host
+# header (see models/s_to/http.py) because it serves the same site.
+STO_DOMAINS = ["serienstream.to", "serienstream.cx"]
+STO_IP = "186.2.175.5"
+
+# Retired hosts that are still recognised and rewritten onto an active host, but
+# never requested themselves. Keeps old links and bookmarks working.
+STO_LEGACY_DOMAINS = ["s.to"]
+
+STO_ALL_HOSTS = [*STO_DOMAINS, STO_IP, *STO_LEGACY_DOMAINS]
+
+_STO_HOST = r"(?:www\.)?(?:" + "|".join(re.escape(h) for h in STO_ALL_HOSTS) + r")"
+
+STO_HOST_RE = re.compile(r"^(https?://)" + _STO_HOST + r"(?=[:/?#]|$)", re.IGNORECASE)
+
+def is_sto_host(url):
+    """True if the URL points at any known serienstream host."""
+    return bool(STO_HOST_RE.match(str(url or "")))
+
 
 SERIENSTREAM_SERIES_PATTERN = re.compile(
     rf"^https?://{_STO_HOST}/serie/[a-zA-Z0-9\-]+/?$", re.IGNORECASE

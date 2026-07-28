@@ -28,6 +28,7 @@ try:
         Audio,
         Subtitles,
         get_video_codec,
+        is_sto_host,
         logger,
     )
 except ImportError:
@@ -41,6 +42,7 @@ except ImportError:
         Audio,
         Subtitles,
         get_video_codec,
+        is_sto_host,
         logger,
     )
 
@@ -1071,8 +1073,8 @@ def download(self):
                     header_list = [f"{k}: {v}" for k, v in headers.items()]
                     input_kwargs["headers"] = "\r\n".join(header_list) + "\r\n"
 
-                url = (getattr(self, "url", "") or "").lower()
-                is_serienstream = ("serienstream.to" in url) or ("s.to" in url)
+                # Covers every host in config.STO_DOMAINS/STO_IP
+                is_serienstream = is_sto_host(getattr(self, "url", "") or "")
 
                 if is_serienstream and hasattr(self, "_normalize_language"):
                     audio_enum, sub_enum = self._normalize_language(
