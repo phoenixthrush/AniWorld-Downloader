@@ -7,28 +7,19 @@ reused, and any serienstream URL is rewritten to it so pages, redirect links
 and stream resolution all stay on the same working host.
 """
 
-import re
 import warnings
 
 from urllib3.exceptions import InsecureRequestWarning
 
 try:
-    from ...config import GLOBAL_SESSION
+    from ...config import GLOBAL_SESSION, STO_DOMAINS, STO_HOST_RE, STO_IP
 except ImportError:
-    from aniworld.config import GLOBAL_SESSION
+    from aniworld.config import GLOBAL_SESSION, STO_DOMAINS, STO_HOST_RE, STO_IP
 
 warnings.simplefilter("ignore", InsecureRequestWarning)
 
-# Reachable hosts, in preference order. The IP is a last resort and needs a
-# Host header (handled below) because it serves the same site.
-STO_DOMAINS = ["serienstream.to", "serienstream.cx"]
-STO_IP = "186.2.175.5"
-
-# Match any known serienstream host so URLs can be rewritten to the active one.
-_HOST_RE = re.compile(
-    r"^(https?://)(?:www\.)?(?:serienstream\.(?:to|cx)|s\.to|186\.2\.175\.5)",
-    re.IGNORECASE,
-)
+# Host list lives in config.py, add a mirror there
+_HOST_RE = STO_HOST_RE
 
 _active_idx = 0
 
