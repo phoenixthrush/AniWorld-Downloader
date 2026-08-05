@@ -70,6 +70,7 @@ Full guides and troubleshooting live in the [documentation](https://www.phoenixt
 - Manage a library from the Web UI
 - Protect the Web UI with local accounts or OIDC SSO
 - Accept download requests through the optional Discord bot
+- Graft a German dub onto your own archive-quality video files with DubSync
 - Run locally, in Docker, or as a standalone build
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -100,6 +101,100 @@ Full guides and troubleshooting live in the [documentation](https://www.phoenixt
 | MegaKino | Broken | 07/26 |
 
 Availability depends on the selected site and episode. When a provider fails, the downloader can try the others in your configured fallback order. These are third-party services, so availability can change without warning.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## DubSync
+
+You have high-quality Blu-ray rips that only carry Japanese/English audio, and
+AniWorld has the German dub? DubSync extracts the dub audio from the stream and
+losslessly muxes it into each matching local file as a secondary,
+`deu`-tagged audio track — video and existing audio are never re-encoded.
+
+```sh
+# 1) Dry run: see which local files match which episodes and the detected
+#    audio offsets, without writing anything
+aniworld https://aniworld.to/anime/stream/<series>/staffel-1 \
+  --dubsync-target ~/Anime/MyShow/Season01 --dubsync-dry-run
+
+# 2) Real run: writes <name>.dubsync.mkv next to each file (originals untouched)
+aniworld https://aniworld.to/anime/stream/<series>/staffel-1 \
+  --dubsync-target ~/Anime/MyShow/Season01
+```
+
+- **Automatic alignment** – the dub's offset against each file is detected by
+  correlating the shared music/SFX bed (works even though the dialogue differs).
+  Low-confidence detections fall back to offset 0 and are flagged for manual
+  verification. Use `--dubsync-offset <seconds>` to force a manual offset.
+  See [docs/dubsync-alignment.md](docs/dubsync-alignment.md) for how the
+  alignment algorithm works.
+- **Drift correction** – PAL-sourced dubs run ~4% fast, which a constant offset
+  can't fix. `--dubsync-allow-resample` corrects the drift with `atempo`
+  (re-encodes only the dub track; opt-in because it sacrifices bit-exactness).
+- **In-place mode** – `--dubsync-cleanup` replaces the originals
+  (temp + atomic swap) instead of writing `.dubsync.mkv` copies.
+- Files that already carry the dub language are skipped automatically; matching
+  handles common scene/Blu-ray naming (`Show - 01`, `S01E01`, `01v2`, …) and
+  reports unmatched files instead of guessing.
+- Also available in the Web UI: the **DubSync** tab lets you browse to your
+  local folder, search the show, and queue the job with the matching episodes
+  auto-selected from your filenames. Defaults live on the Settings page; see
+  the `ANIWORLD_DUBSYNC_*` keys in `.env.example` for persistent
+  configuration.
+- **Movies too** – a show's "Filme" collection appears as its own *Movies*
+  section, and the site selector also offers MegaKino/FilmPalast for
+  standalone films. Movie filenames carry no episode numbers, so each movie
+  gets a dropdown to confirm its local file (best title match pre-selected).
+
+### Multi-language downloads
+
+Downloading the same episode again with another `-l` language adds it to the
+existing file as an extra audio track. The new track's timing offset against
+the file is detected with the DubSync aligner and applied during the merge, so
+both languages stay in sync (previously the second track could play late).
+Disable with `--no-merge-align` / `ANIWORLD_MERGE_ALIGN=0`; unconfident
+detections automatically fall back to the plain merge.
+
+German TV dubs are usually PAL (25 fps) where the original-language encode is
+film rate (23.976), so they run ~4 % fast — a difference no constant offset can
+fix. When that is detected, the added track is retimed to match instead
+(re-encoded; the existing streams are never touched). `--no-merge-resample`
+turns that off and merges unshifted.
+
+"Sub" variants (e.g. *German Sub*) are hardsubbed video encodes, not subtitle
+tracks — they are merged into the same file as an additional, non-default
+video track (plus their audio), also time-aligned, so one MKV holds every
+version and you switch tracks in your player. Prefer separate per-language
+files? Put `{language}` into your naming template.
+
+> **Note:** a second video track works in mpv and VLC, but media servers
+> generally ignore it — Jellyfin will only ever play the first video track,
+> so a hardsubbed variant is not reachable there. If you use a media server,
+> either give sub variants their own file via `{language}` in the naming
+> template, or use `--fetch-subs` below, which produces a real subtitle track
+> every player understands. Extra *audio* tracks are picked up everywhere.
+
+### Real subtitle tracks (`--fetch-subs`)
+
+Since the streaming hosters only serve hardsubbed video, togglable subtitles
+are fetched externally: Erai-raws MultiSub releases carry the official
+Crunchyroll subtitles (German included), and Animetosho serves each extracted
+subtitle individually without any API key.
+
+```sh
+aniworld -l "German Dub" --fetch-subs <episode-url>   # German subs (default)
+aniworld -l "German Dub" --fetch-subs eng <url>       # or another language
+```
+
+After each download the episode's season is resolved to its MyAnimeList entry
+(same mapping AniSkip uses), the matching Erai-raws release is looked up on
+Animetosho, and the subtitle is muxed in as a non-default, language-tagged
+track (MKV) or written as a `.ger.ass` sidecar (other containers). Anime only;
+roughly 2020+ shows — older seasons predate Erai-raws' German subs. If
+[ffsubsync](https://github.com/smacke/ffsubsync) is installed
+(`pip install ffsubsync`), the subtitle is time-aligned to your file first.
+Set `ANIWORLD_FETCH_SUBS=ger` to enable it permanently (Web UI queue
+downloads inherit it too).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

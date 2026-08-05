@@ -181,6 +181,15 @@ a **"Sub" variant is never retimed at all** — its audio arrived with its own
 video, so speeding up one without the other would desync them; that case is
 merged unshifted with a warning instead.
 
+### Player support for the appended streams
+
+Extra **audio** tracks are understood everywhere. An extra **video** track (a
+hardsubbed "Sub" variant) is not: mpv and VLC switch between them fine, but
+media servers generally play only the first video track — Jellyfin will not
+surface the second one at all. Users on a media server should either separate
+sub variants into their own files (`{language}` in the naming template) or use
+`--fetch-subs`, which yields a real subtitle track instead.
+
 ## Design notes
 
 * The interface is a single pluggable call:
