@@ -23,16 +23,23 @@ def search_jikan(query, sfw=False, limit=5):
         "order_by": "popularity",
         "sort": "asc",  # earliest / most popular first
     }
-    try:
-        logger.debug(
-            f"Searching Jikan API URL: {JIKAN_SEARCH_URL} with params: {params}"
-        )
-        res = GLOBAL_SESSION.get(JIKAN_SEARCH_URL, params=params)
-        res.raise_for_status()
-        return res.json().get("data", [])
-    except Exception as e:
-        logger.error(f"Error searching Jikan API for query '{query}': {e}")
-        return []
+    # Jikan is a community-run mirror and regularly answers 5xx under load;
+    # one retry rescues most lookups.
+    for attempt in range(2):
+        try:
+            logger.debug(
+                f"Searching Jikan API URL: {JIKAN_SEARCH_URL} with params: {params}"
+            )
+            res = GLOBAL_SESSION.get(JIKAN_SEARCH_URL, params=params)
+            res.raise_for_status()
+            return res.json().get("data", [])
+        except Exception as e:
+            if attempt == 0:
+                logger.debug(f"Jikan search failed ({e}); retrying once...")
+                time.sleep(2)
+                continue
+            logger.error(f"Error searching Jikan API for query '{query}': {e}")
+    return []
 
 
 # Caches to avoid repeated API calls
@@ -109,6 +116,32 @@ def get_all_related_ids(season1_id):
                         stack.append(anime_id)
 
     return collected
+
+
+def get_anime_titles(mal_id):
+    """Return the known titles of a MAL anime, most canonical first.
+
+    The romaji "Default" title comes first because scene releases
+    (e.g. Erai-raws) name their files after it; English and synonym titles
+    follow as search fallbacks.
+    """
+    try:
+        logger.debug(f"Fetching titles for MAL ID: {mal_id}")
+        res = GLOBAL_SESSION.get(JIKAN_ANIME_URL.format(id=mal_id))
+        res.raise_for_status()
+        data = res.json().get("data", {})
+        titles = []
+        for wanted in ("Default", "English", "Synonym"):
+            for entry in data.get("titles", []):
+                title = (entry.get("title") or "").strip()
+                if entry.get("type") == wanted and title and title not in titles:
+                    titles.append(title)
+        logger.debug(f"Waiting to respect Jikan API rate limits... {API_DELAY}s")
+        time.sleep(API_DELAY)
+        return titles
+    except Exception as e:
+        logger.error(f"Error fetching titles for MAL ID {mal_id}: {e}")
+        return []
 
 
 def get_all_seasons_by_query(query="love is war"):

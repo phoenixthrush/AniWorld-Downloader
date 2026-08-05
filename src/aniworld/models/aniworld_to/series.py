@@ -50,6 +50,7 @@ class AniworldSeries:
         # Extracted from self.html
         self.__title = None
         self.__title_cleaned = None
+        self.__alternative_titles = None
         self.__description = None
         self.__genres = None
         self.__release_year = None
@@ -106,6 +107,18 @@ class AniworldSeries:
         if self.__title_cleaned is None:
             self.__title_cleaned = clean_title(self.title)
         return self.__title_cleaned
+
+    @property
+    def alternative_titles(self):
+        """Alternate names from the page's data-alternativeTitles attribute.
+
+        Usually includes the romaji title (e.g. "Sousou no Frieren"), which
+        scene releases are named after — the subtitle fetcher relies on it
+        when the MAL lookup is unavailable.
+        """
+        if self.__alternative_titles is None:
+            self.__alternative_titles = self.__extract_alternative_titles()
+        return self.__alternative_titles
 
     @property
     def description(self):
@@ -205,6 +218,19 @@ class AniworldSeries:
         from ...aniskip import get_all_seasons_by_query
 
         return get_all_seasons_by_query(self.title)
+
+    def __extract_alternative_titles(self):
+        match = re.search(
+            r'data-alternativeTitles="([^"]*)"', self._html, re.IGNORECASE
+        )
+        if not match:
+            return []
+        titles = []
+        for part in unescape(match.group(1)).split(","):
+            part = part.strip()
+            if part and part not in titles:
+                titles.append(part)
+        return titles
 
     def __extract_title(self):
         """
