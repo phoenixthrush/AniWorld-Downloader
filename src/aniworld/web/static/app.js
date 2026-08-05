@@ -539,6 +539,7 @@ function rebuildLanguageSelect() {
   } else if (validValues.length) {
     languageSelect.value = validValues[0];
   }
+  refreshDownloadOptions();
 }
 
 // Restore site state from localStorage
@@ -563,7 +564,76 @@ searchInput.addEventListener("input", () => {
     showBrowseSections();
   }
 });
-languageSelect.addEventListener("change", updateProviderDropdown);
+languageSelect.addEventListener("change", () => {
+  updateProviderDropdown();
+  refreshDownloadOptions();
+});
+
+// ---- Per-download feature options (extra languages, real subtitles) ----
+
+function refreshDownloadOptions() {
+  const extraRow = document.getElementById("extraLangsRow");
+  const checksSpan = document.getElementById("extraLangChecks");
+  const subsRow = document.getElementById("fetchSubsRow");
+  if (!extraRow || !checksSpan || !subsRow) return;
+
+  // Real subtitle tracks come from the anime fansub scene -> AniWorld only.
+  subsRow.style.display = currentSite === "aniworld" ? "" : "none";
+
+  // Extra audio languages only work where the downloader can merge tracks.
+  const mergeSites = ["aniworld", "sto"];
+  const selected = languageSelect.value;
+  const visibleOthers = Array.from(languageSelect.options).filter(
+    (opt) =>
+      !opt.hidden && opt.value !== selected && opt.value !== "All Languages",
+  );
+  if (
+    !mergeSites.includes(currentSite) ||
+    selected === "All Languages" ||
+    !visibleOthers.length
+  ) {
+    extraRow.style.display = "none";
+    checksSpan.innerHTML = "";
+    return;
+  }
+
+  const previouslyChecked = new Set(
+    Array.from(checksSpan.querySelectorAll("input:checked")).map(
+      (c) => c.value,
+    ),
+  );
+  checksSpan.innerHTML = "";
+  visibleOthers.forEach((opt) => {
+    const label = document.createElement("label");
+    label.className = "dl-opt-check";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.value = opt.value;
+    box.checked = previouslyChecked.has(opt.value);
+    label.appendChild(box);
+    label.appendChild(document.createTextNode(" " + opt.value));
+    checksSpan.appendChild(label);
+  });
+  extraRow.style.display = "";
+}
+
+function selectedDownloadOptions() {
+  const body = {};
+  const checksSpan = document.getElementById("extraLangChecks");
+  const extraRow = document.getElementById("extraLangsRow");
+  if (checksSpan && extraRow && extraRow.style.display !== "none") {
+    const extras = Array.from(
+      checksSpan.querySelectorAll("input:checked"),
+    ).map((c) => c.value);
+    if (extras.length) body.extra_languages = extras;
+  }
+  const subsRow = document.getElementById("fetchSubsRow");
+  const subsCheck = document.getElementById("fetchSubsCheck");
+  if (subsRow && subsCheck && subsRow.style.display !== "none" && subsCheck.checked) {
+    body.fetch_subs = "ger";
+  }
+  return body;
+}
 
 function renderBrowseCards(grid, items) {
   grid.innerHTML = "";
@@ -741,6 +811,9 @@ async function openSeries(url) {
   const controlsDiv = document.querySelector(".controls");
   if (controlsDiv) controlsDiv.style.display = isHtvSeries || isMangaFireSeries ? "none" : "";
   if (mangaFireControls) mangaFireControls.style.display = isMangaFireSeries ? "flex" : "none";
+  const dlOptionsDiv = document.getElementById("dlOptions");
+  if (dlOptionsDiv)
+    dlOptionsDiv.style.display = isHtvSeries || isMangaFireSeries ? "none" : "";
   await checkLangSeparation();
   if (downloadAllLangsBtn && isMangaFireSeries) {
     downloadAllLangsBtn.style.display = "none";
@@ -1105,6 +1178,7 @@ function filterLanguageSelectToAvailable() {
   if (!stillValid && visibleOptions.length) {
     languageSelect.value = visibleOptions[0].value;
   }
+  refreshDownloadOptions();
 }
 
 function resetProviderDropdown() {
@@ -1200,6 +1274,9 @@ async function startDownload(all) {
       if (formatSelect) {
         dlBody.mangafire_format = formatSelect.value;
       }
+    }
+    if (!isHtvDl && !isMangaFireDl) {
+      Object.assign(dlBody, selectedDownloadOptions());
     }
     if (customPathSelect && customPathSelect.value) {
       dlBody.custom_path_id = parseInt(customPathSelect.value);

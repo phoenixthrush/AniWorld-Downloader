@@ -774,6 +774,88 @@ h1 {
   backdrop-filter: blur(8px);
 }
 
+.toast.show {
+  display: block;
+  animation: toast-in 0.2s ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== Per-download options (modal) ===== */
+.dl-options {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dl-opt-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.88rem;
+  color: #c8cad0;
+  cursor: pointer;
+}
+
+.dl-opt-row input[type="checkbox"] {
+  accent-color: #2563eb;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.dl-opt-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #8b8fa3;
+}
+
+.dl-opt-checks {
+  display: inline-flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.dl-opt-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+/* Small circled "?" whose title attribute explains an option */
+.ds-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #8b8fa3;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: help;
+  user-select: none;
+}
+
+.ds-help:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
 /* ===== Navbar ===== */
 /* (already defined above in Top bar section) */
 

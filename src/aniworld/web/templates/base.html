@@ -35,6 +35,10 @@
       <a href="{{ url_for('index') }}" class="top-bar-link" data-i18n="nav.home">Home</a>
       <a href="{{ url_for('library_page') }}" class="top-bar-link" data-i18n="nav.library">Library</a>
       <a href="{{ url_for('autosync_page') }}" class="top-bar-link" data-i18n="nav.autosync">Auto-Sync</a>
+      {% if not auth_enabled or (current_user and current_user.role ==
+      'admin') %}
+      <a href="{{ url_for('dubsync_page') }}" class="top-bar-link" data-i18n="nav.dubsync">DubSync</a>
+      {% endif %}
       <a href="{{ url_for('planned_page') }}" class="top-bar-link" data-i18n="nav.planned">Planned</a>
       <a href="#" class="top-bar-link" id="queueBtn" onclick="
             openQueueModal();

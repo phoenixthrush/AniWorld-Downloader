@@ -463,6 +463,109 @@ def _fetch_public_ip():
     raise RuntimeError(last_error or "Failed to resolve public IP")
 
 
+def _run_dubsync_queue_item(item):
+    """Process a ``source == "dubsync"`` queue job.
+
+    The job parameters (target dir, offset, toggles) live as a single JSON
+    object in the ``episodes`` column; the AniWorld/SerienStream URL is the
+    item's ``series_url``. Progress inside a file comes through the global
+    ffmpeg progress snapshot like normal downloads.
+    """
+    from ..models.aniworld_to.dubsync.pipeline import (
+        dubsync_env_defaults,
+        run_dubsync,
+    )
+
+    payload = json.loads(item["episodes"])
+    job = payload[0] if isinstance(payload, list) else payload
+    defaults = dubsync_env_defaults()
+
+    raw_offset = job.get("offset")
+    offset = float(raw_offset) if raw_offset not in (None, "") else None
+
+    raw_selected = job.get("episodes")
+    selected = None
+    if isinstance(raw_selected, list):
+        # an empty list is meaningful: movie-only jobs restrict episode
+        # matching to nothing and work purely off the explicit pairs
+        selected = [
+            (int(s) if s is not None else None, int(e)) for s, e in raw_selected
+        ]
+
+    raw_pairs = job.get("pairs")
+    explicit = None
+    if isinstance(raw_pairs, list) and raw_pairs:
+        explicit = [
+            (int(s) if s is not None else None, int(e), str(f))
+            for s, e, f in raw_pairs
+        ]
+
+    update_queue_progress(item["id"], 0, item.get("series_url") or "")
+    report, outcomes = run_dubsync(
+        item["series_url"],
+        job["target_dir"],
+        offset=offset,
+        audio_language=item.get("language") or defaults["audio_language"],
+        recursive=bool(job.get("recursive", False)),
+        cleanup=bool(job.get("cleanup", defaults["cleanup"])),
+        auto_align=bool(job.get("auto_align", defaults["auto_align"])),
+        allow_resample=bool(
+            job.get("allow_resample", defaults["allow_resample"])
+        ),
+        selected=selected,
+        explicit=explicit,
+    )
+
+    failed = [o for o in outcomes if o.status == "failed"]
+    errors = [{"url": str(o.path), "error": o.detail} for o in failed]
+    if not report.pairs:
+        errors.append(
+            {
+                "url": job["target_dir"],
+                "error": "No local files matched the source episodes",
+            }
+        )
+    if errors:
+        update_queue_errors(item["id"], json.dumps(errors))
+
+    update_queue_progress(item["id"], 1, "")
+    all_failed = bool(errors) and (not outcomes or len(failed) == len(outcomes))
+    set_queue_status(item["id"], "failed" if all_failed else "completed")
+
+
+# Env toggles that per-job options may override; the baseline is captured on
+# first use so jobs without options restore the server's own startup defaults.
+_JOB_ENV_KEYS = ("ANIWORLD_FETCH_SUBS", "ANIWORLD_MERGE_ALIGN")
+_JOB_ENV_BASELINE = {}
+
+
+def _apply_job_env(options):
+    """Apply per-job feature toggles for the queue worker.
+
+    episode.download() reads these env vars; the worker processes one job at
+    a time, so setting them per job is safe. Anything the job does not
+    override is restored to the server's baseline.
+    """
+    import os
+
+    if not _JOB_ENV_BASELINE:
+        for key in _JOB_ENV_KEYS:
+            _JOB_ENV_BASELINE[key] = os.environ.get(key)
+
+    overrides = {}
+    if options.get("fetch_subs"):
+        overrides["ANIWORLD_FETCH_SUBS"] = str(options["fetch_subs"])
+    if options.get("merge_align") is False:
+        overrides["ANIWORLD_MERGE_ALIGN"] = "0"
+
+    for key in _JOB_ENV_KEYS:
+        value = overrides.get(key, _JOB_ENV_BASELINE[key])
+        if value is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = value
+
+
 def _queue_worker():
     """Single global worker that processes one download at a time."""
     while True:
@@ -484,8 +587,29 @@ def _queue_worker():
                 time.sleep(3)
                 continue
 
+            if item.get("source") == "dubsync":
+                try:
+                    _run_dubsync_queue_item(item)
+                except Exception as e:
+                    logger.error(f"DubSync job failed: {e}", exc_info=True)
+                    update_queue_errors(
+                        item["id"], json.dumps([{"url": "", "error": str(e)}])
+                    )
+                    set_queue_status(item["id"], "failed")
+                continue
+
             episodes = json.loads(item["episodes"])
             errors = []
+            primary_failures = 0
+
+            try:
+                job_options = (
+                    json.loads(item["options"]) if item.get("options") else {}
+                )
+            except Exception:
+                job_options = {}
+            _apply_job_env(job_options)
+            extra_languages = job_options.get("extra_languages") or []
 
             # Language separation: compute subfolder path if enabled
             import os
@@ -575,6 +699,34 @@ def _queue_worker():
                     _captcha_mod._local.queue_id = item["id"]
                     try:
                         episode.download()
+                        # Extra languages merge into the same file as
+                        # additional aligned audio tracks; hardsub variants
+                        # become their own language-labelled file.
+                        if extra_languages and prov.name in (
+                            "AniWorld",
+                            "SerienStream",
+                        ):
+                            for extra_lang in extra_languages:
+                                try:
+                                    extra_kwargs = dict(ep_kwargs)
+                                    extra_kwargs["selected_language"] = extra_lang
+                                    prov.episode_cls(**extra_kwargs).download()
+                                except Exception as extra_err:
+                                    logger.error(
+                                        f"Extra language '{extra_lang}' failed "
+                                        f"for {chapter_url}: {extra_err}"
+                                    )
+                                    errors.append(
+                                        {
+                                            "url": chapter_url,
+                                            "error": (
+                                                f"{extra_lang}: {extra_err}"
+                                            ),
+                                        }
+                                    )
+                                    update_queue_errors(
+                                        item["id"], json.dumps(errors)
+                                    )
                     finally:
                         _captcha_mod._local.queue_id = None
                 except Exception as e:
@@ -601,6 +753,7 @@ def _queue_worker():
                     except Exception:
                         pass
                     errors.append(err_entry)
+                    primary_failures += 1
                     update_queue_errors(item["id"], json.dumps(errors))
 
                 # Check for cancellation after each episode
@@ -617,8 +770,12 @@ def _queue_worker():
             # Only set final status if not already cancelled
             if not is_queue_cancelled(item["id"]):
                 update_queue_progress(item["id"], len(episodes), "")
+                # Extra-language failures stay visible in the error list but
+                # only failed primary downloads flip the job to "failed".
                 status = (
-                    "failed" if errors and len(errors) == len(episodes) else "completed"
+                    "failed"
+                    if primary_failures and primary_failures == len(episodes)
+                    else "completed"
                 )
                 set_queue_status(item["id"], status)
 
@@ -1849,9 +2006,40 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         if not episodes:
             return jsonify({"error": "episodes list is required"}), 400
 
-        if (
-            language == "English Sub"
-            and os.environ.get("ANIWORLD_DISABLE_ENGLISH_SUB", "0") == "1"
+        # Per-job feature options (kept in the queue row so the worker can
+        # apply them to exactly this download).
+        options = {}
+
+        extra_languages = data.get("extra_languages") or []
+        if not isinstance(extra_languages, list):
+            return jsonify({"error": "extra_languages must be a list"}), 400
+        valid_langs = set(LANG_LABELS.values())
+        cleaned_extras = []
+        for extra in extra_languages:
+            extra = str(extra).strip()
+            if extra not in valid_langs:
+                return jsonify({"error": f"Unknown language: {extra}"}), 400
+            if extra != language and extra not in cleaned_extras:
+                cleaned_extras.append(extra)
+        if cleaned_extras:
+            options["extra_languages"] = cleaned_extras
+
+        fetch_subs = data.get("fetch_subs")
+        if fetch_subs:
+            from ..models.aniworld_to.dubsync.subfetch import LANG_ALIASES
+
+            fetch_subs = str(fetch_subs).strip().lower()
+            if fetch_subs not in LANG_ALIASES:
+                return jsonify(
+                    {"error": f"Unknown subtitle language: {fetch_subs}"}
+                ), 400
+            options["fetch_subs"] = LANG_ALIASES[fetch_subs]
+
+        english_sub_disabled = (
+            os.environ.get("ANIWORLD_DISABLE_ENGLISH_SUB", "0") == "1"
+        )
+        if english_sub_disabled and (
+            language == "English Sub" or "English Sub" in cleaned_extras
         ):
             return jsonify({"error": "English Sub downloads are disabled"}), 403
 
@@ -1875,8 +2063,244 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             provider,
             username,
             custom_path_id=custom_path_id,
+            options=options or None,
         )
         return jsonify({"queue_id": queue_id})
+
+    @app.route("/api/dubsync", methods=["POST"])
+    def api_dubsync():
+        """Enqueue a DubSync job: graft the URL's dub onto local video files."""
+        from ..models.aniworld_to.dubsync.pipeline import dubsync_env_defaults
+
+        data = request.get_json(silent=True) or {}
+        defaults = dubsync_env_defaults()
+
+        url = str(data.get("url") or "").strip().replace(
+            "://s.to", "://serienstream.to"
+        )
+        target_dir = str(data.get("target_dir") or "").strip() or defaults[
+            "target_dir"
+        ]
+
+        if not url:
+            return jsonify({"error": "url is required"}), 400
+        if not target_dir:
+            return jsonify({"error": "target_dir is required"}), 400
+        if not os.path.isdir(os.path.expanduser(target_dir)):
+            return jsonify({"error": f"Not a directory: {target_dir}"}), 400
+
+        try:
+            prov = resolve_provider(url)
+        except Exception:
+            prov = None
+        valid = prov is not None and (
+            (
+                prov.name in ("AniWorld", "SerienStream")
+                and (
+                    (prov.series_pattern and prov.series_pattern.fullmatch(url))
+                    or (prov.season_pattern and prov.season_pattern.fullmatch(url))
+                )
+            )
+            # movie sites: the movie page URL itself is the source
+            or (
+                prov.name in ("MegaKino", "FilmPalast")
+                and prov.series_pattern
+                and prov.series_pattern.fullmatch(url)
+            )
+        )
+        if not valid:
+            return jsonify(
+                {
+                    "error": "url must be an AniWorld/SerienStream series or "
+                    "season, or a MegaKino/FilmPalast movie"
+                }
+            ), 400
+
+        raw_offset = str(data.get("offset", "")).strip()
+        if raw_offset:
+            try:
+                float(raw_offset)
+            except ValueError:
+                return jsonify({"error": f"Invalid offset: {raw_offset}"}), 400
+
+        # Optional episode restriction from the DubSync page's checklist:
+        # a list of [season, episode] pairs. May be empty when the job is
+        # movie-only (pairs below carry the work instead).
+        raw_episodes = data.get("episodes")
+        selected = None
+        if raw_episodes is not None:
+            if not isinstance(raw_episodes, list):
+                return jsonify({"error": "episodes must be a list"}), 400
+            try:
+                selected = [
+                    [int(s) if s is not None else None, int(e)]
+                    for s, e in raw_episodes
+                ]
+            except (TypeError, ValueError):
+                return jsonify(
+                    {"error": "episodes must be [season, episode] pairs"}
+                ), 400
+
+        # Optional movie pairings: [season, episode, filename] triples, the
+        # filename being the user-confirmed local file for that movie.
+        raw_pairs = data.get("pairs")
+        pairs = None
+        if raw_pairs is not None:
+            if not isinstance(raw_pairs, list):
+                return jsonify({"error": "pairs must be a list"}), 400
+            try:
+                pairs = [
+                    [int(s) if s is not None else None, int(e), str(f)]
+                    for s, e, f in raw_pairs
+                ]
+            except (TypeError, ValueError):
+                return jsonify(
+                    {"error": "pairs must be [season, episode, filename] triples"}
+                ), 400
+            if any(not p[2] for p in pairs):
+                return jsonify({"error": "pairs must name a local file"}), 400
+
+        if raw_episodes is not None and not selected and not pairs:
+            return jsonify(
+                {"error": "select at least one episode or movie"}
+            ), 400
+
+        job = {
+            "target_dir": os.path.expanduser(target_dir),
+            "offset": raw_offset or None,
+            "auto_align": bool(data.get("auto_align", defaults["auto_align"])),
+            "allow_resample": bool(
+                data.get("allow_resample", defaults["allow_resample"])
+            ),
+            "cleanup": bool(data.get("cleanup", defaults["cleanup"])),
+            "recursive": bool(data.get("recursive", False)),
+            "episodes": selected,
+            "pairs": pairs,
+        }
+
+        username = None
+        if auth_enabled:
+            user = get_current_user()
+            if user:
+                username = (
+                    user.get("username")
+                    if isinstance(user, dict)
+                    else getattr(user, "username", None)
+                )
+
+        parts = [p for p in url.rstrip("/").split("/") if p]
+        slug = parts[-1]
+        if slug.startswith("staffel-") and len(parts) >= 2:
+            slug = f"{parts[-2]} {slug}"
+        # movie-site URLs: "12345-some-movie.html" -> "some-movie"
+        slug = re.sub(r"\.html?$", "", slug)
+        slug = re.sub(r"^\d+-", "", slug)
+        slug = slug.replace("-", " ").title()
+        queue_id = add_to_queue(
+            f"DubSync: {slug}",
+            url,
+            [job],
+            defaults["audio_language"],
+            "",
+            username,
+            source="dubsync",
+        )
+        _ensure_queue_worker()
+        return jsonify({"queue_id": queue_id})
+
+    @app.route("/api/dubsync/browse")
+    def api_dubsync_browse():
+        """List subdirectories of a path for the DubSync folder picker."""
+        from pathlib import Path
+
+        from ..models.aniworld_to.dubsync.matcher import VIDEO_EXTENSIONS
+
+        raw = request.args.get("path", "").strip()
+        path = Path(os.path.expanduser(raw)) if raw else Path.home()
+        try:
+            path = path.resolve()
+        except OSError as exc:
+            return jsonify({"error": str(exc)}), 400
+        if not path.is_dir():
+            return jsonify({"error": f"Not a directory: {path}"}), 400
+
+        dirs = []
+        video_count = 0
+        try:
+            entries = sorted(path.iterdir(), key=lambda p: p.name.lower())
+        except PermissionError:
+            return jsonify({"error": f"Permission denied: {path}"}), 403
+        except OSError as exc:
+            return jsonify({"error": str(exc)}), 400
+        for entry in entries:
+            if entry.name.startswith("."):
+                continue
+            try:
+                if entry.is_dir():
+                    dirs.append({"name": entry.name, "path": str(entry)})
+                elif (
+                    entry.is_file()
+                    and entry.suffix.lower() in VIDEO_EXTENSIONS
+                ):
+                    video_count += 1
+            except OSError:
+                continue
+
+        parent = str(path.parent) if path.parent != path else None
+        return jsonify(
+            {
+                "path": str(path),
+                "parent": parent,
+                "dirs": dirs,
+                "video_count": video_count,
+                "home": str(Path.home()),
+            }
+        )
+
+    @app.route("/api/dubsync/scan")
+    def api_dubsync_scan():
+        """Parse a local folder's video filenames into season/episode keys."""
+        from ..models.aniworld_to.dubsync.matcher import scan_directory
+
+        from pathlib import Path
+
+        raw = request.args.get("path", "").strip()
+        if not raw:
+            return jsonify({"error": "path is required"}), 400
+        path = os.path.expanduser(raw)
+        recursive = request.args.get("recursive") == "1"
+        try:
+            parsed, unmatched = scan_directory(path, recursive=recursive)
+        except NotADirectoryError:
+            return jsonify({"error": f"Not a directory: {raw}"}), 400
+        except PermissionError:
+            return jsonify({"error": f"Permission denied: {raw}"}), 403
+        except OSError as exc:
+            return jsonify({"error": str(exc)}), 400
+
+        base = Path(path)
+
+        def _rel(p):
+            try:
+                return str(p.relative_to(base))
+            except ValueError:
+                return p.name
+
+        return jsonify(
+            {
+                "path": path,
+                "files": [
+                    {
+                        "name": pf.path.name,
+                        "rel": _rel(pf.path),
+                        "season": pf.season,
+                        "episode": pf.episode,
+                    }
+                    for pf in parsed
+                ],
+                "unparsed": [{"name": p.name, "rel": _rel(p)} for p in unmatched],
+            }
+        )
 
     @app.route("/api/popular-movies")
     def api_popular_movies():
@@ -2269,6 +2693,15 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 "available_ui_languages": list(SUPPORTED_UI_LANGUAGES),
                 "available_output_formats": list(SUPPORTED_OUTPUT_FORMATS),
                 "discord": _discord_settings(),
+                "dubsync": {
+                    "target_dir": os.environ.get("ANIWORLD_DUBSYNC_TARGET_DIR", ""),
+                    "offset": os.environ.get("ANIWORLD_DUBSYNC_OFFSET", ""),
+                    "auto_align": os.environ.get("ANIWORLD_DUBSYNC_AUTO_ALIGN", "1"),
+                    "allow_resample": os.environ.get(
+                        "ANIWORLD_DUBSYNC_ALLOW_RESAMPLE", "0"
+                    ),
+                    "cleanup": os.environ.get("ANIWORLD_DUBSYNC_CLEANUP", "0"),
+                },
             }
         )
 
@@ -2376,6 +2809,35 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             error = _apply_discord_settings(data["discord"], env_updates)
             if error:
                 return jsonify({"error": error}), 400
+
+        if "dubsync" in data:
+            ds = data["dubsync"] or {}
+            if "target_dir" in ds:
+                env_updates["ANIWORLD_DUBSYNC_TARGET_DIR"] = str(
+                    ds["target_dir"]
+                ).strip()
+            if "offset" in ds:
+                raw_offset = str(ds["offset"]).strip()
+                if raw_offset:
+                    try:
+                        float(raw_offset)
+                    except ValueError:
+                        return jsonify(
+                            {"error": f"Invalid dubsync offset: {raw_offset}"}
+                        ), 400
+                env_updates["ANIWORLD_DUBSYNC_OFFSET"] = raw_offset
+            if "auto_align" in ds:
+                env_updates["ANIWORLD_DUBSYNC_AUTO_ALIGN"] = (
+                    "1" if ds["auto_align"] else "0"
+                )
+            if "allow_resample" in ds:
+                env_updates["ANIWORLD_DUBSYNC_ALLOW_RESAMPLE"] = (
+                    "1" if ds["allow_resample"] else "0"
+                )
+            if "cleanup" in ds:
+                env_updates["ANIWORLD_DUBSYNC_CLEANUP"] = (
+                    "1" if ds["cleanup"] else "0"
+                )
 
         # Settings are intentionally in-memory only for the running process.
         # To persist across restarts, users set them in their .env file.
@@ -2505,6 +2967,12 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     @app.route("/autosync")
     def autosync_page():
         return render_template("autosync.html")
+
+    # ===== DubSync Page =====
+
+    @app.route("/dubsync")
+    def dubsync_page():
+        return render_template("dubsync.html")
 
     # ===== Auto-Sync API =====
 
@@ -2897,6 +3365,12 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         # Endpoints that require admin instead of just login
         _admin_only = {
             "settings_page",
+            # DubSync browses the server's filesystem and writes into local
+            # folders, so the whole feature is admin-only under auth.
+            "dubsync_page",
+            "api_dubsync",
+            "api_dubsync_browse",
+            "api_dubsync_scan",
             "api_settings",
             "api_settings_public_ip",
             "api_settings_update",

@@ -224,6 +224,77 @@ endblock %} {% block content %}
   </div>
 
   <div class="settings-section">
+    <h2 data-i18n="settings.dubsync">DubSync</h2>
+    <div class="settings-hint" data-i18n="settings.dubsync_hint">
+      Defaults for the DubSync page (see the DubSync tab in the navigation).
+      Each queued job can override them.
+    </div>
+
+    <h3 class="settings-subtitle" data-i18n="settings.dubsync_defaults">Defaults</h3>
+    <div class="settings-row">
+      <input type="text" id="dubsyncTargetDir" placeholder="/path/to/local/videos" />
+      <button onclick="saveDubsyncDefaults()">Save</button>
+    </div>
+    <div class="settings-hint" data-i18n="settings.dubsync_target_hint">
+      Default local video folder, used to prefill the DubSync page.
+    </div>
+    <div class="settings-row" style="gap: 10px; flex-wrap: wrap; margin-top: 10px">
+      <div style="flex: 1; min-width: 160px">
+        <label class="planned-label" data-i18n="settings.dubsync_offset">Manual offset (seconds)</label>
+        <input type="text" id="dubsyncOffset" placeholder="auto" style="width: 100%" onchange="saveDubsyncDefaults()" />
+      </div>
+    </div>
+    <label class="settings-checkbox" style="
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 14px;
+        font-size: 0.88rem;
+        color: #c8cad0;
+        cursor: pointer;
+      ">
+      <input type="checkbox" id="dubsyncAutoAlign" onchange="saveDubsyncDefaults()" style="accent-color: #2563eb; cursor: pointer" />
+      <span data-i18n="settings.dubsync_auto_align">Automatic audio alignment</span>
+    </label>
+    <div class="settings-hint" data-i18n="settings.dubsync_auto_align_hint">
+      Detect each episode's dub offset by correlating the shared music/SFX bed.
+      A manual offset always overrides detection.
+    </div>
+    <label class="settings-checkbox" style="
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 14px;
+        font-size: 0.88rem;
+        color: #c8cad0;
+        cursor: pointer;
+      ">
+      <input type="checkbox" id="dubsyncAllowResample" onchange="saveDubsyncDefaults()" style="accent-color: #2563eb; cursor: pointer" />
+      <span data-i18n="settings.dubsync_allow_resample">Correct drift (re-encodes the dub track)</span>
+    </label>
+    <div class="settings-hint" data-i18n="settings.dubsync_allow_resample_hint">
+      Fixes PAL-speed dubs (~4% fast) via atempo. Only the added dub track is
+      re-encoded; video and original audio stay untouched.
+    </div>
+    <label class="settings-checkbox" style="
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 14px;
+        font-size: 0.88rem;
+        color: #c8cad0;
+        cursor: pointer;
+      ">
+      <input type="checkbox" id="dubsyncCleanup" onchange="saveDubsyncDefaults()" style="accent-color: #2563eb; cursor: pointer" />
+      <span data-i18n="settings.dubsync_cleanup">Edit files in place</span>
+    </label>
+    <div class="settings-hint" data-i18n="settings.dubsync_cleanup_hint">
+      When off, results are written as *.dubsync.mkv copies next to the
+      originals (safe default).
+    </div>
+  </div>
+
+  <div class="settings-section">
     <h2 data-i18n="settings.discord">Discord Request Bot</h2>
     <label class="settings-checkbox" style="
         display: flex;

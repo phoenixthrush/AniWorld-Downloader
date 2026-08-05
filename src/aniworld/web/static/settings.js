@@ -47,9 +47,38 @@ async function loadSettings() {
     if (movieFolder) movieFolder.checked = data.movie_folder !== "0";
 
     if (data.discord) applyDiscordSettings(data.discord);
+    if (data.dubsync) applyDubsyncSettings(data.dubsync);
   } catch (e) {
     showToast("Failed to load settings: " + e.message);
   }
+}
+
+// ===== DubSync =====
+
+function applyDubsyncSettings(d) {
+  const targetDir = document.getElementById("dubsyncTargetDir");
+  const offset = document.getElementById("dubsyncOffset");
+  const autoAlign = document.getElementById("dubsyncAutoAlign");
+  const allowResample = document.getElementById("dubsyncAllowResample");
+  const cleanup = document.getElementById("dubsyncCleanup");
+  if (targetDir) targetDir.value = d.target_dir || "";
+  if (offset) offset.value = d.offset || "";
+  if (autoAlign) autoAlign.checked = d.auto_align !== "0";
+  if (allowResample) allowResample.checked = d.allow_resample === "1";
+  if (cleanup) cleanup.checked = d.cleanup === "1";
+}
+
+function saveDubsyncDefaults() {
+  const payload = {
+    dubsync: {
+      target_dir: document.getElementById("dubsyncTargetDir").value.trim(),
+      offset: document.getElementById("dubsyncOffset").value.trim(),
+      auto_align: document.getElementById("dubsyncAutoAlign").checked,
+      allow_resample: document.getElementById("dubsyncAllowResample").checked,
+      cleanup: document.getElementById("dubsyncCleanup").checked,
+    },
+  };
+  putSettings(payload, t("settings.dubsync_saved", "DubSync defaults saved"));
 }
 
 async function putSettings(payload, successMsg) {

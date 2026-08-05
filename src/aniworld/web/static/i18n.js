@@ -15,6 +15,7 @@
       "nav.home": "Home",
       "nav.library": "Library",
       "nav.autosync": "Auto-Sync",
+      "nav.dubsync": "DubSync",
       "nav.planned": "Planned",
       "nav.queue": "Queue",
       "nav.settings": "Settings",
@@ -37,6 +38,12 @@
       "index.download_all": "Download All",
       "index.download_all_langs": "Download All Languages",
       "index.show_unofficial": "Show unofficial chapters",
+      "index.extra_langs": "Also download:",
+      "index.extra_langs_tip":
+        "Everything ends up in one file: each extra dub becomes another audio track you can switch to in your player, timed to match automatically. Sub versions have their subtitles burned into the picture, so they are added as a second video track you can switch to instead.",
+      "index.fetch_subs": "Add a real German subtitle track",
+      "index.fetch_subs_tip":
+        "Downloads the official German subtitles for this episode from the fansub scene and puts them into the file as subtitles you can turn on and off. Works for most anime from around 2020 onwards; if none are found the download simply completes without them.",
       "browse.new_movies": "New Movies",
       "browse.recent_series": "Recently Updated",
       "browse.trending_movies": "Trending Movies",
@@ -85,6 +92,105 @@
       "settings.ui_language": "Interface Language",
       "settings.ui_language_hint": "Language of this web interface.",
       "settings.interface": "Interface",
+      "settings.dubsync": "DubSync",
+      "settings.dubsync_hint":
+        "Defaults for the DubSync page (see the DubSync tab in the navigation). Each queued job can override them.",
+      "settings.dubsync_defaults": "Defaults",
+      "settings.dubsync_target_hint":
+        "Default local video folder, used to prefill the DubSync page.",
+      "settings.dubsync_offset": "Manual offset (seconds)",
+      "settings.dubsync_auto_align": "Automatic audio alignment",
+      "settings.dubsync_auto_align_hint":
+        "Detect each episode's dub offset by correlating the shared music/SFX bed. A manual offset always overrides detection.",
+      "settings.dubsync_allow_resample":
+        "Correct drift (re-encodes the dub track)",
+      "settings.dubsync_allow_resample_hint":
+        "Fixes PAL-speed dubs (~4% fast) via atempo. Only the added dub track is re-encoded; video and original audio stay untouched.",
+      "settings.dubsync_cleanup": "Edit files in place",
+      "settings.dubsync_cleanup_hint":
+        "When off, results are written as *.dubsync.mkv copies next to the originals (safe default).",
+      "settings.dubsync_saved": "DubSync defaults saved",
+      "dubsync.page_hint":
+        "Graft a German dub from AniWorld, SerienStream or a movie site losslessly onto your own archive-quality series and movie files as an additional audio track.",
+      "dubsync.step1": "1. Local folder",
+      "dubsync.step1_hint":
+        "Pick the folder that holds your local video files. Filenames are scanned for season/episode numbers; movie files don't need any.",
+      "dubsync.browse": "Browse…",
+      "dubsync.recursive": "Include subfolders",
+      "dubsync.scanning": "Scanning folder…",
+      "dubsync.scan_failed": "Scan failed: ",
+      "dubsync.scan_found_one": "video file found",
+      "dubsync.scan_found_many": "video files found",
+      "dubsync.scan_with_ep": "with episode numbers",
+      "dubsync.scan_without_ep": "without",
+      "dubsync.scan_movies_ok":
+        "no episode numbers in the filenames — fine for movies",
+      "dubsync.step2": "2. Show / Movie",
+      "dubsync.step2_hint":
+        "Search for the show or movie the dub should come from.",
+      "dubsync.search": "Search",
+      "dubsync.searching": "Searching…",
+      "dubsync.search_failed": "Search failed: ",
+      "dubsync.no_results": "No results",
+      "dubsync.loading_seasons": "Loading episode list…",
+      "dubsync.load_failed": "Failed to load episodes: ",
+      "dubsync.change_show": "Change",
+      "dubsync.season_one": "season",
+      "dubsync.season_many": "seasons",
+      "dubsync.step3": "3. Episodes & movies",
+      "dubsync.step3_hint":
+        "Episodes matching your local files are pre-selected. Movies have no episode numbers in their filenames, so each one gets a dropdown to confirm its local file. Adjust the selection before queueing.",
+      "dubsync.season_label": "Season",
+      "dubsync.movies": "Movies",
+      "dubsync.movies_hint":
+        "Pick the local file for each movie; the best title match is pre-selected.",
+      "dubsync.movie_source": "Movie",
+      "dubsync.movie_n": "Movie",
+      "dubsync.movie_no_file": "— choose local file —",
+      "dubsync.movie_need_file": "Choose a local file first",
+      "dubsync.no_dub": "No German Dub available",
+      "dubsync.local_file": "Local file: ",
+      "dubsync.unpaired": "local file(s) have no matching episode: ",
+      "dubsync.unparsed_note": "Not recognised: ",
+      "dubsync.step4": "4. Options",
+      "dubsync.step4_hint":
+        "The usual settings work for most jobs — you can just press Add to queue.",
+      "dubsync.offset": "Dub timing (seconds)",
+      "dubsync.offset_auto": "automatic",
+      "dubsync.offset_desc":
+        "Leave empty — the timing is worked out automatically.",
+      "dubsync.offset_tip":
+        "Only needed when the dub is consistently too early or too late in every episode. Example: -0.5 starts the dub half a second earlier. Entering a value here turns off the automatic timing above.",
+      "dubsync.auto_align": "Fix timing automatically (recommended)",
+      "dubsync.auto_align_desc":
+        "Lines the dub up with your video by comparing the two soundtracks.",
+      "dubsync.auto_align_tip":
+        "The dub comes from a stream that may start a little earlier or later than your file. DubSync listens for the music and sound effects both versions share and shifts the dub so it lines up. If it is not confident, it leaves the timing as-is and marks the job in the queue so you can check by ear.",
+      "dubsync.allow_resample": "Fix wrong playback speed",
+      "dubsync.allow_resample_desc":
+        "Some dubs run slightly too fast; this slows the dub down to match your video.",
+      "dubsync.allow_resample_tip":
+        "Dubs taken from TV broadcasts sometimes run about 4% too fast. Fixing that means the dub track is converted once — your video and its original audio are never touched. Only kicks in when a speed difference is actually found.",
+      "dubsync.cleanup": "Add the dub directly into my files",
+      "dubsync.cleanup_desc":
+        "When off, a new copy named *.dubsync.mkv is saved next to each file — the safe choice.",
+      "dubsync.cleanup_tip":
+        "Even with this on, your original is only replaced after the new version was written completely and successfully — a failed job never damages your files.",
+      "dubsync.add": "Add to queue",
+      "dubsync.added": "Added",
+      "dubsync.view_queue": "View queue",
+      "dubsync.summary_incomplete": "Pick a folder and a show first",
+      "dubsync.summary_one": "episode selected",
+      "dubsync.summary_many": "episodes selected",
+      "dubsync.summary_movie_one": "movie selected",
+      "dubsync.summary_movie_many": "movies selected",
+      "dubsync.queued": "DubSync job added to queue",
+      "dubsync.queue_failed": "Failed to enqueue: ",
+      "dubsync.browser_title": "Choose a folder",
+      "dubsync.browser_up": "← Back",
+      "dubsync.browser_select": "Use this folder",
+      "dubsync.browser_empty": "No subfolders",
+      "dubsync.browser_videos": "video file(s) in this folder",
       "settings.discord": "Discord Request Bot",
       "settings.discord.enable": "Enable Discord bot",
       "settings.discord.enable_hint":
@@ -129,6 +235,7 @@
       "nav.home": "Start",
       "nav.library": "Bibliothek",
       "nav.autosync": "Auto-Sync",
+      "nav.dubsync": "DubSync",
       "nav.planned": "Geplant",
       "nav.queue": "Warteschlange",
       "nav.settings": "Einstellungen",
@@ -151,6 +258,12 @@
       "index.download_all": "Alle herunterladen",
       "index.download_all_langs": "Alle Sprachen herunterladen",
       "index.show_unofficial": "Inoffizielle Kapitel anzeigen",
+      "index.extra_langs": "Zusätzlich laden:",
+      "index.extra_langs_tip":
+        "Alles landet in einer Datei: Jeder zusätzliche Dub wird eine weitere Tonspur, die sich im Player umschalten lässt – das Timing wird automatisch angepasst. Bei Sub-Versionen sind die Untertitel fest ins Bild eingebrannt, deshalb kommen sie als zweite, umschaltbare Videospur dazu.",
+      "index.fetch_subs": "Echte deutsche Untertitelspur hinzufügen",
+      "index.fetch_subs_tip":
+        "Lädt die offiziellen deutschen Untertitel der Episode aus der Fansub-Szene und fügt sie als ein- und ausschaltbare Untertitelspur in die Datei ein. Funktioniert für die meisten Anime ab ca. 2020; wird nichts gefunden, läuft der Download einfach ohne Untertitel durch.",
       "browse.new_movies": "Neue Filme",
       "browse.recent_series": "Zuletzt aktualisiert",
       "browse.trending_movies": "Angesagte Filme",
@@ -199,6 +312,105 @@
       "settings.ui_language": "Sprache der Oberfläche",
       "settings.ui_language_hint": "Sprache dieser Weboberfläche.",
       "settings.interface": "Oberfläche",
+      "settings.dubsync": "DubSync",
+      "settings.dubsync_hint":
+        "Standardwerte für die DubSync-Seite (siehe DubSync-Tab in der Navigation). Jeder Auftrag kann sie überschreiben.",
+      "settings.dubsync_defaults": "Standardwerte",
+      "settings.dubsync_target_hint":
+        "Standardordner der lokalen Videodateien; füllt die DubSync-Seite vor.",
+      "settings.dubsync_offset": "Manueller Versatz (Sekunden)",
+      "settings.dubsync_auto_align": "Automatische Tonspur-Ausrichtung",
+      "settings.dubsync_auto_align_hint":
+        "Erkennt den Versatz jeder Episode über die gemeinsame Musik-/Effektspur. Ein manueller Versatz hat immer Vorrang.",
+      "settings.dubsync_allow_resample":
+        "Drift korrigieren (kodiert die Dub-Spur neu)",
+      "settings.dubsync_allow_resample_hint":
+        "Behebt PAL-Geschwindigkeit (~4 % zu schnell) per atempo. Nur die neue Dub-Spur wird neu kodiert; Video und Originalton bleiben unberührt.",
+      "settings.dubsync_cleanup": "Dateien direkt bearbeiten",
+      "settings.dubsync_cleanup_hint":
+        "Wenn aus, werden Ergebnisse als *.dubsync.mkv-Kopien neben den Originalen gespeichert (sichere Voreinstellung).",
+      "settings.dubsync_saved": "DubSync-Standardwerte gespeichert",
+      "dubsync.page_hint":
+        "Fügt einen deutschen Dub von AniWorld, SerienStream oder einer Filmseite verlustfrei als zusätzliche Tonspur in deine eigenen hochwertigen Serien- und Filmdateien ein.",
+      "dubsync.step1": "1. Lokaler Ordner",
+      "dubsync.step1_hint":
+        "Wähle den Ordner mit deinen lokalen Videodateien. Die Dateinamen werden nach Staffel-/Episodennummern durchsucht; Filmdateien brauchen keine.",
+      "dubsync.browse": "Durchsuchen…",
+      "dubsync.recursive": "Unterordner einbeziehen",
+      "dubsync.scanning": "Ordner wird gescannt…",
+      "dubsync.scan_failed": "Scan fehlgeschlagen: ",
+      "dubsync.scan_found_one": "Videodatei gefunden",
+      "dubsync.scan_found_many": "Videodateien gefunden",
+      "dubsync.scan_with_ep": "mit Episodennummern",
+      "dubsync.scan_without_ep": "ohne",
+      "dubsync.scan_movies_ok":
+        "keine Episodennummern in den Dateinamen — für Filme in Ordnung",
+      "dubsync.step2": "2. Serie / Film",
+      "dubsync.step2_hint":
+        "Suche nach der Serie oder dem Film, aus der bzw. dem der Dub kommen soll.",
+      "dubsync.search": "Suchen",
+      "dubsync.searching": "Suche läuft…",
+      "dubsync.search_failed": "Suche fehlgeschlagen: ",
+      "dubsync.no_results": "Keine Ergebnisse",
+      "dubsync.loading_seasons": "Episodenliste wird geladen…",
+      "dubsync.load_failed": "Episoden konnten nicht geladen werden: ",
+      "dubsync.change_show": "Ändern",
+      "dubsync.season_one": "Staffel",
+      "dubsync.season_many": "Staffeln",
+      "dubsync.step3": "3. Episoden & Filme",
+      "dubsync.step3_hint":
+        "Episoden mit passenden lokalen Dateien sind vorausgewählt. Filmdateinamen tragen keine Episodennummern, daher hat jeder Film ein Dropdown zur Bestätigung seiner lokalen Datei. Passe die Auswahl vor dem Einreihen an.",
+      "dubsync.season_label": "Staffel",
+      "dubsync.movies": "Filme",
+      "dubsync.movies_hint":
+        "Wähle für jeden Film die lokale Datei; der beste Titel-Treffer ist vorausgewählt.",
+      "dubsync.movie_source": "Film",
+      "dubsync.movie_n": "Film",
+      "dubsync.movie_no_file": "— lokale Datei wählen —",
+      "dubsync.movie_need_file": "Wähle zuerst eine lokale Datei",
+      "dubsync.no_dub": "Kein deutscher Dub verfügbar",
+      "dubsync.local_file": "Lokale Datei: ",
+      "dubsync.unpaired": "lokale Datei(en) ohne passende Episode: ",
+      "dubsync.unparsed_note": "Nicht erkannt: ",
+      "dubsync.step4": "4. Optionen",
+      "dubsync.step4_hint":
+        "Die Voreinstellungen passen für die meisten Aufträge — du kannst einfach auf „Zur Warteschlange“ drücken.",
+      "dubsync.offset": "Dub-Timing (Sekunden)",
+      "dubsync.offset_auto": "automatisch",
+      "dubsync.offset_desc":
+        "Leer lassen — das Timing wird automatisch ermittelt.",
+      "dubsync.offset_tip":
+        "Nur nötig, wenn der Dub in jeder Episode gleichmäßig zu früh oder zu spät kommt. Beispiel: -0.5 lässt den Dub eine halbe Sekunde früher starten. Ein Wert hier schaltet das automatische Timing oben aus.",
+      "dubsync.auto_align": "Timing automatisch anpassen (empfohlen)",
+      "dubsync.auto_align_desc":
+        "Richtet den Dub am Video aus, indem beide Tonspuren verglichen werden.",
+      "dubsync.auto_align_tip":
+        "Der Dub stammt aus einem Stream, der etwas früher oder später starten kann als deine Datei. DubSync achtet auf Musik und Soundeffekte, die beide Fassungen teilen, und verschiebt den Dub passend. Ist es sich nicht sicher, bleibt das Timing unverändert und der Auftrag wird in der Warteschlange markiert, damit du per Ohr prüfen kannst.",
+      "dubsync.allow_resample": "Falsche Abspielgeschwindigkeit korrigieren",
+      "dubsync.allow_resample_desc":
+        "Manche Dubs laufen etwas zu schnell; das bremst den Dub passend zum Video ab.",
+      "dubsync.allow_resample_tip":
+        "Dubs aus TV-Ausstrahlungen laufen manchmal ca. 4 % zu schnell. Die Korrektur wandelt nur die Dub-Spur einmal um — dein Video und sein Originalton werden nie angefasst. Greift nur, wenn tatsächlich ein Geschwindigkeitsunterschied gefunden wird.",
+      "dubsync.cleanup": "Dub direkt in meine Dateien einfügen",
+      "dubsync.cleanup_desc":
+        "Wenn aus, wird eine neue Kopie namens *.dubsync.mkv neben jeder Datei gespeichert — die sichere Wahl.",
+      "dubsync.cleanup_tip":
+        "Auch wenn eingeschaltet: dein Original wird erst ersetzt, nachdem die neue Version vollständig und erfolgreich geschrieben wurde — ein fehlgeschlagener Auftrag beschädigt deine Dateien nie.",
+      "dubsync.add": "Zur Warteschlange",
+      "dubsync.added": "Hinzugefügt",
+      "dubsync.view_queue": "Warteschlange öffnen",
+      "dubsync.summary_incomplete": "Wähle zuerst einen Ordner und eine Serie",
+      "dubsync.summary_one": "Episode ausgewählt",
+      "dubsync.summary_many": "Episoden ausgewählt",
+      "dubsync.summary_movie_one": "Film ausgewählt",
+      "dubsync.summary_movie_many": "Filme ausgewählt",
+      "dubsync.queued": "DubSync-Auftrag zur Warteschlange hinzugefügt",
+      "dubsync.queue_failed": "Einreihen fehlgeschlagen: ",
+      "dubsync.browser_title": "Ordner auswählen",
+      "dubsync.browser_up": "← Zurück",
+      "dubsync.browser_select": "Diesen Ordner verwenden",
+      "dubsync.browser_empty": "Keine Unterordner",
+      "dubsync.browser_videos": "Videodatei(en) in diesem Ordner",
       "settings.discord": "Discord-Anfrage-Bot",
       "settings.discord.enable": "Discord-Bot aktivieren",
       "settings.discord.enable_hint":

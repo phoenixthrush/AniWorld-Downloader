@@ -330,6 +330,11 @@ def init_queue_db():
             conn.execute("ALTER TABLE download_queue ADD COLUMN discord_user_id TEXT")
         except Exception:
             pass  # column already exists
+        try:
+            # Per-job feature options (JSON): extra_languages, fetch_subs, ...
+            conn.execute("ALTER TABLE download_queue ADD COLUMN options TEXT")
+        except Exception:
+            pass  # column already exists
         conn.commit()
     finally:
         conn.close()
@@ -345,14 +350,15 @@ def add_to_queue(
     custom_path_id=None,
     source="manual",
     discord_user_id=None,
+    options=None,
 ):
     import json
 
     conn = get_db()
     try:
         cur = conn.execute(
-            "INSERT INTO download_queue (title, series_url, episodes, total_episodes, language, provider, username, custom_path_id, source, discord_user_id) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO download_queue (title, series_url, episodes, total_episodes, language, provider, username, custom_path_id, source, discord_user_id, options) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 title,
                 series_url,
@@ -364,6 +370,7 @@ def add_to_queue(
                 custom_path_id,
                 source,
                 discord_user_id,
+                json.dumps(options) if options else None,
             ),
         )
         row_id = cur.lastrowid

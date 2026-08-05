@@ -120,6 +120,20 @@
         <option value="" data-i18n="index.default">Default</option>
       </select>
     </div>
+    <div class="dl-options" id="dlOptions">
+      <div class="dl-opt-row" id="extraLangsRow" style="display: none">
+        <span class="dl-opt-label">
+          <span data-i18n="index.extra_langs">Also download:</span>
+          <span class="ds-help" data-i18n-title="index.extra_langs_tip" title="Everything ends up in one file: each extra dub becomes another audio track you can switch to in your player, timed to match automatically. Sub versions have their subtitles burned into the picture, so they are added as a second video track you can switch to instead.">?</span>
+        </span>
+        <span id="extraLangChecks" class="dl-opt-checks"></span>
+      </div>
+      <label class="dl-opt-row" id="fetchSubsRow" style="display: none">
+        <input type="checkbox" id="fetchSubsCheck" />
+        <span data-i18n="index.fetch_subs">Add a real German subtitle track</span>
+        <span class="ds-help" data-i18n-title="index.fetch_subs_tip" title="Downloads the official German subtitles for this episode from the fansub scene and puts them into the file as subtitles you can turn on and off. Works for most anime from around 2020 onwards; if none are found the download simply completes without them.">?</span>
+      </label>
+    </div>
     <script>
       window.ANIWORLD_LANGS = {{ lang_labels | tojson }};
       window.STO_LANGS = {{ sto_lang_labels | tojson }};
