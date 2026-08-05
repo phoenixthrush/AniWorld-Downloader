@@ -11,7 +11,6 @@ from .burningseries import (
 from .cineby import CinebyEpisode, CinebySeason, CinebySeries
 from .filmpalast_to import FilmPalastEpisode
 from .hanime_tv import HanimeTVEpisode, HanimeTVSeason, HanimeTVSeries
-from .hianime_to import HiAnimeEpisode, HiAnimeSeason, HiAnimeSeries
 from .kinox import KinoxEpisode, KinoxSeason, KinoxSeries
 from .mangafire_to.series import MangaFireToChapter, MangaFireToPage, MangaFireToSeries
 from .megakino import MegaKinoEpisode
@@ -30,9 +29,6 @@ __all__ = [
     "SerienstreamSeries",
     "SerienstreamSeason",
     "SerienstreamEpisode",
-    "HiAnimeSeries",
-    "HiAnimeSeason",
-    "HiAnimeEpisode",
     "MegaKinoEpisode",
     "FilmPalastEpisode",
     "KinoxSeries",
