@@ -42,6 +42,72 @@ def validate_action(action: str):
         raise ValueError(f"Invalid action: {action}")
 
 
+def _run_dubsync_cli(args) -> int:
+    """Handle ``--dubsync-target``: graft the URL's dub onto local files."""
+    from .models.aniworld_to.dubsync.pipeline import (
+        dubsync_env_defaults,
+        run_dubsync,
+    )
+
+    if len(args.url) != 1:
+        print(
+            "DubSync needs exactly one AniWorld/SerienStream series or "
+            "season URL as the positional argument.",
+            file=sys.stderr,
+        )
+        return 1
+
+    url = args.url[0].replace("://s.to", "://serienstream.to")
+    try:
+        provider = resolve_provider(url)
+    except Exception:
+        provider = None
+    is_series = bool(
+        provider
+        and provider.series_pattern
+        and provider.series_pattern.fullmatch(url)
+    )
+    is_season = bool(
+        provider
+        and provider.season_pattern
+        and provider.season_pattern.fullmatch(url)
+    )
+    if (
+        provider is None
+        or provider.name not in ("AniWorld", "SerienStream")
+        or not (is_series or is_season)
+    ):
+        print(
+            f"DubSync requires an AniWorld/SerienStream series or season URL, "
+            f"got: {url}",
+            file=sys.stderr,
+        )
+        return 1
+
+    if not os.path.isdir(args.dubsync_target):
+        print(
+            f"DubSync target is not a directory: {args.dubsync_target}",
+            file=sys.stderr,
+        )
+        return 1
+
+    # The CLI flags were exported to ANIWORLD_DUBSYNC_* by parse_args, so the
+    # env defaults already reflect them (and .env supplies the rest).
+    defaults = dubsync_env_defaults()
+    _, outcomes = run_dubsync(
+        url,
+        args.dubsync_target,
+        offset=defaults["offset"],
+        audio_language=defaults["audio_language"],
+        recursive=args.dubsync_recursive,
+        dry_run=args.dubsync_dry_run,
+        cleanup=defaults["cleanup"],
+        auto_align=defaults["auto_align"],
+        allow_resample=defaults["allow_resample"],
+    )
+    return 1 if any(o.status == "failed" for o in outcomes) else 0
+
+
 def run_action(obj, action: str):
     validate_action(action)
     getattr(obj, action)()
@@ -59,6 +125,9 @@ def aniworld():
             logger.debug("Checking dependencies...")
             ensure_patchright_chromium()
             logger.debug("Dependencies OK")
+
+        if args.dubsync_target:
+            return _run_dubsync_cli(args)
 
         if args.web_ui:
             from .web import start_web_ui
