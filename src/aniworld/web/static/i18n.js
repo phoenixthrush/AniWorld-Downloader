@@ -1,301 +1,209 @@
 /*
- * Lightweight interface translation.
+ * Interface translation.
  *
- * Both dictionaries are embedded so switching languages is instant and needs
- * no extra request. Elements are translated by data-attributes:
- *   data-i18n            -> textContent
- *   data-i18n-placeholder-> placeholder attribute
- *   data-i18n-title      -> title attribute
- *   data-i18n-html       -> innerHTML (use sparingly, values are trusted)
- * Dynamic strings from the other scripts use window.t("key", "fallback").
+ * Both dictionaries ship with the page so switching is instant. Markup is
+ * translated through data attributes:
+ *   data-i18n             -> textContent
+ *   data-i18n-placeholder -> placeholder
+ *   data-i18n-title       -> title
+ * Scripts use t("key", "fallback") for strings they build themselves.
  */
 (function () {
   const STRINGS = {
-    en: {
-      "nav.home": "Home",
-      "nav.library": "Library",
-      "nav.autosync": "Auto-Sync",
-      "nav.planned": "Planned",
-      "nav.queue": "Queue",
-      "nav.settings": "Settings",
-      "nav.logout": "Logout",
-      "footer.opensource": "AniWorld Downloader is open source.",
-      "footer.viewgithub": "View the project on GitHub",
-      "queue.title": "Download Queue",
-      "queue.empty": "The download queue is empty.",
-      "queue.solve": "Solve",
-      "captcha.title": "\u{1F512} Solve captcha",
-      "captcha.hint": "Click the image to interact with the browser.",
-      "index.search": "Search",
-      "index.random": "Random",
-      "index.episodes": "Episodes",
-      "index.autosync": "Keep Updated (Auto-Sync)",
-      "index.selectall": "Select All",
-      "index.download_folder": "Download Folder",
-      "index.default": "Default",
-      "index.download_selected": "Download Selected",
-      "index.download_all": "Download All",
-      "index.download_all_langs": "Download All Languages",
-      "index.show_unofficial": "Show unofficial chapters",
-      "browse.new_movies": "New Movies",
-      "browse.recent_series": "Recently Updated",
-      "browse.trending_movies": "Trending Movies",
-      "common.save": "Save",
-      "common.add": "Add",
-      "common.delete": "Delete",
-      "common.edit": "Edit",
-      "common.cancel": "Cancel",
-      "common.remove": "Remove",
-      "settings.title": "Settings",
-      "settings.users": "User Management",
-      "settings.add_user": "Add User",
-      "settings.custom_paths": "Custom Paths",
-      "settings.add_path": "Add Path",
-      "settings.paths.default_for": "Default for sites",
-      "settings.paths.default_hint":
-        "Tick the sites a path should be the pre-selected download folder for.",
-      "settings.persist_notice":
-        "Changes made below are temporary and will be reset when AniWorld Downloader is restarted. To make settings persist, set them in your .env file at",
-      "settings.autosync_defaults": "Auto-Sync Defaults",
-      "settings.schedule": "Schedule",
-      "settings.default_language": "Default Language",
-      "settings.default_provider": "Default Provider",
-      "settings.autosync_hint":
-        "How often Auto-Sync checks for new episodes. Language and provider are defaults used when creating new sync jobs.",
-      "settings.general": "Settings",
-      "settings.download_path": "Download Path",
-      "settings.download_path_hint": "Changes take effect immediately for new downloads",
-      "settings.provider_fallback": "Provider Fallback Order",
-      "settings.provider_fallback_hint":
-        "Downloads always try the selected provider first. If that hoster fails, AniWorld Downloader falls back through this order.",
-      "settings.lang_separation": "Separate languages into folders",
-      "settings.lang_separation_hint":
-        "When enabled, downloads are organized into subfolders by language (e.g. german-dub/, english-sub/)",
-      "settings.disable_english_sub": "Disable English Sub downloads",
-      "settings.disable_english_sub_hint":
-        "When enabled, English Sub is hidden from the language selector and cannot be downloaded",
-      "settings.enable_htv": "Enable Hanime tab",
-      "settings.enable_htv_hint": "When enabled, the Hanime tab is shown on the home page",
-      "settings.movie_folder": "Wrap movies in their own folder",
-      "settings.movie_folder_hint":
-        "When off, a movie is saved directly into the download path instead of a \"Title (Year)\" folder.",
-      "settings.output_format": "Output Format",
-      "settings.output_format_hint":
-        "Container for downloaded files. MP4 is the most compatible with players and Plex.",
-      "settings.ui_language": "Interface Language",
-      "settings.ui_language_hint": "Language of this web interface.",
-      "settings.interface": "Interface",
-      "settings.discord": "Discord Request Bot",
-      "settings.discord.enable": "Enable Discord bot",
-      "settings.discord.enable_hint":
-        "Let users request movies and series from Discord. Requests are sent to you for approval.",
-      "settings.discord.token": "Bot Token",
-      "settings.discord.owner": "Owner User ID",
-      "settings.discord.mode": "Mode",
-      "settings.discord.mode_standard": "Standard (approve each request)",
-      "settings.discord.mode_advanced": "Advanced (queue immediately)",
-      "settings.discord.role": "Request Role ID (optional)",
-      "settings.discord.guild": "Server ID (optional, faster command sync)",
-      "settings.discord.language": "Bot Language",
-      "settings.discord.language_en": "English",
-      "settings.discord.language_de": "German",
-      "settings.discord.announce": "Announce Channel ID (optional)",
-      "settings.discord.announce_hint": "When a requested download finishes, the requester is DM'd; if an announce channel is set, a “now available” message is posted there too.",
-      "settings.discord.status": "Status",
-      "settings.ip": "IP Check",
-      "settings.public_ip": "Container Public IP",
-      "settings.refresh_ip": "Refresh IP",
-      "planned.title": "Planned Releases",
-      "planned.subtitle":
-        "Watch for movies or series that aren't out yet. Once they appear on the selected site, they are downloaded automatically.",
-      "planned.add": "Add Planned Item",
-      "planned.name": "Title",
-      "planned.site": "Site",
-      "planned.type": "Type",
-      "planned.type_movie": "Movie",
-      "planned.type_series": "Series",
-      "planned.language": "Language",
-      "planned.provider": "Provider",
-      "planned.autosync_after": "Keep series updated after first download",
-      "planned.check_now": "Check now",
-      "planned.status": "Status",
-      "planned.last_check": "Last Check",
-      "planned.empty": "Nothing planned yet.",
-      "planned.status_waiting": "Waiting",
-      "planned.status_found": "Found",
-      "planned.status_error": "Error",
-    },
+    en: {},
     de: {
       "nav.home": "Start",
       "nav.library": "Bibliothek",
-      "nav.autosync": "Auto-Sync",
-      "nav.planned": "Geplant",
       "nav.queue": "Warteschlange",
       "nav.settings": "Einstellungen",
       "nav.logout": "Abmelden",
       "footer.opensource": "AniWorld Downloader ist Open Source.",
-      "footer.viewgithub": "Projekt auf GitHub ansehen",
-      "queue.title": "Download-Warteschlange",
-      "queue.empty": "Die Warteschlange ist leer.",
-      "queue.solve": "Lösen",
-      "captcha.title": "\u{1F512} Captcha lösen",
-      "captcha.hint": "Klick auf die Darstellung um mit dem Browser zu interagieren.",
-      "index.search": "Suchen",
-      "index.random": "Zufall",
-      "index.episodes": "Episoden",
-      "index.autosync": "Aktuell halten (Auto-Sync)",
-      "index.selectall": "Alle auswählen",
-      "index.download_folder": "Download-Ordner",
-      "index.default": "Standard",
-      "index.download_selected": "Auswahl herunterladen",
-      "index.download_all": "Alle herunterladen",
-      "index.download_all_langs": "Alle Sprachen herunterladen",
-      "index.show_unofficial": "Inoffizielle Kapitel anzeigen",
-      "browse.new_movies": "Neue Filme",
-      "browse.recent_series": "Zuletzt aktualisiert",
-      "browse.trending_movies": "Angesagte Filme",
+      "footer.github": "Auf GitHub ansehen",
+
       "common.save": "Speichern",
       "common.add": "Hinzufügen",
       "common.delete": "Löschen",
-      "common.edit": "Bearbeiten",
-      "common.cancel": "Abbrechen",
       "common.remove": "Entfernen",
+      "common.refresh": "Aktualisieren",
+      "common.retry": "Erneut versuchen",
+      "common.cancel": "Abbrechen",
+      "common.loading": "Wird geladen...",
+      "common.failed": "Fehlgeschlagen",
+
+      "index.heading": "AniWorld Downloader",
+      "index.search": "Suchen",
+      "index.searching": "Wird gesucht...",
+      "index.random": "Zufall",
+      "index.episodes": "Episoden",
+      "index.select_all": "Alle auswählen",
+      "index.language": "Sprache",
+      "index.provider": "Anbieter",
+      "index.format": "Format",
+      "index.download_folder": "Zielordner",
+      "index.default": "Standard",
+      "index.download_selected": "Auswahl herunterladen",
+      "index.download_all": "Alle herunterladen",
+      "index.loading_episodes": "Episoden werden geladen...",
+      "index.loading_series": "Titel wird geladen...",
+      "index.no_results": "Keine Ergebnisse gefunden.",
+      "index.no_episodes_selected": "Keine Episoden ausgewählt.",
+      "index.no_episodes": "Keine Episoden verfügbar.",
+      "index.queued": "Zur Warteschlange hinzugefügt",
+      "index.search_failed": "Suche fehlgeschlagen",
+      "index.load_failed": "Titel konnte nicht geladen werden",
+      "index.episodes_failed": "Episoden konnten nicht geladen werden.",
+      "index.not_available": "[Nicht verfügbar]",
+      "index.season": "Staffel",
+      "index.movies": "Filme",
+      "index.chapter": "Kapitel",
+      "index.page": "Seite",
+      "index.all": "Alle",
+
+      "browse.new_animes": "Neue Animes",
+      "browse.popular_animes": "Beliebte Animes",
+      "browse.new_series": "Neue Serien",
+      "browse.popular_series": "Beliebte Serien",
+      "browse.popular_movies": "Beliebte Filme",
+      "browse.new_movies": "Neue Filme",
+      "browse.recent_series": "Kürzlich aktualisiert",
+      "browse.trending_movies": "Angesagte Filme",
+      "browse.trending_manga": "Angesagte Manga",
+      "browse.trending_hentai": "Angesagt",
+
+      "queue.title": "Download-Warteschlange",
+      "queue.empty": "Die Warteschlange ist leer.",
+      "queue.clear_finished": "Erledigte entfernen",
+      "queue.solve_captcha": "Captcha lösen",
+      "queue.open_captcha": "Captcha im Browser lösen",
+      "queue.errors": "Fehler",
+      "queue.episode_of": "Episode {current} von {total}",
+      "queue.status.queued": "Wartet",
+      "queue.status.running": "Läuft",
+      "queue.status.completed": "Fertig",
+      "queue.status.failed": "Fehler",
+      "queue.status.cancelled": "Abgebrochen",
+      "captcha.title": "Captcha lösen",
+      "captcha.hint": "Klicke auf das Bild, um mit dem Browser zu interagieren.",
+
+      "library.title": "Bibliothek",
+      "library.hint":
+        "Ordner werden erst beim Öffnen geladen, es wird nichts im Voraus durchsucht.",
+      "library.empty": "Keine heruntergeladenen Inhalte gefunden.",
+      "library.no_titles": "Dieser Ordner ist leer.",
+      "library.load_failed": "Bibliothek konnte nicht geladen werden.",
+      "library.episodes": "Ep.",
+      "library.confirm_title": 'Wirklich "{name}" komplett löschen?',
+      "library.confirm_season": 'Wirklich Staffel {season} von "{name}" löschen?',
+      "library.confirm_episode": "Wirklich diese Episode löschen?",
+      "library.deleted": "Gelöscht",
+
       "settings.title": "Einstellungen",
-      "settings.users": "Benutzerverwaltung",
-      "settings.add_user": "Benutzer hinzufügen",
-      "settings.custom_paths": "Eigene Pfade",
-      "settings.add_path": "Pfad hinzufügen",
-      "settings.paths.default_for": "Standard für Seiten",
-      "settings.paths.default_hint":
-        "Wähle die Seiten aus, für die dieser Pfad der voreingestellte Download-Ordner sein soll.",
       "settings.persist_notice":
-        "Änderungen hier sind temporär und werden beim Neustart von AniWorld Downloader zurückgesetzt. Um Einstellungen dauerhaft zu speichern, trage sie in deine .env-Datei ein unter",
-      "settings.autosync_defaults": "Auto-Sync-Standards",
-      "settings.schedule": "Zeitplan",
-      "settings.default_language": "Standardsprache",
-      "settings.default_provider": "Standard-Hoster",
-      "settings.autosync_hint":
-        "Wie oft Auto-Sync nach neuen Episoden sucht. Sprache und Hoster sind Standardwerte für neue Sync-Aufträge.",
-      "settings.general": "Einstellungen",
-      "settings.download_path": "Download-Pfad",
-      "settings.download_path_hint": "Änderungen gelten sofort für neue Downloads",
-      "settings.provider_fallback": "Hoster-Ausweichreihenfolge",
+        "Änderungen gelten sofort, werden aber beim Neustart zurückgesetzt. Damit sie bleiben, trage sie in deiner .env-Datei ein unter",
+      "settings.users": "Benutzerverwaltung",
+      "settings.user": "Benutzer",
+      "settings.role": "Rolle",
+      "settings.auth": "Anmeldung",
+      "settings.custom_paths": "Eigene Pfade",
+      "settings.custom_paths_hint":
+        "Gib einem Ordner einen Namen und wähle ihn im Download-Dialog als Ziel aus.",
+      "settings.name": "Name",
+      "settings.path": "Pfad",
+      "settings.default_for": "Standard für Seiten",
+      "settings.default_for_hint":
+        "Wähle aus, für welche Seiten dieser Pfad vorausgewählt sein soll.",
+      "settings.defaults": "Standardwerte",
+      "settings.download_path": "Downloadpfad",
+      "settings.download_path_hint": "Gilt sofort für neue Downloads.",
+      "settings.provider_fallback": "Anbieter-Reihenfolge",
       "settings.provider_fallback_hint":
-        "Downloads versuchen immer zuerst den gewählten Hoster. Schlägt dieser fehl, geht AniWorld Downloader diese Reihenfolge durch.",
-      "settings.lang_separation": "Sprachen in Ordner trennen",
+        "Der ausgewählte Anbieter wird immer zuerst versucht. Schlägt er fehl, wird diese Reihenfolge durchlaufen.",
+      "settings.lang_separation": "Sprachen in eigene Ordner trennen",
       "settings.lang_separation_hint":
-        "Wenn aktiviert, werden Downloads in Unterordner nach Sprache abgelegt (z. B. german-dub/, english-sub/)",
+        "Downloads werden pro Sprache in Unterordner sortiert (german-dub/, english-sub/, ...).",
       "settings.disable_english_sub": "English-Sub-Downloads deaktivieren",
       "settings.disable_english_sub_hint":
-        "Wenn aktiviert, wird English Sub aus der Sprachauswahl ausgeblendet und kann nicht heruntergeladen werden",
+        "English Sub wird aus der Sprachauswahl ausgeblendet und kann nicht heruntergeladen werden.",
       "settings.enable_htv": "Hanime-Tab aktivieren",
-      "settings.enable_htv_hint": "Wenn aktiviert, wird der Hanime-Tab auf der Startseite angezeigt",
-      "settings.movie_folder": "Filme in eigenen Ordner packen",
-      "settings.movie_folder_hint":
-        "Wenn aus, wird ein Film direkt in den Download-Pfad gespeichert statt in einen \"Titel (Jahr)\"-Ordner.",
+      "settings.enable_htv_hint": "Zeigt den Hanime-Tab auf der Startseite.",
+      "settings.enable_library": "Bibliothek aktivieren",
+      "settings.enable_library_hint":
+        "Zeigt den Bibliothek-Tab zum Durchsehen und Löschen heruntergeladener Dateien.",
+      "settings.interface": "Oberfläche",
+      "settings.ui_language": "Sprache der Oberfläche",
       "settings.output_format": "Ausgabeformat",
       "settings.output_format_hint":
         "Container für heruntergeladene Dateien. MP4 ist am kompatibelsten mit Playern und Plex.",
-      "settings.ui_language": "Sprache der Oberfläche",
-      "settings.ui_language_hint": "Sprache dieser Weboberfläche.",
-      "settings.interface": "Oberfläche",
+      "settings.movie_folder": "Filme in eigenen Ordner legen",
+      "settings.movie_folder_hint":
+        'Ist die Option aus, landet ein Film direkt im Downloadpfad statt in einem "Titel (Jahr)"-Ordner.',
       "settings.discord": "Discord-Anfrage-Bot",
       "settings.discord.enable": "Discord-Bot aktivieren",
       "settings.discord.enable_hint":
-        "Lass Nutzer Filme und Serien über Discord anfragen. Anfragen werden dir zur Freigabe geschickt.",
+        "Nutzer können Filme und Serien über Discord anfragen. Anfragen werden dir zur Freigabe geschickt.",
       "settings.discord.token": "Bot-Token",
       "settings.discord.owner": "Owner-Benutzer-ID",
       "settings.discord.mode": "Modus",
       "settings.discord.mode_standard": "Standard (jede Anfrage freigeben)",
       "settings.discord.mode_advanced": "Erweitert (sofort einreihen)",
-      "settings.discord.role": "Anfrage-Rollen-ID (optional)",
-      "settings.discord.guild": "Server-ID (optional, schnellere Befehle)",
       "settings.discord.language": "Bot-Sprache",
-      "settings.discord.language_en": "Englisch",
-      "settings.discord.language_de": "Deutsch",
-      "settings.discord.announce": "Ankündigungs-Channel-ID (optional)",
-      "settings.discord.announce_hint": "Wenn ein angefragter Download fertig ist, bekommt der Anfragende eine DM; ist ein Ankündigungs-Channel gesetzt, wird dort zusätzlich „jetzt verfügbar“ gepostet.",
-      "settings.discord.status": "Status",
+      "settings.discord.role": "Rollen-ID für Anfragen (optional)",
+      "settings.discord.guild": "Server-ID (optional)",
+      "settings.discord.announce": "Ankündigungs-Kanal-ID (optional)",
+      "settings.discord.announce_hint":
+        'Der Anfragende bekommt immer eine DM, wenn ein Download fertig ist. Mit Ankündigungskanal wird dort zusätzlich eine "jetzt verfügbar"-Nachricht gepostet.',
+      "settings.discord.running": "Läuft als {user}",
+      "settings.discord.stopped": "Gestoppt",
+      "settings.discord.unavailable": "discord.py ist nicht installiert",
       "settings.ip": "IP-Prüfung",
-      "settings.public_ip": "Öffentliche IP des Containers",
-      "settings.refresh_ip": "IP aktualisieren",
-      "planned.title": "Geplante Releases",
-      "planned.subtitle":
-        "Beobachte Filme oder Serien, die noch nicht erschienen sind. Sobald sie auf der gewählten Seite auftauchen, werden sie automatisch heruntergeladen.",
-      "planned.add": "Geplanten Eintrag hinzufügen",
-      "planned.name": "Titel",
-      "planned.site": "Seite",
-      "planned.type": "Typ",
-      "planned.type_movie": "Film",
-      "planned.type_series": "Serie",
-      "planned.language": "Sprache",
-      "planned.provider": "Hoster",
-      "planned.autosync_after": "Serie nach erstem Download aktuell halten",
-      "planned.check_now": "Jetzt prüfen",
-      "planned.status": "Status",
-      "planned.last_check": "Letzte Prüfung",
-      "planned.empty": "Noch nichts geplant.",
-      "planned.status_waiting": "Wartet",
-      "planned.status_found": "Gefunden",
-      "planned.status_error": "Fehler",
-    },
+      "settings.ip_hint":
+        "Prüfe das nach dem Verbinden oder Trennen eines VPN, um die ausgehende IP zu bestätigen.",
+      "settings.public_ip": "Aktuelle öffentliche IP",
+      "settings.ip_hidden": "Verborgen",
+      "settings.ip_meta": "Es wird nichts abgefragt, bis du auf Anzeigen klickst.",
+      "settings.reveal": "Anzeigen",
+      "settings.ip_loading": "Wird abgefragt...",
+      "settings.ip_failed": "IP konnte nicht ermittelt werden",
+      "settings.ip_source": "Quelle: {source}",
+      "settings.saved": "Gespeichert",
+      "settings.save_failed": "Speichern fehlgeschlagen",
+      "settings.confirm_delete_user": 'Benutzer "{name}" wirklich löschen?',
+      "settings.confirm_delete_path": 'Pfad "{name}" wirklich entfernen?'
+    }
   };
 
-  const STORAGE_KEY = "aniworld.lang";
+  const language = window.UI_LANGUAGE === "de" ? "de" : "en";
+  const dictionary = STRINGS[language] || {};
 
-  function currentLang() {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored && STRINGS[stored]) return stored;
-    const server = (window.ANIWORLD_UI_LANGUAGE || "en").toLowerCase();
-    return STRINGS[server] ? server : "en";
-  }
+  window.t = function (key, fallback, values) {
+    let text = dictionary[key] || fallback || key;
+    if (values) {
+      Object.keys(values).forEach(function (name) {
+        text = text.replace("{" + name + "}", values[name]);
+      });
+    }
+    return text;
+  };
 
-  function translate(key, fallback) {
-    const lang = currentLang();
-    const table = STRINGS[lang] || STRINGS.en;
-    if (key in table) return table[key];
-    if (key in STRINGS.en) return STRINGS.en[key];
-    return fallback !== undefined ? fallback : key;
-  }
-
-  function applyI18n(root) {
-    const scope = root || document;
-    scope.querySelectorAll("[data-i18n]").forEach((el) => {
-      el.textContent = translate(el.getAttribute("data-i18n"));
+  function apply(root) {
+    (root || document).querySelectorAll("[data-i18n]").forEach(function (el) {
+      const value = dictionary[el.dataset.i18n];
+      if (value) el.textContent = value;
     });
-    scope.querySelectorAll("[data-i18n-html]").forEach((el) => {
-      el.innerHTML = translate(el.getAttribute("data-i18n-html"));
+    (root || document)
+      .querySelectorAll("[data-i18n-placeholder]")
+      .forEach(function (el) {
+        const value = dictionary[el.dataset.i18nPlaceholder];
+        if (value) el.placeholder = value;
+      });
+    (root || document).querySelectorAll("[data-i18n-title]").forEach(function (el) {
+      const value = dictionary[el.dataset.i18nTitle];
+      if (value) el.title = value;
     });
-    scope.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
-      el.setAttribute("placeholder", translate(el.getAttribute("data-i18n-placeholder")));
-    });
-    scope.querySelectorAll("[data-i18n-title]").forEach((el) => {
-      el.setAttribute("title", translate(el.getAttribute("data-i18n-title")));
-    });
-    document.documentElement.setAttribute("lang", currentLang());
   }
 
-  function setLanguage(lang) {
-    if (!STRINGS[lang]) return;
-    localStorage.setItem(STORAGE_KEY, lang);
-    applyI18n();
-    // Persist server-side too so it survives on other devices / as the default.
-    fetch("/api/settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ui_language: lang }),
-    }).catch(() => {});
-    document.dispatchEvent(new CustomEvent("i18n:changed", { detail: { lang } }));
-  }
-
-  window.t = translate;
-  window.applyI18n = applyI18n;
-  window.setLanguage = setLanguage;
-  window.getLanguage = currentLang;
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => applyI18n());
-  } else {
-    applyI18n();
-  }
+  window.applyTranslations = apply;
+  document.addEventListener("DOMContentLoaded", function () {
+    apply(document);
+  });
 })();

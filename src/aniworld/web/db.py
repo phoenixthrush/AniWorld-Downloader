@@ -1,3 +1,6 @@
+"""SQLite storage for the web UI: users, download queue and custom paths."""
+
+import json
 import os
 import random
 import sqlite3
@@ -12,329 +15,363 @@ logger = get_logger(__name__)
 
 DB_PATH = ANIWORLD_CONFIG_DIR / "aniworld.db"
 
-_CREATE_TABLE = """\
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('admin', 'user')),
-    auth_method TEXT NOT NULL DEFAULT 'local',
-    sso_subject TEXT,
-    sso_issuer TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-"""
-
-_CREATE_SSO_INDEX = """\
-CREATE UNIQUE INDEX IF NOT EXISTS idx_sso_identity
-ON users (sso_issuer, sso_subject)
-WHERE sso_issuer IS NOT NULL AND sso_subject IS NOT NULL;
-"""
+QUEUE_STATUSES = ("queued", "running", "completed", "failed", "cancelled")
 
 
-def _retry_db(func, *args, **kwargs):
+# ---------------------------------------------------------------------------
+# Connection handling
+# ---------------------------------------------------------------------------
+# sqlite locks the whole file on write. Several threads touch the DB (request
+# handlers, the queue worker, the discord bot), so every statement retries with
+# a backoff instead of blowing up on "database is locked".
+def _retry(func, *args, **kwargs):
     delay = 0.1
     for attempt in range(15):
         try:
             return func(*args, **kwargs)
-        except sqlite3.OperationalError as e:
-            if (
-                "locked" in str(e).lower() or "busy" in str(e).lower()
-            ) and attempt < 14:
-                time.sleep(delay + random.uniform(0, 0.05))
-                delay = min(delay * 2, 5.0)
-            else:
+        except sqlite3.OperationalError as exc:
+            busy = "locked" in str(exc).lower() or "busy" in str(exc).lower()
+            if not busy or attempt == 14:
                 raise
+            time.sleep(delay + random.uniform(0, 0.05))
+            delay = min(delay * 2, 5.0)
 
 
-class RetryingCursor(sqlite3.Cursor):
+class _Cursor(sqlite3.Cursor):
     def execute(self, *args, **kwargs):
-        return _retry_db(super().execute, *args, **kwargs)
+        return _retry(super().execute, *args, **kwargs)
 
     def executemany(self, *args, **kwargs):
-        return _retry_db(super().executemany, *args, **kwargs)
-
-    def executescript(self, *args, **kwargs):
-        return _retry_db(super().executescript, *args, **kwargs)
+        return _retry(super().executemany, *args, **kwargs)
 
 
-class RetryingConnection(sqlite3.Connection):
-    def cursor(self, factory=RetryingCursor):
+class _Connection(sqlite3.Connection):
+    def cursor(self, factory=_Cursor):
         return super().cursor(factory=factory)
 
     def execute(self, *args, **kwargs):
-        cur = self.cursor()
-        return cur.execute(*args, **kwargs)
+        return self.cursor().execute(*args, **kwargs)
 
     def executemany(self, *args, **kwargs):
-        cur = self.cursor()
-        return cur.executemany(*args, **kwargs)
-
-    def executescript(self, *args, **kwargs):
-        cur = self.cursor()
-        return cur.executescript(*args, **kwargs)
+        return self.cursor().executemany(*args, **kwargs)
 
     def commit(self):
-        return _retry_db(super().commit)
+        return _retry(super().commit)
 
 
 def get_db():
     ANIWORLD_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH), timeout=60.0, factory=RetryingConnection)
+    conn = sqlite3.connect(str(DB_PATH), timeout=60.0, factory=_Connection)
     conn.row_factory = sqlite3.Row
     try:
         conn.execute("PRAGMA journal_mode=WAL;")
         conn.execute("PRAGMA busy_timeout=60000;")
-    except Exception:
+    except sqlite3.Error:
         pass
     return conn
 
 
-def _migrate_db(conn):
-    rows = conn.execute("PRAGMA table_info(users)").fetchall()
-    columns = {r["name"] for r in rows}
+class _Session:
+    """Context manager that commits on success and always closes."""
 
-    if "auth_method" not in columns:
-        conn.execute(
-            "ALTER TABLE users ADD COLUMN auth_method TEXT NOT NULL DEFAULT 'local'"
-        )
-    if "sso_subject" not in columns:
-        conn.execute("ALTER TABLE users ADD COLUMN sso_subject TEXT")
-    if "sso_issuer" not in columns:
-        conn.execute("ALTER TABLE users ADD COLUMN sso_issuer TEXT")
+    def __enter__(self):
+        self.conn = get_db()
+        return self.conn
 
-    conn.execute(_CREATE_SSO_INDEX)
-    conn.commit()
+    def __exit__(self, exc_type, exc, tb):
+        try:
+            if exc_type is None:
+                self.conn.commit()
+        finally:
+            self.conn.close()
+        return False
+
+
+def session():
+    return _Session()
+
+
+def _rows(conn, sql, params=()):
+    return [dict(r) for r in conn.execute(sql, params).fetchall()]
+
+
+def _row(conn, sql, params=()):
+    found = conn.execute(sql, params).fetchone()
+    return dict(found) if found else None
+
+
+# ---------------------------------------------------------------------------
+# Schema
+# ---------------------------------------------------------------------------
+_SCHEMA = (
+    """
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('admin', 'user')),
+        auth_method TEXT NOT NULL DEFAULT 'local',
+        sso_subject TEXT,
+        sso_issuer TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+    """,
+    """
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_sso_identity ON users (sso_issuer, sso_subject)
+    WHERE sso_issuer IS NOT NULL AND sso_subject IS NOT NULL
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS custom_paths (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        path TEXT NOT NULL,
+        default_sites TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS download_queue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        series_url TEXT NOT NULL,
+        episodes TEXT NOT NULL,
+        total_episodes INTEGER NOT NULL,
+        language TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        username TEXT,
+        status TEXT NOT NULL DEFAULT 'queued'
+            CHECK(status IN ('queued','running','completed','failed','cancelled')),
+        position INTEGER NOT NULL DEFAULT 0,
+        current_episode INTEGER NOT NULL DEFAULT 0,
+        current_url TEXT,
+        errors TEXT NOT NULL DEFAULT '[]',
+        custom_path_id INTEGER,
+        source TEXT NOT NULL DEFAULT 'manual',
+        captcha_url TEXT,
+        discord_user_id TEXT,
+        cancel_requested INTEGER NOT NULL DEFAULT 0,
+        force_cancelled INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        completed_at TEXT
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_queue_status ON download_queue (status, position)",
+)
+
+# Columns added after the first release. Older databases get them via ALTER.
+_MIGRATIONS = {
+    "users": {
+        "auth_method": "TEXT NOT NULL DEFAULT 'local'",
+        "sso_subject": "TEXT",
+        "sso_issuer": "TEXT",
+    },
+    "custom_paths": {"default_sites": "TEXT NOT NULL DEFAULT ''"},
+    "download_queue": {
+        "position": "INTEGER NOT NULL DEFAULT 0",
+        "custom_path_id": "INTEGER",
+        "source": "TEXT NOT NULL DEFAULT 'manual'",
+        "captcha_url": "TEXT",
+        "discord_user_id": "TEXT",
+        "cancel_requested": "INTEGER NOT NULL DEFAULT 0",
+        "force_cancelled": "INTEGER NOT NULL DEFAULT 0",
+    },
+}
+
+_initialized = False
 
 
 def init_db():
-    conn = get_db()
-    try:
-        conn.execute(_CREATE_TABLE)
-        conn.execute(_CREATE_SSO_INDEX)
-        conn.commit()
-        _migrate_db(conn)
-    finally:
-        conn.close()
+    """Create the schema and run column migrations. Safe to call repeatedly."""
+    global _initialized
+    if _initialized:
+        return
+    with session() as conn:
+        for statement in _SCHEMA:
+            conn.execute(statement)
+        for table, columns in _MIGRATIONS.items():
+            existing = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
+            for column, spec in columns.items():
+                if column not in existing:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {spec}")
+        conn.execute(
+            "UPDATE download_queue SET position = id WHERE position = 0"
+        )
+    _initialized = True
+    _bootstrap_admin()
 
-    if not has_any_admin():
-        env_user = os.environ.get("ANIWORLD_WEB_ADMIN_USER", "").strip()
-        env_pass = os.environ.get("ANIWORLD_WEB_ADMIN_PASS", "").strip()
-        if env_user and env_pass:
-            create_user(env_user, env_pass, role="admin")
-            logger.info("Auto-created admin user '%s' from environment", env_user)
+
+def _bootstrap_admin():
+    """Create the admin account from env vars when the user table is empty."""
+    if has_any_admin():
+        return
+    username = os.environ.get("ANIWORLD_WEB_ADMIN_USER", "").strip()
+    password = os.environ.get("ANIWORLD_WEB_ADMIN_PASS", "").strip()
+    if username and password:
+        create_user(username, password, role="admin")
+        logger.info("Created admin user '%s' from environment", username)
 
 
+# ---------------------------------------------------------------------------
+# Users
+# ---------------------------------------------------------------------------
 def has_any_admin():
-    conn = get_db()
-    try:
+    with session() as conn:
         row = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM users WHERE role = 'admin'"
+            "SELECT COUNT(*) AS n FROM users WHERE role = 'admin'"
         ).fetchone()
-        return row["cnt"] > 0
-    finally:
-        conn.close()
+        return row["n"] > 0
 
 
 def create_user(username, password, role="user"):
-    conn = get_db()
-    try:
+    with session() as conn:
         cur = conn.execute(
             "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
             (username, generate_password_hash(password), role),
         )
-        conn.commit()
         return cur.lastrowid
-    finally:
-        conn.close()
 
 
 def verify_user(username, password):
-    conn = get_db()
-    try:
-        row = conn.execute(
-            "SELECT id, username, password_hash, role, auth_method FROM users WHERE username = ?",
+    with session() as conn:
+        user = _row(
+            conn,
+            "SELECT * FROM users WHERE username = ? AND auth_method = 'local'",
             (username,),
-        ).fetchone()
-        if not row:
-            return None, "Invalid username or password."
-        if row["auth_method"] != "local":
-            return None, "This account uses SSO. Please use the SSO login button."
-        if check_password_hash(row["password_hash"], password):
-            return {
-                "id": row["id"],
-                "username": row["username"],
-                "role": row["role"],
-            }, None
-        return None, "Invalid username or password."
-    finally:
-        conn.close()
+        )
+    if not user or not check_password_hash(user["password_hash"], password):
+        return None
+    return {"id": user["id"], "username": user["username"], "role": user["role"]}
 
 
-def find_or_create_sso_user(
-    issuer, subject, username, admin_username=None, admin_subject=None
-):
-    def _should_be_admin():
-        if admin_subject and subject == admin_subject:
-            return True
-        if admin_username and username == admin_username:
-            return True
-        return False
-
-    conn = get_db()
-    try:
-        row = conn.execute(
-            "SELECT id, username, role FROM users WHERE sso_issuer = ? AND sso_subject = ?",
+def find_or_create_sso_user(subject, issuer, username, admin_user=None, admin_subject=None):
+    """Look up an SSO identity, creating the account on first login."""
+    is_admin = bool(
+        (admin_subject and admin_subject == subject)
+        or (admin_user and admin_user == username)
+    )
+    with session() as conn:
+        user = _row(
+            conn,
+            "SELECT * FROM users WHERE sso_issuer = ? AND sso_subject = ?",
             (issuer, subject),
-        ).fetchone()
-
-        if row:
-            user = {"id": row["id"], "username": row["username"], "role": row["role"]}
-            if _should_be_admin() and row["role"] != "admin":
+        )
+        if user:
+            if is_admin and user["role"] != "admin":
                 conn.execute(
-                    "UPDATE users SET role = 'admin' WHERE id = ?", (row["id"],)
+                    "UPDATE users SET role = 'admin' WHERE id = ?", (user["id"],)
                 )
-                conn.commit()
                 user["role"] = "admin"
-            return user
+            return {
+                "id": user["id"],
+                "username": user["username"],
+                "role": user["role"],
+            }
 
-        # Check for username conflict with local users
-        existing = conn.execute(
-            "SELECT id, auth_method FROM users WHERE username = ?",
-            (username,),
-        ).fetchone()
-        if existing:
-            raise ValueError(
-                f"Username '{username}' is already taken by a local account."
-            )
+        # First login: make sure the display name does not collide.
+        name = username
+        suffix = 1
+        while _row(conn, "SELECT id FROM users WHERE username = ?", (name,)):
+            suffix += 1
+            name = f"{username}-{suffix}"
 
-        role = "admin" if _should_be_admin() else "user"
+        role = "admin" if is_admin or not has_any_admin() else "user"
         cur = conn.execute(
             "INSERT INTO users (username, password_hash, role, auth_method, sso_subject, sso_issuer) "
-            "VALUES (?, ?, ?, 'oidc', ?, ?)",
-            (username, "", role, subject, issuer),
+            "VALUES (?, '', ?, 'sso', ?, ?)",
+            (name, role, subject, issuer),
         )
-        conn.commit()
-        return {"id": cur.lastrowid, "username": username, "role": role}
-    finally:
-        conn.close()
+        return {"id": cur.lastrowid, "username": name, "role": role}
+
+
+def get_user(user_id):
+    with session() as conn:
+        return _row(
+            conn, "SELECT id, username, role, auth_method FROM users WHERE id = ?", (user_id,)
+        )
 
 
 def list_users():
-    conn = get_db()
-    try:
-        rows = conn.execute(
-            "SELECT id, username, role, auth_method, created_at FROM users ORDER BY id"
-        ).fetchall()
-        return [dict(r) for r in rows]
-    finally:
-        conn.close()
+    with session() as conn:
+        return _rows(
+            conn,
+            "SELECT id, username, role, auth_method, created_at FROM users ORDER BY id",
+        )
 
 
 def delete_user(user_id):
-    conn = get_db()
-    try:
-        row = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
-        if not row:
+    with session() as conn:
+        user = _row(conn, "SELECT role FROM users WHERE id = ?", (user_id,))
+        if not user:
             return False, "User not found"
-        if row["role"] == "admin":
-            cnt = conn.execute(
-                "SELECT COUNT(*) AS cnt FROM users WHERE role = 'admin'"
-            ).fetchone()["cnt"]
-            if cnt <= 1:
-                return False, "Cannot delete the last admin"
+        if user["role"] == "admin" and _last_admin(conn):
+            return False, "Cannot delete the last admin"
         conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
-        conn.commit()
-        return True, None
-    finally:
-        conn.close()
+    return True, None
 
 
-def update_user_role(user_id, new_role):
-    if new_role not in ("admin", "user"):
+def update_user_role(user_id, role):
+    if role not in ("admin", "user"):
         return False, "Invalid role"
-    conn = get_db()
-    try:
-        row = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
-        if not row:
+    with session() as conn:
+        user = _row(conn, "SELECT role FROM users WHERE id = ?", (user_id,))
+        if not user:
             return False, "User not found"
-        if row["role"] == "admin" and new_role != "admin":
-            cnt = conn.execute(
-                "SELECT COUNT(*) AS cnt FROM users WHERE role = 'admin'"
-            ).fetchone()["cnt"]
-            if cnt <= 1:
-                return False, "Cannot demote the last admin"
-        conn.execute("UPDATE users SET role = ? WHERE id = ?", (new_role, user_id))
-        conn.commit()
-        return True, None
-    finally:
-        conn.close()
+        if user["role"] == "admin" and role != "admin" and _last_admin(conn):
+            return False, "Cannot demote the last admin"
+        conn.execute("UPDATE users SET role = ? WHERE id = ?", (role, user_id))
+    return True, None
 
 
-# ===== Download Queue =====
-
-_CREATE_QUEUE_TABLE = """\
-CREATE TABLE IF NOT EXISTS download_queue (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    series_url TEXT NOT NULL,
-    episodes TEXT NOT NULL,
-    total_episodes INTEGER NOT NULL,
-    language TEXT NOT NULL,
-    provider TEXT NOT NULL,
-    username TEXT,
-    status TEXT NOT NULL DEFAULT 'queued'
-        CHECK(status IN ('queued','running','completed','failed','cancelled')),
-    current_episode INTEGER NOT NULL DEFAULT 0,
-    current_url TEXT,
-    errors TEXT NOT NULL DEFAULT '[]',
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    completed_at TEXT
-);
-"""
+def _last_admin(conn):
+    row = conn.execute("SELECT COUNT(*) AS n FROM users WHERE role = 'admin'").fetchone()
+    return row["n"] <= 1
 
 
-def init_queue_db():
-    ANIWORLD_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    conn = get_db()
-    try:
-        conn.execute(_CREATE_QUEUE_TABLE)
-        # Add position column for queue reordering (migration for existing DBs)
-        try:
-            conn.execute(
-                "ALTER TABLE download_queue ADD COLUMN position INTEGER NOT NULL DEFAULT 0"
-            )
-            # Backfill: set position = id for existing rows
-            conn.execute("UPDATE download_queue SET position = id WHERE position = 0")
-        except Exception:
-            pass  # column already exists
-        # Add custom_path_id column (migration for existing DBs)
-        try:
-            conn.execute("ALTER TABLE download_queue ADD COLUMN custom_path_id INTEGER")
-        except Exception:
-            pass  # column already exists
-        # Add source column (migration for existing DBs) - marks origin: 'manual' or 'sync'
-        try:
-            conn.execute(
-                "ALTER TABLE download_queue ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'"
-            )
-        except Exception:
-            pass  # column already exists
-        # Add captcha_url column (migration for existing DBs)
-        try:
-            conn.execute("ALTER TABLE download_queue ADD COLUMN captcha_url TEXT")
-        except Exception:
-            pass  # column already exists
-        # Add discord_user_id column so the bot can DM the requester on completion
-        try:
-            conn.execute("ALTER TABLE download_queue ADD COLUMN discord_user_id TEXT")
-        except Exception:
-            pass  # column already exists
-        conn.commit()
-    finally:
-        conn.close()
+# ---------------------------------------------------------------------------
+# Custom paths
+# ---------------------------------------------------------------------------
+def get_custom_paths():
+    with session() as conn:
+        return _rows(conn, "SELECT * FROM custom_paths ORDER BY name COLLATE NOCASE")
 
 
+def get_custom_path(path_id):
+    if not path_id:
+        return None
+    with session() as conn:
+        return _row(conn, "SELECT * FROM custom_paths WHERE id = ?", (path_id,))
+
+
+def add_custom_path(name, path, default_sites=""):
+    with session() as conn:
+        cur = conn.execute(
+            "INSERT INTO custom_paths (name, path, default_sites) VALUES (?, ?, ?)",
+            (name, path, default_sites),
+        )
+        return cur.lastrowid
+
+
+def update_custom_path(path_id, name=None, path=None, default_sites=None):
+    fields = {"name": name, "path": path, "default_sites": default_sites}
+    fields = {k: v for k, v in fields.items() if v is not None}
+    if not fields:
+        return
+    assignments = ", ".join(f"{k} = ?" for k in fields)
+    with session() as conn:
+        conn.execute(
+            f"UPDATE custom_paths SET {assignments} WHERE id = ?",
+            (*fields.values(), path_id),
+        )
+
+
+def remove_custom_path(path_id):
+    with session() as conn:
+        conn.execute("DELETE FROM custom_paths WHERE id = ?", (path_id,))
+
+
+# ---------------------------------------------------------------------------
+# Download queue
+# ---------------------------------------------------------------------------
 def add_to_queue(
     title,
     series_url,
@@ -346,12 +383,11 @@ def add_to_queue(
     source="manual",
     discord_user_id=None,
 ):
-    import json
-
-    conn = get_db()
-    try:
+    with session() as conn:
         cur = conn.execute(
-            "INSERT INTO download_queue (title, series_url, episodes, total_episodes, language, provider, username, custom_path_id, source, discord_user_id) "
+            "INSERT INTO download_queue "
+            "(title, series_url, episodes, total_episodes, language, provider, username, "
+            " custom_path_id, source, discord_user_id) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 title,
@@ -366,811 +402,184 @@ def add_to_queue(
                 discord_user_id,
             ),
         )
-        row_id = cur.lastrowid
+        queue_id = cur.lastrowid
+        # position starts as the row id so new items land at the back
         conn.execute(
-            "UPDATE download_queue SET position = ? WHERE id = ?", (row_id, row_id)
+            "UPDATE download_queue SET position = ? WHERE id = ?", (queue_id, queue_id)
         )
-        conn.commit()
-        return row_id
-    finally:
-        conn.close()
-
-
-def is_series_queued_or_running(series_url, language=None):
-    """Check if a series already has a queued or running item in the download queue."""
-    conn = get_db()
-    try:
-        query = (
-            "SELECT COUNT(*) AS cnt FROM download_queue "
-            "WHERE series_url = ? AND status IN ('queued', 'running')"
-        )
-        params = [series_url]
-        if language:
-            query += " AND language = ?"
-            params.append(language)
-
-        row = conn.execute(query, tuple(params)).fetchone()
-        return row["cnt"] > 0
-    finally:
-        conn.close()
+        return queue_id
 
 
 def get_queue():
-    conn = get_db()
-    try:
-        rows = conn.execute(
-            "SELECT * FROM download_queue ORDER BY position ASC, id ASC"
-        ).fetchall()
-        return [dict(r) for r in rows]
-    finally:
-        conn.close()
-
-
-def get_next_queued():
-    conn = get_db()
-    try:
-        row = conn.execute(
-            "SELECT * FROM download_queue WHERE status = 'queued' "
-            "ORDER BY position ASC, id ASC LIMIT 1"
-        ).fetchone()
-        return dict(row) if row else None
-    finally:
-        conn.close()
-
-
-def move_queue_item(queue_id, direction):
-    """Swap position of a queued item with its neighbor. direction: 'up' or 'down'."""
-    conn = get_db()
-    try:
-        item = conn.execute(
-            "SELECT id, position FROM download_queue WHERE id = ? AND status = 'queued'",
-            (queue_id,),
-        ).fetchone()
-        if not item:
-            return False, "Item not found or not queued"
-
-        if direction == "up":
-            neighbor = conn.execute(
-                "SELECT id, position FROM download_queue "
-                "WHERE status = 'queued' AND position < ? "
-                "ORDER BY position DESC LIMIT 1",
-                (item["position"],),
-            ).fetchone()
-        else:
-            neighbor = conn.execute(
-                "SELECT id, position FROM download_queue "
-                "WHERE status = 'queued' AND position > ? "
-                "ORDER BY position ASC LIMIT 1",
-                (item["position"],),
-            ).fetchone()
-
-        if not neighbor:
-            return False, "Already at the edge"
-
-        # Swap positions
-        conn.execute(
-            "UPDATE download_queue SET position = ? WHERE id = ?",
-            (neighbor["position"], item["id"]),
+    with session() as conn:
+        return _rows(
+            conn, "SELECT * FROM download_queue ORDER BY position ASC, id ASC"
         )
-        conn.execute(
-            "UPDATE download_queue SET position = ? WHERE id = ?",
-            (item["position"], neighbor["id"]),
-        )
-        conn.commit()
-        return True, None
-    finally:
-        conn.close()
+
+
+def get_queue_item(queue_id):
+    with session() as conn:
+        return _row(conn, "SELECT * FROM download_queue WHERE id = ?", (queue_id,))
 
 
 def get_running():
-    conn = get_db()
-    try:
-        row = conn.execute(
-            "SELECT * FROM download_queue WHERE status = 'running' LIMIT 1"
-        ).fetchone()
-        return dict(row) if row else None
-    finally:
-        conn.close()
+    with session() as conn:
+        return _row(conn, "SELECT * FROM download_queue WHERE status = 'running' LIMIT 1")
+
+
+def get_next_queued():
+    with session() as conn:
+        return _row(
+            conn,
+            "SELECT * FROM download_queue WHERE status = 'queued' "
+            "ORDER BY position ASC, id ASC LIMIT 1",
+        )
+
+
+def set_queue_status(queue_id, status):
+    if status not in QUEUE_STATUSES:
+        raise ValueError(f"Invalid queue status: {status}")
+    done = status in ("completed", "failed", "cancelled")
+    with session() as conn:
+        conn.execute(
+            "UPDATE download_queue SET status = ?, "
+            "completed_at = CASE WHEN ? THEN datetime('now') ELSE completed_at END "
+            "WHERE id = ?",
+            (status, 1 if done else 0, queue_id),
+        )
 
 
 def update_queue_progress(queue_id, current_episode, current_url):
-    conn = get_db()
-    try:
+    with session() as conn:
         conn.execute(
             "UPDATE download_queue SET current_episode = ?, current_url = ? WHERE id = ?",
             (current_episode, current_url, queue_id),
         )
-        conn.commit()
-    finally:
-        conn.close()
 
 
-def set_queue_status(queue_id, status):
-    conn = get_db()
-    try:
-        if status in ("completed", "failed"):
-            conn.execute(
-                "UPDATE download_queue SET status = ?, completed_at = datetime('now') WHERE id = ?",
-                (status, queue_id),
-            )
-        else:
-            conn.execute(
-                "UPDATE download_queue SET status = ? WHERE id = ?",
-                (status, queue_id),
-            )
-        conn.commit()
-    finally:
-        conn.close()
-
-
-def update_queue_errors(queue_id, errors_json):
-    conn = get_db()
-    try:
+def update_queue_errors(queue_id, errors):
+    with session() as conn:
         conn.execute(
             "UPDATE download_queue SET errors = ? WHERE id = ?",
-            (errors_json, queue_id),
+            (json.dumps(errors), queue_id),
         )
-        conn.commit()
-    finally:
-        conn.close()
 
 
-def requeue_item(queue_id):
-    """Reset a finished item back to 'queued' so the worker retries it.
-
-    Used by the retry action (e.g. after solving the kinox captcha). Clears the
-    previous errors, progress and captcha marker, and moves the item to the end
-    of the queue so it stays visible: the UI only lists the few most-recent
-    finished items, and without the bump a retried-then-failed item would drop
-    out of view. Returns True if a row changed.
-    """
-    conn = get_db()
-    try:
-        row = conn.execute(
-            "SELECT COALESCE(MAX(position), 0) + 1 AS pos FROM download_queue"
-        ).fetchone()
-        next_pos = row["pos"] if row else 0
-        cur = conn.execute(
-            "UPDATE download_queue SET status='queued', errors='[]', "
-            "current_episode=0, current_url=NULL, completed_at=NULL, "
-            "captcha_url=NULL, position=? WHERE id=? AND status IN ('failed','cancelled')",
-            (next_pos, queue_id),
-        )
-        conn.commit()
-        return cur.rowcount > 0
-    finally:
-        conn.close()
-
-
-def set_captcha_url(queue_id: int, url: str):
-    """Set the captcha_url field to signal the Web UI that a captcha needs solving."""
-    conn = get_db()
-    try:
+def cancel_queue_item(queue_id, force=False):
+    with session() as conn:
+        item = _row(conn, "SELECT status FROM download_queue WHERE id = ?", (queue_id,))
+        if not item:
+            return False, "Item not found"
+        if item["status"] not in ("queued", "running"):
+            return False, "Only queued or running items can be cancelled"
         conn.execute(
-            "UPDATE download_queue SET captcha_url = ? WHERE id = ?",
-            (url, queue_id),
+            "UPDATE download_queue SET status = 'cancelled', cancel_requested = 1, "
+            "force_cancelled = ?, completed_at = datetime('now') WHERE id = ?",
+            (1 if force else 0, queue_id),
         )
-        conn.commit()
-    finally:
-        conn.close()
-
-
-def clear_captcha_url(queue_id: int):
-    """Clear the captcha_url field after the captcha has been solved."""
-    conn = get_db()
-    try:
-        conn.execute(
-            "UPDATE download_queue SET captcha_url = NULL WHERE id = ?",
-            (queue_id,),
-        )
-        conn.commit()
-    finally:
-        conn.close()
-
-
-_force_cancelled_queue_ids = set()
-
-
-def force_cancel_queue_item(queue_id):
-    ok, err = cancel_queue_item(queue_id)
-    if not ok:
-        # If it's already cancelled, we can still force cancel it
-        if err == "Can only cancel running items":
-            conn = get_db()
-            try:
-                row = conn.execute(
-                    "SELECT status FROM download_queue WHERE id = ?", (queue_id,)
-                ).fetchone()
-                if row and row["status"] == "cancelled":
-                    _force_cancelled_queue_ids.add(queue_id)
-                    return True, None
-            finally:
-                conn.close()
-        return False, err
-    _force_cancelled_queue_ids.add(queue_id)
     return True, None
 
 
-def cancel_queue_item(queue_id):
-    conn = get_db()
-    try:
-        row = conn.execute(
-            "SELECT status FROM download_queue WHERE id = ?", (queue_id,)
-        ).fetchone()
-        if not row:
-            return False, "Item not found"
-        if row["status"] != "running":
-            return False, "Can only cancel running items"
-        conn.execute(
-            "UPDATE download_queue SET status = 'cancelled' WHERE id = ?",
+def cancel_flags(queue_id):
+    """Return (cancelled, force) for the running worker to poll."""
+    with session() as conn:
+        item = _row(
+            conn,
+            "SELECT cancel_requested, force_cancelled FROM download_queue WHERE id = ?",
             (queue_id,),
         )
-        conn.commit()
-        return True, None
-    finally:
-        conn.close()
+    if not item:
+        return False, False
+    return bool(item["cancel_requested"]), bool(item["force_cancelled"])
 
 
-def is_queue_cancelled(queue_id):
-    conn = get_db()
-    try:
-        row = conn.execute(
-            "SELECT status FROM download_queue WHERE id = ?", (queue_id,)
-        ).fetchone()
-        return row and row["status"] == "cancelled"
-    finally:
-        conn.close()
-
-
-def is_queue_force_cancelled(queue_id):
-    return queue_id in _force_cancelled_queue_ids
-
-
-def clear_force_cancelled(queue_id):
-    _force_cancelled_queue_ids.discard(queue_id)
+def requeue_item(queue_id):
+    with session() as conn:
+        item = _row(conn, "SELECT status FROM download_queue WHERE id = ?", (queue_id,))
+        if not item or item["status"] not in ("failed", "cancelled"):
+            return False
+        conn.execute(
+            "UPDATE download_queue SET status = 'queued', errors = '[]', "
+            "current_episode = 0, current_url = NULL, completed_at = NULL, "
+            "cancel_requested = 0, force_cancelled = 0, captcha_url = NULL WHERE id = ?",
+            (queue_id,),
+        )
+    return True
 
 
 def remove_from_queue(queue_id):
-    conn = get_db()
-    try:
-        row = conn.execute(
-            "SELECT status FROM download_queue WHERE id = ?", (queue_id,)
-        ).fetchone()
-        if not row:
+    with session() as conn:
+        item = _row(conn, "SELECT status FROM download_queue WHERE id = ?", (queue_id,))
+        if not item:
             return False, "Item not found"
-        if row["status"] != "queued":
-            return False, "Can only remove queued items"
+        if item["status"] == "running":
+            return False, "Cancel the item before removing it"
         conn.execute("DELETE FROM download_queue WHERE id = ?", (queue_id,))
-        conn.commit()
-        return True, None
-    finally:
-        conn.close()
+    return True, None
 
 
-def delete_completed_queue_item(queue_id):
-    """Delete a queue item only if its status is 'completed'. Used by auto-sync cleanup."""
-    conn = get_db()
-    try:
-        conn.execute(
-            "DELETE FROM download_queue WHERE id = ? AND status = 'completed'",
+def move_queue_item(queue_id, direction):
+    """Swap a queued item with its neighbour so users can reorder the queue."""
+    if direction not in ("up", "down"):
+        return False, "direction must be 'up' or 'down'"
+    with session() as conn:
+        item = _row(
+            conn,
+            "SELECT id, position, status FROM download_queue WHERE id = ?",
             (queue_id,),
         )
-        conn.commit()
-    finally:
-        conn.close()
+        if not item:
+            return False, "Item not found"
+        if item["status"] != "queued":
+            return False, "Only queued items can be moved"
+
+        comparison, order = ("<", "DESC") if direction == "up" else (">", "ASC")
+        neighbour = _row(
+            conn,
+            f"SELECT id, position FROM download_queue WHERE status = 'queued' "
+            f"AND position {comparison} ? ORDER BY position {order} LIMIT 1",
+            (item["position"],),
+        )
+        if not neighbour:
+            return False, "Already at the end of the queue"
+
+        conn.execute(
+            "UPDATE download_queue SET position = ? WHERE id = ?",
+            (neighbour["position"], item["id"]),
+        )
+        conn.execute(
+            "UPDATE download_queue SET position = ? WHERE id = ?",
+            (item["position"], neighbour["id"]),
+        )
+    return True, None
 
 
 def clear_completed():
-    conn = get_db()
-    try:
+    with session() as conn:
         conn.execute(
-            "DELETE FROM download_queue WHERE status IN ('completed', 'failed', 'cancelled')"
+            "DELETE FROM download_queue WHERE status IN ('completed','failed','cancelled')"
         )
-        conn.commit()
-    finally:
-        conn.close()
 
 
-# ===== Custom Download Paths =====
-
-_CREATE_CUSTOM_PATHS_TABLE = """\
-CREATE TABLE IF NOT EXISTS custom_paths (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    path TEXT NOT NULL
-);
-"""
-
-
-def init_custom_paths_db():
-    ANIWORLD_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    conn = get_db()
-    try:
-        conn.execute(_CREATE_CUSTOM_PATHS_TABLE)
-        # default_sites: CSV of site keys this path is the default for
-        # (aniworld, sto, megakino, mangafire, htv, kinox, burningseries, filmpalast)
-        try:
-            conn.execute(
-                "ALTER TABLE custom_paths ADD COLUMN default_sites TEXT NOT NULL DEFAULT ''"
-            )
-        except Exception:
-            pass  # column already exists
-        conn.commit()
-    finally:
-        conn.close()
-
-
-def get_custom_paths():
-    conn = get_db()
-    try:
-        rows = conn.execute(
-            "SELECT id, name, path, default_sites FROM custom_paths ORDER BY id"
-        ).fetchall()
-        return [dict(r) for r in rows]
-    finally:
-        conn.close()
-
-
-def add_custom_path(name, path, default_sites=""):
-    conn = get_db()
-    try:
-        cur = conn.execute(
-            "INSERT INTO custom_paths (name, path, default_sites) VALUES (?, ?, ?)",
-            (name, path, default_sites),
-        )
-        conn.commit()
-        return cur.lastrowid
-    finally:
-        conn.close()
-
-
-def update_custom_path(path_id, name=None, path=None, default_sites=None):
-    fields = []
-    values = []
-    if name is not None:
-        fields.append("name = ?")
-        values.append(name)
-    if path is not None:
-        fields.append("path = ?")
-        values.append(path)
-    if default_sites is not None:
-        fields.append("default_sites = ?")
-        values.append(default_sites)
-    if not fields:
-        return
-    values.append(path_id)
-    conn = get_db()
-    try:
+def reset_stale_running():
+    """Requeue items left 'running' by a previous process that died."""
+    with session() as conn:
         conn.execute(
-            f"UPDATE custom_paths SET {', '.join(fields)} WHERE id = ?", values
+            "UPDATE download_queue SET status = 'queued', captcha_url = NULL "
+            "WHERE status = 'running'"
         )
-        conn.commit()
-    finally:
-        conn.close()
+        conn.execute("UPDATE download_queue SET captcha_url = NULL")
 
 
-def remove_custom_path(path_id):
-    conn = get_db()
-    try:
-        conn.execute("DELETE FROM custom_paths WHERE id = ?", (path_id,))
-        conn.commit()
-    finally:
-        conn.close()
-
-
-def get_custom_path_by_id(path_id):
-    conn = get_db()
-    try:
-        row = conn.execute(
-            "SELECT id, name, path, default_sites FROM custom_paths WHERE id = ?",
-            (path_id,),
-        ).fetchone()
-        return dict(row) if row else None
-    finally:
-        conn.close()
-
-
-# ===== Auto-Sync Jobs =====
-
-_CREATE_AUTOSYNC_TABLE = """\
-CREATE TABLE IF NOT EXISTS autosync_jobs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    series_url TEXT NOT NULL,
-    language TEXT NOT NULL DEFAULT 'German Dub',
-    provider TEXT NOT NULL DEFAULT 'VOE',
-    custom_path_id INTEGER,
-    enabled INTEGER NOT NULL DEFAULT 1,
-    added_by TEXT,
-    last_check TEXT,
-    last_new_found TEXT,
-    episodes_found INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-"""
-
-
-def init_autosync_db():
-    ANIWORLD_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    conn = get_db()
-    try:
-        conn.execute(_CREATE_AUTOSYNC_TABLE)
-        # Add UNIQUE index on series_url (migration for existing DBs)
-        try:
-            conn.execute(
-                "CREATE UNIQUE INDEX IF NOT EXISTS idx_autosync_series_url "
-                "ON autosync_jobs (series_url)"
-            )
-        except sqlite3.IntegrityError:
-            # Duplicates already exist — deduplicate keeping the lowest id
-            conn.execute(
-                "DELETE FROM autosync_jobs WHERE id NOT IN "
-                "(SELECT MIN(id) FROM autosync_jobs GROUP BY series_url)"
-            )
-            conn.execute(
-                "CREATE UNIQUE INDEX IF NOT EXISTS idx_autosync_series_url "
-                "ON autosync_jobs (series_url)"
-            )
-        conn.commit()
-    finally:
-        conn.close()
-
-
-def add_autosync_job(
-    title, series_url, language, provider, custom_path_id=None, added_by=None
-):
-    conn = get_db()
-    try:
-        cur = conn.execute(
-            "INSERT INTO autosync_jobs "
-            "(title, series_url, language, provider, custom_path_id, added_by) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (title, series_url, language, provider, custom_path_id, added_by),
+def set_captcha_url(queue_id, url):
+    with session() as conn:
+        conn.execute(
+            "UPDATE download_queue SET captcha_url = ? WHERE id = ?", (url, queue_id)
         )
-        conn.commit()
-        return cur.lastrowid
-    finally:
-        conn.close()
 
 
-def get_autosync_jobs(username=None):
-    """Return all sync jobs. If *username* is given, only that user's jobs."""
-    conn = get_db()
-    try:
-        if username:
-            rows = conn.execute(
-                "SELECT * FROM autosync_jobs WHERE added_by = ? ORDER BY id",
-                (username,),
-            ).fetchall()
-        else:
-            rows = conn.execute("SELECT * FROM autosync_jobs ORDER BY id").fetchall()
-        return [dict(r) for r in rows]
-    finally:
-        conn.close()
-
-
-def get_autosync_job(job_id):
-    conn = get_db()
-    try:
-        row = conn.execute(
-            "SELECT * FROM autosync_jobs WHERE id = ?", (job_id,)
-        ).fetchone()
-        return dict(row) if row else None
-    finally:
-        conn.close()
-
-
-def find_autosync_by_url(series_url):
-    """Return the first sync job that matches *series_url*, or None."""
-    conn = get_db()
-    try:
-        row = conn.execute(
-            "SELECT * FROM autosync_jobs WHERE series_url = ? LIMIT 1",
-            (series_url,),
-        ).fetchone()
-        return dict(row) if row else None
-    finally:
-        conn.close()
-
-
-def update_autosync_job(job_id, **fields):
-    """Update arbitrary columns on a sync job."""
-    if not fields:
-        return
-    allowed = {
-        "title",
-        "series_url",
-        "language",
-        "provider",
-        "custom_path_id",
-        "enabled",
-        "last_check",
-        "last_new_found",
-        "episodes_found",
-    }
-    filtered = {k: v for k, v in fields.items() if k in allowed}
-    if not filtered:
-        return
-    set_clause = ", ".join(f"{k} = ?" for k in filtered)
-    values = list(filtered.values()) + [job_id]
-    conn = get_db()
-    try:
-        conn.execute(f"UPDATE autosync_jobs SET {set_clause} WHERE id = ?", values)
-        conn.commit()
-    finally:
-        conn.close()
-
-
-def remove_autosync_job(job_id):
-    conn = get_db()
-    try:
-        row = conn.execute(
-            "SELECT id FROM autosync_jobs WHERE id = ?", (job_id,)
-        ).fetchone()
-        if not row:
-            return False, "Job not found"
-        conn.execute("DELETE FROM autosync_jobs WHERE id = ?", (job_id,))
-        conn.commit()
-        return True, None
-    finally:
-        conn.close()
-
-
-# ===== Planned Releases =====
-
-_CREATE_PLANNED_TABLE = """\
-CREATE TABLE IF NOT EXISTS planned_jobs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    site TEXT NOT NULL,
-    media_type TEXT NOT NULL DEFAULT 'movie',
-    language TEXT NOT NULL DEFAULT 'German Dub',
-    provider TEXT NOT NULL DEFAULT 'VOE',
-    custom_path_id INTEGER,
-    auto_sync INTEGER NOT NULL DEFAULT 0,
-    added_by TEXT,
-    status TEXT NOT NULL DEFAULT 'waiting',
-    last_check TEXT,
-    found_url TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-"""
-
-
-def init_planned_db():
-    ANIWORLD_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    conn = get_db()
-    try:
-        conn.execute(_CREATE_PLANNED_TABLE)
-        conn.commit()
-    finally:
-        conn.close()
-
-
-def add_planned_job(
-    title,
-    site,
-    media_type,
-    language,
-    provider,
-    custom_path_id=None,
-    auto_sync=0,
-    added_by=None,
-):
-    conn = get_db()
-    try:
-        cur = conn.execute(
-            "INSERT INTO planned_jobs "
-            "(title, site, media_type, language, provider, custom_path_id, auto_sync, added_by) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (
-                title,
-                site,
-                media_type,
-                language,
-                provider,
-                custom_path_id,
-                1 if auto_sync else 0,
-                added_by,
-            ),
+def clear_captcha_url(queue_id):
+    with session() as conn:
+        conn.execute(
+            "UPDATE download_queue SET captcha_url = NULL WHERE id = ?", (queue_id,)
         )
-        conn.commit()
-        return cur.lastrowid
-    finally:
-        conn.close()
-
-
-def get_planned_jobs(added_by=None):
-    conn = get_db()
-    try:
-        if added_by is None:
-            rows = conn.execute(
-                "SELECT * FROM planned_jobs ORDER BY id DESC"
-            ).fetchall()
-        else:
-            rows = conn.execute(
-                "SELECT * FROM planned_jobs WHERE added_by = ? ORDER BY id DESC",
-                (added_by,),
-            ).fetchall()
-        return [dict(r) for r in rows]
-    finally:
-        conn.close()
-
-
-def get_planned_job(job_id):
-    conn = get_db()
-    try:
-        row = conn.execute(
-            "SELECT * FROM planned_jobs WHERE id = ?", (job_id,)
-        ).fetchone()
-        return dict(row) if row else None
-    finally:
-        conn.close()
-
-
-def update_planned_job(job_id, **fields):
-    allowed = {"status", "last_check", "found_url", "title", "language", "provider"}
-    filtered = {k: v for k, v in fields.items() if k in allowed}
-    if not filtered:
-        return
-    set_clause = ", ".join(f"{k} = ?" for k in filtered)
-    values = list(filtered.values()) + [job_id]
-    conn = get_db()
-    try:
-        conn.execute(f"UPDATE planned_jobs SET {set_clause} WHERE id = ?", values)
-        conn.commit()
-    finally:
-        conn.close()
-
-
-def remove_planned_job(job_id):
-    conn = get_db()
-    try:
-        row = conn.execute(
-            "SELECT id FROM planned_jobs WHERE id = ?", (job_id,)
-        ).fetchone()
-        if not row:
-            return False, "Job not found"
-        conn.execute("DELETE FROM planned_jobs WHERE id = ?", (job_id,))
-        conn.commit()
-        return True, None
-    finally:
-        conn.close()
-
-
-# ===== Statistics =====
-
-
-def get_sync_stats():
-    conn = get_db()
-    try:
-        total = conn.execute("SELECT COUNT(*) AS cnt FROM autosync_jobs").fetchone()[
-            "cnt"
-        ]
-        enabled = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM autosync_jobs WHERE enabled = 1"
-        ).fetchone()["cnt"]
-        disabled = total - enabled
-        last_check = conn.execute(
-            "SELECT MAX(last_check) AS lc FROM autosync_jobs"
-        ).fetchone()["lc"]
-        last_new = conn.execute(
-            "SELECT MAX(last_new_found) AS ln FROM autosync_jobs"
-        ).fetchone()["ln"]
-        total_eps = conn.execute(
-            "SELECT COALESCE(SUM(episodes_found), 0) AS s FROM autosync_jobs"
-        ).fetchone()["s"]
-        jobs = conn.execute(
-            "SELECT id, title, series_url, language, provider, enabled, "
-            "last_check, last_new_found, episodes_found, added_by, created_at "
-            "FROM autosync_jobs ORDER BY id"
-        ).fetchall()
-        return {
-            "total_jobs": total,
-            "enabled": enabled,
-            "disabled": disabled,
-            "last_check": last_check,
-            "last_new_found": last_new,
-            "total_episodes_found": total_eps,
-            "jobs": [dict(r) for r in jobs],
-        }
-    finally:
-        conn.close()
-
-
-def get_queue_stats():
-    conn = get_db()
-    try:
-        total = conn.execute("SELECT COUNT(*) AS cnt FROM download_queue").fetchone()[
-            "cnt"
-        ]
-        by_status = {}
-        for row in conn.execute(
-            "SELECT status, COUNT(*) AS cnt FROM download_queue GROUP BY status"
-        ).fetchall():
-            by_status[row["status"]] = row["cnt"]
-        running = conn.execute(
-            "SELECT title, current_episode, total_episodes FROM download_queue "
-            "WHERE status = 'running' LIMIT 1"
-        ).fetchone()
-        return {
-            "total": total,
-            "by_status": by_status,
-            "currently_running": dict(running) if running else None,
-        }
-    finally:
-        conn.close()
-
-
-def get_general_stats():
-    conn = get_db()
-    try:
-        total_downloads = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM download_queue "
-            "WHERE status IN ('completed', 'failed')"
-        ).fetchone()["cnt"]
-        completed = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM download_queue WHERE status = 'completed'"
-        ).fetchone()["cnt"]
-        failed = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM download_queue WHERE status = 'failed'"
-        ).fetchone()["cnt"]
-        total_episodes = conn.execute(
-            "SELECT COALESCE(SUM(total_episodes), 0) AS s FROM download_queue "
-            "WHERE status = 'completed'"
-        ).fetchone()["s"]
-        last_24h = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM download_queue "
-            "WHERE status = 'completed' "
-            "AND completed_at >= datetime('now', '-1 day')"
-        ).fetchone()["cnt"]
-        # Average duration (completed items with both timestamps)
-        avg_dur = conn.execute(
-            "SELECT AVG("
-            "  (julianday(completed_at) - julianday(created_at)) * 86400"
-            ") AS avg_s FROM download_queue "
-            "WHERE status = 'completed' AND completed_at IS NOT NULL"
-        ).fetchone()["avg_s"]
-        # Most downloaded titles
-        top_titles = conn.execute(
-            "SELECT title, COUNT(*) AS cnt FROM download_queue "
-            "WHERE status = 'completed' GROUP BY title "
-            "ORDER BY cnt DESC LIMIT 10"
-        ).fetchall()
-        # Episodes per language
-        by_language = conn.execute(
-            "SELECT language, COUNT(*) AS cnt, "
-            "COALESCE(SUM(total_episodes), 0) AS eps "
-            "FROM download_queue WHERE status = 'completed' "
-            "GROUP BY language ORDER BY cnt DESC"
-        ).fetchall()
-        # Anime vs Series (heuristic: aniworld.to = anime, serienstream.to = series)
-        anime_count = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM download_queue "
-            "WHERE status = 'completed' AND series_url LIKE '%aniworld.to%'"
-        ).fetchone()["cnt"]
-        series_count = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM download_queue "
-            "WHERE status = 'completed' AND ("
-            "series_url LIKE '%serienstream.to%' OR series_url LIKE '%s.to%'"
-            ")"
-        ).fetchone()["cnt"]
-        return {
-            "total_downloads": total_downloads,
-            "completed": completed,
-            "failed": failed,
-            "total_episodes": total_episodes,
-            "last_24h_completed": last_24h,
-            "average_duration_seconds": round(avg_dur, 1) if avg_dur else None,
-            "top_titles": [
-                {"title": r["title"], "count": r["cnt"]} for r in top_titles
-            ],
-            "by_language": [
-                {"language": r["language"], "downloads": r["cnt"], "episodes": r["eps"]}
-                for r in by_language
-            ],
-            "anime_downloads": anime_count,
-            "series_downloads": series_count,
-        }
-    finally:
-        conn.close()

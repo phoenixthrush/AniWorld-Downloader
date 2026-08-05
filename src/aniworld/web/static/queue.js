@@ -1,575 +1,277 @@
-let queueModalOpen = false;
-let queuePollTimer = null;
-let badgePollTimer = null;
-let queueCustomPaths = [];
+/* Download queue modal, badge polling and the captcha viewer. */
 
-(function setupMobileNavigation() {
-  const toggle = document.getElementById("mobileNavToggle");
-  const navigation = document.getElementById("mainNavigation");
-  if (!toggle || !navigation) return;
-
-  function setOpen(open) {
-    navigation.classList.toggle("is-open", open);
-    toggle.setAttribute("aria-expanded", String(open));
-    toggle.setAttribute("aria-label", open ? "Close navigation" : "Open navigation");
-  }
-
-  toggle.addEventListener("click", function () {
-    setOpen(toggle.getAttribute("aria-expanded") !== "true");
-  });
-
-  navigation.addEventListener("click", function (event) {
-    if (event.target.closest("a")) setOpen(false);
-  });
-
-  document.addEventListener("click", function (event) {
-    if (!event.target.closest(".top-bar")) setOpen(false);
-  });
-
-  document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape") setOpen(false);
-  });
-
-  window.addEventListener("resize", function () {
-    if (window.innerWidth > 768) setOpen(false);
-  });
-})();
-
-(async function loadQueueCustomPaths() {
-  try {
-    const resp = await fetch("/api/custom-paths");
-    const data = await resp.json();
-    queueCustomPaths = data.paths || [];
-  } catch (e) {
-    /* ignore */
-  }
-})();
-
-function openQueueModal() {
-  queueModalOpen = true;
-  document.getElementById("queueOverlay").style.display = "block";
-  loadQueue();
-  if (queuePollTimer) clearInterval(queuePollTimer);
-  queuePollTimer = setInterval(loadQueue, 2000);
-}
-
-function closeQueueModal() {
-  queueModalOpen = false;
-  document.getElementById("queueOverlay").style.display = "none";
-  if (queuePollTimer) {
-    clearInterval(queuePollTimer);
-    queuePollTimer = null;
-  }
-}
-
-let lastFfmpegProgress = {};
-
-function formatBandwidth(bwStr) {
-  if (!bwStr) return "";
-  const trimmed = String(bwStr).trim();
-  if (/B\/s$/i.test(trimmed)) return trimmed;
-  const m = trimmed.match(/^\s*([\d.]+)\s*([kmg])?bits\/s\s*$/i);
-  if (!m) return bwStr;
-  const value = parseFloat(m[1]);
-  if (Number.isNaN(value)) return bwStr;
-  const unit = (m[2] || "").toLowerCase();
-  let mbps = value;
-  if (unit === "k") mbps = value / 1000;
-  else if (unit === "g") mbps = value * 1000;
-  const mbytes = mbps / 8;
-  return mbytes.toFixed(1) + " MB/s";
-}
-
-let queueFetchController = null;
-
-async function loadQueue() {
-  if (queueFetchController) {
-    queueFetchController.abort();
-  }
-  const controller = new AbortController();
-  queueFetchController = controller;
-  try {
-    const resp = await fetch("/api/queue", { signal: controller.signal });
-    const data = await resp.json();
-    const items = data.items || [];
-    lastFfmpegProgress = data.ffmpeg_progress || {};
-    renderQueue(items);
-    updateBadge(items);
-  } catch (e) {
-    /* ignore */
-  } finally {
-    if (queueFetchController === controller) {
-      queueFetchController = null;
-    }
-  }
-}
-
-function updateBadge(items) {
-  const active = items.filter(
-    (i) => i.status === "queued" || i.status === "running",
-  ).length;
-  const badge = document.getElementById("queueBadge");
-  if (active > 0) {
-    badge.textContent = active;
-    badge.style.display = "inline-block";
-  } else {
-    badge.style.display = "none";
-  }
-}
-
-function renderQueue(items) {
+(function () {
+  const overlay = document.getElementById("queueOverlay");
   const list = document.getElementById("queueList");
+  const badge = document.getElementById("queueBadge");
+  const openBtn = document.getElementById("queueBtn");
+  const clearBtn = document.getElementById("clearCompletedBtn");
 
-  // Show active items on top, then last 3 finished (newest first)
-  const running = items.filter((i) => i.status === "running");
-  const queued = items.filter((i) => i.status === "queued");
-  const done = items
-    .filter(
-      (i) =>
-        i.status === "completed" ||
-        i.status === "failed" ||
-        i.status === "cancelled",
-    )
-    .slice(-3)
-    .reverse();
-  const visible = running.concat(queued, done);
+  // Poll fast while the modal is open, slowly just to keep the badge fresh.
+  const OPEN_INTERVAL = 1500;
+  const BADGE_INTERVAL = 10000;
 
-  if (!visible.length) {
-    list.innerHTML = '<div class="queue-empty">Queue is empty</div>';
-    return;
+  const ACTIVE = ["queued", "running"];
+
+  let timer = null;
+  let modalOpen = false;
+  let inFlight = null;
+
+  function schedule() {
+    clearInterval(timer);
+    timer = setInterval(refresh, modalOpen ? OPEN_INTERVAL : BADGE_INTERVAL);
   }
 
-  // Remember which error panels are expanded before re-render
-  const expandedErrors = new Set();
-  list.querySelectorAll(".queue-error-details.expanded").forEach((el) => {
-    expandedErrors.add(el.id);
-  });
-
-  let html = "";
-  visible.forEach((item) => {
-    const isRunning = item.status === "running";
-    const isActive =
-      isRunning || (item.status === "cancelled" && item.current_url);
-    const cls = isActive ? "queue-item queue-item-active" : "queue-item";
-
-    const isCancelling = item.status === "cancelled" && item.current_url;
-
-    let statusBadge = "";
-    if (item.status === "running")
-      statusBadge =
-        '<span class="queue-status queue-status-running">In Progress</span>';
-    else if (item.status === "queued")
-      statusBadge =
-        '<span class="queue-status queue-status-queued">Queued</span>';
-    else if (item.status === "completed")
-      statusBadge =
-        '<span class="queue-status queue-status-completed">Completed</span>';
-    else if (item.status === "failed")
-      statusBadge =
-        '<span class="queue-status queue-status-failed">Failed</span>';
-    else if (isCancelling)
-      statusBadge =
-        '<span class="queue-status queue-status-cancelling">Cancelling...</span>';
-    else if (item.status === "cancelled")
-      statusBadge =
-        '<span class="queue-status queue-status-cancelled">Cancelled</span>';
-    // Captcha badge shown on top of the running badge when captcha_url is set
-    const captchaBadge = (isRunning && item.captcha_url)
-      ? ' <span class="queue-status queue-status-captcha">CAPTCHA</span>'
-      : '';
-    let progressHtml = "";
-    if (isRunning || isCancelling || item.status === "cancelled") {
-      const epPct =
-        item.total_episodes > 0
-          ? (item.current_episode / item.total_episodes) * 100
-          : 0;
-      const seInfo = item.current_url
-        ? parseSeasonEpisode(item.current_url)
-        : "";
-
-      // Combine episode progress with in-episode ffmpeg progress
-      let ffPct = 0;
-      if ((isRunning || isCancelling) && lastFfmpegProgress.active && item.total_episodes > 0) {
-        ffPct = (lastFfmpegProgress.percent || 0) / item.total_episodes;
-      }
-      const combinedPct = Math.min(Math.round(epPct + ffPct), 100);
-
-      let label;
-      if (item.status === "cancelled" && !isCancelling) {
-        label =
-          item.current_episode +
-          "/" +
-          item.total_episodes +
-          " episodes (stopped)";
-      } else {
-        let epDetail = item.current_episode + "/" + item.total_episodes + " episodes";
-        if (seInfo) epDetail += " - " + seInfo;
-        if (lastFfmpegProgress.active && lastFfmpegProgress.percent > 0) {
-          const bw = formatBandwidth(lastFfmpegProgress.bandwidth || "");
-          epDetail +=
-            " (" +
-            lastFfmpegProgress.percent +
-            "%" +
-            (bw ? " @ " + bw : "") +
-            ")";
-        }
-        if (isCancelling) {
-          epDetail += " - finishing current episode...";
-        }
-        label = epDetail;
-      }
-      progressHtml =
-        '<div class="queue-progress">' +
-        '<div class="queue-progress-info">' +
-        "<span>" +
-        label +
-        "</span>" +
-        "<span>" +
-        combinedPct +
-        "%</span>" +
-        "</div>" +
-        '<div class="queue-progress-bar"><div class="queue-progress-fill" style="width:' +
-        combinedPct +
-        '%"></div></div>' +
-        "</div>";
-    }
-
-    let errorsHtml = "";
-    let kinoxCaptchaUrl = "";
-    if (item.errors) {
-      let errors = [];
-      try {
-        errors =
-          typeof item.errors === "string"
-            ? JSON.parse(item.errors)
-            : item.errors;
-      } catch (e) { }
-      // Kinox (and only kinox) attaches a captcha_url to its errors: the title
-      // page to open and solve the captcha on before retrying.
-      for (let k = 0; k < errors.length; k++) {
-        if (errors[k] && errors[k].captcha_url) {
-          kinoxCaptchaUrl = errors[k].captcha_url;
-          break;
-        }
-      }
-      if (errors.length) {
-        const errId = "qerr-" + item.id;
-        let details = "";
-        errors.forEach(function (err) {
-          var ep = err.url ? parseSeasonEpisode(err.url) : "";
-          var label = ep ? ep + ": " : "";
-          details +=
-            '<div class="queue-error-detail">' +
-            escQ(label + (err.error || "")) +
-            "</div>";
-        });
-        errorsHtml =
-          "<div class=\"queue-errors queue-errors-expandable\" onclick=\"this.classList.toggle('expanded');document.getElementById('" +
-          errId +
-          "').classList.toggle('expanded')\">" +
-          errors.length +
-          ' error(s) <span class="queue-errors-toggle">&#9654;</span>' +
-          "</div>" +
-          '<div class="queue-error-details" id="' +
-          errId +
-          '">' +
-          details +
-          "</div>";
-      }
-    }
-
-    // Kinox-only captcha helper: a link to solve the captcha on the kinox title
-    // page and a retry button. Shown only when a kinox download set captcha_url.
-    let kinoxCaptchaHtml = "";
-    if (kinoxCaptchaUrl) {
-      kinoxCaptchaHtml =
-        '<div class="queue-captcha-solve">' +
-        '<span class="queue-captcha-note">Kinox requires solving a captcha for this title.</span>' +
-        '<a class="queue-captcha-link" href="' +
-        escQ(kinoxCaptchaUrl) +
-        '" target="_blank" rel="noopener noreferrer">&#128274; Solve on Kinox</a>' +
-        '<button class="queue-retry-btn" onclick="retryQueueItem(' +
-        item.id +
-        ')">&#8635; Retry</button>' +
-        "</div>";
-    }
-
-    let actionBtn = "";
-    if (item.status === "queued") {
-      actionBtn =
-        '<button class="queue-move" onclick="moveQueueItem(' +
-        item.id +
-        ',\'up\')" title="Move up">&#9650;</button>' +
-        '<button class="queue-move" onclick="moveQueueItem(' +
-        item.id +
-        ',\'down\')" title="Move down">&#9660;</button>' +
-        '<button class="queue-remove" onclick="removeQueueItem(' +
-        item.id +
-        ')" title="Remove">&times;</button>';
-    } else if (item.status === "running") {
-      const captchaBtn = item.captcha_url
-        ? '<button class="queue-captcha-btn" onclick="openCaptchaModal(' +
-        item.id +
-        ')" title="Solve captcha">&#128274; Solve</button>'
-        : '';
-      actionBtn =
-        captchaBtn +
-        '<button class="queue-cancel" onclick="cancelQueueItem(' +
-        item.id +
-        ')" title="Cancel after current episode">Cancel</button>';
-    } else if (isCancelling) {
-      actionBtn =
-        '<button class="queue-cancel queue-force-cancel" style="background-color: #d32f2f;" onclick="forceCancelQueueItem(' +
-        item.id +
-        ')" title="Immediately kill download and delete partial files">Force Cancel</button>';
-    }
-
-    const userHtml = item.username
-      ? '<span class="queue-user">' + escQ(item.username) + "</span>"
-      : "";
-
-    let pathHtml = "";
-    if (item.custom_path_id) {
-      const cp = queueCustomPaths.find((p) => p.id === item.custom_path_id);
-      const pathName = cp ? cp.name : "Custom #" + item.custom_path_id;
-      pathHtml = '<span class="queue-path">' + escQ(pathName) + "</span>";
-    }
-
-    const syncBadge = (item.source || "").startsWith("sync")
-      ? '<span class="queue-sync-badge">[Sync]</span> '
-      : "";
-
-    html +=
-      '<div class="' +
-      cls +
-      '">' +
-      '<div class="queue-item-header">' +
-      '<div class="queue-item-title">' +
-      syncBadge +
-      '<a href="' + escQ(item.series_url) + '" target="_blank" rel="noopener noreferrer">' +
-      escQ(item.title) +
-      '</a>' +
-      "</div>" +
-      '<div class="queue-item-right">' +
-      statusBadge +
-      captchaBadge +
-      actionBtn +
-      "</div>" +
-      "</div>" +
-      '<div class="queue-item-meta">' +
-      "<span>" +
-      item.total_episodes +
-      " episode(s)</span>" +
-      "<span>" +
-      escQ(item.language) +
-      "</span>" +
-      "<span>" +
-      escQ(item.provider) +
-      "</span>" +
-      pathHtml +
-      userHtml +
-      "</div>" +
-      progressHtml +
-      errorsHtml +
-      kinoxCaptchaHtml +
-      "</div>";
-  });
-
-  list.innerHTML = html;
-
-  // Restore expanded state (both the details panel and its sibling header)
-  expandedErrors.forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.classList.add("expanded");
-      const header = el.previousElementSibling;
-      if (header) header.classList.add("expanded");
-    }
-  });
-}
-
-function parseSeasonEpisode(url) {
-  const m = url.match(/staffel-(\d+)\/episode-(\d+)/i);
-  if (m) return "S" + m[1] + "E" + m[2];
-  const f = url.match(/filme\/film-(\d+)/i);
-  if (f) return "Film " + f[1];
-  return "";
-}
-
-async function cancelQueueItem(id) {
-  try {
-    const resp = await fetch("/api/queue/" + id + "/cancel", {
-      method: "POST",
-    });
-    const data = await resp.json();
-    if (data.error) {
-      if (typeof showToast === "function") showToast(data.error);
-    } else {
-      if (typeof showToast === "function")
-        showToast("Cancelling after current episode...");
-    }
-    loadQueue();
-  } catch (e) {
-    /* ignore */
+  async function refresh() {
+    if (document.hidden && !modalOpen) return;
+    if (inFlight) return;
+    inFlight = apiFetch("/api/queue")
+      .then((data) => {
+        const items = data.items || [];
+        updateBadge(items);
+        if (modalOpen) render(items, data.ffmpeg_progress || {});
+      })
+      .catch(() => {})
+      .finally(() => {
+        inFlight = null;
+      });
   }
-}
 
-async function forceCancelQueueItem(id) {
-  try {
-    const resp = await fetch("/api/queue/" + id + "/force_cancel", {
-      method: "POST",
-    });
-    const data = await resp.json();
-    if (data.error) {
-      if (typeof showToast === "function") showToast(data.error);
-    } else {
-      if (typeof showToast === "function")
-        showToast("Force cancelling download...");
-    }
-    loadQueue();
-  } catch (e) {
-    /* ignore */
+  function updateBadge(items) {
+    if (!badge) return;
+    const active = items.filter((item) => ACTIVE.includes(item.status)).length;
+    badge.textContent = String(active);
+    badge.hidden = active === 0;
   }
-}
 
-async function retryQueueItem(id) {
-  try {
-    const resp = await fetch("/api/queue/" + id + "/retry", { method: "POST" });
-    const data = await resp.json();
-    if (data.error) {
-      if (typeof showToast === "function") showToast(data.error);
-    } else if (typeof showToast === "function") {
-      showToast("Retrying download...");
-    }
-    loadQueue();
-  } catch (e) {
-    /* ignore */
+  const STATUS_LABELS = {
+    queued: "Queued",
+    running: "Running",
+    completed: "Done",
+    failed: "Failed",
+    cancelled: "Cancelled"
+  };
+
+  function statusLabel(status) {
+    return t(`queue.status.${status}`, STATUS_LABELS[status] || status);
   }
-}
 
-async function moveQueueItem(id, direction) {
-  try {
-    const resp = await fetch("/api/queue/" + id + "/move", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ direction }),
-    });
-    const data = await resp.json();
-    if (data.error && typeof showToast === "function") showToast(data.error);
-    loadQueue();
-  } catch (e) {
-    /* ignore */
+  function progressPercent(item, ffmpeg) {
+    const total = item.total_episodes || 1;
+    const done = item.current_episode || 0;
+    if (item.status === "completed") return 100;
+    // ffmpeg reports the percentage of the episode currently being written
+    const partial = item.status === "running" ? (ffmpeg[String(item.id)] || 0) / 100 : 0;
+    return Math.min(100, Math.round(((done + partial) / total) * 100));
   }
-}
 
-async function removeQueueItem(id) {
-  try {
-    const resp = await fetch("/api/queue/" + id, { method: "DELETE" });
-    const data = await resp.json();
-    if (data.error) {
-      if (typeof showToast === "function") showToast(data.error);
-    }
-    loadQueue();
-  } catch (e) {
-    /* ignore */
-  }
-}
-
-function escQ(s) {
-  const d = document.createElement("div");
-  d.textContent = s || "";
-  return d.innerHTML;
-}
-
-// ESC key closes queue modal
-document.addEventListener("keydown", function (e) {
-  if (e.key === "Escape" && queueModalOpen) closeQueueModal();
-  if (e.key === "Escape" && captchaModalOpen) closeCaptchaModal();
-});
-
-// ===== Captcha Modal =====
-
-let captchaModalOpen = false;
-let captchaQueueId = null;
-let captchaRefreshTimer = null;
-let captchaStatusTimer = null;
-
-function openCaptchaModal(queueId) {
-  captchaQueueId = queueId;
-  captchaModalOpen = true;
-  const overlay = document.getElementById("captchaOverlay");
-  const img = document.getElementById("captchaScreenshot");
-  const hint = document.getElementById("captchaHint");
-  if (!overlay || !img) return;
-
-  img.src = "";
-  if (hint) hint.textContent = "Loading browser screenshot...";
-  overlay.style.display = "block";
-
-  // Start screenshot polling
-  captchaRefreshTimer = setInterval(function () {
-    img.src = "/api/captcha/" + queueId + "/screenshot?t=" + Date.now();
-    img.onload = function () {
-      if (hint) hint.textContent = "Click anywhere in the screenshot to interact with the captcha.";
-    };
-    img.onerror = function () {
-      if (hint) hint.textContent = "Waiting for captcha browser...";
-    };
-  }, 800);
-
-  // Poll for solved status
-  captchaStatusTimer = setInterval(async function () {
+  function renderErrors(item) {
+    let errors = [];
     try {
-      const resp = await fetch("/api/captcha/" + queueId + "/status");
-      const data = await resp.json();
-      if (!data.active || data.done) {
-        closeCaptchaModal();
-        if (typeof showToast === "function")
-          showToast("Captcha solved! Download resuming...");
-        loadQueue();
-      }
+      errors = JSON.parse(item.errors || "[]");
     } catch (e) {
-      /* ignore */
+      errors = [];
     }
-  }, 1500);
-}
+    if (!errors.length) return "";
 
-function closeCaptchaModal() {
-  captchaModalOpen = false;
-  captchaQueueId = null;
-  const overlay = document.getElementById("captchaOverlay");
-  if (overlay) overlay.style.display = "none";
-  if (captchaRefreshTimer) {
-    clearInterval(captchaRefreshTimer);
-    captchaRefreshTimer = null;
-  }
-  if (captchaStatusTimer) {
-    clearInterval(captchaStatusTimer);
-    captchaStatusTimer = null;
-  }
-}
+    const captcha = errors.find((entry) => entry.captcha_url);
+    const rows = errors
+      .slice(0, 8)
+      .map((entry) => `<li>${esc(entry.error || "")}</li>`)
+      .join("");
 
-(function attachCaptchaClickHandler() {
-  document.addEventListener("click", function (e) {
-    const img = document.getElementById("captchaScreenshot");
-    if (!img || e.target !== img || !captchaQueueId) return;
-    const rect = img.getBoundingClientRect();
-    const scaleX = img.naturalWidth / img.clientWidth;
-    const scaleY = img.naturalHeight / img.clientHeight;
-    const x = Math.round((e.clientX - rect.left) * scaleX);
-    const y = Math.round((e.clientY - rect.top) * scaleY);
-    fetch("/api/captcha/" + captchaQueueId + "/click", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ x, y }),
-    }).catch(function () { });
+    let markup = `<details class="queue-errors"><summary>${t("queue.errors", "Errors")} (${errors.length})</summary><ul>${rows}</ul></details>`;
+    if (captcha) {
+      markup += `<div class="action-row"><a class="btn btn-ghost" href="${esc(captcha.captcha_url)}" target="_blank" rel="noopener noreferrer">${t("queue.open_captcha", "Solve captcha in browser")}</a></div>`;
+    }
+    return markup;
+  }
+
+  function renderActions(item) {
+    const buttons = [];
+    if (item.status === "queued") {
+      buttons.push(
+        `<button class="icon-btn" data-action="move" data-direction="up" data-id="${item.id}" title="Up">&uarr;</button>`,
+        `<button class="icon-btn" data-action="move" data-direction="down" data-id="${item.id}" title="Down">&darr;</button>`
+      );
+    }
+    if (ACTIVE.includes(item.status)) {
+      buttons.push(
+        `<button class="icon-btn" data-action="cancel" data-id="${item.id}" title="${t("common.cancel", "Cancel")}">&times;</button>`
+      );
+    } else {
+      if (item.status === "failed" || item.status === "cancelled") {
+        buttons.push(
+          `<button class="icon-btn" data-action="retry" data-id="${item.id}" title="${t("common.retry", "Retry")}">&#8635;</button>`
+        );
+      }
+      buttons.push(
+        `<button class="icon-btn" data-action="remove" data-id="${item.id}" title="${t("common.remove", "Remove")}">&times;</button>`
+      );
+    }
+    return buttons.join("");
+  }
+
+  function render(items, ffmpeg) {
+    if (!items.length) {
+      list.innerHTML = `<div class="empty-state">${t("queue.empty", "The download queue is empty.")}</div>`;
+      return;
+    }
+
+    list.innerHTML = items
+      .map((item) => {
+        const percent = progressPercent(item, ffmpeg);
+        const counter = t("queue.episode_of", "Episode {current} of {total}", {
+          current: Math.min((item.current_episode || 0) + 1, item.total_episodes),
+          total: item.total_episodes
+        });
+        const meta = [item.language, item.provider, ACTIVE.includes(item.status) ? counter : null]
+          .filter(Boolean)
+          .join(" | ");
+
+        const captchaBtn =
+          item.status === "running" && item.captcha_url
+            ? `<button class="btn btn-ghost" data-action="captcha" data-id="${item.id}">${t("queue.solve_captcha", "Solve captcha")}</button>`
+            : "";
+
+        return `
+          <div class="queue-item">
+            <div class="queue-item-head">
+              <div>
+                <div class="queue-item-title">${esc(item.title)}</div>
+                <div class="queue-item-meta">${esc(meta)}</div>
+              </div>
+              <div class="queue-item-actions">
+                <span class="status-pill status-${item.status}">${esc(statusLabel(item.status))}</span>
+                ${renderActions(item)}
+              </div>
+            </div>
+            <div class="progress-track"><div class="progress-fill" style="width:${percent}%"></div></div>
+            ${captchaBtn ? `<div class="action-row">${captchaBtn}</div>` : ""}
+            ${renderErrors(item)}
+          </div>`;
+      })
+      .join("");
+  }
+
+  /* ===== Actions ===== */
+  const ENDPOINTS = {
+    cancel: (id) => [`/api/queue/${id}/cancel`, "POST"],
+    retry: (id) => [`/api/queue/${id}/retry`, "POST"],
+    remove: (id) => [`/api/queue/${id}`, "DELETE"]
+  };
+
+  list.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-action]");
+    if (!button) return;
+    const id = button.dataset.id;
+    const action = button.dataset.action;
+
+    if (action === "captcha") {
+      openCaptcha(Number(id));
+      return;
+    }
+
+    try {
+      if (action === "move") {
+        await apiSend(`/api/queue/${id}/move`, "POST", {
+          direction: button.dataset.direction
+        });
+      } else {
+        const [url, method] = ENDPOINTS[action](id);
+        await apiSend(url, method);
+      }
+      refresh();
+    } catch (error) {
+      showToast(error.message);
+    }
   });
-})();
 
-// Background badge poll every 10s
-(function startBadgePoll() {
-  loadQueue();
-  badgePollTimer = setInterval(function () {
-    if (!queueModalOpen) loadQueue();
-  }, 10000);
+  if (clearBtn) {
+    clearBtn.addEventListener("click", async () => {
+      try {
+        await apiSend("/api/queue/completed", "DELETE");
+        refresh();
+      } catch (error) {
+        showToast(error.message);
+      }
+    });
+  }
+
+  if (openBtn) {
+    openBtn.addEventListener("click", () => {
+      modalOpen = true;
+      openModal("queueOverlay");
+      list.innerHTML = `<div class="empty-state">${t("common.loading", "Loading...")}</div>`;
+      refresh();
+      schedule();
+    });
+  }
+
+  overlay.addEventListener("modal-closed", () => {
+    modalOpen = false;
+    schedule();
+  });
+
+  /* ===== Captcha viewer ===== */
+  const captchaOverlay = document.getElementById("captchaOverlay");
+  const captchaImage = document.getElementById("captchaScreenshot");
+  let captchaId = null;
+  let captchaTimer = null;
+
+  function openCaptcha(queueId) {
+    captchaId = queueId;
+    openModal("captchaOverlay");
+    tickCaptcha();
+    captchaTimer = setInterval(tickCaptcha, 700);
+  }
+
+  async function tickCaptcha() {
+    if (captchaId == null) return;
+    captchaImage.src = `/api/captcha/${captchaId}/screenshot?ts=${Date.now()}`;
+    try {
+      const status = await apiFetch(`/api/captcha/${captchaId}/status`);
+      if (!status.active || status.done) closeCaptcha();
+    } catch (e) {
+      closeCaptcha();
+    }
+  }
+
+  function closeCaptcha() {
+    clearInterval(captchaTimer);
+    captchaTimer = null;
+    captchaId = null;
+    closeModal("captchaOverlay");
+  }
+
+  captchaOverlay.addEventListener("modal-closed", () => {
+    clearInterval(captchaTimer);
+    captchaTimer = null;
+    captchaId = null;
+  });
+
+  // Forward clicks to the real browser, scaled to its viewport size
+  captchaImage.addEventListener("click", async (event) => {
+    if (captchaId == null) return;
+    const rect = captchaImage.getBoundingClientRect();
+    const scaleX = captchaImage.naturalWidth / rect.width || 1;
+    const scaleY = captchaImage.naturalHeight / rect.height || 1;
+    try {
+      await apiSend(`/api/captcha/${captchaId}/click`, "POST", {
+        x: Math.round((event.clientX - rect.left) * scaleX),
+        y: Math.round((event.clientY - rect.top) * scaleY)
+      });
+    } catch (error) {
+      showToast(error.message);
+    }
+  });
+
+  window.refreshQueue = refresh;
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) refresh();
+  });
+
+  refresh();
+  schedule();
 })();

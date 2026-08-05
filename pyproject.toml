@@ -72,6 +72,7 @@ aniworld = [
   "web/static/*.png",
   "web/static/*.webp",
   "web/static/flags/*.svg",
+  "web/static/flags/LICENSE.txt",
   "browsers.jsonl",
 ]
 

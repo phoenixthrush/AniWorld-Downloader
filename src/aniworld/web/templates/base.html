@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ ui_language }}">
 
 <head>
   <meta charset="UTF-8" />
@@ -12,79 +12,88 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ app_version }}" />
-  {% block styles %}{% endblock %}
   <script>
-    window.ANIWORLD_UI_LANGUAGE = {{ (ui_language or 'en') | tojson }};
+    window.UI_LANGUAGE = {{ ui_language | tojson }};
   </script>
   <script src="{{ url_for('static', filename='i18n.js') }}?v={{ app_version }}"></script>
+  {% block head %}{% endblock %}
 </head>
 
 <body>
-  <div class="top-bar">
-    <div class="top-bar-left">
-      <a href="{{ url_for('index') }}" class="top-bar-brand">AniWorld Downloader{% if app_version %} v{{ app_version }}{% endif
-        %}</a>
-    </div>
-    <button class="mobile-nav-toggle" id="mobileNavToggle" type="button" aria-label="Open navigation"
-      aria-controls="mainNavigation" aria-expanded="false">
-      <span></span>
-      <span></span>
-      <span></span>
+  <header class="top-bar">
+    <a href="{{ url_for('pages.index') }}" class="top-bar-brand">
+      AniWorld Downloader{% if app_version %} <span class="top-bar-version">v{{ app_version }}</span>{% endif %}
+    </a>
+
+    <button class="nav-toggle" id="navToggle" type="button" aria-label="Toggle navigation"
+      aria-controls="mainNav" aria-expanded="false">
+      <span></span><span></span><span></span>
     </button>
-    <div class="top-bar-right" id="mainNavigation">
-      <a href="{{ url_for('index') }}" class="top-bar-link" data-i18n="nav.home">Home</a>
-      <a href="{{ url_for('library_page') }}" class="top-bar-link" data-i18n="nav.library">Library</a>
-      <a href="{{ url_for('autosync_page') }}" class="top-bar-link" data-i18n="nav.autosync">Auto-Sync</a>
-      <a href="{{ url_for('planned_page') }}" class="top-bar-link" data-i18n="nav.planned">Planned</a>
-      <a href="#" class="top-bar-link" id="queueBtn" onclick="
-            openQueueModal();
-            return false;
-          ">
+
+    <nav class="top-bar-nav" id="mainNav">
+      <a href="{{ url_for('pages.index') }}" class="top-bar-link" data-i18n="nav.home">Home</a>
+      {% if library_enabled %}
+      <a href="{{ url_for('pages.library') }}" class="top-bar-link" data-i18n="nav.library">Library</a>
+      {% endif %}
+      <button type="button" class="top-bar-link queue-trigger" id="queueBtn">
         <span data-i18n="nav.queue">Queue</span>
-        <span class="queue-badge" id="queueBadge" style="display: none">0</span>
+        <span class="queue-badge" id="queueBadge" hidden>0</span>
+      </button>
+      {% if not auth_enabled or (current_user and current_user.role == 'admin') %}
+      <a href="{{ url_for('pages.settings') }}" class="top-bar-link" data-i18n="nav.settings">Settings</a>
+      {% endif %}
+      <a href="{{ github_url }}" class="top-bar-link top-bar-icon" target="_blank" rel="noopener noreferrer"
+        title="GitHub" aria-label="GitHub repository">
+        <svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true" fill="currentColor">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+            0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01
+            1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95
+            0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.42 7.42 0 0 1 2-.27c.68 0
+            1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87
+            3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16
+            8c0-4.42-3.58-8-8-8Z" />
+        </svg>
       </a>
-      {% if not auth_enabled or (current_user and current_user.role ==
-      'admin') %}
-      <a href="{{ url_for('settings_page') }}" class="top-bar-link" data-i18n="nav.settings">Settings</a>
-      {% endif %} {% if auth_enabled and current_user %}
+      {% if auth_enabled and current_user %}
       <span class="top-bar-user">{{ current_user.username }}</span>
       <a href="{{ url_for('auth.logout') }}" class="top-bar-link" data-i18n="nav.logout">Logout</a>
       {% endif %}
-    </div>
-  </div>
-  {% block content %}{% endblock %}
+    </nav>
+  </header>
+
+  <main class="page">{% block content %}{% endblock %}</main>
 
   <footer class="site-footer">
-    <p>
-      <span data-i18n="footer.opensource">AniWorld Downloader is open source.</span>
-      <a href="https://github.com/phoenixthrush/AniWorld-Downloader" target="_blank" rel="noopener noreferrer" data-i18n="footer.viewgithub">View the project on GitHub</a>.
-    </p>
+    <span data-i18n="footer.opensource">AniWorld Downloader is open source.</span>
+    <a href="{{ github_url }}" target="_blank" rel="noopener noreferrer" data-i18n="footer.github">View it on GitHub</a>.
   </footer>
 
-  <div class="queue-overlay" id="queueOverlay" onclick="if (event.target === this) closeQueueModal();">
-    <div class="queue-modal">
-      <button class="close" onclick="closeQueueModal()">&times;</button>
-      <h2 class="queue-modal-title" data-i18n="queue.title">Download Queue</h2>
+  <div class="overlay" id="queueOverlay" data-close-on-backdrop>
+    <div class="modal modal-narrow">
+      <button class="modal-close" data-close-modal aria-label="Close">&times;</button>
+      <h2 class="modal-title" data-i18n="queue.title">Download Queue</h2>
+      <div class="queue-toolbar">
+        <button class="btn btn-ghost" id="clearCompletedBtn" data-i18n="queue.clear_finished">Clear finished</button>
+      </div>
       <div id="queueList" class="queue-list"></div>
     </div>
   </div>
 
-  <div class="toast" id="toast"></div>
-  <script src="{{ url_for('static', filename='queue.js') }}?v={{ app_version }}"></script>
-
-  <div class="captcha-overlay" id="captchaOverlay" onclick="if (event.target === this) closeCaptchaModal();">
-    <div class="captcha-modal">
-      <button class="close" onclick="closeCaptchaModal()">&times;</button>
-      <h2 class="queue-modal-title" data-i18n="captcha.title">&#128274; Captcha lösen</h2>
-      <p id="captchaHint" class="captcha-hint" data-i18n="captcha.hint">
-        Klick auf die Darstellung um mit dem Browser zu interagieren.
-      </p>
+  <div class="overlay" id="captchaOverlay" data-close-on-backdrop>
+    <div class="modal modal-narrow">
+      <button class="modal-close" data-close-modal aria-label="Close">&times;</button>
+      <h2 class="modal-title" data-i18n="captcha.title">Solve captcha</h2>
+      <p class="captcha-hint" data-i18n="captcha.hint">Click the image to interact with the browser.</p>
       <div class="captcha-screen-wrap">
-        <img id="captchaScreenshot" class="captcha-screen" alt="Captcha Browser" draggable="false" />
+        <img id="captchaScreenshot" class="captcha-screen" alt="Captcha browser" draggable="false" />
       </div>
     </div>
   </div>
 
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="{{ url_for('static', filename='common.js') }}?v={{ app_version }}"></script>
+  <script src="{{ url_for('static', filename='queue.js') }}?v={{ app_version }}"></script>
   {% block scripts %}{% endblock %}
 </body>
 

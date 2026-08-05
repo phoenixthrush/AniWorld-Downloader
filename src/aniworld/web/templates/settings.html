@@ -1,314 +1,240 @@
-{% extends "base.html" %} {% block title %}Settings — AniWorld Downloader{%
-endblock %} {% block content %}
-<div class="settings-container">
+{% extends "base.html" %}
+
+{% block title %}Settings - AniWorld Downloader{% endblock %}
+
+{% block content %}
+<div class="container container-narrow">
   <h1 data-i18n="settings.title">Settings</h1>
 
-  {% if auth_enabled %}
-  <div class="settings-section">
-    <h2 data-i18n="settings.users">User Management</h2>
+  <div class="notice">
+    <span data-i18n="settings.persist_notice">
+      Changes here apply right away but reset when AniWorld Downloader restarts. To keep them, set them in your .env
+      file at
+    </span>
+    <code>{{ env_path }}</code>
+  </div>
 
+  {% if auth_enabled %}
+  <section class="card">
+    <h2 data-i18n="settings.users">User Management</h2>
     {% if not force_sso %}
-    <h3 class="settings-subtitle" data-i18n="settings.add_user">Add User</h3>
-    <div class="add-user-row" style="margin-bottom: 16px">
-      <input type="text" id="newUsername" placeholder="Username" />
-      <input type="password" id="newPassword" placeholder="Password" />
+    <div class="inline-form">
+      <input type="text" id="newUsername" placeholder="Username" autocomplete="off" />
+      <input type="password" id="newPassword" placeholder="Password" autocomplete="new-password" />
       <select id="newRole">
         <option value="user">User</option>
         <option value="admin">Admin</option>
       </select>
-      <button onclick="addUser()">Add</button>
+      <button class="btn btn-primary" id="addUserBtn" data-i18n="common.add">Add</button>
     </div>
     {% endif %}
-
-    <table class="user-table" id="userTable">
+    <table class="data-table">
       <thead>
         <tr>
           <th>ID</th>
-          <th>Username</th>
-          <th>Role</th>
-          <th>Auth</th>
-          <th>Created</th>
-          <th>Actions</th>
+          <th data-i18n="settings.user">User</th>
+          <th data-i18n="settings.role">Role</th>
+          <th data-i18n="settings.auth">Auth</th>
+          <th></th>
         </tr>
       </thead>
       <tbody id="userTableBody"></tbody>
     </table>
-  </div>
+  </section>
   {% endif %}
 
-  <div class="settings-section">
+  <section class="card">
     <h2 data-i18n="settings.custom_paths">Custom Paths</h2>
-    <h3 class="settings-subtitle" data-i18n="settings.add_path">Add Path</h3>
-    <div class="add-user-row" style="margin-bottom: 16px">
+    <p class="hint" data-i18n="settings.custom_paths_hint">
+      Give a folder a name and pick it as the download target from the download dialog.
+    </p>
+    <div class="inline-form">
       <input type="text" id="newPathName" placeholder="Name (e.g. NAS)" />
       <input type="text" id="newPathValue" placeholder="/mnt/nas/anime" />
-      <button onclick="addCustomPath()">Add</button>
+      <button class="btn btn-primary" id="addPathBtn" data-i18n="common.add">Add</button>
     </div>
-    <table class="user-table" id="customPathsTable">
+    <table class="data-table">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Path</th>
-          <th data-i18n="settings.paths.default_for">Default for sites</th>
-          <th>Actions</th>
+          <th data-i18n="settings.name">Name</th>
+          <th data-i18n="settings.path">Path</th>
+          <th data-i18n="settings.default_for">Default for sites</th>
+          <th></th>
         </tr>
       </thead>
       <tbody id="customPathsBody"></tbody>
     </table>
-    <div class="settings-hint" data-i18n="settings.paths.default_hint">
+    <p class="hint" data-i18n="settings.default_for_hint">
       Tick the sites a path should be the pre-selected download folder for.
-    </div>
-  </div>
+    </p>
+  </section>
 
-  <div class="settings-notice">
-    <span data-i18n="settings.persist_notice">Changes made below are temporary and will be reset when AniWorld Downloader is restarted. To make settings persist, set them in your .env file at</span>
-    <code>{{ env_path }}</code>
-  </div>
+  <section class="card">
+    <h2 data-i18n="settings.defaults">Defaults</h2>
 
-  <div class="settings-section">
-    <h2 data-i18n="settings.autosync_defaults">Auto-Sync Defaults</h2>
-    <div class="settings-row" style="gap: 10px; flex-wrap: wrap">
-      <div style="flex: 1; min-width: 140px">
-        <label style="
-            font-size: 0.78rem;
-            color: #6b7280;
-            margin-bottom: 4px;
-            display: block;
-          ">Schedule</label>
-        <select id="syncSchedule" onchange="saveSyncSchedule()" class="sync-select">
-          <option value="0">Disabled</option>
-          <option value="1min">1 min (Debug)</option>
-          <option value="30min">30 min</option>
-          <option value="1h">1 hour</option>
-          <option value="2h">2 hours</option>
-          <option value="4h">4 hours</option>
-          <option value="8h">8 hours</option>
-          <option value="12h">12 hours</option>
-          <option value="16h">16 hours</option>
-          <option value="24h">24 hours</option>
-        </select>
-      </div>
-      <div style="flex: 1; min-width: 140px">
-        <label style="
-            font-size: 0.78rem;
-            color: #6b7280;
-            margin-bottom: 4px;
-            display: block;
-          ">Default Language</label>
-        <select id="syncLanguage" onchange="saveSyncDefaults()" class="sync-select">
-          <option>German Dub</option>
-          <option>English Sub</option>
-          <option>German Sub</option>
-        </select>
-      </div>
-      <div style="flex: 1; min-width: 140px">
-        <label style="
-            font-size: 0.78rem;
-            color: #6b7280;
-            margin-bottom: 4px;
-            display: block;
-          ">Default Provider</label>
-        <select id="syncProvider" onchange="saveSyncDefaults()" class="sync-select">
-          <option>VOE</option>
-          <option>Vidmoly</option>
-          <option>Vidoza</option>
-        </select>
-      </div>
-    </div>
-    <div class="settings-hint">
-      How often Auto-Sync checks for new episodes. Language and provider are
-      defaults used when creating new sync jobs.
-    </div>
-  </div>
-  <div class="settings-section">
-    <h2 data-i18n="settings.general">Settings</h2>
-    <h3 class="settings-subtitle" data-i18n="settings.download_path">Download Path</h3>
-    <div class="settings-row">
+    <h3 data-i18n="settings.download_path">Download Path</h3>
+    <div class="inline-form">
       <input type="text" id="downloadPath" placeholder="/path/to/downloads" />
-      <button onclick="saveDownloadPath()">Save</button>
+      <button class="btn btn-primary" id="saveDownloadPathBtn" data-i18n="common.save">Save</button>
     </div>
-    <div class="settings-hint" data-i18n="settings.download_path_hint">
-      Changes take effect immediately for new downloads
-    </div>
-    <h3 class="settings-subtitle" data-i18n="settings.provider_fallback">Provider Fallback Order</h3>
-    <div id="providerFallbackOrder"></div>
-    <div class="settings-hint" data-i18n="settings.provider_fallback_hint">
-      Downloads always try the selected provider first. If that hoster fails,
-      AniWorld Downloader falls back through this order.
-    </div>
-    <label class="settings-checkbox" style="
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-top: 14px;
-        font-size: 0.88rem;
-        color: #c8cad0;
-        cursor: pointer;
-      ">
-      <input type="checkbox" id="langSeparation" onchange="saveLangSeparation()" style="accent-color: #2563eb; cursor: pointer" />
+    <p class="hint" data-i18n="settings.download_path_hint">Applies to new downloads immediately.</p>
+
+    <h3 data-i18n="settings.provider_fallback">Provider Fallback Order</h3>
+    <div id="providerOrder" class="provider-order"></div>
+    <p class="hint" data-i18n="settings.provider_fallback_hint">
+      The selected provider is always tried first. If it fails, downloads fall back through this order.
+    </p>
+
+    <label class="checkbox">
+      <input type="checkbox" id="langSeparation" data-setting="lang_separation" />
       <span data-i18n="settings.lang_separation">Separate languages into folders</span>
     </label>
-    <div class="settings-hint" data-i18n="settings.lang_separation_hint">
-      When enabled, downloads are organized into subfolders by language (e.g.
-      german-dub/, english-sub/)
-    </div>
-    <label class="settings-checkbox" style="
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-top: 14px;
-        font-size: 0.88rem;
-        color: #c8cad0;
-        cursor: pointer;
-      ">
-      <input type="checkbox" id="disableEnglishSub" onchange="saveDisableEnglishSub()" style="accent-color: #2563eb; cursor: pointer" />
+    <p class="hint" data-i18n="settings.lang_separation_hint">
+      Downloads are sorted into subfolders per language (german-dub/, english-sub/, ...).
+    </p>
+
+    <label class="checkbox">
+      <input type="checkbox" id="disableEnglishSub" data-setting="disable_english_sub" />
       <span data-i18n="settings.disable_english_sub">Disable English Sub downloads</span>
     </label>
-    <div class="settings-hint" data-i18n="settings.disable_english_sub_hint">
-      When enabled, English Sub is hidden from the language selector and cannot
-      be downloaded
-    </div>
-    <label class="settings-checkbox" style="
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-top: 14px;
-        font-size: 0.88rem;
-        color: #c8cad0;
-        cursor: pointer;
-      ">
-      <input type="checkbox" id="enableHtv" onchange="saveEnableHtv()" style="accent-color: #2563eb; cursor: pointer" />
+    <p class="hint" data-i18n="settings.disable_english_sub_hint">
+      English Sub is hidden from the language selector and cannot be downloaded.
+    </p>
+
+    <label class="checkbox">
+      <input type="checkbox" id="enableHtv" data-setting="enable_htv" data-reload="1" />
       <span data-i18n="settings.enable_htv">Enable Hanime tab</span>
     </label>
-    <div class="settings-hint" data-i18n="settings.enable_htv_hint">
-      When enabled, the Hanime tab is shown on the home page
-    </div>
-  </div>
+    <p class="hint" data-i18n="settings.enable_htv_hint">Shows the Hanime tab on the home page.</p>
 
-  <div class="settings-section">
+    <label class="checkbox">
+      <input type="checkbox" id="enableLibrary" data-setting="enable_library" data-reload="1" />
+      <span data-i18n="settings.enable_library">Enable Library</span>
+    </label>
+    <p class="hint" data-i18n="settings.enable_library_hint">
+      Shows the Library tab for browsing and deleting downloaded files.
+    </p>
+  </section>
+
+  <section class="card">
     <h2 data-i18n="settings.interface">Interface</h2>
-    <div class="settings-row" style="gap: 10px; flex-wrap: wrap">
-      <div style="flex: 1; min-width: 160px">
-        <label class="planned-label" data-i18n="settings.ui_language">Interface Language</label>
-        <select id="uiLanguage" onchange="saveUiLanguage()" class="sync-select">
+    <div class="control-row">
+      <label class="field">
+        <span class="field-label" data-i18n="settings.ui_language">Interface Language</span>
+        <select id="uiLanguage">
           <option value="en">English</option>
           <option value="de">Deutsch</option>
         </select>
-      </div>
-      <div style="flex: 1; min-width: 160px">
-        <label class="planned-label" data-i18n="settings.output_format">Output Format</label>
-        <select id="outputFormat" onchange="saveOutputFormat()" class="sync-select">
+      </label>
+      <label class="field">
+        <span class="field-label" data-i18n="settings.output_format">Output Format</span>
+        <select id="outputFormat">
           <option value="mkv">MKV</option>
           <option value="mp4">MP4</option>
         </select>
-      </div>
+      </label>
     </div>
-    <div class="settings-hint" data-i18n="settings.output_format_hint">
+    <p class="hint" data-i18n="settings.output_format_hint">
       Container for downloaded files. MP4 is the most compatible with players and Plex.
-    </div>
-    <label class="settings-checkbox" style="
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-top: 14px;
-        font-size: 0.88rem;
-        color: #c8cad0;
-        cursor: pointer;
-      ">
-      <input type="checkbox" id="movieFolder" onchange="saveMovieFolder()" style="accent-color: #2563eb; cursor: pointer" />
+    </p>
+
+    <label class="checkbox">
+      <input type="checkbox" id="movieFolder" data-setting="movie_folder" />
       <span data-i18n="settings.movie_folder">Wrap movies in their own folder</span>
     </label>
-    <div class="settings-hint" data-i18n="settings.movie_folder_hint">
-      When off, a movie is saved directly into the download path instead of a "Title (Year)" folder.
-    </div>
-  </div>
+    <p class="hint" data-i18n="settings.movie_folder_hint">
+      When off, a movie is saved straight into the download path instead of a "Title (Year)" folder.
+    </p>
+  </section>
 
-  <div class="settings-section">
+  <section class="card">
     <h2 data-i18n="settings.discord">Discord Request Bot</h2>
-    <label class="settings-checkbox" style="
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 0.88rem;
-        color: #c8cad0;
-        cursor: pointer;
-      ">
-      <input type="checkbox" id="discordEnabled" style="accent-color: #2563eb; cursor: pointer" />
+    <label class="checkbox">
+      <input type="checkbox" id="discordEnabled" />
       <span data-i18n="settings.discord.enable">Enable Discord bot</span>
     </label>
-    <div class="settings-hint" data-i18n="settings.discord.enable_hint">
+    <p class="hint" data-i18n="settings.discord.enable_hint">
       Let users request movies and series from Discord. Requests are sent to you for approval.
-    </div>
-    <div class="settings-row" style="margin-top: 12px">
-      <label class="planned-label" style="min-width: 120px" data-i18n="settings.discord.token">Bot Token</label>
-      <input type="password" id="discordToken" placeholder="••••••••" autocomplete="new-password" />
-    </div>
-    <div class="settings-row" style="margin-top: 10px; gap: 10px; flex-wrap: wrap">
-      <div style="flex: 1; min-width: 150px">
-        <label class="planned-label" data-i18n="settings.discord.owner">Owner User ID</label>
+    </p>
+
+    <div class="control-row">
+      <label class="field">
+        <span class="field-label" data-i18n="settings.discord.token">Bot Token</span>
+        <input type="password" id="discordToken" autocomplete="new-password" />
+      </label>
+      <label class="field">
+        <span class="field-label" data-i18n="settings.discord.owner">Owner User ID</span>
         <input type="text" id="discordOwner" placeholder="123456789012345678" />
-      </div>
-      <div style="flex: 1; min-width: 150px">
-        <label class="planned-label" data-i18n="settings.discord.mode">Mode</label>
-        <select id="discordMode" class="sync-select">
+      </label>
+    </div>
+
+    <div class="control-row">
+      <label class="field">
+        <span class="field-label" data-i18n="settings.discord.mode">Mode</span>
+        <select id="discordMode">
           <option value="standard" data-i18n="settings.discord.mode_standard">Standard (approve each request)</option>
           <option value="advanced" data-i18n="settings.discord.mode_advanced">Advanced (queue immediately)</option>
         </select>
-      </div>
-    </div>
-    <div class="settings-row" style="margin-top: 10px; gap: 10px; flex-wrap: wrap">
-      <div style="flex: 1; min-width: 150px">
-        <label class="planned-label" data-i18n="settings.discord.role">Request Role ID (optional)</label>
-        <input type="text" id="discordRole" placeholder="" />
-      </div>
-      <div style="flex: 1; min-width: 150px">
-        <label class="planned-label" data-i18n="settings.discord.guild">Server ID (optional, faster command sync)</label>
-        <input type="text" id="discordGuild" placeholder="" />
-      </div>
-    </div>
-    <div class="settings-row" style="margin-top: 10px; gap: 10px; flex-wrap: wrap">
-      <div style="flex: 1; min-width: 150px">
-        <label class="planned-label" data-i18n="settings.discord.language">Bot Language</label>
-        <select id="discordLanguage" class="sync-select">
-          <option value="en" data-i18n="settings.discord.language_en">English</option>
-          <option value="de" data-i18n="settings.discord.language_de">German</option>
+      </label>
+      <label class="field">
+        <span class="field-label" data-i18n="settings.discord.language">Bot Language</span>
+        <select id="discordLanguage">
+          <option value="en">English</option>
+          <option value="de">Deutsch</option>
         </select>
-      </div>
-      <div style="flex: 1; min-width: 150px">
-        <label class="planned-label" data-i18n="settings.discord.announce">Announce Channel ID (optional)</label>
-        <input type="text" id="discordAnnounce" placeholder="" />
-      </div>
+      </label>
     </div>
-    <div class="settings-hint" data-i18n="settings.discord.announce_hint">
-      When a requested download finishes, the requester is DM'd; if an announce channel is set, a "now available" message is posted there too.
-    </div>
-    <div style="margin-top: 14px; display: flex; align-items: center; gap: 12px">
-      <button onclick="saveDiscord()" data-i18n="common.save">Save</button>
-      <span id="discordStatus" class="discord-status"></span>
-    </div>
-  </div>
 
-  <div class="settings-section">
+    <div class="control-row">
+      <label class="field">
+        <span class="field-label" data-i18n="settings.discord.role">Request Role ID (optional)</span>
+        <input type="text" id="discordRole" />
+      </label>
+      <label class="field">
+        <span class="field-label" data-i18n="settings.discord.guild">Server ID (optional)</span>
+        <input type="text" id="discordGuild" />
+      </label>
+    </div>
+
+    <div class="control-row">
+      <label class="field">
+        <span class="field-label" data-i18n="settings.discord.announce">Announce Channel ID (optional)</span>
+        <input type="text" id="discordAnnounce" />
+      </label>
+    </div>
+    <p class="hint" data-i18n="settings.discord.announce_hint">
+      The requester is always DM'd when a download finishes. With an announce channel set, a "now available" message
+      is posted there too.
+    </p>
+
+    <div class="action-row">
+      <button class="btn btn-primary" id="saveDiscordBtn" data-i18n="common.save">Save</button>
+      <span id="discordStatus" class="status-pill"></span>
+    </div>
+  </section>
+
+  <section class="card">
     <h2 data-i18n="settings.ip">IP Check</h2>
-    <h3 class="settings-subtitle">Container Public IP</h3>
-    <div class="settings-ip-card">
+    <p class="hint" data-i18n="settings.ip_hint">
+      Check this after connecting or disconnecting a VPN to confirm the outbound IP is what you expect.
+    </p>
+    <div class="ip-card">
       <div>
-        <div class="settings-ip-label">Current public IP</div>
-        <div class="settings-ip-value" id="publicIpValue">Loading...</div>
-        <div class="settings-ip-meta" id="publicIpMeta">
-          Querying the current outbound IP address
+        <div class="ip-label" data-i18n="settings.public_ip">Current public IP</div>
+        <div class="ip-value" id="publicIpValue" data-i18n="settings.ip_hidden">Hidden</div>
+        <div class="ip-meta" id="publicIpMeta" data-i18n="settings.ip_meta">
+          Nothing is requested until you press reveal.
         </div>
       </div>
-      <button type="button" id="refreshPublicIpBtn" onclick="refreshPublicIp()">
-        Refresh IP
-      </button>
+      <button class="btn btn-secondary" id="revealIpBtn" data-i18n="settings.reveal">Reveal</button>
     </div>
-    <div class="settings-hint">
-      Refresh this after connecting or disconnecting your VPN to confirm the
-      container is using the expected public IP.
-    </div>
-  </div>
+  </section>
 </div>
-{% endblock %} {% block scripts %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.AUTH_ENABLED = {{ auth_enabled | tojson }};
+</script>
 <script src="{{ url_for('static', filename='settings.js') }}?v={{ app_version }}"></script>
 {% endblock %}
