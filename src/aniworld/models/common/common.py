@@ -384,13 +384,23 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
     # Use shorter stats_period for smoother progress (1s in non-debug, 10s in debug)
     stats_period = "10" if debug_mode else "1"
 
-    args = ffmpeg.compile(node, overwrite_output=overwrite_output)
+    # Global options must come before the inputs/outputs: ffmpeg silently
+    # discards anything after the last output filename as "trailing options".
+    # ffmpeg-python appends -y at the very end, so compiling with
+    # overwrite_output=True never actually enabled overwriting -- a
+    # pre-existing output then blocks on ffmpeg's interactive prompt until
+    # the stall killer SIGKILLs the process.
+    args = ffmpeg.compile(node, overwrite_output=False)
+    head = []
     if "-stats_period" not in args:
-        args.insert(-1, "-stats_period")
-        args.insert(-1, stats_period)
+        head += ["-stats_period", stats_period]
+    if overwrite_output and "-y" not in args:
+        head.append("-y")
+    args[1:1] = head
 
     process = subprocess.Popen(
         args,
+        stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.PIPE,
         universal_newlines=False,
@@ -610,10 +620,21 @@ def _finalize_episode(temp_path, episode_path, label=""):
     if target_ext == "mp4":
         output_kwargs["movflags"] = "+faststart"
 
+    # Map streams explicitly: without -map, ffmpeg's default selection keeps
+    # only ONE audio stream ("best" = highest channel count), which silently
+    # dropped DubSync's appended dub track on every mkv -> mp4 conversion.
+    # MP4 can't stream-copy Matroska subtitle/attachment formats, so only
+    # video + all audio go there; mkv keeps everything.
+    inp = ffmpeg.input(str(temp_path))
+    if target_ext == "mp4":
+        copy_streams = [inp["v?"], inp["a?"]]
+    else:
+        copy_streams = [inp["v?"], inp["a?"], inp["s?"], inp["d?"], inp["t?"]]
+
     try:
         logger.debug(f"[REMUXING] {source_ext} -> {target_ext}")
         _run_ffmpeg_with_progress(
-            ffmpeg.input(str(temp_path)).output(str(converted), **output_kwargs),
+            ffmpeg.output(*copy_streams, str(converted), **output_kwargs),
             label=label,
         )
     except RuntimeError:
@@ -624,7 +645,9 @@ def _finalize_episode(temp_path, episode_path, label=""):
         )
         converted.unlink(missing_ok=True)
         _run_ffmpeg_with_progress(
-            ffmpeg.input(str(temp_path)).output(
+            ffmpeg.output(
+                inp["v?"],
+                inp["a?"],
                 str(converted),
                 vcodec="libx264",
                 preset="veryfast",
@@ -638,6 +661,212 @@ def _finalize_episode(temp_path, episode_path, label=""):
 
     os.replace(converted, episode_path)
     temp_path.unlink(missing_ok=True)
+
+
+def _env_flag(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() not in ("", "0", "false", "no", "off")
+
+
+# Two encodes of the same episode start within seconds of each other. A wider
+# search only invites a noise peak minutes away from the truth to win.
+_MERGE_MAX_OFFSET = 60.0
+
+
+def _detect_merge_offset(new_path, existing_path, what, retime_to=None):
+    """Work out how to line *new_path* up with *existing_path*.
+
+    Returns ``(offset_seconds, retimed_path_or_None)``. Reuses DubSync's
+    music/SFX cross-correlation. Returns ``(0.0, None)`` — the plain unshifted
+    merge — whenever alignment is disabled, unconfident, or impossible, since
+    the merge itself must never break because of alignment.
+
+    Two encodes of the same episode can differ in *speed*, not just start
+    time: a German TV dub is usually PAL (25 fps) while the original-language
+    encode is film rate (23.976), which makes the dub run ~4 % fast. No
+    constant shift can fix that, and the constant offset measured under that
+    assumption is meaningless — applying it anyway is how a track ended up
+    minutes out of sync. Drift is therefore only ever corrected by retiming
+    the audio (when *retime_to* gives somewhere to write it), never by
+    shifting.
+    """
+    if not _env_flag("ANIWORLD_MERGE_ALIGN", default=True):
+        return 0.0, None
+    try:
+        from ..aniworld_to.dubsync.align import (
+            DEFAULT_MIN_CONFIDENCE,
+            detect_offset,
+            resample_dub,
+        )
+
+        result = detect_offset(
+            new_path, existing_path, max_offset=_MERGE_MAX_OFFSET
+        )
+
+        if result.has_drift:
+            drift_note = (
+                f"{what} runs at a different speed "
+                f"(atempo {result.tempo_ratio:.5f}, "
+                f"drift {result.drift:+.1f}s over the episode)"
+            )
+            if retime_to is None:
+                logger.warning(
+                    f"[MERGE] {drift_note}; its video cannot be retimed, so it "
+                    "is merged unshifted — sync will wander"
+                )
+                return 0.0, None
+            if not _env_flag("ANIWORLD_MERGE_RESAMPLE", default=True):
+                logger.warning(
+                    f"[MERGE] {drift_note}; retiming is disabled, so it is "
+                    "merged unshifted — sync will wander"
+                )
+                return 0.0, None
+
+            # Retiming decodes and re-encodes, but only the freshly added
+            # track: the existing file's streams are never touched.
+            resample_dub(
+                new_path,
+                retime_to,
+                result.tempo_ratio,
+                label=str(what),
+                acodec="aac",
+            )
+            offset = round(result.post_tempo_offset, 3)
+            logger.debug(
+                f"[MERGE] {drift_note}; retimed, then offset {offset:+.3f}s "
+                f"(confidence {result.drift_confidence:.1f})"
+            )
+            return offset, retime_to
+
+        if result.confidence >= DEFAULT_MIN_CONFIDENCE:
+            offset = round(result.offset, 3)
+            logger.debug(
+                f"[MERGE] {what} aligned: offset {offset:+.3f}s "
+                f"(confidence {result.confidence:.1f})"
+            )
+            return offset, None
+
+        logger.warning(
+            f"[MERGE] could not confidently align {what} "
+            f"(confidence {result.confidence:.1f}); merging without shift"
+        )
+    except Exception as exc:
+        logger.warning(
+            f"[MERGE] alignment of {what} failed ({exc}); merging without shift"
+        )
+    return 0.0, None
+
+
+def _merge_audio_aligned(episode_path, temp_audio, audio_code, ep_label):
+    """Append *temp_audio* to *episode_path* as an aligned additional track.
+
+    Goes through DubSync's remux (itsoffset + language tag + non-default
+    disposition + re-interleave) so the new language stays in sync and players
+    keep the first track primary. Falls back to the plain concat merge if the
+    aligned mux itself fails.
+    """
+    retimed_path = temp_audio.with_suffix(".retimed.mka")
+    offset, retimed = _detect_merge_offset(
+        temp_audio,
+        episode_path,
+        f"new '{audio_code}' audio track",
+        retime_to=retimed_path,
+    )
+    try:
+        from ..aniworld_to.dubsync.remux import remux_with_dub
+
+        remux_with_dub(
+            episode_path,
+            retimed or temp_audio,
+            episode_path,
+            offset=offset,
+            audio_code=audio_code,
+            label=ep_label,
+        )
+        return
+    except Exception as exc:
+        logger.warning(
+            f"[MERGE] aligned mux failed ({exc}); falling back to plain merge"
+        )
+    finally:
+        retimed_path.unlink(missing_ok=True)
+
+    output_path = episode_path.with_suffix(".new.mkv")
+    _run_ffmpeg_with_progress(
+        ffmpeg.output(
+            ffmpeg.input(str(episode_path)),
+            ffmpeg.input(str(temp_audio)),
+            str(output_path),
+            c="copy",
+        ),
+        label=ep_label,
+    )
+    _finalize_episode(output_path, episode_path, ep_label)
+
+
+def _merge_full_stream_aligned(target_path, temp_full, ep_label):
+    """Merge a second full stream (video + audio) into an existing episode file.
+
+    Used when a language variant brings its own video (hardsubbed "Sub"
+    versions): its streams are appended to the same file as switchable
+    secondary tracks. The whole second input is shifted by the detected offset
+    (its video and audio stay in sync with each other) and the appended
+    streams lose their default flag so players keep playing the originals.
+    """
+    # No retime target: retiming the audio alone would desync it from the
+    # video it arrived with, so a speed-mismatched variant is merged unshifted.
+    offset, _ = _detect_merge_offset(
+        temp_full, target_path, "second full stream"
+    )
+    second_kwargs = {"itsoffset": offset} if offset else {}
+
+    output_kwargs = {"c": "copy"}
+    try:
+        spec_by_type = {"video": "v", "audio": "a", "subtitle": "s"}
+        counts = {ctype: 0 for ctype in spec_by_type}
+        for stream in ffmpeg.probe(str(target_path)).get("streams", []):
+            if stream.get("codec_type") in counts:
+                counts[stream["codec_type"]] += 1
+        for stream in ffmpeg.probe(str(temp_full)).get("streams", []):
+            spec = spec_by_type.get(stream.get("codec_type"))
+            if spec:
+                output_kwargs[f"disposition:{spec}:{counts[stream['codec_type']]}"] = "0"
+                counts[stream["codec_type"]] += 1
+    except ffmpeg.Error:
+        pass  # merge without disposition tweaks if probing fails
+
+    inputs = [
+        ffmpeg.input(str(target_path)),
+        ffmpeg.input(str(temp_full), **second_kwargs),
+    ]
+    output_path = target_path.with_suffix(".new.mkv")
+    _run_ffmpeg_with_progress(
+        ffmpeg.output(*inputs, str(output_path), **output_kwargs),
+        label=ep_label,
+    )
+    _finalize_episode(output_path, target_path, ep_label)
+
+
+def _maybe_fetch_subtitle(episode, target_path, ep_label):
+    """Fetch a real (soft) subtitle track for a finished episode when enabled.
+
+    Controlled by --fetch-subs / ANIWORLD_FETCH_SUBS. Never raises: a missing
+    subtitle must not fail a completed download.
+    """
+    lang = (os.getenv("ANIWORLD_FETCH_SUBS") or "").strip().lower()
+    if not lang or lang in ("0", "false", "no", "off"):
+        return
+    try:
+        from ..aniworld_to.dubsync.subfetch import fetch_and_mux_subtitle
+
+        fetch_and_mux_subtitle(episode, target_path, lang=lang, label=ep_label)
+    except Exception as exc:
+        logger.warning(
+            f"[SUBS] subtitle fetch failed for "
+            f"{ep_label or target_path.name}: {exc}"
+        )
 
 
 def _download_direct_http(episode_path, stream_url, file_name):
@@ -1052,10 +1281,10 @@ def download(self):
         _set_selected_provider(self, provider_name)
 
         for attempt in range(1, max_retries + 1):
+            target_path = self._episode_path
             try:
                 _reset_provider_resolution_cache(self)
                 stream_url = self.stream_url
-                check = check_downloaded(self._episode_path)
 
                 headers = PROVIDER_HEADERS_D.get(provider_name, {})
                 input_kwargs = {
@@ -1099,6 +1328,13 @@ def download(self):
                         None if wants_clean_video else LANG_CODE_MAP[sub_enum]
                     )
 
+                # Every language variant lands in ONE file: extra dubs as
+                # additional audio tracks, hardsubbed "Sub" variants as an
+                # additional (non-default) video+audio pair — all aligned.
+                # Users who want separate per-language files instead can put
+                # {language} into their naming template.
+                check = check_downloaded(target_path)
+
                 has_video = bool(check["video_langs"])
                 has_audio = audio_code in check["audio_langs"]
 
@@ -1110,15 +1346,18 @@ def download(self):
                 else:
                     need_video = False
 
-                if not need_audio and not need_video:
-                    logger.debug(f"[SKIPPED] {self._file_name}")
-                    return
-
-                os.makedirs(self._folder_path, exist_ok=True)
-
                 ep_label = (
                     os.path.splitext(self._file_name)[0] if self._file_name else ""
                 )
+
+                if not need_audio and not need_video:
+                    logger.debug(f"[SKIPPED] {self._file_name}")
+                    # Still give an already-complete file its subtitle track
+                    # when --fetch-subs is on (no-op if it already has one).
+                    _maybe_fetch_subtitle(self, target_path, ep_label)
+                    return
+
+                os.makedirs(self._folder_path, exist_ok=True)
 
                 full_stream_needed = need_audio and need_video
 
@@ -1128,9 +1367,9 @@ def download(self):
                 # track instead of the default one.
                 select_rendition = getattr(self, "_separate_audio_rendition", False)
 
-                temp_audio = self._episode_path.with_suffix(".temp_audio.mkv")
-                temp_video = self._episode_path.with_suffix(".temp_video.mkv")
-                temp_full = self._episode_path.with_suffix(".temp_full.mkv")
+                temp_audio = target_path.with_suffix(".temp_audio.mkv")
+                temp_video = target_path.with_suffix(".temp_video.mkv")
+                temp_full = target_path.with_suffix(".temp_full.mkv")
 
                 if full_stream_needed:
                     logger.debug(
@@ -1186,21 +1425,16 @@ def download(self):
                             audio_code,
                         )
 
-                    if self._episode_path.exists():
-                        inputs = [
-                            ffmpeg.input(str(self._episode_path)),
-                            ffmpeg.input(str(temp_full)),
-                        ]
-                        output_path = self._episode_path.with_suffix(".new.mkv")
-                        _run_ffmpeg_with_progress(
-                            ffmpeg.output(*inputs, str(output_path), c="copy")
+                    if target_path.exists():
+                        _merge_full_stream_aligned(
+                            target_path, temp_full, ep_label
                         )
-                        _finalize_episode(output_path, self._episode_path, ep_label)
                     else:
-                        _finalize_episode(temp_full, self._episode_path, ep_label)
+                        _finalize_episode(temp_full, target_path, ep_label)
 
                     if temp_full.exists():
                         temp_full.unlink()
+                    _maybe_fetch_subtitle(self, target_path, ep_label)
                     return
 
                 if need_audio:
@@ -1261,27 +1495,37 @@ def download(self):
                     )
 
                 logger.debug("[MUXING] combining streams")
-                inputs = (
-                    [ffmpeg.input(str(self._episode_path))]
-                    if self._episode_path.exists()
-                    else []
-                )
 
-                if need_audio:
-                    inputs.append(ffmpeg.input(str(temp_audio)))
-                if need_video:
-                    inputs.append(ffmpeg.input(str(temp_video)))
+                if target_path.exists() and need_audio and not need_video:
+                    # Second language into an existing file: align the new
+                    # track instead of blindly concatenating it (the old
+                    # behaviour left the added audio out of sync).
+                    _merge_audio_aligned(
+                        target_path, temp_audio, audio_code, ep_label
+                    )
+                else:
+                    inputs = (
+                        [ffmpeg.input(str(target_path))]
+                        if target_path.exists()
+                        else []
+                    )
 
-                output_path = self._episode_path.with_suffix(".new.mkv")
-                _run_ffmpeg_with_progress(
-                    ffmpeg.output(*inputs, str(output_path), c="copy")
-                )
-                _finalize_episode(output_path, self._episode_path, ep_label)
+                    if need_audio:
+                        inputs.append(ffmpeg.input(str(temp_audio)))
+                    if need_video:
+                        inputs.append(ffmpeg.input(str(temp_video)))
+
+                    output_path = target_path.with_suffix(".new.mkv")
+                    _run_ffmpeg_with_progress(
+                        ffmpeg.output(*inputs, str(output_path), c="copy")
+                    )
+                    _finalize_episode(output_path, target_path, ep_label)
 
                 for f in (temp_audio, temp_video):
                     if f.exists():
                         f.unlink()
 
+                _maybe_fetch_subtitle(self, target_path, ep_label)
                 return
 
             except KeyboardInterrupt:
