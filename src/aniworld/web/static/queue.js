@@ -48,9 +48,9 @@ let queueCustomPaths = [];
 function openQueueModal() {
   queueModalOpen = true;
   document.getElementById("queueOverlay").style.display = "block";
-  loadQueue();
+  loadQueue(true);
   if (queuePollTimer) clearInterval(queuePollTimer);
-  queuePollTimer = setInterval(loadQueue, 2000);
+  queuePollTimer = setInterval(() => loadQueue(false), 2000);
 }
 
 function closeQueueModal() {
@@ -82,14 +82,15 @@ function formatBandwidth(bwStr) {
 
 let queueFetchController = null;
 
-async function loadQueue() {
+async function loadQueue(force = false) {
   if (queueFetchController) {
+    if (!force) return;
     queueFetchController.abort();
   }
   const controller = new AbortController();
   queueFetchController = controller;
   try {
-    const resp = await fetch("/api/queue", { signal: controller.signal });
+    const resp = await fetch("/api/queue", { signal: controller.signal, cache: 'no-store' });
     const data = await resp.json();
     const items = data.items || [];
     lastFfmpegProgress = data.ffmpeg_progress || {};
@@ -408,7 +409,7 @@ async function cancelQueueItem(id) {
       if (typeof showToast === "function")
         showToast("Cancelling after current episode...");
     }
-    loadQueue();
+    loadQueue(true);
   } catch (e) {
     /* ignore */
   }
@@ -426,7 +427,7 @@ async function forceCancelQueueItem(id) {
       if (typeof showToast === "function")
         showToast("Force cancelling download...");
     }
-    loadQueue();
+    loadQueue(true);
   } catch (e) {
     /* ignore */
   }
@@ -441,7 +442,7 @@ async function retryQueueItem(id) {
     } else if (typeof showToast === "function") {
       showToast("Retrying download...");
     }
-    loadQueue();
+    loadQueue(true);
   } catch (e) {
     /* ignore */
   }
@@ -456,7 +457,7 @@ async function moveQueueItem(id, direction) {
     });
     const data = await resp.json();
     if (data.error && typeof showToast === "function") showToast(data.error);
-    loadQueue();
+    loadQueue(true);
   } catch (e) {
     /* ignore */
   }
@@ -469,7 +470,7 @@ async function removeQueueItem(id) {
     if (data.error) {
       if (typeof showToast === "function") showToast(data.error);
     }
-    loadQueue();
+    loadQueue(true);
   } catch (e) {
     /* ignore */
   }
@@ -526,7 +527,7 @@ function openCaptchaModal(queueId) {
         closeCaptchaModal();
         if (typeof showToast === "function")
           showToast("Captcha solved! Download resuming...");
-        loadQueue();
+        loadQueue(true);
       }
     } catch (e) {
       /* ignore */
