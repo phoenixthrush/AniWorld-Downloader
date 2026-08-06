@@ -223,8 +223,10 @@ AniWorld Downloader leans on some excellent open-source projects:
 
 ## Other Cool Projects
 
-- [Jellyfin AniWorld Downloader](https://github.com/SiroxCW/Jellyfin-AniWorld-Downloader) by [SiroxCW](https://github.com/SiroxCW), a Jellyfin plugin for browsing and downloading AniWorld content inside your media server
+- [Jellyfin-AniWorld-Downloader](https://github.com/SiroxCW/Jellyfin-AniWorld-Downloader) by [SiroxCW](https://github.com/SiroxCW), a Jellyfin plugin for browsing and downloading AniWorld content inside your media server
+- [AniSeerr](https://github.com/Yezun-hikari/AniSeerr) by [Yezun-hikari](https://github.com/Yezun-hikari), a bridge connecting Seerr with AniWorld-Downloader for requests
 - [AniBridge](https://github.com/Zzackllack/AniBridge) by [Zzackllack](https://github.com/Zzackllack), a small FastAPI bridge between supported catalogues and automation tools
+- [AniLoader](https://github.com/WimWamWom/AniLoader) by [WimWamWom](https://github.com/WimWamWom), a standalone web-based fork of AniWorld-Downloader
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
