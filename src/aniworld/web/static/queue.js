@@ -60,8 +60,10 @@
     const total = item.total_episodes || 1;
     const done = item.current_episode || 0;
     if (item.status === "completed") return 100;
-    // ffmpeg reports the percentage of the episode currently being written
-    const partial = item.status === "running" ? (ffmpeg[String(item.id)] || 0) / 100 : 0;
+    // ffmpeg reports one percentage for the file it is writing right now, and
+    // the worker only ever runs one item, so it belongs to the running one
+    const partial =
+      item.status === "running" && ffmpeg.active ? (ffmpeg.percent || 0) / 100 : 0;
     return Math.min(100, Math.round(((done + partial) / total) * 100));
   }
 
