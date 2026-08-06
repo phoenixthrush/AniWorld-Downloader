@@ -22,7 +22,7 @@ from flask import (
 
 from ..config import ANIWORLD_CONFIG_DIR
 from ..logger import get_logger
-from . import db
+from . import apikeys, db
 
 logger = get_logger(__name__)
 
@@ -191,7 +191,7 @@ def _wants_json():
 def login_required(view):
     @wraps(view)
     def wrapper(*args, **kwargs):
-        if session.get("user_id") is None:
+        if apikeys.current() is None and session.get("user_id") is None:
             if _wants_json():
                 return jsonify({"error": "authentication required"}), 401
             return redirect(url_for("auth.login"))
@@ -203,6 +203,9 @@ def login_required(view):
 def admin_required(view):
     @wraps(view)
     def wrapper(*args, **kwargs):
+        # The key gate already matched the scope against this endpoint
+        if apikeys.current() is not None:
+            return view(*args, **kwargs)
         if session.get("user_id") is None:
             if _wants_json():
                 return jsonify({"error": "authentication required"}), 401

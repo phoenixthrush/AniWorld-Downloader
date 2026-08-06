@@ -202,7 +202,62 @@
       "settings.saved": "Gespeichert",
       "settings.save_failed": "Speichern fehlgeschlagen",
       "settings.confirm_delete_user": 'Benutzer "{name}" wirklich löschen?',
-      "settings.confirm_delete_path": 'Pfad "{name}" wirklich entfernen?'
+      "settings.confirm_delete_path": 'Pfad "{name}" wirklich entfernen?',
+
+      "settings.api_keys": "API-Schlüssel",
+      "settings.api_keys_hint":
+        "Mit einem Schlüssel können Skripte und andere Tools die JSON-API ohne Anmeldung nutzen. Schick ihn als X-API-Key-Header. Ein Schlüssel wird nur einmal angezeigt, direkt nach dem Erstellen.",
+      "settings.api_keys_open":
+        "Die Weboberfläche läuft ohne Anmeldung, die API ist also für jeden erreichbar, der diese Seite öffnen kann. Schlüssel werden trotzdem geprüft, aber starte die Weboberfläche mit -wa, wenn du die API absichern willst.",
+      "settings.api_key_name": "Name (z. B. Homelab-Skript)",
+      "settings.scope_read": "Nur lesen",
+      "settings.scope_write": "Lesen und herunterladen",
+      "settings.scope_admin": "Voller Zugriff",
+      "settings.expiry_never": "Läuft nie ab",
+      "settings.expiry_30": "30 Tage",
+      "settings.expiry_90": "90 Tage",
+      "settings.expiry_365": "1 Jahr",
+      "settings.api_key_once": "Jetzt kopieren, er wird nicht noch einmal angezeigt",
+      "settings.copy": "Kopieren",
+      "settings.copied": "Kopiert",
+      "settings.api_key_prefix": "Schlüssel",
+      "settings.api_key_scope": "Zugriff",
+      "settings.api_key_last_used": "Zuletzt benutzt",
+      "settings.api_key_expires": "Läuft ab",
+      "settings.api_key_expired": "Abgelaufen",
+      "settings.no_keys": "Noch keine API-Schlüssel.",
+      "settings.key_name_required": "Gib dem Schlüssel einen Namen",
+      "settings.confirm_delete_key":
+        'API-Schlüssel "{name}" löschen? Alles, was ihn benutzt, funktioniert danach nicht mehr.',
+      "settings.api_docs": "Endpunkte und Beispiele",
+      "settings.api_docs_hint":
+        "Jeder schreibende Aufruf braucht Content-Type application/json. Lese-Schlüssel dürfen alles aus der Lese-Spalte, Schreib-Schlüssel zusätzlich Downloads, Schlüssel mit vollem Zugriff alles.",
+      "settings.api_endpoint": "Endpunkt",
+      "settings.api_needs": "Benötigt",
+      "settings.api_what": "Funktion",
+      "settings.api_ping": "Schlüssel prüfen und Zugriffsstufe anzeigen",
+      "settings.api_search": "Auf einer Seite suchen, Body: keyword, site",
+      "settings.api_series": "Titel, Poster, Beschreibung und Genres",
+      "settings.api_seasons": "Staffeln einer Serie",
+      "settings.api_episodes": "Episoden einer Staffel, mit Sprachen",
+      "settings.api_providers": "Verfügbare Hoster je Sprache",
+      "settings.api_queue": "Warteschlange mit Fortschritt",
+      "settings.api_download": "Episoden einreihen, siehe Beispiel unten",
+      "settings.api_cancel": "Wartenden oder laufenden Eintrag abbrechen",
+      "settings.api_retry": "Fehlgeschlagenen Eintrag erneut versuchen",
+      "settings.api_remove": "Eintrag aus der Warteschlange entfernen",
+      "settings.api_clear": "Fertige Einträge löschen",
+      "settings.api_lib_locations": "Vorhandene Downloadordner",
+      "settings.api_lib_titles": "Titel in einem Ordner",
+      "settings.api_lib_title": "Dateien eines einzelnen Titels",
+      "settings.api_lib_delete": "Titel, Staffel oder Episode löschen",
+      "settings.api_sync_status": "Letzter Lauf und dessen Bericht",
+      "settings.api_sync_run": "Sync sofort starten",
+      "settings.api_settings": "Aktuelle Einstellungen lesen",
+      "settings.api_example_queue": "Warteschlange lesen",
+      "settings.api_example_download": "Download starten",
+      "settings.api_example_hint":
+        'Die Episoden-URLs kommen von /api/episodes, und /api/providers zeigt dir, welche Hoster die gewünschte Sprache haben. Mit "custom_path_id" landet der Download in einem deiner eigenen Pfade.'
     }
   };
 

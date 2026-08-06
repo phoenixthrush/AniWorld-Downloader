@@ -170,6 +170,20 @@ _SCHEMA = (
         value TEXT
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS api_keys (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        key_hash TEXT NOT NULL UNIQUE,
+        prefix TEXT NOT NULL,
+        scope TEXT NOT NULL DEFAULT 'write' CHECK(scope IN ('read', 'write', 'admin')),
+        created_by TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        last_used_at TEXT,
+        expires_at TEXT
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_api_key_hash ON api_keys (key_hash)",
 )
 
 # Columns added after the first release. Older databases get them via ALTER.
@@ -676,3 +690,56 @@ def set_autosync_state(**values):
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                 (key, None if value is None else str(value)),
             )
+
+
+# ---------------------------------------------------------------------------
+# API keys
+# ---------------------------------------------------------------------------
+# Only the hash is stored, so a leaked database does not hand out working keys.
+def create_api_key(name, key_hash, prefix, scope, created_by=None, expires_days=None):
+    # Expiry is computed by sqlite so it matches the datetime('now') check below
+    offset = f"+{int(expires_days)} days" if expires_days else None
+    with session() as conn:
+        cur = conn.execute(
+            "INSERT INTO api_keys (name, key_hash, prefix, scope, created_by, expires_at) "
+            "VALUES (?, ?, ?, ?, ?, "
+            "CASE WHEN ? IS NULL THEN NULL ELSE datetime('now', ?) END)",
+            (name, key_hash, prefix, scope, created_by, offset, offset),
+        )
+        return cur.lastrowid
+
+
+def list_api_keys():
+    with session() as conn:
+        return _rows(
+            conn,
+            "SELECT id, name, prefix, scope, created_by, created_at, last_used_at, "
+            "expires_at, (expires_at IS NOT NULL AND expires_at <= datetime('now')) "
+            "AS expired FROM api_keys ORDER BY id",
+        )
+
+
+def verify_api_key(key_hash):
+    with session() as conn:
+        return _row(
+            conn,
+            "SELECT id, name, scope FROM api_keys WHERE key_hash = ? "
+            "AND (expires_at IS NULL OR expires_at > datetime('now'))",
+            (key_hash,),
+        )
+
+
+def touch_api_key(key_id):
+    """Record usage. Runs on every API call, so it writes once a minute at most."""
+    with session() as conn:
+        conn.execute(
+            "UPDATE api_keys SET last_used_at = datetime('now') WHERE id = ? AND "
+            "(last_used_at IS NULL OR last_used_at < datetime('now', '-60 seconds'))",
+            (key_id,),
+        )
+
+
+def delete_api_key(key_id):
+    with session() as conn:
+        cur = conn.execute("DELETE FROM api_keys WHERE id = ?", (key_id,))
+        return cur.rowcount > 0

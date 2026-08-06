@@ -6,7 +6,15 @@ what the auth layer uses to decide CSRF exemption, so keep it.
 
 from flask import Blueprint
 
-from . import api_autosync, api_library, api_media, api_queue, api_settings, pages
+from . import (
+    api_autosync,
+    api_keys,
+    api_library,
+    api_media,
+    api_queue,
+    api_settings,
+    pages,
+)
 
 # Endpoints that need an admin account rather than just a login.
 ADMIN_ENDPOINTS = {
@@ -27,6 +35,9 @@ ADMIN_ENDPOINTS = {
     "api.delete_exclusion",
     "api.exclusion_state",
     "api.set_exclusion_state",
+    "api.list_api_keys",
+    "api.create_api_key",
+    "api.delete_api_key",
 }
 
 
@@ -34,6 +45,13 @@ def register_blueprints(app):
     app.register_blueprint(pages.bp)
 
     api = Blueprint("api", __name__, url_prefix="/api")
-    for module in (api_media, api_queue, api_settings, api_library, api_autosync):
+    for module in (
+        api_media,
+        api_queue,
+        api_settings,
+        api_library,
+        api_autosync,
+        api_keys,
+    ):
         module.register(api)
     app.register_blueprint(api)

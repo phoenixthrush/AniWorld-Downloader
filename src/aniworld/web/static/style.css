@@ -1243,6 +1243,87 @@ select option {
   padding: 18px;
 }
 
+/* ===== API keys ===== */
+.new-key {
+  background: var(--surface-strong);
+  border: 1px solid var(--accent-soft);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  margin-top: 14px;
+}
+
+.new-key-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.new-key-row code {
+  flex: 1;
+  min-width: 200px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  color: var(--text-strong);
+  word-break: break-all;
+}
+
+.key-expired {
+  color: var(--danger);
+}
+
+.api-docs {
+  margin-top: 18px;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 14px;
+}
+
+.api-docs summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.api-docs summary:hover {
+  color: var(--text-strong);
+}
+
+.api-docs h3 {
+  font-size: 0.85rem;
+  margin-top: 18px;
+  color: var(--text-strong);
+}
+
+/* the endpoint column must not wrap mid-path, so the table scrolls on narrow screens */
+.api-scroll {
+  overflow-x: auto;
+}
+
+.api-endpoints td:first-child {
+  white-space: nowrap;
+}
+
+.api-endpoints code {
+  font-size: 0.78rem;
+  color: var(--text-strong);
+}
+
+.api-example {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-top: 8px;
+  overflow-x: auto;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
 .site-toggles {
   display: flex;
   flex-wrap: wrap;

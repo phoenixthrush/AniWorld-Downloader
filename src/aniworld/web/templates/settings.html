@@ -44,6 +44,145 @@
   {% endif %}
 
   <section class="card">
+    <h2 data-i18n="settings.api_keys">API Keys</h2>
+    <p class="hint" data-i18n="settings.api_keys_hint">
+      Keys let scripts and other tools use the JSON API without logging in. Send the key as an X-API-Key header.
+      A key is only shown once, right after you create it.
+    </p>
+
+    {% if not auth_enabled %}
+    <div class="notice" data-i18n="settings.api_keys_open">
+      The web UI is running without login, so the API is already reachable by anyone who can open this page. Keys are
+      still checked when sent, but start the web UI with -wa if you want the API locked down.
+    </div>
+    {% endif %}
+
+    <div class="inline-form">
+      <input type="text" id="newKeyName" placeholder="Name (e.g. Homelab script)"
+        data-i18n-placeholder="settings.api_key_name" autocomplete="off" />
+      <select id="newKeyScope">
+        <option value="read" data-i18n="settings.scope_read">Read only</option>
+        <option value="write" selected data-i18n="settings.scope_write">Read and download</option>
+        <option value="admin" data-i18n="settings.scope_admin">Full access</option>
+      </select>
+      <select id="newKeyExpiry">
+        <option value="" data-i18n="settings.expiry_never">Never expires</option>
+        <option value="30" data-i18n="settings.expiry_30">30 days</option>
+        <option value="90" data-i18n="settings.expiry_90">90 days</option>
+        <option value="365" data-i18n="settings.expiry_365">1 year</option>
+      </select>
+      <button class="btn btn-primary" id="addKeyBtn" data-i18n="common.add">Add</button>
+    </div>
+
+    <div class="new-key" id="newKeyResult" hidden>
+      <div class="ip-label" data-i18n="settings.api_key_once">Copy this now, it is not shown again</div>
+      <div class="new-key-row">
+        <code id="newKeyValue"></code>
+        <button class="btn btn-secondary" id="copyKeyBtn" data-i18n="settings.copy">Copy</button>
+      </div>
+    </div>
+
+    <div class="api-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th data-i18n="settings.name">Name</th>
+            <th data-i18n="settings.api_key_prefix">Key</th>
+            <th data-i18n="settings.api_key_scope">Access</th>
+            <th data-i18n="settings.api_key_last_used">Last used</th>
+            <th data-i18n="settings.api_key_expires">Expires</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="apiKeysBody"></tbody>
+      </table>
+    </div>
+
+    <details class="api-docs">
+      <summary data-i18n="settings.api_docs">Endpoints and examples</summary>
+
+      <p class="hint" data-i18n="settings.api_docs_hint">
+        Every write needs a Content-Type of application/json. Read keys may call anything in the read column, write
+        keys everything up to downloads, full access keys everything.
+      </p>
+
+      <div class="api-scroll">
+      <table class="data-table api-endpoints">
+        <thead>
+          <tr>
+            <th data-i18n="settings.api_endpoint">Endpoint</th>
+            <th data-i18n="settings.api_needs">Needs</th>
+            <th data-i18n="settings.api_what">What it does</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>GET /api/ping</code></td><td>read</td>
+            <td data-i18n="settings.api_ping">Check the key and see its access level</td></tr>
+          <tr><td><code>POST /api/search</code></td><td>read</td>
+            <td data-i18n="settings.api_search">Search a site, body: keyword, site</td></tr>
+          <tr><td><code>GET /api/series?url=</code></td><td>read</td>
+            <td data-i18n="settings.api_series">Title, poster, description and genres</td></tr>
+          <tr><td><code>GET /api/seasons?url=</code></td><td>read</td>
+            <td data-i18n="settings.api_seasons">Seasons of a series</td></tr>
+          <tr><td><code>GET /api/episodes?url=</code></td><td>read</td>
+            <td data-i18n="settings.api_episodes">Episodes of a season, with languages</td></tr>
+          <tr><td><code>GET /api/providers?url=</code></td><td>read</td>
+            <td data-i18n="settings.api_providers">Hosters available per language</td></tr>
+          <tr><td><code>GET /api/queue</code></td><td>read</td>
+            <td data-i18n="settings.api_queue">The queue with live progress</td></tr>
+          <tr><td><code>POST /api/download</code></td><td>write</td>
+            <td data-i18n="settings.api_download">Queue episodes, see the example below</td></tr>
+          <tr><td><code>POST /api/queue/&lt;id&gt;/cancel</code></td><td>write</td>
+            <td data-i18n="settings.api_cancel">Cancel a queued or running item</td></tr>
+          <tr><td><code>POST /api/queue/&lt;id&gt;/retry</code></td><td>write</td>
+            <td data-i18n="settings.api_retry">Retry a failed item</td></tr>
+          <tr><td><code>DELETE /api/queue/&lt;id&gt;</code></td><td>write</td>
+            <td data-i18n="settings.api_remove">Remove an item from the queue</td></tr>
+          <tr><td><code>DELETE /api/queue/completed</code></td><td>write</td>
+            <td data-i18n="settings.api_clear">Clear finished items</td></tr>
+          <tr><td><code>GET /api/library/locations</code></td><td>read</td>
+            <td data-i18n="settings.api_lib_locations">Download folders that exist</td></tr>
+          <tr><td><code>GET /api/library/titles</code></td><td>read</td>
+            <td data-i18n="settings.api_lib_titles">Titles in one location</td></tr>
+          <tr><td><code>GET /api/library/title?folder=</code></td><td>read</td>
+            <td data-i18n="settings.api_lib_title">Files of a single title</td></tr>
+          <tr><td><code>POST /api/library/delete</code></td><td>full</td>
+            <td data-i18n="settings.api_lib_delete">Delete a title, season or episode</td></tr>
+          <tr><td><code>GET /api/autosync/status</code></td><td>full</td>
+            <td data-i18n="settings.api_sync_status">Last run and its report</td></tr>
+          <tr><td><code>POST /api/autosync/run</code></td><td>full</td>
+            <td data-i18n="settings.api_sync_run">Start a sync right now</td></tr>
+          <tr><td><code>GET /api/settings</code></td><td>full</td>
+            <td data-i18n="settings.api_settings">Read the current settings</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h3 data-i18n="settings.api_example_queue">Read the queue</h3>
+      <pre class="api-example"><code>curl -H "X-API-Key: awd_yourkey" \
+  http://localhost:8080/api/queue</code></pre>
+
+      <h3 data-i18n="settings.api_example_download">Start a download</h3>
+      <pre class="api-example"><code>curl -X POST http://localhost:8080/api/download \
+  -H "X-API-Key: awd_yourkey" \
+  -H "Content-Type: application/json" \
+  -d '{
+        "title": "Naruto",
+        "series_url": "https://aniworld.to/anime/stream/naruto",
+        "language": "German Dub",
+        "provider": "VOE",
+        "episodes": [
+          "https://aniworld.to/anime/stream/naruto/staffel-1/episode-1"
+        ]
+      }'</code></pre>
+      <p class="hint" data-i18n="settings.api_example_hint">
+        The episode URLs come from /api/episodes, and /api/providers tells you which hosters carry the language you
+        want. Add "custom_path_id" to send a download to one of your custom paths.
+      </p>
+    </details>
+  </section>
+
+  <section class="card">
     <h2 data-i18n="settings.custom_paths">Custom Paths</h2>
     <p class="hint" data-i18n="settings.custom_paths_hint">
       Give a folder a name and pick it as the download target from the download dialog.

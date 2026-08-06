@@ -7,7 +7,7 @@ from flask import Flask, jsonify, redirect, request, url_for
 from flask_wtf.csrf import CSRFProtect
 
 from ..logger import get_logger
-from . import autosync, db, settings_store, worker
+from . import apikeys, autosync, db, settings_store, worker
 from .version import get_version
 from .views import ADMIN_ENDPOINTS, register_blueprints
 
@@ -80,7 +80,7 @@ def _setup_auth(app, base_url, sso_enabled, force_sso):
 
     @app.before_request
     def force_first_run_setup():
-        if request.endpoint in _PUBLIC_ENDPOINTS:
+        if request.endpoint in _PUBLIC_ENDPOINTS or apikeys.current():
             return None
         if not app.config.get("FORCE_SSO", False) and not db.has_any_admin():
             return redirect(url_for("auth.setup"))
@@ -119,6 +119,11 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     base_url = _apply_base_url(app)
 
     db.init_db()
+
+    # Registered before the auth hooks so a valid key skips the session checks.
+    @app.before_request
+    def api_key_gate():
+        return apikeys.authenticate(ADMIN_ENDPOINTS)
 
     csrf = None
     if auth_enabled:

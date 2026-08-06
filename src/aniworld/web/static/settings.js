@@ -348,6 +348,116 @@
     loadUsers();
   }
 
+  /* ===== API keys ===== */
+  const SCOPE_LABELS = {
+    read: () => t("settings.scope_read", "Read only"),
+    write: () => t("settings.scope_write", "Read and download"),
+    admin: () => t("settings.scope_admin", "Full access")
+  };
+
+  function formatKeyDate(value) {
+    if (!value) return "-";
+    // sqlite hands back "YYYY-MM-DD HH:MM:SS" in UTC
+    const date = new Date(value.replace(" ", "T") + "Z");
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+  }
+
+  function renderApiKeys(keys) {
+    const body = el("apiKeysBody");
+    if (!keys.length) {
+      body.innerHTML = `<tr class="empty-row"><td colspan="6">${t("settings.no_keys", "No API keys yet.")}</td></tr>`;
+      return;
+    }
+
+    body.innerHTML = keys
+      .map((key) => {
+        const scope = (SCOPE_LABELS[key.scope] || (() => key.scope))();
+        const expires = key.expired
+          ? `<span class="key-expired">${t("settings.api_key_expired", "Expired")}</span>`
+          : esc(key.expires_at ? formatKeyDate(key.expires_at) : t("settings.expiry_never", "Never expires"));
+        return `
+          <tr>
+            <td>${esc(key.name)}</td>
+            <td><code>${esc(key.prefix)}...</code></td>
+            <td>${esc(scope)}</td>
+            <td>${esc(formatKeyDate(key.last_used_at))}</td>
+            <td>${expires}</td>
+            <td>
+              <button class="btn btn-danger" data-delete-key="${key.id}"
+                data-name="${esc(key.name)}">${t("common.delete", "Delete")}</button>
+            </td>
+          </tr>`;
+      })
+      .join("");
+  }
+
+  async function loadApiKeys() {
+    try {
+      const data = await apiFetch("/api/keys");
+      renderApiKeys(data.keys || []);
+    } catch (error) {
+      showToast(error.message);
+    }
+  }
+
+  el("addKeyBtn").addEventListener("click", async () => {
+    const name = el("newKeyName").value.trim();
+    if (!name) {
+      showToast(t("settings.key_name_required", "Give the key a name"));
+      return;
+    }
+
+    const button = el("addKeyBtn");
+    button.disabled = true;
+    try {
+      const data = await apiSend("/api/keys", "POST", {
+        name,
+        scope: el("newKeyScope").value,
+        expires_days: el("newKeyExpiry").value
+      });
+      el("newKeyName").value = "";
+      el("newKeyValue").textContent = data.key;
+      el("newKeyResult").hidden = false;
+      loadApiKeys();
+    } catch (error) {
+      showToast(error.message);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  el("copyKeyBtn").addEventListener("click", async () => {
+    const value = el("newKeyValue").textContent;
+    try {
+      await navigator.clipboard.writeText(value);
+      showToast(t("settings.copied", "Copied"));
+    } catch (error) {
+      // Clipboard needs https or localhost, select the text so it can be copied by hand
+      const range = document.createRange();
+      range.selectNodeContents(el("newKeyValue"));
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  });
+
+  el("apiKeysBody").addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-delete-key]");
+    if (!button) return;
+
+    const message = t("settings.confirm_delete_key", 'Delete API key "{name}"? Anything using it stops working.', {
+      name: button.dataset.name
+    });
+    if (!window.confirm(message)) return;
+
+    try {
+      await apiSend(`/api/keys/${button.dataset.deleteKey}`, "DELETE");
+      loadApiKeys();
+    } catch (error) {
+      showToast(error.message);
+    }
+  });
+
   /* ===== IP check (never runs on its own) ===== */
   el("revealIpBtn").addEventListener("click", async () => {
     const value = el("publicIpValue");
@@ -375,4 +485,5 @@
   load();
   loadCustomPaths();
   loadDiscordStatus();
+  loadApiKeys();
 })();
