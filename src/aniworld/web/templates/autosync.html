@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Auto-Sync - AniWorld Downloader{% endblock %}
+
+{% block content %}
+<div class="container container-narrow">
+  <div class="page-head">
+    <h1 data-i18n="autosync.title">Auto-Sync</h1>
+    <button class="btn btn-primary" id="syncNowBtn" data-i18n="autosync.sync_now">Sync now</button>
+  </div>
+
+  <section class="card">
+    <h2 data-i18n="autosync.how_title">How it works</h2>
+    <ol class="explainer">
+      <li data-i18n="autosync.how_1">
+        Once a day it pulls the newest episodes list from aniworld.to.
+      </li>
+      <li data-i18n="autosync.how_2">
+        For every new episode it checks whether you already have a folder for that title in your library.
+      </li>
+      <li data-i18n="autosync.how_3">
+        On a match it works out which language your existing files are in, from the language folder if you separate
+        languages, otherwise by reading the audio and subtitle tracks of one file.
+      </li>
+      <li data-i18n="autosync.how_4">
+        If the new episode is out in that language, every episode of the series you are still missing gets queued,
+        into the same folder the rest of the series already lives in.
+      </li>
+    </ol>
+    <p class="hint" data-i18n="autosync.how_note">
+      There is no list of titles to maintain. Your library is the list, and anything you exclude below is skipped.
+      Only aniworld.to titles are covered, since the newest-episodes list is specific to that site.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2 data-i18n="autosync.status_title">Status</h2>
+    <div class="sync-stats">
+      <div>
+        <div class="ip-label" data-i18n="autosync.last_run">Last run</div>
+        <div class="sync-value" id="lastRun">-</div>
+      </div>
+      <div>
+        <div class="ip-label" data-i18n="autosync.next_run">Next run</div>
+        <div class="sync-value" id="nextRun">-</div>
+      </div>
+      <div>
+        <div class="ip-label" data-i18n="autosync.last_result">Last result</div>
+        <div class="sync-value" id="lastResult">-</div>
+      </div>
+    </div>
+    <div id="syncReport" class="sync-report"></div>
+  </section>
+
+  <section class="card">
+    <h2 data-i18n="autosync.excluded_title">Excluded titles</h2>
+    <p class="hint" data-i18n="autosync.excluded_hint">
+      Excluded titles are never queued by Auto-Sync, even if you have them in your library. You can also tick
+      "Exclude from Auto-Sync" in the download dialog of any title.
+    </p>
+
+    <div class="inline-form">
+      <input type="text" id="excludeSearch" placeholder="Search a title to exclude..."
+        data-i18n-placeholder="autosync.search_placeholder" />
+      <button class="btn btn-primary" id="excludeSearchBtn" data-i18n="index.search">Search</button>
+    </div>
+    <div id="excludeResults" class="exclude-results"></div>
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th data-i18n="autosync.title_column">Title</th>
+          <th data-i18n="autosync.url_column">URL</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="exclusionsBody"></tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='autosync.js') }}?v={{ app_version }}"></script>
+{% endblock %}

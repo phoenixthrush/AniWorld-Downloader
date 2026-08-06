@@ -65,6 +65,10 @@ def library_enabled():
     return _flag("ANIWORLD_ENABLE_LIBRARY", "1")
 
 
+def autosync_enabled():
+    return _flag("ANIWORLD_ENABLE_AUTOSYNC")
+
+
 def htv_enabled():
     return _flag("ANIWORLD_ENABLE_HTV")
 
@@ -179,6 +183,7 @@ def read_settings():
         "disable_english_sub": english_sub_disabled(),
         "enable_htv": htv_enabled(),
         "enable_library": library_enabled(),
+        "enable_autosync": autosync_enabled(),
         "movie_folder": _flag("ANIWORLD_MOVIE_FOLDER", "1"),
         "ui_language": ui_language(),
         "output_format": output_format(),
@@ -195,6 +200,7 @@ _BOOL_SETTINGS = {
     "disable_english_sub": "ANIWORLD_DISABLE_ENGLISH_SUB",
     "enable_htv": "ANIWORLD_ENABLE_HTV",
     "enable_library": "ANIWORLD_ENABLE_LIBRARY",
+    "enable_autosync": "ANIWORLD_ENABLE_AUTOSYNC",
     "movie_folder": "ANIWORLD_MOVIE_FOLDER",
 }
 

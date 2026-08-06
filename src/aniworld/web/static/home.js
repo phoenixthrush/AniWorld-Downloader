@@ -19,6 +19,8 @@
   const mangaFireRow = el("mangaFireRow");
   const customPathRow = el("customPathRow");
   const customPathSelect = el("customPathSelect");
+  const autosyncRow = el("autosyncRow");
+  const autosyncExclude = el("autosyncExclude");
   const accordion = el("seasonAccordion");
   const episodeSpinner = el("episodeSpinner");
   const selectAll = el("selectAll");
@@ -369,6 +371,7 @@
       fillProviderSelect(currentSite === "megakino" ? [] : window.STATIC_PROVIDERS);
     }
     loadCustomPaths();
+    loadAutosyncExclusion(url);
 
     try {
       const [series, seasonData] = await Promise.all([
@@ -407,6 +410,42 @@
       episodeSpinner.classList.remove("active");
       showToast(`${t("index.load_failed", "Failed to load title")}: ${error.message}`);
     }
+  }
+
+  // Only meaningful for aniworld titles, that is all Auto-Sync looks at
+  async function loadAutosyncExclusion(url) {
+    if (!autosyncRow) return;
+    autosyncRow.hidden = true;
+    if (!window.AUTOSYNC_ENABLED || !url.includes("aniworld.to/")) return;
+    try {
+      const data = await apiFetch(
+        `/api/autosync/excluded?url=${encodeURIComponent(url)}`
+      );
+      autosyncExclude.checked = Boolean(data.excluded);
+      autosyncRow.hidden = false;
+    } catch (e) {
+      autosyncRow.hidden = true;
+    }
+  }
+
+  if (autosyncExclude) {
+    autosyncExclude.addEventListener("change", async () => {
+      try {
+        await apiSend("/api/autosync/excluded", "POST", {
+          series_url: seriesUrl,
+          title: seriesTitle,
+          excluded: autosyncExclude.checked
+        });
+        showToast(
+          autosyncExclude.checked
+            ? t("index.autosync_excluded", "Excluded from Auto-Sync")
+            : t("index.autosync_included", "Included in Auto-Sync again")
+        );
+      } catch (error) {
+        showToast(error.message);
+        autosyncExclude.checked = !autosyncExclude.checked;
+      }
+    });
   }
 
   function seasonLabel(season, count) {

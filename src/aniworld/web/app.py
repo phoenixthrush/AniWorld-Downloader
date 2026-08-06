@@ -7,7 +7,7 @@ from flask import Flask, jsonify, redirect, request, url_for
 from flask_wtf.csrf import CSRFProtect
 
 from ..logger import get_logger
-from . import db, settings_store, worker
+from . import autosync, db, settings_store, worker
 from .version import get_version
 from .views import ADMIN_ENDPOINTS, register_blueprints
 
@@ -128,15 +128,19 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     def inject_globals():
         from .auth import get_current_user
 
+        user = get_current_user() if auth_enabled else None
         return {
+            # Without auth everyone is effectively an admin
+            "is_admin": (not auth_enabled) or bool(user and user["role"] == "admin"),
             "app_version": version,
             "auth_enabled": auth_enabled,
-            "current_user": get_current_user() if auth_enabled else None,
+            "current_user": user,
             "oidc_enabled": app.config.get("OIDC_ENABLED", False),
             "oidc_display_name": app.config.get("OIDC_DISPLAY_NAME", "SSO"),
             "force_sso": app.config.get("FORCE_SSO", False),
             "ui_language": settings_store.ui_language(),
             "library_enabled": settings_store.library_enabled(),
+            "autosync_enabled": settings_store.autosync_enabled(),
             "github_url": "https://github.com/phoenixthrush/AniWorld-Downloader",
         }
 
@@ -187,6 +191,7 @@ def _start_background_services():
 
     _wire_captcha_hooks()
     worker.ensure_started()
+    autosync.ensure_started()
     try:
         from .discord_bot import start_if_enabled
 

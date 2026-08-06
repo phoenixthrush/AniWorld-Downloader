@@ -222,6 +222,32 @@ h3 {
   padding-left: 6px;
 }
 
+/* Diagonal "New" flash over the nav button, so people notice Auto-Sync was
+   reworked instead of assuming it is the old one. */
+.has-ribbon {
+  position: relative;
+  overflow: visible;
+  /* room for the ribbon so it does not sit on the next nav item */
+  margin-right: 14px;
+}
+
+.new-ribbon {
+  position: absolute;
+  top: -7px;
+  right: -12px;
+  transform: rotate(18deg);
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  color: #fff;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.45);
+  pointer-events: none;
+}
+
 .queue-badge {
   background: var(--accent);
   color: #fff;
@@ -1627,4 +1653,99 @@ select option {
   .poster-card img {
     height: 220px;
   }
+}
+
+/* ===== Auto-Sync page ===== */
+.explainer {
+  margin: 10px 0 0 18px;
+  font-size: 0.88rem;
+  color: var(--text);
+}
+
+.explainer li {
+  margin-bottom: 8px;
+}
+
+.sync-stats {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.sync-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin-top: 4px;
+}
+
+.sync-report {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sync-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.sync-row-main {
+  min-width: 0;
+}
+
+.sync-row-title {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #e2e4e9;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync-row-detail {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.sync-report .status-pill {
+  flex-shrink: 0;
+}
+
+.exclude-results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.exclude-results:empty {
+  display: none;
+}
+
+.exclude-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.exclude-result-title {
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

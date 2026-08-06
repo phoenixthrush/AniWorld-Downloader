@@ -160,6 +160,15 @@
       </label>
     </div>
 
+    {% if is_admin %}
+    <div class="control-row" id="autosyncRow" hidden>
+      <label class="checkbox" style="margin-top:0">
+        <input type="checkbox" id="autosyncExclude" />
+        <span data-i18n="index.autosync_exclude">Exclude from Auto-Sync</span>
+      </label>
+    </div>
+    {% endif %}
+
     <div class="episodes-header">
       <h3 data-i18n="index.episodes">Episodes</h3>
       <label class="checkbox">
@@ -193,6 +202,7 @@
     cineby: ["English Dub", "German Dub"]
   };
   window.DEFAULT_LANGUAGE = {{ default_language | tojson }};
+  window.AUTOSYNC_ENABLED = {{ (autosync_enabled and is_admin) | tojson }};
   window.STATIC_PROVIDERS = {{ supported_providers | list | tojson }};
 </script>
 {% endblock %}

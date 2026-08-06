@@ -43,6 +43,13 @@ def library():
     return render_template("library.html")
 
 
+@bp.route("/autosync")
+def autosync():
+    if not settings_store.autosync_enabled():
+        abort(404)
+    return render_template("autosync.html")
+
+
 @bp.route("/settings")
 def settings():
     return render_template("settings.html", env_path=_display_env_path())

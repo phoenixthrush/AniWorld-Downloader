@@ -156,6 +156,20 @@ _SCHEMA = (
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_queue_status ON download_queue (status, position)",
+    """
+    CREATE TABLE IF NOT EXISTS autosync_exclusions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        series_url TEXT NOT NULL UNIQUE,
+        title TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS autosync_state (
+        key TEXT PRIMARY KEY,
+        value TEXT
+    )
+    """,
 )
 
 # Columns added after the first release. Older databases get them via ALTER.
@@ -419,6 +433,17 @@ def get_queue():
         return _rows(conn, "SELECT * FROM download_queue ORDER BY position ASC, id ASC")
 
 
+def is_series_queued_or_running(series_url):
+    """Stops AutoSync queueing a series that is still working through the queue."""
+    with session() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) AS n FROM download_queue "
+            "WHERE series_url = ? AND status IN ('queued','running')",
+            (series_url,),
+        ).fetchone()
+        return row["n"] > 0
+
+
 def get_queue_item(queue_id):
     with session() as conn:
         return _row(conn, "SELECT * FROM download_queue WHERE id = ?", (queue_id,))
@@ -587,3 +612,67 @@ def clear_captcha_url(queue_id):
         conn.execute(
             "UPDATE download_queue SET captcha_url = NULL WHERE id = ?", (queue_id,)
         )
+
+
+# ---------------------------------------------------------------------------
+# AutoSync
+# ---------------------------------------------------------------------------
+def get_autosync_exclusions():
+    with session() as conn:
+        return _rows(
+            conn, "SELECT * FROM autosync_exclusions ORDER BY title COLLATE NOCASE"
+        )
+
+
+def excluded_series_urls():
+    with session() as conn:
+        rows = conn.execute("SELECT series_url FROM autosync_exclusions").fetchall()
+        return {row["series_url"] for row in rows}
+
+
+def is_autosync_excluded(series_url):
+    with session() as conn:
+        return (
+            _row(
+                conn,
+                "SELECT id FROM autosync_exclusions WHERE series_url = ?",
+                (series_url,),
+            )
+            is not None
+        )
+
+
+def add_autosync_exclusion(series_url, title=""):
+    with session() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO autosync_exclusions (series_url, title) VALUES (?, ?)",
+            (series_url, title),
+        )
+
+
+def remove_autosync_exclusion(series_url=None, exclusion_id=None):
+    with session() as conn:
+        if exclusion_id is not None:
+            conn.execute(
+                "DELETE FROM autosync_exclusions WHERE id = ?", (exclusion_id,)
+            )
+        elif series_url is not None:
+            conn.execute(
+                "DELETE FROM autosync_exclusions WHERE series_url = ?", (series_url,)
+            )
+
+
+def get_autosync_state():
+    with session() as conn:
+        rows = conn.execute("SELECT key, value FROM autosync_state").fetchall()
+        return {row["key"]: row["value"] for row in rows}
+
+
+def set_autosync_state(**values):
+    with session() as conn:
+        for key, value in values.items():
+            conn.execute(
+                "INSERT INTO autosync_state (key, value) VALUES (?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                (key, None if value is None else str(value)),
+            )
