@@ -183,7 +183,9 @@ def delete(folder, season=None, episode=None, custom_path_id=None, lang_folder=N
         return 1
 
     if episode is not None:
-        pattern = re.compile(rf"S{int(season):02d}E{int(episode):03d}(?!\d)", re.IGNORECASE)
+        pattern = re.compile(
+            rf"S{int(season):02d}E{int(episode):03d}(?!\d)", re.IGNORECASE
+        )
     else:
         pattern = re.compile(rf"S{int(season):02d}E\d{{2,3}}", re.IGNORECASE)
 

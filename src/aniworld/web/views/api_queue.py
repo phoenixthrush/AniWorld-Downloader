@@ -15,12 +15,18 @@ def register(bp):
     bp.add_url_rule("/queue", view_func=list_queue)
     bp.add_url_rule("/queue/completed", view_func=clear_completed, methods=["DELETE"])
     bp.add_url_rule("/queue/<int:queue_id>", view_func=remove_item, methods=["DELETE"])
-    bp.add_url_rule("/queue/<int:queue_id>/cancel", view_func=cancel_item, methods=["POST"])
     bp.add_url_rule(
-        "/queue/<int:queue_id>/force-cancel", view_func=force_cancel_item, methods=["POST"]
+        "/queue/<int:queue_id>/cancel", view_func=cancel_item, methods=["POST"]
+    )
+    bp.add_url_rule(
+        "/queue/<int:queue_id>/force-cancel",
+        view_func=force_cancel_item,
+        methods=["POST"],
     )
     bp.add_url_rule("/queue/<int:queue_id>/move", view_func=move_item, methods=["POST"])
-    bp.add_url_rule("/queue/<int:queue_id>/retry", view_func=retry_item, methods=["POST"])
+    bp.add_url_rule(
+        "/queue/<int:queue_id>/retry", view_func=retry_item, methods=["POST"]
+    )
     bp.add_url_rule("/captcha/<int:queue_id>/screenshot", view_func=captcha_screenshot)
     bp.add_url_rule("/captcha/<int:queue_id>/status", view_func=captcha_status)
     bp.add_url_rule(

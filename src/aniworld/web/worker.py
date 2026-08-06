@@ -43,7 +43,9 @@ def _claim_next():
     try:
         db.set_queue_status(item["id"], "running")
     except Exception:
-        logger.error("Could not mark queue item %s as running", item["id"], exc_info=True)
+        logger.error(
+            "Could not mark queue item %s as running", item["id"], exc_info=True
+        )
         return None
     return item
 
@@ -158,7 +160,9 @@ def _process(item):
         cancelled, forced = db.cancel_flags(queue_id)
         if cancelled:
             logger.info(
-                "Download %s for queue item %s", "force cancelled" if forced else "cancelled", queue_id
+                "Download %s for queue item %s",
+                "force cancelled" if forced else "cancelled",
+                queue_id,
             )
             db.update_queue_progress(queue_id, index + 1, "")
             return

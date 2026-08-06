@@ -258,7 +258,9 @@ async def _announce(client, config, title, media_type, language, user_id):
             color=0x22C55E,
         )
         type_key = "type_movie" if media_type == "movie" else "type_series"
-        embed.add_field(name=t(config, "f_type"), value=t(config, type_key), inline=True)
+        embed.add_field(
+            name=t(config, "f_type"), value=t(config, type_key), inline=True
+        )
         embed.add_field(name=t(config, "f_language"), value=language, inline=True)
         await channel.send(embed=embed)
     except Exception as exc:
@@ -372,10 +374,13 @@ def _build_client(config):
             )
         except Exception as exc:
             logger.error("Discord enqueue failed: %s", exc)
-            await edit(interaction, t(config, "queue_failed", title=ctx["title"], error=exc))
+            await edit(
+                interaction, t(config, "queue_failed", title=ctx["title"], error=exc)
+            )
             return
         await edit(
-            interaction, t(config, "queued", title=ctx["title"], language=ctx["language"])
+            interaction,
+            t(config, "queued", title=ctx["title"], language=ctx["language"]),
         )
 
     async def request_approval(interaction, ctx):
@@ -390,8 +395,12 @@ def _build_client(config):
             color=0x2563EB,
         )
         type_key = "type_movie" if ctx["media_type"] == "movie" else "type_series"
-        embed.add_field(name=t(config, "f_type"), value=t(config, type_key), inline=True)
-        embed.add_field(name=t(config, "f_language"), value=ctx["language"], inline=True)
+        embed.add_field(
+            name=t(config, "f_type"), value=t(config, type_key), inline=True
+        )
+        embed.add_field(
+            name=t(config, "f_language"), value=ctx["language"], inline=True
+        )
         embed.add_field(
             name=t(config, "f_site"),
             value=SITE_LABELS.get(ctx.get("site", ""), ctx.get("site", "")),
@@ -415,7 +424,9 @@ def _build_client(config):
             super().__init__(timeout=None)
             self.ctx = ctx
 
-        @discord.ui.button(label=t(config, "btn_accept"), style=discord.ButtonStyle.success)
+        @discord.ui.button(
+            label=t(config, "btn_accept"), style=discord.ButtonStyle.success
+        )
         async def accept(self, interaction, button):
             try:
                 await run_blocking(
@@ -440,7 +451,9 @@ def _build_client(config):
                 self.ctx, t(config, "accepted_dm", title=self.ctx["title"])
             )
 
-        @discord.ui.button(label=t(config, "btn_decline"), style=discord.ButtonStyle.danger)
+        @discord.ui.button(
+            label=t(config, "btn_decline"), style=discord.ButtonStyle.danger
+        )
         async def decline(self, interaction, button):
             await interaction.response.send_modal(DeclineModal(self.ctx))
 
@@ -503,7 +516,9 @@ def _build_client(config):
     async def movie_request(interaction, title: str):
         await start_request(interaction, title, "movie")
 
-    @tree.command(name=t(config, "cmd_series"), description=t(config, "cmd_series_desc"))
+    @tree.command(
+        name=t(config, "cmd_series"), description=t(config, "cmd_series_desc")
+    )
     @app_commands.describe(title=t(config, "arg_series_title"))
     async def series_request(interaction, title: str):
         await start_request(interaction, title, "series")

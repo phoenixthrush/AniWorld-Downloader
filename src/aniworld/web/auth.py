@@ -80,9 +80,11 @@ def oidc_config():
         "issuer_url": issuer,
         "client_id": client_id,
         "client_secret": client_secret,
-        "display_name": os.environ.get("ANIWORLD_OIDC_DISPLAY_NAME", "").strip() or "SSO",
+        "display_name": os.environ.get("ANIWORLD_OIDC_DISPLAY_NAME", "").strip()
+        or "SSO",
         "admin_user": os.environ.get("ANIWORLD_OIDC_ADMIN_USER", "").strip() or None,
-        "admin_subject": os.environ.get("ANIWORLD_OIDC_ADMIN_SUBJECT", "").strip() or None,
+        "admin_subject": os.environ.get("ANIWORLD_OIDC_ADMIN_SUBJECT", "").strip()
+        or None,
     }
 
 
@@ -105,7 +107,9 @@ def init_oidc(app, force_sso=False):
     if not SSO_AVAILABLE:
         if force_sso:
             raise RuntimeError("SSO login is forced, but authlib is not installed.")
-        logger.error("SSO enabled but authlib is not installed, SSO login is unavailable")
+        logger.error(
+            "SSO enabled but authlib is not installed, SSO login is unavailable"
+        )
         _disable_oidc(app)
         return
 
@@ -218,7 +222,9 @@ def _validate_account(username, password):
     if len(username) > 64:
         return "Username must be at most 64 characters."
     if not USERNAME_RE.match(username):
-        return "Username may only contain letters, digits, dots, hyphens and underscores."
+        return (
+            "Username may only contain letters, digits, dots, hyphens and underscores."
+        )
     if len(password) < MIN_PASSWORD_LENGTH:
         return f"Password must be at least {MIN_PASSWORD_LENGTH} characters."
     return None
@@ -302,7 +308,9 @@ def oidc_callback():
     try:
         token = oauth.oidc.authorize_access_token()
         nonce = session.pop("oidc_nonce", None)
-        userinfo = token.get("userinfo") or oauth.oidc.parse_id_token(token, nonce=nonce)
+        userinfo = token.get("userinfo") or oauth.oidc.parse_id_token(
+            token, nonce=nonce
+        )
 
         subject = userinfo.get("sub", "")
         raw_name = (

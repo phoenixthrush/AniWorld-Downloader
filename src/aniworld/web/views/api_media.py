@@ -514,7 +514,11 @@ def _mangafire_card(item):
     if not subtitle:
         status = item.get("status", "")
         year = item.get("year")
-        parts = [part for part in (status.title() if status else "", str(year) if year else "") if part]
+        parts = [
+            part
+            for part in (status.title() if status else "", str(year) if year else "")
+            if part
+        ]
         subtitle = " | ".join(parts)
 
     return {
@@ -563,7 +567,10 @@ def _make_browse_view(key, fetch):
         return jsonify(
             {
                 "results": [
-                    {**item, "poster_url": media.proxy_image(item.get("poster_url", ""))}
+                    {
+                        **item,
+                        "poster_url": media.proxy_image(item.get("poster_url", "")),
+                    }
                     for item in results
                 ]
             }

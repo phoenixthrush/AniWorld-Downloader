@@ -144,7 +144,9 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     def security_headers(response):
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
-        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault(
+            "Referrer-Policy", "strict-origin-when-cross-origin"
+        )
         if request.path.startswith("/api/"):
             response.headers.setdefault(
                 "Cache-Control", "no-store, no-cache, must-revalidate"
@@ -215,7 +217,9 @@ def start_web_ui(
     # Env overrides keep Docker deployments configurable without CLI flags
     force_sso = force_sso or os.getenv("ANIWORLD_WEB_FORCE_SSO", "0") == "1"
     sso_enabled = sso_enabled or force_sso or os.getenv("ANIWORLD_WEB_SSO", "0") == "1"
-    auth_enabled = auth_enabled or force_sso or os.getenv("ANIWORLD_WEB_AUTH", "0") == "1"
+    auth_enabled = (
+        auth_enabled or force_sso or os.getenv("ANIWORLD_WEB_AUTH", "0") == "1"
+    )
 
     app = create_app(
         auth_enabled=auth_enabled, sso_enabled=sso_enabled, force_sso=force_sso

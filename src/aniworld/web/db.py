@@ -193,9 +193,7 @@ def init_db():
             for column, spec in columns.items():
                 if column not in existing:
                     conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {spec}")
-        conn.execute(
-            "UPDATE download_queue SET position = id WHERE position = 0"
-        )
+        conn.execute("UPDATE download_queue SET position = id WHERE position = 0")
     _initialized = True
     _bootstrap_admin()
 
@@ -243,7 +241,9 @@ def verify_user(username, password):
     return {"id": user["id"], "username": user["username"], "role": user["role"]}
 
 
-def find_or_create_sso_user(subject, issuer, username, admin_user=None, admin_subject=None):
+def find_or_create_sso_user(
+    subject, issuer, username, admin_user=None, admin_subject=None
+):
     """Look up an SSO identity, creating the account on first login."""
     is_admin = bool(
         (admin_subject and admin_subject == subject)
@@ -286,7 +286,9 @@ def find_or_create_sso_user(subject, issuer, username, admin_user=None, admin_su
 def get_user(user_id):
     with session() as conn:
         return _row(
-            conn, "SELECT id, username, role, auth_method FROM users WHERE id = ?", (user_id,)
+            conn,
+            "SELECT id, username, role, auth_method FROM users WHERE id = ?",
+            (user_id,),
         )
 
 
@@ -323,7 +325,9 @@ def update_user_role(user_id, role):
 
 
 def _last_admin(conn):
-    row = conn.execute("SELECT COUNT(*) AS n FROM users WHERE role = 'admin'").fetchone()
+    row = conn.execute(
+        "SELECT COUNT(*) AS n FROM users WHERE role = 'admin'"
+    ).fetchone()
     return row["n"] <= 1
 
 
@@ -412,9 +416,7 @@ def add_to_queue(
 
 def get_queue():
     with session() as conn:
-        return _rows(
-            conn, "SELECT * FROM download_queue ORDER BY position ASC, id ASC"
-        )
+        return _rows(conn, "SELECT * FROM download_queue ORDER BY position ASC, id ASC")
 
 
 def get_queue_item(queue_id):
@@ -424,7 +426,9 @@ def get_queue_item(queue_id):
 
 def get_running():
     with session() as conn:
-        return _row(conn, "SELECT * FROM download_queue WHERE status = 'running' LIMIT 1")
+        return _row(
+            conn, "SELECT * FROM download_queue WHERE status = 'running' LIMIT 1"
+        )
 
 
 def get_next_queued():
