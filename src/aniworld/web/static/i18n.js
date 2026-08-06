@@ -86,6 +86,11 @@
       "queue.status.completed": "Fertig",
       "queue.status.failed": "Fehler",
       "queue.status.cancelled": "Abgebrochen",
+      "queue.took": "hat {time} gedauert",
+      "queue.active_for": "läuft seit {time}",
+      "queue.secs": "{n}s",
+      "queue.mins": "{n} Min.",
+      "queue.hours": "{h} Std. {m} Min.",
       "captcha.title": "Captcha lösen",
       "captcha.hint": "Klicke auf das Bild, um mit dem Browser zu interagieren.",
 

@@ -1,6 +1,7 @@
 import os
 import re
 from collections import defaultdict
+from html import unescape
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -477,7 +478,7 @@ class AniworldEpisode:
         )
 
         if german_match:
-            return german_match.group(1).strip()
+            return unescape(german_match.group(1)).strip()
 
         return None
 
@@ -498,7 +499,7 @@ class AniworldEpisode:
             r'<small[^>]*class="episodeEnglishTitle"[^>]*>([^<]*)', html
         )
         if english_match:
-            return english_match.group(1).strip()
+            return unescape(english_match.group(1)).strip()
 
         return None
 

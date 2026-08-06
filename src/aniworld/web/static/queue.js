@@ -65,6 +65,26 @@
     return Math.min(100, Math.round(((done + partial) / total) * 100));
   }
 
+  function formatDuration(seconds) {
+    if (seconds < 60) return t("queue.secs", "{n}s", { n: seconds });
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return t("queue.mins", "{n}min", { n: minutes });
+    return t("queue.hours", "{h}h {m}min", {
+      h: Math.floor(minutes / 60),
+      m: minutes % 60
+    });
+  }
+
+  // Only counts time spent downloading, waiting in the queue does not show up
+  function durationLabel(item) {
+    const seconds = item.duration_seconds;
+    if (seconds == null) return null;
+    const time = formatDuration(seconds);
+    return item.status === "running"
+      ? t("queue.active_for", "active for {time}", { time })
+      : t("queue.took", "took {time}", { time });
+  }
+
   function renderErrors(item) {
     let errors = [];
     try {
@@ -125,7 +145,12 @@
           current: Math.min((item.current_episode || 0) + 1, item.total_episodes),
           total: item.total_episodes
         });
-        const meta = [item.language, item.provider, ACTIVE.includes(item.status) ? counter : null]
+        const meta = [
+          item.language,
+          item.provider,
+          ACTIVE.includes(item.status) ? counter : null,
+          durationLabel(item)
+        ]
           .filter(Boolean)
           .join(" | ");
 

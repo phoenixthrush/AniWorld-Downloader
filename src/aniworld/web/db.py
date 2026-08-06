@@ -152,6 +152,7 @@ _SCHEMA = (
         cancel_requested INTEGER NOT NULL DEFAULT 0,
         force_cancelled INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        started_at TEXT,
         completed_at TEXT
     )
     """,
@@ -202,6 +203,7 @@ _MIGRATIONS = {
         "discord_user_id": "TEXT",
         "cancel_requested": "INTEGER NOT NULL DEFAULT 0",
         "force_cancelled": "INTEGER NOT NULL DEFAULT 0",
+        "started_at": "TEXT",
     },
 }
 
@@ -442,9 +444,23 @@ def add_to_queue(
         return queue_id
 
 
+# How long the item has been downloading, NULL until it starts. Both timestamps
+# come from sqlite, so this stays right no matter what clock the browser has.
+# strftime('%s') gives whole seconds, julianday would be a float that rounds down.
+_DURATION_SQL = (
+    "CASE WHEN started_at IS NULL THEN NULL ELSE MAX(0, "
+    "CAST(strftime('%s', COALESCE(completed_at, 'now')) AS INTEGER) - "
+    "CAST(strftime('%s', started_at) AS INTEGER)) END AS duration_seconds"
+)
+
+
 def get_queue():
     with session() as conn:
-        return _rows(conn, "SELECT * FROM download_queue ORDER BY position ASC, id ASC")
+        return _rows(
+            conn,
+            f"SELECT *, {_DURATION_SQL} FROM download_queue "
+            "ORDER BY position ASC, id ASC",
+        )
 
 
 def is_series_queued_or_running(series_url):
@@ -486,9 +502,10 @@ def set_queue_status(queue_id, status):
     with session() as conn:
         conn.execute(
             "UPDATE download_queue SET status = ?, "
+            "started_at = CASE WHEN ? THEN datetime('now') ELSE started_at END, "
             "completed_at = CASE WHEN ? THEN datetime('now') ELSE completed_at END "
             "WHERE id = ?",
-            (status, 1 if done else 0, queue_id),
+            (status, 1 if status == "running" else 0, 1 if done else 0, queue_id),
         )
 
 
@@ -543,8 +560,9 @@ def requeue_item(queue_id):
             return False
         conn.execute(
             "UPDATE download_queue SET status = 'queued', errors = '[]', "
-            "current_episode = 0, current_url = NULL, completed_at = NULL, "
-            "cancel_requested = 0, force_cancelled = 0, captcha_url = NULL WHERE id = ?",
+            "current_episode = 0, current_url = NULL, started_at = NULL, "
+            "completed_at = NULL, cancel_requested = 0, force_cancelled = 0, "
+            "captcha_url = NULL WHERE id = ?",
             (queue_id,),
         )
     return True
@@ -608,8 +626,8 @@ def reset_stale_running():
     """Requeue items left 'running' by a previous process that died."""
     with session() as conn:
         conn.execute(
-            "UPDATE download_queue SET status = 'queued', captcha_url = NULL "
-            "WHERE status = 'running'"
+            "UPDATE download_queue SET status = 'queued', captcha_url = NULL, "
+            "started_at = NULL WHERE status = 'running'"
         )
         conn.execute("UPDATE download_queue SET captcha_url = NULL")
 
