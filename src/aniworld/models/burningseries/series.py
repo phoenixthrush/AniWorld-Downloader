@@ -625,7 +625,8 @@ class BurningSeriesSeries:
                 title = re.sub(r"<[^>]+>", " ", m.group(1))
                 # The heading also carries the season nav ("… Staffel 1"); drop it.
                 title = re.split(r"\bStaffel\b", title, flags=re.IGNORECASE)[0]
-                title = re.sub(r"\s+", " ", title).strip()
+                # Unescape only after tag stripping
+                title = re.sub(r"\s+", " ", html_module.unescape(title)).strip()
             else:
                 title = (self.slug or "").replace("-", " ").title()
             self.__title = title or self.slug

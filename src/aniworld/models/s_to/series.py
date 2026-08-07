@@ -1,4 +1,5 @@
 import re
+from html import unescape
 from urllib.parse import urljoin, urlparse
 
 from ...config import SERIENSTREAM_SERIES_PATTERN, logger
@@ -185,7 +186,10 @@ class SerienstreamSeries:
         match = pattern.search(self._html)
 
         if match:
-            title = match.group(1).strip()
+            # The heading is HTML-escaped, so an apostrophe arrives as "&#039;"
+            # ("It&#039;s Always Sunny in Philadelphia") and would end
+            # up verbatim in folder and file names.
+            title = unescape(match.group(1)).strip()
             return title
 
         return None

@@ -1,6 +1,7 @@
 import os
 import re
 from functools import lru_cache
+from html import unescape
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
@@ -452,7 +453,8 @@ class MegaKinoEpisode:
             r'<meta\s+itemprop=["\']name["\']\s+content=["\']([^"\']+)["\']',
             self._html,
         )
-        self.__title = match.group(1).strip() if match else None
+        # The meta content is HTML-escaped
+        self.__title = unescape(match.group(1)).strip() if match else None
 
     def __extract_title_cleaned(self):
         self.__title_cleaned = clean_title(self.title) if self.title else None
@@ -462,7 +464,7 @@ class MegaKinoEpisode:
             r'<div\s+class=["\']pmovie__original-title["\']\s+itemprop=["\']alternativeHeadline["\']\s*>([^<]*)<',
             self._html,
         )
-        self.__original_title = match.group(1).strip() if match else None
+        self.__original_title = unescape(match.group(1)).strip() if match else None
 
     def __extract_description(self):
         match = re.search(
