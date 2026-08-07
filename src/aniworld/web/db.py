@@ -526,18 +526,56 @@ def update_queue_errors(queue_id, errors):
 
 
 def cancel_queue_item(queue_id, force=False):
+    """Ask a download to stop.
+
+    A running item keeps its status until the worker actually stops, so the
+    episode being written finishes first. Force sets the flag the downloader
+    polls, which kills ffmpeg mid episode. Nothing is running for a queued
+    item, so that one is cancelled straight away.
+    """
     with session() as conn:
-        item = _row(conn, "SELECT status FROM download_queue WHERE id = ?", (queue_id,))
+        item = _row(
+            conn,
+            "SELECT status, cancel_requested FROM download_queue WHERE id = ?",
+            (queue_id,),
+        )
         if not item:
             return False, "Item not found"
         if item["status"] not in ("queued", "running"):
             return False, "Only queued or running items can be cancelled"
-        conn.execute(
-            "UPDATE download_queue SET status = 'cancelled', cancel_requested = 1, "
-            "force_cancelled = ?, completed_at = datetime('now') WHERE id = ?",
-            (1 if force else 0, queue_id),
-        )
+
+        if item["status"] == "queued":
+            conn.execute(
+                "UPDATE download_queue SET status = 'cancelled', cancel_requested = 1, "
+                "force_cancelled = ?, completed_at = datetime('now') WHERE id = ?",
+                (1 if force else 0, queue_id),
+            )
+        elif force:
+            # Marked cancelled right away so it cannot sit in limbo when the
+            # worker is stuck somewhere that never reads the flag. The flag
+            # still kills ffmpeg, and the worker setting it again is harmless.
+            conn.execute(
+                "UPDATE download_queue SET status = 'cancelled', cancel_requested = 1, "
+                "force_cancelled = 1, completed_at = datetime('now') WHERE id = ?",
+                (queue_id,),
+            )
+        else:
+            conn.execute(
+                "UPDATE download_queue SET cancel_requested = 1 WHERE id = ?",
+                (queue_id,),
+            )
     return True, None
+
+
+def is_queue_force_cancelled(queue_id):
+    """Polled from the ffmpeg progress loop so a force cancel lands mid episode."""
+    with session() as conn:
+        row = _row(
+            conn,
+            "SELECT force_cancelled FROM download_queue WHERE id = ?",
+            (queue_id,),
+        )
+    return bool(row and row["force_cancelled"])
 
 
 def cancel_flags(queue_id):
@@ -627,7 +665,8 @@ def reset_stale_running():
     with session() as conn:
         conn.execute(
             "UPDATE download_queue SET status = 'queued', captcha_url = NULL, "
-            "started_at = NULL WHERE status = 'running'"
+            "started_at = NULL, cancel_requested = 0, force_cancelled = 0 "
+            "WHERE status = 'running'"
         )
         conn.execute("UPDATE download_queue SET captcha_url = NULL")
 

@@ -49,6 +49,7 @@
     });
 
     providerOrder = settings.provider_fallback_order || [];
+    savedOrder = providerOrder.slice();
     renderProviderOrder();
     applyDiscord(settings.discord || {});
   }
@@ -80,37 +81,116 @@
     save({ output_format: el("outputFormat").value });
   });
 
-  /* ===== Provider fallback order ===== */
+  /* ===== Provider fallback order =====
+     Rows are dragged with pointer events so it works with a mouse and on
+     touch alike. Arrow keys do the same thing for keyboard users. */
+  const providerList = el("providerOrder");
+
   function renderProviderOrder() {
-    const container = el("providerOrder");
-    container.innerHTML = providerOrder
+    providerList.innerHTML = providerOrder
       .map(
         (provider, index) => `
-        <div class="provider-row">
+        <div class="provider-row" tabindex="0" role="listitem"
+          aria-label="${esc(provider)}">
+          <span class="drag-grip" aria-hidden="true"></span>
           <span class="provider-rank">${index + 1}</span>
           <span class="provider-name">${esc(provider)}</span>
-          <button class="provider-move" data-move="up" data-index="${index}"
-            ${index === 0 ? "disabled" : ""}>&uarr;</button>
-          <button class="provider-move" data-move="down" data-index="${index}"
-            ${index === providerOrder.length - 1 ? "disabled" : ""}>&darr;</button>
         </div>`
       )
       .join("");
   }
 
-  el("providerOrder").addEventListener("click", async (event) => {
-    const button = event.target.closest("[data-move]");
-    if (!button) return;
+  function refreshRanks() {
+    Array.from(providerList.children).forEach((row, index) => {
+      row.querySelector(".provider-rank").textContent = index + 1;
+    });
+  }
 
-    const index = Number(button.dataset.index);
-    const target = button.dataset.move === "up" ? index - 1 : index + 1;
+  // Moves the row in the DOM instead of re-rendering, so the node being
+  // dragged survives and keeps its pointer capture.
+  function moveRow(from, to) {
+    if (from === to) return;
+    const rows = Array.from(providerList.children);
+    const reference = from < to ? rows[to].nextSibling : rows[to];
+    providerList.insertBefore(rows[from], reference);
+    providerOrder.splice(to, 0, providerOrder.splice(from, 1)[0]);
+    refreshRanks();
+  }
+
+  let savedOrder = [];
+  let drag = null;
+
+  async function commitOrder() {
+    if (providerOrder.join() === savedOrder.join()) return;
+    if (await save({ provider_fallback_order: providerOrder })) {
+      savedOrder = providerOrder.slice();
+    } else {
+      providerOrder = savedOrder.slice();
+      renderProviderOrder();
+    }
+  }
+
+  providerList.addEventListener("pointerdown", (event) => {
+    const row = event.target.closest(".provider-row");
+    if (!row || event.button !== 0 || drag) return;
+
+    const rows = Array.from(providerList.children);
+    const rect = row.getBoundingClientRect();
+    // rows are uniform, so one row plus the flex gap is a full step
+    const gap = parseFloat(getComputedStyle(providerList).rowGap) || 0;
+    drag = {
+      row,
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      startIndex: rows.indexOf(row),
+      step: rect.height + gap
+    };
+    drag.index = drag.startIndex;
+    row.setPointerCapture(event.pointerId);
+    row.classList.add("dragging");
+    event.preventDefault();
+  });
+
+  providerList.addEventListener("pointermove", (event) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+
+    const delta = event.clientY - drag.startY;
+    let target = drag.startIndex + Math.round(delta / drag.step);
+    target = Math.max(0, Math.min(providerOrder.length - 1, target));
+    if (target !== drag.index) {
+      moveRow(drag.index, target);
+      drag.index = target;
+    }
+    // the row has already shifted by whole slots, only show what is left over
+    const settled = (drag.index - drag.startIndex) * drag.step;
+    drag.row.style.transform = `translateY(${delta - settled}px)`;
+  });
+
+  function endDrag() {
+    if (!drag) return;
+    drag.row.style.transform = "";
+    drag.row.classList.remove("dragging");
+    const moved = drag.index !== drag.startIndex;
+    drag = null;
+    if (moved) commitOrder();
+  }
+
+  providerList.addEventListener("pointerup", endDrag);
+  providerList.addEventListener("pointercancel", endDrag);
+
+  providerList.addEventListener("keydown", (event) => {
+    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+    const row = event.target.closest(".provider-row");
+    if (!row) return;
+
+    const index = Array.from(providerList.children).indexOf(row);
+    const target = index + (event.key === "ArrowUp" ? -1 : 1);
     if (target < 0 || target >= providerOrder.length) return;
 
-    const reordered = providerOrder.slice();
-    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
-    providerOrder = reordered;
-    renderProviderOrder();
-    await save({ provider_fallback_order: providerOrder });
+    event.preventDefault();
+    moveRow(index, target);
+    row.focus();
+    commitOrder();
   });
 
   /* ===== Custom paths ===== */

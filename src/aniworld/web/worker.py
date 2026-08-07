@@ -149,13 +149,18 @@ def _process(item):
                 captcha._local.queue_id = None
         except Exception as exc:
             captcha._local.queue_id = None
-            logger.error("Download failed for %s: %s", url, exc)
-            failure = {"url": url, "error": str(exc)}
-            page_url = _captcha_hint(provider, exc)
-            if page_url:
-                failure["captcha_url"] = page_url(url)
-            errors.append(failure)
-            db.update_queue_errors(queue_id, errors)
+            # A force cancel kills the download on purpose. Whatever it raised
+            # on the way down is the cancel, not a failure worth showing.
+            if db.cancel_flags(queue_id)[1]:
+                logger.info("Download of %s stopped by force cancel", url)
+            else:
+                logger.error("Download failed for %s: %s", url, exc)
+                failure = {"url": url, "error": str(exc)}
+                page_url = _captcha_hint(provider, exc)
+                if page_url:
+                    failure["captcha_url"] = page_url(url)
+                errors.append(failure)
+                db.update_queue_errors(queue_id, errors)
 
         cancelled, forced = db.cancel_flags(queue_id)
         if cancelled:
@@ -164,7 +169,16 @@ def _process(item):
                 "force cancelled" if forced else "cancelled",
                 queue_id,
             )
-            db.update_queue_progress(queue_id, index + 1, "")
+            # a forced stop killed this episode part way, it does not count
+            done = index if forced else index + 1
+            db.update_queue_progress(queue_id, done, "")
+            # asking to stop after the last episode still leaves everything on disk
+            everything_done = not forced and done >= len(entries) and not errors
+            db.set_queue_status(
+                queue_id, "completed" if everything_done else "cancelled"
+            )
+            if everything_done and item.get("source") == "discord":
+                _notify_discord(item)
             return
 
     db.update_queue_progress(queue_id, len(entries), "")

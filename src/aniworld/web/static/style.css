@@ -376,6 +376,17 @@ h3 {
   background: rgba(239, 68, 68, 0.12);
 }
 
+/* the second press on a stopping download, which kills it mid episode */
+.icon-btn-danger {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.14);
+}
+
+.icon-btn-danger:hover {
+  color: #fff;
+  background: var(--danger);
+}
+
 /* ===== Inputs ===== */
 input[type="text"],
 input[type="password"],
@@ -1362,6 +1373,45 @@ select option {
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 0.85rem;
+  cursor: grab;
+  /* keeps a touch drag from scrolling the page instead */
+  touch-action: none;
+  user-select: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.provider-row:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.provider-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.provider-row.dragging {
+  cursor: grabbing;
+  position: relative;
+  z-index: 2;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+}
+
+/* 2 columns x 3 rows of dots. The box has to be an exact multiple of the tile
+   or the pattern repeats past the edge and shows half a row of dots. */
+.drag-grip {
+  width: 10px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  background-image: radial-gradient(currentColor 1px, transparent 1.5px);
+  background-size: 5px 5px;
+}
+
+.provider-row:hover .drag-grip,
+.provider-row.dragging .drag-grip {
+  color: var(--text-dim);
 }
 
 .provider-rank {
@@ -1373,29 +1423,6 @@ select option {
 
 .provider-name {
   flex: 1;
-}
-
-.provider-move {
-  background: none;
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  border-radius: 5px;
-  width: 24px;
-  height: 24px;
-  cursor: pointer;
-  font-size: 0.7rem;
-  line-height: 1;
-  transition: color 0.2s, border-color 0.2s;
-}
-
-.provider-move:hover:not(:disabled) {
-  color: var(--text-strong);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-.provider-move:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
 }
 
 .ip-card {

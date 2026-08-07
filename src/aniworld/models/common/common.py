@@ -358,6 +358,10 @@ def _print_cli_progress(percent, time_str, speed_str, label=""):
     sys.stderr.flush()
 
 
+class DownloadCancelled(Exception):
+    """Raised when we killed the download ourselves, not when it failed."""
+
+
 def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
     """Run an ffmpeg node and stream its progress output cleanly.
 
@@ -427,6 +431,7 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
     last_size_ts = None
     last_change = time.monotonic()
     total_duration = 0.0
+    cancelled = False
 
     with _ffmpeg_progress_lock:
         _ffmpeg_progress.update(
@@ -533,9 +538,8 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
 
                     qid = getattr(_local, "queue_id", None)
                     if qid is not None and is_queue_force_cancelled(qid):
-                        logger.warning(
-                            "[FFmpeg] Force cancel requested. Killing process."
-                        )
+                        logger.info("[FFmpeg] Force cancel requested, stopping.")
+                        cancelled = True
                         process.kill()
                         break
                 except Exception:
@@ -575,6 +579,10 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
 
     reader_thread.join(timeout=5)
     process.wait()
+    # We killed it on purpose, so the non-zero exit code and whatever ffmpeg
+    # printed on its way out are not worth reporting.
+    if cancelled:
+        raise DownloadCancelled("Download cancelled")
     if process.returncode != 0:
         detail = (
             "\n".join(stderr_lines[-20:])
@@ -1286,6 +1294,19 @@ def download(self):
 
             except KeyboardInterrupt:
                 _cleanup_episode_download(self)
+                _remove_empty_dirs(
+                    self._folder_path,
+                    self._base_folder,
+                    protected=getattr(self, "selected_path", None),
+                )
+                raise
+
+            except DownloadCancelled:
+                # The user stopped this, so clean up and get out instead of
+                # logging a failure and trying the next provider.
+                _cleanup_episode_download(self)
+                if self._episode_path.exists():
+                    self._episode_path.unlink()
                 _remove_empty_dirs(
                     self._folder_path,
                     self._base_folder,

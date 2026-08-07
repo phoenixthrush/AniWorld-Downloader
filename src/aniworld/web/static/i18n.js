@@ -86,6 +86,8 @@
       "queue.status.completed": "Fertig",
       "queue.status.failed": "Fehler",
       "queue.status.cancelled": "Abgebrochen",
+      "queue.status.stopping": "Stoppt nach dieser Episode",
+      "queue.force_cancel": "Sofort abbrechen",
       "queue.took": "hat {time} gedauert",
       "queue.active_for": "läuft seit {time}",
       "queue.secs": "{n}s",
@@ -126,7 +128,7 @@
       "settings.download_path_hint": "Gilt sofort für neue Downloads.",
       "settings.provider_fallback": "Anbieter-Reihenfolge",
       "settings.provider_fallback_hint":
-        "Der ausgewählte Anbieter wird immer zuerst versucht. Schlägt er fehl, wird diese Reihenfolge durchlaufen.",
+        "Zieh einen Anbieter, um ihn zu verschieben. Der ausgewählte Anbieter wird immer zuerst versucht. Schlägt er fehl, wird diese Reihenfolge durchlaufen.",
       "settings.lang_separation": "Sprachen in eigene Ordner trennen",
       "settings.lang_separation_hint":
         "Downloads werden pro Sprache in Unterordner sortiert (german-dub/, english-sub/, ...).",

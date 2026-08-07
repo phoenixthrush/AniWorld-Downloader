@@ -56,6 +56,12 @@
     return t(`queue.status.${status}`, STATUS_LABELS[status] || status);
   }
 
+  // A running item that was asked to stop keeps downloading until the current
+  // episode is written, so it needs a state of its own.
+  function isStopping(item) {
+    return item.status === "running" && Boolean(item.cancel_requested);
+  }
+
   function progressPercent(item, ffmpeg) {
     const total = item.total_episodes || 1;
     const done = item.current_episode || 0;
@@ -87,6 +93,22 @@
       : t("queue.took", "took {time}", { time });
   }
 
+  // The list re-renders on every poll, so remember which error panels are open
+  // or they snap shut under the user a second after they click them.
+  const openErrors = new Set();
+
+  list.addEventListener(
+    "toggle",
+    (event) => {
+      const details = event.target.closest("[data-errors-for]");
+      if (!details) return;
+      const id = Number(details.dataset.errorsFor);
+      if (details.open) openErrors.add(id);
+      else openErrors.delete(id);
+    },
+    true // toggle does not bubble
+  );
+
   function renderErrors(item) {
     let errors = [];
     try {
@@ -102,7 +124,7 @@
       .map((entry) => `<li>${esc(entry.error || "")}</li>`)
       .join("");
 
-    let markup = `<details class="queue-errors"><summary>${t("queue.errors", "Errors")} (${errors.length})</summary><ul>${rows}</ul></details>`;
+    let markup = `<details class="queue-errors" data-errors-for="${item.id}"${openErrors.has(item.id) ? " open" : ""}><summary>${t("queue.errors", "Errors")} (${errors.length})</summary><ul>${rows}</ul></details>`;
     if (captcha) {
       markup += `<div class="action-row"><a class="btn btn-ghost" href="${esc(captcha.captcha_url)}" target="_blank" rel="noopener noreferrer">${t("queue.open_captcha", "Solve captcha in browser")}</a></div>`;
     }
@@ -118,8 +140,14 @@
       );
     }
     if (ACTIVE.includes(item.status)) {
+      const stopping = isStopping(item);
+      const label = stopping
+        ? t("queue.force_cancel", "Force cancel")
+        : t("common.cancel", "Cancel");
       buttons.push(
-        `<button class="icon-btn" data-action="cancel" data-id="${item.id}" title="${t("common.cancel", "Cancel")}">&times;</button>`
+        `<button class="icon-btn${stopping ? " icon-btn-danger" : ""}"
+          data-action="${stopping ? "force" : "cancel"}" data-id="${item.id}"
+          title="${label}" aria-label="${label}">&times;</button>`
       );
     } else {
       if (item.status === "failed" || item.status === "cancelled") {
@@ -134,56 +162,67 @@
     return buttons.join("");
   }
 
+  function renderItem(item, ffmpeg) {
+    const percent = progressPercent(item, ffmpeg);
+    const counter = t("queue.episode_of", "Episode {current} of {total}", {
+      current: Math.min((item.current_episode || 0) + 1, item.total_episodes),
+      total: item.total_episodes
+    });
+    const meta = [
+      item.language,
+      item.provider,
+      ACTIVE.includes(item.status) ? counter : null,
+      durationLabel(item)
+    ]
+      .filter(Boolean)
+      .join(" | ");
+
+    const captchaBtn =
+      item.status === "running" && item.captcha_url
+        ? `<button class="btn btn-ghost" data-action="captcha" data-id="${item.id}">${t("queue.solve_captcha", "Solve captcha")}</button>`
+        : "";
+
+    const stopping = isStopping(item);
+    const pill = stopping ? "status-cancelled" : `status-${item.status}`;
+    const label = stopping
+      ? t("queue.status.stopping", "Stopping after this episode")
+      : statusLabel(item.status);
+
+    return `
+      <div class="queue-item">
+        <div class="queue-item-head">
+          <div>
+            <div class="queue-item-title">${esc(item.title)}</div>
+            <div class="queue-item-meta">${esc(meta)}</div>
+          </div>
+          <div class="queue-item-actions">
+            <span class="status-pill ${pill}">${esc(label)}</span>
+            ${renderActions(item)}
+          </div>
+        </div>
+        <div class="progress-track"><div class="progress-fill" style="width:${percent}%"></div></div>
+        ${captchaBtn ? `<div class="action-row">${captchaBtn}</div>` : ""}
+        ${renderErrors(item)}
+      </div>`;
+  }
+
+  let lastMarkup = "";
+
   function render(items, ffmpeg) {
-    if (!items.length) {
-      list.innerHTML = `<div class="empty-state">${t("queue.empty", "The download queue is empty.")}</div>`;
-      return;
-    }
+    const markup = items.length
+      ? items.map((item) => renderItem(item, ffmpeg)).join("")
+      : `<div class="empty-state">${t("queue.empty", "The download queue is empty.")}</div>`;
 
-    list.innerHTML = items
-      .map((item) => {
-        const percent = progressPercent(item, ffmpeg);
-        const counter = t("queue.episode_of", "Episode {current} of {total}", {
-          current: Math.min((item.current_episode || 0) + 1, item.total_episodes),
-          total: item.total_episodes
-        });
-        const meta = [
-          item.language,
-          item.provider,
-          ACTIVE.includes(item.status) ? counter : null,
-          durationLabel(item)
-        ]
-          .filter(Boolean)
-          .join(" | ");
-
-        const captchaBtn =
-          item.status === "running" && item.captcha_url
-            ? `<button class="btn btn-ghost" data-action="captcha" data-id="${item.id}">${t("queue.solve_captcha", "Solve captcha")}</button>`
-            : "";
-
-        return `
-          <div class="queue-item">
-            <div class="queue-item-head">
-              <div>
-                <div class="queue-item-title">${esc(item.title)}</div>
-                <div class="queue-item-meta">${esc(meta)}</div>
-              </div>
-              <div class="queue-item-actions">
-                <span class="status-pill status-${item.status}">${esc(statusLabel(item.status))}</span>
-                ${renderActions(item)}
-              </div>
-            </div>
-            <div class="progress-track"><div class="progress-fill" style="width:${percent}%"></div></div>
-            ${captchaBtn ? `<div class="action-row">${captchaBtn}</div>` : ""}
-            ${renderErrors(item)}
-          </div>`;
-      })
-      .join("");
+    // Rewriting identical markup would still reset anything the user opened
+    if (markup === lastMarkup) return;
+    lastMarkup = markup;
+    list.innerHTML = markup;
   }
 
   /* ===== Actions ===== */
   const ENDPOINTS = {
     cancel: (id) => [`/api/queue/${id}/cancel`, "POST"],
+    force: (id) => [`/api/queue/${id}/force-cancel`, "POST"],
     retry: (id) => [`/api/queue/${id}/retry`, "POST"],
     remove: (id) => [`/api/queue/${id}`, "DELETE"]
   };
@@ -229,6 +268,7 @@
     openBtn.addEventListener("click", () => {
       modalOpen = true;
       openModal("queueOverlay");
+      lastMarkup = "";
       list.innerHTML = `<div class="empty-state">${t("common.loading", "Loading...")}</div>`;
       refresh();
       schedule();
