@@ -73,6 +73,9 @@
       "browse.trending_movies": "Angesagte Filme",
       "browse.trending_manga": "Angesagte Manga",
       "browse.trending_hentai": "Angesagt",
+      "browse.genres": "Nach Genre entdecken",
+      "browse.genre_failed": "Genre konnte nicht geladen werden",
+      "browse.load_more": "Mehr laden",
 
       "queue.title": "Download-Warteschlange",
       "queue.empty": "Die Warteschlange ist leer.",

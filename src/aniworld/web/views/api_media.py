@@ -15,6 +15,8 @@ from ...search import (
     fetch_cineby_movies,
     fetch_filmpalast_movies,
     fetch_kinox_movies,
+    fetch_genre_animes,
+    fetch_genres,
     fetch_new_animes,
     fetch_new_series,
     fetch_popular_animes,
@@ -48,6 +50,8 @@ def register(bp):
     bp.add_url_rule("/random", view_func=random_title)
     bp.add_url_rule("/proxy-image", view_func=proxy_image)
     bp.add_url_rule("/downloaded-folders", view_func=downloaded_folders)
+    bp.add_url_rule("/genres", view_func=genres)
+    bp.add_url_rule("/genre", view_func=genre)
     for path, key, fetch in _BROWSE_ROWS:
         bp.add_url_rule(
             path,
@@ -459,6 +463,45 @@ def proxy_image():
 
 def downloaded_folders():
     return jsonify({"folders": media.downloaded_folder_names()})
+
+
+# ---------------------------------------------------------------------------
+# Genres
+# ---------------------------------------------------------------------------
+def genres():
+    """The aniworld genre list for the discover row."""
+    results = _cached("genres", fetch_genres)
+    if not results:
+        return jsonify({"error": "Failed to fetch genres"}), 500
+    return jsonify({"genres": results})
+
+
+def genre():
+    """One page of a genre listing, 30 animes per page."""
+    slug = (request.args.get("slug") or "").strip()
+    known = {item["slug"] for item in _cached("genres", fetch_genres) or ()}
+    if slug not in known:
+        return jsonify({"error": "Unknown genre"}), 404
+
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+    except ValueError:
+        return jsonify({"error": "page must be a number"}), 400
+
+    data = _cached(f"genre:{slug}:{page}", lambda: fetch_genre_animes(slug, page))
+    if data is None:
+        return jsonify({"error": f"Failed to fetch genre {slug}"}), 500
+
+    return jsonify(
+        {
+            "results": [
+                {**item, "poster_url": media.proxy_image(item.get("poster_url", ""))}
+                for item in data["results"]
+            ],
+            "has_more": data["has_more"],
+            "page": page,
+        }
+    )
 
 
 # ---------------------------------------------------------------------------

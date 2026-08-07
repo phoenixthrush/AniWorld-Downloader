@@ -18,6 +18,48 @@ NEW_EPISODES_URL = "https://aniworld.to/neue-episoden"
 HOME_URL = "https://aniworld.to"
 MAX_PAGES = 15
 
+# A genre page lists 30 animes and pages are /genre/<slug>/<n>.
+GENRE_PAGE_SIZE = 30
+
+# Used when the genre list cannot be read off the homepage. Aniworld adds
+# genres very rarely, so a stale copy is better than showing nothing.
+GENRE_FALLBACK = (
+    ("Abenteuer", "abenteuer"),
+    ("Action", "action"),
+    ("Actiondrama", "actiondrama"),
+    ("Actionkomödie", "actionkomoedie"),
+    ("Alltagsleben", "alltagsleben"),
+    ("Alltagsdrama", "alltagsdrama"),
+    ("Boys Love", "boys-love"),
+    ("Drama", "drama"),
+    ("Ecchi", "ecchi"),
+    ("EngSub", "engsub"),
+    ("Erotik", "erotik"),
+    ("Fantasy", "fantasy"),
+    ("Fighting-Shounen", "fighting-shounen"),
+    ("Ganbatte", "ganbatte"),
+    ("Geistergeschichten", "geistergeschichten"),
+    ("Ger", "ger"),
+    ("GerSub", "gersub"),
+    ("Harem", "harem"),
+    ("Horror", "horror"),
+    ("Komödie", "komoedie"),
+    ("Krimi", "krimi"),
+    ("Liebesdrama", "liebesdrama"),
+    ("Magical Girl", "magical-girl"),
+    ("Mecha", "mecha"),
+    ("Mystery", "mystery"),
+    ("Nonsense-Komödie", "nonsense-komoedie"),
+    ("Psychodrama", "psychodrama"),
+    ("Romantische Komödie", "romantische-komoedie"),
+    ("Romanze", "romanze"),
+    ("Scifi", "scifi"),
+    ("Sport", "sport"),
+    ("Thriller", "thriller"),
+    ("Yuri", "yuri"),
+    ("Übermäßige Gewaltdarstellung", "uebermaessige-gewaltdarstellung"),
+)
+
 _homepage_cache = None
 _megakino_homepage_cache = None
 _series_html_content = None
@@ -401,24 +443,11 @@ def _fetch_homepage():
         return None
 
 
-def _extract_cover_list(html, heading):
-    """Extract a list of anime cover items from a homepage section.
+def _parse_cover_items(section_html):
+    """Extract the anime cards out of a homepage section or a genre listing.
 
-    Finds the section identified by the <h2> heading text, then extracts
-    coverListItem entries until the next section.
+    Both use the same cover markup, so the genre pages reuse this.
     """
-    # Find the heading position
-    heading_pattern = re.compile(rf"<h2>\s*{re.escape(heading)}\s*</h2>", re.IGNORECASE)
-    heading_match = heading_pattern.search(html)
-    if not heading_match:
-        logger.warning(f"Homepage section '{heading}' not found")
-        return []
-
-    # Slice from heading to the next <h2> or end
-    start = heading_match.end()
-    next_h2 = re.search(r"<h2>", html[start:])
-    section_html = html[start : start + next_h2.start()] if next_h2 else html[start:]
-
     # Extract items — anchor on /anime/stream/ links with cover structure
     item_pattern = re.compile(
         r'<a\s+href="(/anime/stream/[^"]+)"[^>]*title="([^"]*)"[^>]*>'
@@ -437,18 +466,18 @@ def _extract_cover_list(html, heading):
             continue
         seen_urls.add(url)
 
-        # Title from <h3> (strip inner tags)
+        # Title from <h3> (strip inner tags), unescaped so entities like
+        # &#039; do not end up on screen as-is
         h3_match = re.search(r"<h3>(.*?)</h3>", inner, re.DOTALL)
-        title = (
-            re.sub(r"<[^>]+>", "", h3_match.group(1)).strip()
-            if h3_match
-            else link_title
-        )
+        raw_title = h3_match.group(1) if h3_match else link_title
+        title = html_module.unescape(re.sub(r"<[^>]+>", "", raw_title)).strip()
 
         # Genre from <small>
         small_match = re.search(r"<small>(.*?)</small>", inner, re.DOTALL)
         genre = (
-            re.sub(r"<[^>]+>", "", small_match.group(1)).strip() if small_match else ""
+            html_module.unescape(re.sub(r"<[^>]+>", "", small_match.group(1))).strip()
+            if small_match
+            else ""
         )
 
         # Poster from data-src on img
@@ -472,6 +501,80 @@ def _extract_cover_list(html, heading):
         )
 
     return results
+
+
+def _extract_cover_list(html, heading):
+    """Extract a list of anime cover items from a homepage section.
+
+    Finds the section identified by the <h2> heading text, then extracts
+    coverListItem entries until the next section.
+    """
+    # Find the heading position
+    heading_pattern = re.compile(rf"<h2>\s*{re.escape(heading)}\s*</h2>", re.IGNORECASE)
+    heading_match = heading_pattern.search(html)
+    if not heading_match:
+        logger.warning(f"Homepage section '{heading}' not found")
+        return []
+
+    # Slice from heading to the next <h2> or end
+    start = heading_match.end()
+    next_h2 = re.search(r"<h2>", html[start:])
+    section_html = html[start : start + next_h2.start()] if next_h2 else html[start:]
+    return _parse_cover_items(section_html)
+
+
+def fetch_genres():
+    """Genre names and slugs, read off the genre list at the end of the homepage.
+
+    Returns a list of dicts, falling back to the built in list.
+    """
+    html = _fetch_homepage()
+    genres = []
+
+    if html:
+        block = re.search(
+            r'<ul class="homeContentGenresList">(.*?)</ul>', html, re.DOTALL
+        )
+        if block:
+            links = re.findall(
+                r'<a[^>]*href="[^"]*/genre/([^"/]+)"[^>]*>(.*?)</a>',
+                block.group(1),
+                re.DOTALL,
+            )
+            for slug, label in links:
+                name = html_module.unescape(re.sub(r"<[^>]+>", "", label)).strip()
+                if name:
+                    genres.append({"name": name, "slug": slug})
+
+    if not genres:
+        logger.warning("Genre list missing from the homepage, using the built in one")
+        genres = [{"name": name, "slug": slug} for name, slug in GENRE_FALLBACK]
+    return genres
+
+
+def fetch_genre_animes(slug, page=1):
+    """Fetch one page of a genre listing.
+
+    Returns {"results": [...], "has_more": bool} or None on error.
+    """
+    url = f"{HOME_URL}/genre/{quote(slug)}"
+    if page > 1:
+        url = f"{url}/{page}"
+
+    try:
+        response = GLOBAL_SESSION.get(url)
+        response.raise_for_status()
+    except Exception as e:
+        logger.error(f"Failed to fetch genre '{slug}' page {page}: {e}")
+        return None
+
+    html = response.text
+    # Everything before the list is navigation, cut it off so only cards match
+    start = html.find('class="seriesListContainer')
+    results = _parse_cover_items(html[start:] if start != -1 else html)
+    # The pager only links to the next page while there is one
+    has_more = f"/genre/{slug}/{page + 1}" in html
+    return {"results": results, "has_more": has_more}
 
 
 def fetch_new_animes():

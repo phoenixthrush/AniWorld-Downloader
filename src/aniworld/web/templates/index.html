@@ -27,8 +27,17 @@
     <button class="btn btn-secondary" id="randomBtn" data-i18n="index.random">Random</button>
   </div>
 
+  <div class="genre-bar" id="genreBar" hidden>
+    <span class="genre-bar-title" data-i18n="browse.genres">Discover by genre</span>
+    <div class="genre-list" id="genreList" role="list"></div>
+  </div>
+
   <div class="spinner" id="searchSpinner" data-i18n="index.searching">Searching...</div>
   <div class="results" id="results"></div>
+
+  <div class="genre-more" id="genreMore" hidden>
+    <button class="btn btn-secondary" id="genreMoreBtn" data-i18n="browse.load_more">Load more</button>
+  </div>
 
   <div id="browse">
     <section class="browse-section" data-row="new_animes" data-sites="aniworld">

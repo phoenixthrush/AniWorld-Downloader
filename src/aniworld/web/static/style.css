@@ -649,6 +649,64 @@ select option {
   font-weight: 600;
 }
 
+/* ===== Genres ===== */
+.genre-bar {
+  max-width: 960px;
+  margin: -14px auto 32px;
+}
+
+.genre-bar-title {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.genre-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.genre-chip {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.genre-chip:hover {
+  color: var(--text-strong);
+  border-color: rgba(147, 51, 234, 0.5);
+}
+
+.genre-chip:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 2px;
+}
+
+.genre-chip.active {
+  background: linear-gradient(135deg, var(--purple), var(--purple-dark));
+  border-color: transparent;
+  color: #fff;
+}
+
+.genre-more {
+  display: flex;
+  justify-content: center;
+  margin: 28px 0 8px;
+}
+
 /* ===== Modal ===== */
 .overlay {
   display: none;

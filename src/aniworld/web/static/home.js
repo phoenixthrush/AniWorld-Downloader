@@ -9,6 +9,10 @@
   const searchSpinner = el("searchSpinner");
   const resultsGrid = el("results");
   const browse = el("browse");
+  const genreBar = el("genreBar");
+  const genreList = el("genreList");
+  const genreMore = el("genreMore");
+  const genreMoreBtn = el("genreMoreBtn");
 
   const seriesOverlay = el("seriesOverlay");
   const seriesLoading = el("seriesLoading");
@@ -74,7 +78,9 @@
     const active = siteButtons.find((btn) => btn.classList.contains("active"));
     if (!active || !thumb) return;
     thumb.style.width = `${active.offsetWidth}px`;
-    thumb.style.transform = `translateX(${active.offsetLeft - 3}px)`;
+    // offsetLeft already starts inside the track padding, same origin as the
+    // thumb, so it goes straight in without correcting for the padding
+    thumb.style.transform = `translateX(${active.offsetLeft}px)`;
   }
 
   function switchSite(site) {
@@ -85,6 +91,8 @@
     randomBtn.hidden = site !== "aniworld";
     resultsGrid.innerHTML = "";
     searchInput.value = "";
+    resetGenre();
+    updateGenreBar();
     showBrowseRows();
   }
 
@@ -92,6 +100,9 @@
     btn.addEventListener("click", () => switchSite(btn.dataset.site));
   });
   window.addEventListener("resize", moveThumb);
+  // The buttons are measured before Inter is done loading, so they grow a
+  // couple of pixels afterwards and the thumb would stay at the old width
+  if (document.fonts) document.fonts.ready.then(moveThumb);
 
   /* ===== Browse rows ===== */
   const browseState = {};
@@ -184,14 +195,108 @@
     if (card && card.dataset.url) openSeries(card.dataset.url);
   });
 
+  /* ===== Genres =====
+     Only aniworld has genre pages. Picking one takes over the results grid so
+     the chips stay reachable and you can hop straight to the next genre. */
+  let genresLoaded = false;
+  let activeGenre = null;
+  let genrePage = 1;
+  let genreItems = [];
+  let genreLoading = false;
+
+  function updateGenreBar() {
+    genreBar.hidden = currentSite !== "aniworld";
+    if (!genreBar.hidden) loadGenres();
+  }
+
+  async function loadGenres() {
+    if (genresLoaded) return;
+    genresLoaded = true;
+    try {
+      const data = await apiFetch("/api/genres");
+      genreList.innerHTML = (data.genres || [])
+        .map(
+          (genre) =>
+            `<button type="button" class="genre-chip" role="listitem"
+               data-slug="${esc(genre.slug)}">${esc(genre.name)}</button>`
+        )
+        .join("");
+    } catch (error) {
+      genresLoaded = false;
+      genreBar.hidden = true;
+    }
+  }
+
+  function resetGenre() {
+    activeGenre = null;
+    genreItems = [];
+    genreMore.hidden = true;
+    genreList
+      .querySelectorAll(".genre-chip.active")
+      .forEach((chip) => chip.classList.remove("active"));
+  }
+
+  function clearGenre() {
+    resetGenre();
+    resultsGrid.innerHTML = "";
+    showBrowseRows();
+  }
+
+  genreList.addEventListener("click", (event) => {
+    const chip = event.target.closest(".genre-chip");
+    if (!chip) return;
+    // clicking the open genre again goes back to the browse rows
+    if (chip.dataset.slug === activeGenre) {
+      clearGenre();
+      return;
+    }
+    resetGenre();
+    activeGenre = chip.dataset.slug;
+    chip.classList.add("active");
+    searchInput.value = "";
+    browse.hidden = true;
+    resultsGrid.innerHTML = "";
+    loadGenrePage(1);
+  });
+
+  genreMoreBtn.addEventListener("click", () => loadGenrePage(genrePage + 1));
+
+  async function loadGenrePage(page) {
+    if (genreLoading || !activeGenre) return;
+    const slug = activeGenre;
+    genreLoading = true;
+    genreMoreBtn.disabled = true;
+    if (page === 1) searchSpinner.classList.add("active");
+
+    try {
+      const data = await apiFetch(
+        `/api/genre?slug=${encodeURIComponent(slug)}&page=${page}`
+      );
+      // a slow page 1 can land after the user already picked another genre
+      if (slug !== activeGenre) return;
+      genrePage = page;
+      genreItems = genreItems.concat(data.results || []);
+      renderCards(resultsGrid, genreItems);
+      genreMore.hidden = !data.has_more;
+    } catch (error) {
+      showToast(`${t("browse.genre_failed", "Could not load genre")}: ${error.message}`);
+      if (page === 1) clearGenre();
+    } finally {
+      genreLoading = false;
+      genreMoreBtn.disabled = false;
+      searchSpinner.classList.remove("active");
+    }
+  }
+
   /* ===== Search ===== */
   async function doSearch() {
     const keyword = searchInput.value.trim();
     if (!keyword) {
-      showBrowseRows();
+      clearGenre();
       return;
     }
 
+    resetGenre();
     searchBtn.disabled = true;
     searchSpinner.classList.add("active");
     resultsGrid.innerHTML = "";
