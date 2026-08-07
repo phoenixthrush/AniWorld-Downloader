@@ -181,6 +181,59 @@ def language_labels(provider_data):
 EPISODE_RE = re.compile(r"S(\d{2})E(\d{2,3})", re.IGNORECASE)
 
 
+# clean_title strips these from a folder name, so a title still carrying them
+# would never match its own folder. A test keeps the two lists in step.
+FOLDER_UNSAFE = re.compile(r'[<>:"/\\|?*]')
+
+# The same title reads back with straight or curly quotes depending on where
+# it came from, "Ao-chan Can't Study!" against "Ao-chan Can’t Study!".
+_SMART_QUOTES = str.maketrans(
+    {"‘": "'", "’": "'", "“": '"', "”": '"'}
+)
+
+# What the naming template appends is bracketed: "(2019)", "[imdbid-tt0409591]"
+_DECORATION_OPENERS = "([{"
+
+# A custom template may separate instead, "Naruto - 2002". That is only an
+# extra when a number follows it, or "Ao-chan Can't Study! - The Movie" would
+# be claimed by "Ao-chan Can't Study!".
+_DECORATION_SEPARATORS = "-–—_~."
+
+
+def _normalise_title(value):
+    text = str(value).translate(_SMART_QUOTES)
+    text = FOLDER_UNSAFE.sub("", text)
+    # collapse whitespace, dropping a character can leave a double space
+    return " ".join(text.lower().split())
+
+
+def _is_decoration(rest):
+    """Whether what trails the title is the template's doing, not more title."""
+    if not rest:
+        return True
+    if rest[0] in _DECORATION_OPENERS:
+        return True
+    if rest[0] in _DECORATION_SEPARATORS:
+        tail = rest[1:].lstrip()
+        return bool(tail) and (tail[0].isdigit() or tail[0] in _DECORATION_OPENERS)
+    return False
+
+
+def folder_matches_title(folder_name, title):
+    """Whether a folder on disk holds this title.
+
+    The folder carries whatever the naming template added, so "Naruto (2002)
+    [imdbid-tt0409591]" belongs to "Naruto". Anything else trailing it is a
+    different series, and punctuation counts: "K-On!!" is not "K-On!" any
+    more than "Naruto Shippuden" is "Naruto".
+    """
+    name = _normalise_title(folder_name)
+    title = _normalise_title(title)
+    if not title or not name.startswith(title):
+        return False
+    return _is_decoration(name[len(title) :].lstrip())
+
+
 def _title_folders(base, title):
     if not base.is_dir():
         return
@@ -189,7 +242,7 @@ def _title_folders(base, title):
     except OSError:
         return
     for entry in entries:
-        if entry.is_dir() and entry.name.lower().startswith(title):
+        if entry.is_dir() and folder_matches_title(entry.name, title):
             yield entry
 
 

@@ -97,6 +97,13 @@ def update_custom_path(path_id):
     data = request.get_json(silent=True) or {}
     name = data.get("name")
     path = data.get("path")
+
+    # Blanking either is refused the same way creating one blank is. An empty
+    # path resolves to the home directory, so downloads would land loose in it.
+    for field, value in (("name", name), ("path", path)):
+        if isinstance(value, str) and not value.strip():
+            return jsonify({"error": f"{field} cannot be empty"}), 400
+
     db.update_custom_path(
         path_id,
         name=name.strip() if isinstance(name, str) else None,

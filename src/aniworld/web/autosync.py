@@ -17,7 +17,7 @@ from ..logger import get_logger
 from ..providers import resolve_provider
 from ..search import fetch_new_episodes
 from . import db, paths
-from .media import BADGE_ORDER, downloaded_episodes
+from .media import BADGE_ORDER, downloaded_episodes, folder_matches_title
 from .settings_store import autosync_enabled
 
 logger = get_logger(__name__)
@@ -182,9 +182,9 @@ def find_candidates():
         if series_url in excluded or series_url in candidates:
             continue
 
-        key = title.lower()
         match = next(
-            (item for item in folders if item[0].name.lower().startswith(key)), None
+            (item for item in folders if folder_matches_title(item[0].name, title)),
+            None,
         )
         if not match:
             continue

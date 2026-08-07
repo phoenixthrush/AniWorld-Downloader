@@ -146,11 +146,30 @@
     return state.pending;
   }
 
+  /* This has to stay the same rule as folder_matches_title on the server, or
+     the badge on a card and the ticks inside it end up disagreeing. */
+  const DECORATION_OPENERS = "([{";
+  const DECORATION_SEPARATORS = "-\u2013\u2014_~.";
+
   function normalizeTitle(value) {
     return decodeEntities(value || "")
-      .replace(/[\u2018\u2019\u201C\u201D]/g, "'")
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\u201C\u201D]/g, '"')
+      // the downloader strips these from folder names
+      .replace(/[<>:"/\\|?*]/g, "")
       .toLowerCase()
+      .replace(/\s+/g, " ")
       .trim();
+  }
+
+  function isDecoration(rest) {
+    if (!rest) return true;
+    if (DECORATION_OPENERS.includes(rest[0])) return true;
+    if (DECORATION_SEPARATORS.includes(rest[0])) {
+      const tail = rest.slice(1).trimStart();
+      return Boolean(tail) && (/[0-9]/.test(tail[0]) || DECORATION_OPENERS.includes(tail[0]));
+    }
+    return false;
   }
 
   function isDownloaded(title) {
@@ -158,7 +177,8 @@
     if (!normalized) return false;
     return downloadedFolders.some((folder) => {
       const name = normalizeTitle(folder);
-      return name === normalized || name.startsWith(`${normalized} (`);
+      if (!name.startsWith(normalized)) return false;
+      return isDecoration(name.slice(normalized.length).trimStart());
     });
   }
 

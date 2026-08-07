@@ -137,6 +137,47 @@ def test_updating_one_field_leaves_the_others(client, tmp_path):
     assert entry["default_sites"] == "megakino"
 
 
+@pytest.mark.parametrize("blank", ["", "   "])
+def test_the_path_cannot_be_blanked(client, tmp_path, blank):
+    """An empty path resolves to the home directory, so downloads would land
+    loose in it. Creating one blank is refused, editing one must be too."""
+    path_id = db.add_custom_path("Movies", str(tmp_path))
+    response = client.put(f"/api/custom-paths/{path_id}", json={"path": blank})
+    assert response.status_code == 400
+    assert "path" in response.get_json()["error"]
+    assert db.get_custom_path(path_id)["path"] == str(tmp_path)
+
+
+@pytest.mark.parametrize("blank", ["", "   "])
+def test_the_name_cannot_be_blanked(client, tmp_path, blank):
+    path_id = db.add_custom_path("Movies", str(tmp_path))
+    response = client.put(f"/api/custom-paths/{path_id}", json={"name": blank})
+    assert response.status_code == 400
+    assert db.get_custom_path(path_id)["name"] == "Movies"
+
+
+def test_a_blanked_field_does_not_apply_the_others(client, tmp_path):
+    path_id = db.add_custom_path("Movies", str(tmp_path), "megakino")
+    client.put(
+        f"/api/custom-paths/{path_id}",
+        json={"name": "Films", "path": "", "default_sites": []},
+    )
+    entry = db.get_custom_path(path_id)
+    assert entry["name"] == "Movies"
+    assert entry["default_sites"] == "megakino"
+
+
+def test_a_blanked_path_can_never_resolve_to_home(client, tmp_path):
+    from pathlib import Path
+
+    from aniworld.web import paths
+
+    path_id = db.add_custom_path("Movies", str(tmp_path))
+    client.put(f"/api/custom-paths/{path_id}", json={"path": ""})
+    assert paths.base_for(path_id) != Path.home()
+    assert paths.base_for(path_id) == tmp_path
+
+
 def test_default_sites_can_be_cleared(client, tmp_path):
     path_id = db.add_custom_path("Movies", str(tmp_path), "megakino")
     client.put(f"/api/custom-paths/{path_id}", json={"default_sites": []})
