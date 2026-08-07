@@ -9,6 +9,7 @@ import subprocess
 import sys
 import threading
 import time
+from html import unescape
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -53,6 +54,34 @@ FORBIDDEN_CHARS = re.compile(r'[<>:"/\\|?*]')
 def clean_title(title: str) -> str:
     """Clean a string to make it safe for use as a filename."""
     return FORBIDDEN_CHARS.sub("", title).strip()
+
+
+def _adopt_escaped_path(parent: Path, target: str) -> None:
+    """Rename a leftover "It&#039;s …" sibling in `parent` to `target`."""
+    if not parent.is_dir() or (parent / target).exists():
+        return
+
+    for entry in parent.iterdir():
+        decoded = unescape(entry.name)
+        if decoded != entry.name and clean_title(decoded) == target:
+            entry.rename(parent / target)
+            logger.info(f"[RENAMED] {entry.name} -> {target}")
+            return
+
+
+def migrate_escaped_paths(self) -> None:
+    """Adopt folders/files written before series titles were unescaped."""
+    for path in (
+        getattr(self, "_base_folder", None),
+        getattr(self, "_folder_path", None),
+        getattr(self, "_episode_path", None),
+    ):
+        if path is None:
+            continue
+        try:
+            _adopt_escaped_path(Path(path).parent, Path(path).name)
+        except OSError as exc:
+            logger.debug(f"could not adopt escaped path for {path}: {exc}")
 
 
 def _quote_windows_cmd_arg(arg) -> str:
@@ -802,6 +831,8 @@ def download_hanime(self):
         manager = DependencyManager()
         manager.fetch_binary("ffmpeg")
 
+    migrate_escaped_paths(self)
+
     if self._episode_path.exists():
         logger.debug(f"[SKIPPED] {self._file_name} (already downloaded)")
         return
@@ -1043,6 +1074,8 @@ def download(self):
     if platform.system() == "Windows":
         manager = DependencyManager()
         manager.fetch_binary("ffmpeg")
+
+    migrate_escaped_paths(self)
 
     max_retries = 3
     provider_order = _get_provider_attempt_order(self)
