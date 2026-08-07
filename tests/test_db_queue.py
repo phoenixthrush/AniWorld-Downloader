@@ -401,13 +401,113 @@ def test_only_queued_items_can_be_moved(queue_item):
 
 
 def test_move_skips_over_finished_items(queue_item):
-    """Finished rows sit in the list but must not be swapped with."""
-    queue_item("A")
+    """A finished row must never be the one swapped with."""
+    first = queue_item("A")
     done = queue_item("done")
     db.set_queue_status(done, "completed")
     last = queue_item("C")
+
     db.move_queue_item(last, "up")
-    assert _order() == ["C", "done", "A"]
+    # C swapped with A, not with the completed row between them
+    assert db.get_queue_item(last)["position"] < db.get_queue_item(first)["position"]
+    assert _order() == ["C", "A", "done"], "finished work sits below the waiting work"
+
+
+# ---------------------------------------------------------------------------
+# The order the list is shown in
+# ---------------------------------------------------------------------------
+def test_the_running_item_is_always_on_top(queue_item):
+    queue_item("A")
+    queue_item("B")
+    running = queue_item("C")
+    db.set_queue_status(running, "running")
+    assert _order()[0] == "C"
+
+
+def test_a_running_item_beats_one_that_was_queued_first(queue_item):
+    """It is at the back of the queue by position, but it is the one working."""
+    queue_item("first")
+    later = queue_item("later")
+    db.set_queue_status(later, "running")
+    assert _order() == ["later", "first"]
+
+
+def test_waiting_items_keep_their_queue_order(queue_item):
+    queue_item("A")
+    queue_item("B")
+    queue_item("C")
+    assert _order() == ["A", "B", "C"]
+
+
+def test_finished_items_drop_below_the_waiting_ones(queue_item):
+    done = queue_item("done")
+    db.set_queue_status(done, "completed")
+    queue_item("waiting")
+    assert _order() == ["waiting", "done"]
+
+
+def test_the_most_recently_finished_is_the_top_of_the_finished_ones(queue_item):
+    for title, seconds in (("oldest", 300), ("middle", 120), ("newest", 10)):
+        queue_id = queue_item(title)
+        db.set_queue_status(queue_id, "completed")
+        with db.session() as conn:
+            conn.execute(
+                f"UPDATE download_queue SET completed_at = datetime('now', '-{seconds} seconds') "
+                "WHERE id = ?",
+                (queue_id,),
+            )
+    assert _order() == ["newest", "middle", "oldest"]
+
+
+@pytest.mark.parametrize("status", ("completed", "failed", "cancelled"))
+def test_every_finished_state_sinks(queue_item, status):
+    finished = queue_item("finished")
+    db.set_queue_status(finished, status)
+    queue_item("waiting")
+    assert _order() == ["waiting", "finished"]
+
+
+def test_the_full_picture(queue_item):
+    """Running on top, then what is next, then what just finished."""
+    old_done = queue_item("finished first")
+    db.set_queue_status(old_done, "completed")
+    with db.session() as conn:
+        conn.execute(
+            "UPDATE download_queue SET completed_at = datetime('now', '-5 minutes') "
+            "WHERE id = ?",
+            (old_done,),
+        )
+    new_done = queue_item("finished just now")
+    db.set_queue_status(new_done, "failed")
+    running = queue_item("downloading")
+    db.set_queue_status(running, "running")
+    queue_item("next up")
+    queue_item("after that")
+
+    assert _order() == [
+        "downloading",
+        "next up",
+        "after that",
+        "finished just now",
+        "finished first",
+    ]
+
+
+def test_an_item_moves_to_the_top_when_it_starts(queue_item):
+    queue_item("A")
+    second = queue_item("B")
+    assert _order() == ["A", "B"]
+    db.set_queue_status(second, "running")
+    assert _order() == ["B", "A"]
+
+
+def test_an_item_drops_to_the_bottom_when_it_finishes(queue_item):
+    running = queue_item("A")
+    db.set_queue_status(running, "running")
+    queue_item("B")
+    assert _order() == ["A", "B"]
+    db.set_queue_status(running, "completed")
+    assert _order() == ["B", "A"]
 
 
 def test_move_needs_a_real_direction(queue_item):

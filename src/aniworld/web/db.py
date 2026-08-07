@@ -454,12 +454,22 @@ _DURATION_SQL = (
 )
 
 
+# What is downloading right now goes on top and stays there. Then what is
+# waiting, in the order it will be worked through, so moving items still makes
+# sense. Everything that is done sits underneath, newest first, because that is
+# the one you just watched finish.
+_QUEUE_ORDER = (
+    "ORDER BY CASE status WHEN 'running' THEN 0 WHEN 'queued' THEN 1 ELSE 2 END, "
+    "CASE WHEN status IN ('running', 'queued') THEN position END ASC, "
+    "completed_at DESC, id DESC"
+)
+
+
 def get_queue():
     with session() as conn:
         return _rows(
             conn,
-            f"SELECT *, {_DURATION_SQL} FROM download_queue "
-            "ORDER BY position ASC, id ASC",
+            f"SELECT *, {_DURATION_SQL} FROM download_queue {_QUEUE_ORDER}",
         )
 
 

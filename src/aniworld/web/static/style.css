@@ -1208,11 +1208,19 @@ select option {
   margin-top: 10px;
 }
 
+/* The width is set once per poll. Animating for exactly that long means the
+   bar is always still moving when the next value lands, instead of jumping
+   and then standing still. queue.js sets the duration from its interval. */
 .progress-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--accent), var(--purple));
   border-radius: 3px;
-  transition: width 0.4s var(--ease);
+  transition: width var(--progress-step, 0.4s) linear;
+}
+
+/* Going backwards, a retry or a force cancel, should snap not crawl */
+.progress-fill.no-transition {
+  transition: none;
 }
 
 .queue-errors {

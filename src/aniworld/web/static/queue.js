@@ -13,6 +13,10 @@
 
   const ACTIVE = ["queued", "running"];
 
+  // A little longer than the poll, so the bar is still gliding towards the
+  // last value when the next one arrives and never comes to a stop.
+  list.style.setProperty("--progress-step", `${OPEN_INTERVAL + 200}ms`);
+
   let timer = null;
   let modalOpen = false;
   let inFlight = null;
@@ -162,13 +166,12 @@
     return buttons.join("");
   }
 
-  function renderItem(item, ffmpeg) {
-    const percent = progressPercent(item, ffmpeg);
+  function metaLine(item) {
     const counter = t("queue.episode_of", "Episode {current} of {total}", {
       current: Math.min((item.current_episode || 0) + 1, item.total_episodes),
       total: item.total_episodes
     });
-    const meta = [
+    return [
       item.language,
       item.provider,
       ACTIVE.includes(item.status) ? counter : null,
@@ -176,6 +179,11 @@
     ]
       .filter(Boolean)
       .join(" | ");
+  }
+
+  function renderItem(item, ffmpeg) {
+    const percent = progressPercent(item, ffmpeg);
+    const meta = metaLine(item);
 
     const captchaBtn =
       item.status === "running" && item.captcha_url
@@ -189,7 +197,7 @@
       : statusLabel(item.status);
 
     return `
-      <div class="queue-item">
+      <div class="queue-item" data-item="${item.id}">
         <div class="queue-item-head">
           <div>
             <div class="queue-item-title">${esc(item.title)}</div>
@@ -200,23 +208,81 @@
             ${renderActions(item)}
           </div>
         </div>
-        <div class="progress-track"><div class="progress-fill" style="width:${percent}%"></div></div>
+        <div class="progress-track"><div class="progress-fill" data-percent="${percent}" style="width:${percent}%"></div></div>
         ${captchaBtn ? `<div class="action-row">${captchaBtn}</div>` : ""}
         ${renderErrors(item)}
       </div>`;
   }
 
-  let lastMarkup = "";
+  /* ===== Painting the list =====
+     A running item changes on every poll, so rewriting the list would rebuild
+     the button under the pointer a second at a time and make it flicker. Only
+     the parts that actually moved are touched, and the buttons are left alone
+     unless the set of them changes. */
+
+  // Everything except the numbers that tick while a download runs
+  function structure(item) {
+    return JSON.stringify([
+      item.title,
+      item.status,
+      isStopping(item),
+      item.errors,
+      item.captcha_url || "",
+      item.total_episodes
+    ]);
+  }
+
+  function setProgress(node, percent) {
+    const fill = node.querySelector(".progress-fill");
+    const previous = Number(fill.dataset.percent);
+    // only animate forwards, a reset should land straight back at the start
+    fill.classList.toggle("no-transition", percent < previous);
+    fill.style.width = `${percent}%`;
+    fill.dataset.percent = percent;
+  }
+
+  function paint(node, item, ffmpeg) {
+    if (node.dataset.structure !== structure(item)) {
+      // trimmed, the markup is indented and would leave text nodes behind
+      node.outerHTML = renderItem(item, ffmpeg).trim();
+      return list.querySelector(`[data-item="${item.id}"]`);
+    }
+    node.querySelector(".queue-item-meta").textContent = metaLine(item);
+    setProgress(node, progressPercent(item, ffmpeg));
+    return node;
+  }
 
   function render(items, ffmpeg) {
-    const markup = items.length
-      ? items.map((item) => renderItem(item, ffmpeg)).join("")
-      : `<div class="empty-state">${t("queue.empty", "The download queue is empty.")}</div>`;
+    if (!items.length) {
+      if (!list.querySelector(".empty-state")) {
+        list.innerHTML = `<div class="empty-state">${t("queue.empty", "The download queue is empty.")}</div>`;
+      }
+      return;
+    }
 
-    // Rewriting identical markup would still reset anything the user opened
-    if (markup === lastMarkup) return;
-    lastMarkup = markup;
-    list.innerHTML = markup;
+    const empty = list.querySelector(".empty-state");
+    if (empty) empty.remove();
+
+    const wanted = new Set();
+    items.forEach((item, index) => {
+      wanted.add(String(item.id));
+      let node = list.querySelector(`[data-item="${item.id}"]`);
+      if (node) {
+        node = paint(node, item, ffmpeg);
+      } else {
+        list.insertAdjacentHTML("beforeend", renderItem(item, ffmpeg).trim());
+        node = list.lastElementChild;
+      }
+      node.dataset.structure = structure(item);
+      // moving an existing node keeps it alive, so hover and focus survive
+      if (list.children[index] !== node) {
+        list.insertBefore(node, list.children[index] || null);
+      }
+    });
+
+    Array.from(list.children).forEach((child) => {
+      if (!wanted.has(child.dataset.item)) child.remove();
+    });
   }
 
   /* ===== Actions ===== */
@@ -268,7 +334,6 @@
     openBtn.addEventListener("click", () => {
       modalOpen = true;
       openModal("queueOverlay");
-      lastMarkup = "";
       list.innerHTML = `<div class="empty-state">${t("common.loading", "Loading...")}</div>`;
       refresh();
       schedule();
