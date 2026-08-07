@@ -41,6 +41,9 @@ sso = [
 discord = [
   "discord.py",                                                               # optional Discord request bot
 ]
+test = [
+  "pytest",
+]
 all = [
   "authlib",
   "discord.py",
@@ -78,3 +81,10 @@ aniworld = [
 
 [project.scripts]
 aniworld = "aniworld.__main__:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# The two legacy scripts in tests/ are manual smoke checks against the live
+# sites. They expose no test functions, so pytest collects nothing from them.
+python_files = ["test_*.py"]
+addopts = "--strict-markers"
