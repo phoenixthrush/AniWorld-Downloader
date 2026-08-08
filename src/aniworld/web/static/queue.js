@@ -152,7 +152,7 @@ function renderQueue(items) {
       isRunning || (item.status === "cancelled" && item.current_url);
     const cls = isActive ? "queue-item queue-item-active" : "queue-item";
 
-    const isCancelling = item.status === "cancelled" && item.current_url;
+    const isCancelling = item.status === "cancelling";
 
     let statusBadge = "";
     if (item.status === "running")
