@@ -7,7 +7,7 @@ from flask import Flask, jsonify, redirect, request, url_for
 from flask_wtf.csrf import CSRFProtect
 
 from ..logger import get_logger
-from . import apikeys, autosync, db, settings_store, worker
+from . import apikeys, autosync, db, settings_store, theming, worker
 from .version import get_version
 from .views import ADMIN_ENDPOINTS, register_blueprints
 
@@ -144,6 +144,8 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             "oidc_display_name": app.config.get("OIDC_DISPLAY_NAME", "SSO"),
             "force_sso": app.config.get("FORCE_SSO", False),
             "ui_language": settings_store.ui_language(),
+            # empty when no theme is stored, which is what hides the link
+            "custom_css_version": theming.version(),
             "library_enabled": settings_store.library_enabled(),
             "autosync_enabled": settings_store.autosync_enabled(),
             "github_url": "https://github.com/phoenixthrush/AniWorld-Downloader",

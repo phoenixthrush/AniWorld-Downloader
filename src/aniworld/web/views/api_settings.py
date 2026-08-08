@@ -3,7 +3,7 @@
 from flask import jsonify, request
 
 from ...logger import get_logger
-from .. import db, settings_store
+from .. import db, settings_store, theming
 from ..media import normalize_default_sites
 
 logger = get_logger(__name__)
@@ -13,6 +13,8 @@ def register(bp):
     bp.add_url_rule("/settings", view_func=get_settings)
     bp.add_url_rule("/settings", view_func=update_settings, methods=["PUT"])
     bp.add_url_rule("/settings/public-ip", view_func=public_ip)
+    bp.add_url_rule("/custom-css", view_func=get_custom_css)
+    bp.add_url_rule("/custom-css", view_func=update_custom_css, methods=["PUT"])
     bp.add_url_rule("/discord/status", view_func=discord_status)
     bp.add_url_rule("/custom-paths", view_func=list_custom_paths)
     bp.add_url_rule("/custom-paths", view_func=add_custom_path, methods=["POST"])
@@ -50,6 +52,46 @@ def _reconcile_discord():
         reconcile()
     except Exception as exc:
         logger.error("Discord bot reconcile failed: %s", exc, exc_info=True)
+
+
+# ---------------------------------------------------------------------------
+# Custom CSS
+# ---------------------------------------------------------------------------
+def get_custom_css():
+    css = theming.read()
+    return jsonify(
+        {
+            "css": css,
+            "max_bytes": theming.MAX_BYTES,
+            "warnings": theming.import_warnings(css),
+        }
+    )
+
+
+def update_custom_css():
+    data = request.get_json(silent=True) or {}
+    css = data.get("css", "")
+    if not isinstance(css, str):
+        return jsonify({"error": "css must be a string"}), 400
+
+    try:
+        stored = theming.write(css)
+    except theming.CSSTooLarge as exc:
+        return jsonify({"error": str(exc)}), 413
+    except OSError as exc:
+        logger.error("Could not save custom CSS: %s", exc)
+        return jsonify({"error": "Could not write the stylesheet"}), 500
+
+    # The page reloads its own stylesheet against this, so a save shows up
+    # without the browser serving the previous theme from cache.
+    return jsonify(
+        {
+            "ok": True,
+            "css": stored,
+            "version": theming.version(),
+            "warnings": theming.import_warnings(stored),
+        }
+    )
 
 
 def public_ip():

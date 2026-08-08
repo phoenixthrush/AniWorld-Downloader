@@ -297,6 +297,30 @@
   </section>
 
   <section class="card">
+    <h2 data-i18n="settings.appearance">Appearance</h2>
+    <p class="hint" data-i18n="settings.custom_css_hint">
+      Custom CSS applied for everyone on this instance. Write your own rules, or pull in a
+      theme with a single import line. The sign-in screen is never themed.
+    </p>
+    <textarea id="customCss" class="code-input" rows="14" spellcheck="false"
+      autocomplete="off" autocapitalize="off"
+      placeholder="@import url('https://cdn.jsdelivr.net/gh/user/repo@main/theme.css');"></textarea>
+    <div class="notice css-warning" id="cssWarning" hidden></div>
+    <div class="action-row">
+      <button class="btn btn-primary" id="saveCssBtn" data-i18n="common.save">Save</button>
+      <button class="btn btn-secondary" id="resetCssBtn" data-i18n="settings.css_clear">Clear</button>
+      <span class="hint" id="cssSize"></span>
+    </div>
+    <p class="hint" data-i18n="settings.css_recover">
+      Broke the layout? Open /settings?nocss=1 to load this page without custom CSS.
+    </p>
+    <p class="hint" data-i18n="settings.css_import_hint">
+      An imported theme is fetched by each visitor's browser, so the host it sits on sees
+      their IP and can change the theme at any time. Only import URLs you trust.
+    </p>
+  </section>
+
+  <section class="card">
     <h2 data-i18n="settings.discord">Discord Request Bot</h2>
     <label class="checkbox">
       <input type="checkbox" id="discordEnabled" />

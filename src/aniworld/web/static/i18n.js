@@ -181,6 +181,19 @@
       "settings.movie_folder": "Filme in eigenen Ordner legen",
       "settings.movie_folder_hint":
         'Ist die Option aus, landet ein Film direkt im Downloadpfad statt in einem "Titel (Jahr)"-Ordner.',
+      "settings.appearance": "Aussehen",
+      "settings.custom_css_hint":
+        "Eigenes CSS für alle Nutzer dieser Instanz. Schreib eigene Regeln oder hol dir ein Theme mit einer einzigen Import-Zeile. Die Anmeldeseite wird nie mitgestaltet.",
+      "settings.css_clear": "Leeren",
+      "settings.css_size": "{size} KB",
+      "settings.css_size_bytes": "{size} Bytes",
+      "settings.css_import_blocked":
+        "{host} liefert Dateien als reinen Text aus, deshalb ignorieren Browser diesen Import.",
+      "settings.css_import_try": "Nimm stattdessen das hier:",
+      "settings.css_recover":
+        "Layout kaputt? Öffne /settings?nocss=1, um diese Seite ohne eigenes CSS zu laden.",
+      "settings.css_import_hint":
+        "Ein importiertes Theme wird vom Browser jedes Besuchers geladen. Der Host dahinter sieht also deren IP und kann das Theme jederzeit ändern. Importiere nur URLs, denen du vertraust.",
       "settings.discord": "Discord-Anfrage-Bot",
       "settings.discord.enable": "Discord-Bot aktivieren",
       "settings.discord.enable_hint":

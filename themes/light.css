@@ -1,0 +1,113 @@
+/*
+ * Light
+ * A full light theme for AniWorld Downloader, built only from the variables in
+ * template.css. Nothing here targets a class name, so it keeps working when the
+ * markup changes.
+ *
+ * Paste into Settings -> Appearance, or import it:
+ *   @import url('https://cdn.jsdelivr.net/gh/phoenixthrush/AniWorld-Downloader@main/themes/light.css');
+ */
+
+:root {
+  /* Without this the checkboxes, dropdown popups and scrollbars stay dark */
+  --color-scheme: light;
+
+  /* Surfaces */
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-strong: #eceef2;
+  --surface-hover: #e1e4ea;
+  --surface-subtle: rgba(15, 23, 42, 0.03);
+  --surface-nav: rgba(255, 255, 255, 0.85);
+  --surface-modal: #ffffff;
+  --surface-toast: #ffffff;
+  --surface-input: #ffffff;
+  --surface-input-focus: #f5f8ff;
+  --surface-option: #ffffff;
+  --surface-disabled: #e5e7eb;
+  --surface-poster: #e2e5ea;
+  --surface-code: rgba(15, 23, 42, 0.05);
+  --surface-code-inline: rgba(15, 23, 42, 0.07);
+  --surface-captcha: #0f172a;
+  --overlay-bg: rgba(15, 23, 42, 0.45);
+
+  /* Borders */
+  --border: rgba(15, 23, 42, 0.14);
+  --border-soft: rgba(15, 23, 42, 0.09);
+  --border-hover: rgba(15, 23, 42, 0.26);
+  --border-hover-soft: rgba(15, 23, 42, 0.2);
+
+  /* Text */
+  --text: #3f4652;
+  --text-strong: #0f172a;
+  --text-bright: #111827;
+  --text-muted: #6b7280;
+  --text-dim: #4b5563;
+  --text-faint: #9ca3af;
+  --text-input: #111827;
+  --text-placeholder: #9ca3af;
+  --text-disabled: #a1a7b0;
+  --text-on-accent: #ffffff;
+  --link: #1d4ed8;
+  --link-hover: #1e3a8a;
+
+  /* Shadows, much softer than on a dark background */
+  --shadow-btn: 0 1px 3px rgba(37, 99, 235, 0.3);
+  --shadow-btn-hover: 0 4px 12px rgba(37, 99, 235, 0.3);
+  --shadow-ribbon: 0 2px 6px rgba(37, 99, 235, 0.4);
+  --shadow-thumb: 0 2px 8px rgba(147, 51, 234, 0.3);
+  --shadow-card: 0 12px 28px rgba(15, 23, 42, 0.13);
+  --shadow-modal: 0 24px 64px rgba(15, 23, 42, 0.22);
+  --shadow-toast: 0 8px 24px rgba(15, 23, 42, 0.18);
+  --shadow-drag: 0 8px 20px rgba(15, 23, 42, 0.16);
+
+  /* Destructive actions */
+  --danger-soft: rgba(239, 68, 68, 0.1);
+  --danger-tint: rgba(239, 68, 68, 0.14);
+  --danger-soft-strong: #dc2626;
+  --danger-border: rgba(239, 68, 68, 0.35);
+  --danger-text: #b91c1c;
+
+  /* Queue status pills, darkened so they read on white */
+  --status-queued-bg: rgba(107, 114, 128, 0.15);
+  --status-queued-text: #4b5563;
+  --status-running-bg: rgba(37, 99, 235, 0.14);
+  --status-running-text: #1d4ed8;
+  --status-completed-bg: rgba(34, 197, 94, 0.18);
+  --status-completed-text: #15803d;
+  --status-failed-bg: rgba(239, 68, 68, 0.14);
+  --status-failed-text: #b91c1c;
+  --status-cancelled-bg: rgba(245, 158, 11, 0.2);
+  --status-cancelled-text: #b45309;
+
+  /* Language badges */
+  --badge-german-dub-border: rgba(37, 99, 235, 0.45);
+  --badge-german-dub-text: #1d4ed8;
+  --badge-german-sub-border: rgba(147, 51, 234, 0.45);
+  --badge-german-sub-text: #7e22ce;
+  --badge-english-dub-border: rgba(34, 197, 94, 0.5);
+  --badge-english-dub-text: #15803d;
+  --badge-english-sub-border: rgba(245, 158, 11, 0.55);
+  --badge-english-sub-text: #b45309;
+
+  /* Settings warning banner */
+  --notice-bg: rgba(245, 158, 11, 0.13);
+  --notice-border: rgba(245, 158, 11, 0.4);
+  --notice-text: #92400e;
+  --notice-code-text: #78350f;
+
+  /* Everything else */
+  --badge-downloaded-bg: rgba(21, 128, 61, 0.95);
+  --card-hover-border: rgba(37, 99, 235, 0.4);
+  --chip-hover-border: rgba(147, 51, 234, 0.55);
+  --progress-track: rgba(15, 23, 42, 0.1);
+  --scrollbar: #c5cad3;
+  --scrollbar-hover: #a8aeb9;
+  --selection-bg: rgba(37, 99, 235, 0.18);
+  --selection-text: #0f172a;
+  --skeleton-base: rgba(15, 23, 42, 0.06);
+  --skeleton-shine: rgba(15, 23, 42, 0.12);
+  --segment-text: #6b7280;
+  --segment-text-hover: #374151;
+  --segment-text-active: #ffffff;
+}

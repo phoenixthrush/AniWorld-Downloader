@@ -3,10 +3,17 @@
 import platform
 from pathlib import Path
 
-from flask import Blueprint, abort, current_app, render_template, send_from_directory
+from flask import (
+    Blueprint,
+    Response,
+    abort,
+    current_app,
+    render_template,
+    send_from_directory,
+)
 
 from ...config import ANIWORLD_CONFIG_DIR, LANG_LABELS
-from .. import settings_store
+from .. import settings_store, theming
 from ..media import WORKING_PROVIDERS
 
 bp = Blueprint("pages", __name__)
@@ -21,6 +28,23 @@ def favicon():
     return send_from_directory(
         Path(current_app.root_path) / "static", "favicon.png", mimetype="image/png"
     )
+
+
+@bp.route("/custom.css")
+def custom_css():
+    """The instance wide theme, served as its own stylesheet.
+
+    Not linked from the login or setup pages, so a theme can never restyle the
+    form people type their password into.
+    """
+    css = theming.read()
+    response = Response(css, mimetype="text/css")
+    # The link carries a content hash, so a cached copy is always the right one
+    # and a save shows up immediately under a new URL.
+    response.headers["Cache-Control"] = (
+        "public, max-age=31536000, immutable" if css else "no-store"
+    )
+    return response
 
 
 @bp.route("/")

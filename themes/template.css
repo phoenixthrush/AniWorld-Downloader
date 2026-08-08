@@ -1,0 +1,219 @@
+/*
+ * AniWorld Downloader theme template
+ * =================================
+ *
+ * Every value below is what the stock dark theme uses. Copy this file, change
+ * what you want, delete the rest. Anything you leave out keeps its default, so
+ * a three line theme is perfectly valid.
+ *
+ * To use it: Settings -> Appearance, paste the CSS in, save. To publish one,
+ * put it somewhere that serves it as text/css and let people import it with a
+ * single line:
+ *
+ *     @import url('https://cdn.jsdelivr.net/gh/you/repo@main/theme.css');
+ *
+ * The content type matters. A browser throws away a stylesheet that arrives as
+ * text/plain and says nothing about it, which rules out pastebin and GitHub raw
+ * links. jsDelivr serves the same GitHub file with the right type, so push the
+ * theme to a repo and point at cdn.jsdelivr.net/gh/user/repo@branch/file.css.
+ *
+ * The sign-in screen is deliberately never themed, so a broken or hostile
+ * theme can never restyle the form people type their password into.
+ *
+ * If a theme ever makes the UI unusable, open /settings?nocss=1 to load the
+ * settings page without it and clear the box.
+ */
+
+:root {
+  /* ===================================================================
+     Scheme
+     Controls the parts the browser paints itself: checkbox ticks, select
+     dropdown popups, scrollbars. Set this to light for a light theme or
+     they stay dark against your background.
+     =================================================================== */
+  --color-scheme: dark;
+
+  /* ===================================================================
+     Typography
+     =================================================================== */
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-heading: var(--font-body); /* h1, h2, h3 */
+  --font-mono: monospace; /* code blocks, the API examples, this box */
+
+  /* ===================================================================
+     Shape
+     =================================================================== */
+  --radius: 12px; /* cards, poster cards, the segmented switch */
+  --radius-sm: 10px; /* buttons, inputs, queue items */
+  --radius-lg: 16px; /* modals and the sign-in card */
+  --radius-xs: 8px; /* provider rows, sync rows, error boxes */
+  --radius-pill: 999px; /* genre chips */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --nav-blur: 12px; /* frosted glass behind the top bar, 0 disables it */
+  --overlay-blur: 4px; /* blur behind an open modal */
+
+  /* ===================================================================
+     Surfaces
+     =================================================================== */
+  --bg: #0a0a0f; /* the page itself */
+  --surface: rgba(255, 255, 255, 0.03); /* cards, poster cards, queue rows */
+  --surface-strong: rgba(255, 255, 255, 0.06); /* secondary buttons, badges */
+  --surface-hover: rgba(255, 255, 255, 0.1); /* secondary button hover */
+  --surface-subtle: rgba(255, 255, 255, 0.02); /* episode row hover */
+  --surface-nav: rgba(14, 14, 20, 0.85); /* top bar, sits under the blur */
+  --surface-modal: #101018; /* queue, series and captcha modals */
+  --surface-toast: #1a1a24; /* the popup at the bottom of the screen */
+  --surface-input: rgba(255, 255, 255, 0.04); /* text fields and selects */
+  --surface-input-focus: rgba(37, 99, 235, 0.06); /* the same, focused */
+  --surface-option: #14141c; /* entries in an open dropdown */
+  --surface-disabled: #1e1e2a; /* a button that cannot be pressed */
+  --surface-poster: #12121a; /* behind a poster while it loads */
+  --surface-code: rgba(0, 0, 0, 0.35); /* code blocks, the custom CSS box */
+  --surface-code-inline: rgba(0, 0, 0, 0.3); /* code inside a notice */
+  --surface-captcha: #000; /* behind the captcha screenshot */
+  --overlay-bg: rgba(0, 0, 0, 0.75); /* dimmer behind an open modal */
+
+  /* ===================================================================
+     Borders
+     =================================================================== */
+  --border: rgba(255, 255, 255, 0.08);
+  --border-soft: rgba(255, 255, 255, 0.06); /* card and table separators */
+  --border-hover: rgba(255, 255, 255, 0.18); /* ghost button hover */
+  --border-hover-soft: rgba(255, 255, 255, 0.14); /* provider row hover */
+
+  /* ===================================================================
+     Text
+     =================================================================== */
+  --text: #c8cad0; /* body copy */
+  --text-strong: #fff; /* headings, the brand, modal titles */
+  --text-bright: #e2e4e9; /* card titles, queue titles, library names */
+  --text-muted: #6b7280; /* hints, meta lines, table headers */
+  --text-dim: #9ca3af; /* nav links, chips, badges */
+  --text-faint: #888; /* empty states */
+  --text-input: #e0e0e0; /* what you type into a field */
+  --text-placeholder: #555; /* placeholder text, missing episode titles */
+  --text-disabled: #555; /* label on a disabled button */
+  --text-on-accent: #fff; /* text sitting on an accent coloured fill */
+  --link: #6ea8fe;
+  --link-hover: #93c5fd;
+
+  /* ===================================================================
+     Accents
+     Most coloured surfaces are derived from these by hand below, so
+     changing --accent alone gets you most of the way to a new look.
+     =================================================================== */
+  --accent: #2563eb;
+  --accent-dark: #1d4ed8;
+  --accent-soft: rgba(37, 99, 235, 0.15); /* focus rings, drag highlight */
+  --purple: #9333ea;
+  --purple-dark: #7c3aed;
+  --danger: #ef4444;
+  --success: #22c55e;
+  --warning: #f59e0b;
+
+  /* ===================================================================
+     Gradients
+     Set all three to a flat colour for a theme without gradients.
+     =================================================================== */
+  --gradient-accent: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  --gradient-purple: linear-gradient(135deg, var(--purple), var(--purple-dark));
+  --gradient-progress: linear-gradient(90deg, var(--accent), var(--purple));
+
+  /* ===================================================================
+     Shadows
+     Set to none for a flat theme.
+     =================================================================== */
+  --shadow-btn: 0 2px 8px rgba(37, 99, 235, 0.25);
+  --shadow-btn-hover: 0 4px 16px rgba(37, 99, 235, 0.35);
+  --shadow-ribbon: 0 2px 6px rgba(37, 99, 235, 0.45);
+  --shadow-thumb: 0 2px 8px rgba(147, 51, 234, 0.35); /* the site switch */
+  --shadow-card: 0 12px 32px rgba(0, 0, 0, 0.4); /* poster card on hover */
+  --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.6);
+  --shadow-toast: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-drag: 0 8px 20px rgba(0, 0, 0, 0.45); /* a provider being dragged */
+
+  /* ===================================================================
+     Destructive actions
+     Delete buttons, cancel buttons, error boxes.
+     =================================================================== */
+  --danger-soft: rgba(239, 68, 68, 0.12);
+  --danger-tint: rgba(239, 68, 68, 0.14); /* force cancel, already armed */
+  --danger-soft-strong: rgba(239, 68, 68, 0.2); /* hover */
+  --danger-border: rgba(239, 68, 68, 0.3);
+  --danger-text: #fca5a5;
+
+  /* ===================================================================
+     Queue status pills
+     =================================================================== */
+  --status-queued-bg: rgba(107, 114, 128, 0.2);
+  --status-queued-text: #9ca3af;
+  --status-running-bg: rgba(37, 99, 235, 0.2);
+  --status-running-text: #93c5fd;
+  --status-completed-bg: rgba(34, 197, 94, 0.18);
+  --status-completed-text: #86efac;
+  --status-failed-bg: rgba(239, 68, 68, 0.18);
+  --status-failed-text: #fca5a5;
+  --status-cancelled-bg: rgba(245, 158, 11, 0.18);
+  --status-cancelled-text: #fcd34d;
+
+  /* ===================================================================
+     Language badges on the episode rows
+     =================================================================== */
+  --badge-german-dub-border: rgba(37, 99, 235, 0.35);
+  --badge-german-dub-text: #93c5fd;
+  --badge-german-sub-border: rgba(147, 51, 234, 0.35);
+  --badge-german-sub-text: #d8b4fe;
+  --badge-english-dub-border: rgba(34, 197, 94, 0.35);
+  --badge-english-dub-text: #86efac;
+  --badge-english-sub-border: rgba(245, 158, 11, 0.35);
+  --badge-english-sub-text: #fcd34d;
+
+  /* ===================================================================
+     The warning banner on the settings page
+     =================================================================== */
+  --notice-bg: rgba(245, 158, 11, 0.08);
+  --notice-border: rgba(245, 158, 11, 0.25);
+  --notice-text: #fcd34d;
+  --notice-code-text: #fde68a;
+
+  /* ===================================================================
+     Everything else
+     =================================================================== */
+  --badge-downloaded-bg: rgba(34, 197, 94, 0.9); /* the tick on a poster */
+  --card-hover-border: rgba(37, 99, 235, 0.3);
+  --chip-hover-border: rgba(147, 51, 234, 0.5); /* genre chip hover */
+  --progress-track: rgba(255, 255, 255, 0.07); /* groove under the bar */
+  --scrollbar: #333;
+  --scrollbar-hover: #444;
+  --selection-bg: rgba(37, 99, 235, 0.25); /* highlighted text */
+  --selection-text: #fff;
+  --skeleton-base: rgba(255, 255, 255, 0.04); /* loading placeholder */
+  --skeleton-shine: rgba(255, 255, 255, 0.09); /* its moving highlight */
+  --segment-text: #666; /* an unselected site in the switch */
+  --segment-text-hover: #999;
+  --segment-text-active: #fff;
+}
+
+/*
+ * Past the variables
+ * ------------------
+ * Tokens cover colour, shape and type. For anything structural, target the
+ * class directly. These are the ones worth knowing:
+ *
+ *   .top-bar          the sticky header
+ *   .page .container  the content column, max-width lives here
+ *   .segmented        the AniWorld / SerienStream / ... switch
+ *   .genre-bar        the discover-by-genre chips
+ *   .poster-card      one result or browse tile
+ *   .modal            any dialog, .modal-narrow is the queue and captcha one
+ *   .queue-item       one row in the download queue
+ *   .card             a settings or library panel
+ *   .data-table       the users, API keys and custom paths tables
+ *   .library-node     one collapsible entry in the library tree
+ *   .toast            the confirmation popup
+ *
+ * Example, a wider content column and square corners everywhere:
+ *
+ *   .container { max-width: 1800px; }
+ *   :root { --radius: 0; --radius-sm: 0; --radius-lg: 0; --radius-xs: 0; }
+ */

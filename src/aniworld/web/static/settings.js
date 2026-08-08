@@ -538,6 +538,100 @@
     }
   });
 
+  /* ===== Custom CSS ===== */
+  const cssBox = el("customCss");
+
+  function showCssSize() {
+    const bytes = new TextEncoder().encode(cssBox.value).length;
+    if (!bytes) {
+      el("cssSize").textContent = "";
+      return;
+    }
+    // a short theme in KB reads "0.0", which tells nobody anything
+    el("cssSize").textContent =
+      bytes < 1024
+        ? t("settings.css_size_bytes", "{size} bytes", { size: bytes })
+        : t("settings.css_size", "{size} KB", { size: (bytes / 1024).toFixed(1) });
+  }
+
+  /* A browser drops a stylesheet that did not arrive as text/css, and says
+     nothing anywhere, so the only place this can be caught is here. */
+  function showCssWarnings(warnings) {
+    const box = el("cssWarning");
+    box.textContent = "";
+    box.hidden = !warnings || !warnings.length;
+    if (box.hidden) return;
+
+    warnings.forEach((warning) => {
+      const line = document.createElement("p");
+      line.textContent = t(
+        "settings.css_import_blocked",
+        "{host} sends files as plain text, so browsers ignore this import.",
+        { host: warning.host }
+      );
+      box.appendChild(line);
+
+      if (!warning.suggestion) return;
+      const fix = document.createElement("p");
+      fix.textContent = `${t("settings.css_import_try", "Use this instead:")} `;
+      const code = document.createElement("code");
+      code.textContent = warning.suggestion;
+      fix.appendChild(code);
+      box.appendChild(fix);
+    });
+  }
+
+  /* Point the tag at the new hash so the browser fetches the saved sheet
+     instead of the cached one, and drop it entirely once the box is empty. */
+  function applyCustomCss(version) {
+    const existing = document.querySelector("link[data-custom-css]");
+    if (!version) {
+      if (existing) existing.remove();
+      return;
+    }
+    if (existing) {
+      existing.href = `/custom.css?v=${version}`;
+      return;
+    }
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.dataset.customCss = "1";
+    link.href = `/custom.css?v=${version}`;
+    document.head.appendChild(link);
+  }
+
+  async function loadCustomCss() {
+    try {
+      const data = await apiFetch("/api/custom-css");
+      cssBox.value = data.css || "";
+      showCssSize();
+      showCssWarnings(data.warnings);
+    } catch (error) {
+      showToast(error.message);
+    }
+  }
+
+  async function saveCustomCss() {
+    try {
+      const data = await apiSend("/api/custom-css", "PUT", { css: cssBox.value });
+      // the server hoists imports, so show back what it actually stored
+      cssBox.value = data.css || "";
+      showCssSize();
+      showCssWarnings(data.warnings);
+      applyCustomCss(data.version);
+      showToast(t("settings.saved", "Saved"));
+    } catch (error) {
+      showToast(`${t("settings.save_failed", "Could not save")}: ${error.message}`);
+    }
+  }
+
+  cssBox.addEventListener("input", showCssSize);
+  el("saveCssBtn").addEventListener("click", saveCustomCss);
+  el("resetCssBtn").addEventListener("click", () => {
+    cssBox.value = "";
+    saveCustomCss();
+  });
+
   /* ===== IP check (never runs on its own) ===== */
   el("revealIpBtn").addEventListener("click", async () => {
     const value = el("publicIpValue");
@@ -563,6 +657,7 @@
   });
 
   load();
+  loadCustomCss();
   loadCustomPaths();
   loadDiscordStatus();
   loadApiKeys();

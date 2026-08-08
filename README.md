@@ -156,6 +156,60 @@ The comments in [`docker-compose.yaml`](docker-compose.yaml) cover authenticatio
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+## Theming
+
+The Web UI can be restyled from **Settings → Appearance**. The stylesheet is global, so it applies to everyone using the instance, and it survives restarts. It is stored as `custom.css` next to your `.env`, which means you can also edit it by hand or mount it into a container.
+
+Paste CSS straight in, or pull in a published theme with one line:
+
+```css
+@import url('https://cdn.jsdelivr.net/gh/you/your-theme@main/theme.css');
+```
+
+The import may sit anywhere in the box; it gets moved to the top on save, because CSS only honours `@import` before any other rule.
+
+> **The URL has to be served as `text/css`.** Browsers refuse to apply a stylesheet sent as `text/plain`, and they do it silently, with nothing in the console. That rules out **pastebin.com**, **raw.githubusercontent.com** and **gist.githubusercontent.com**, which all send `text/plain` with `nosniff`.
+>
+> For a file in a GitHub repo, jsDelivr serves the same content with the right type. Swap the host and put `@` before the branch:
+>
+> ```
+> https://raw.githubusercontent.com/user/repo/main/theme.css   ✗ ignored
+> https://cdn.jsdelivr.net/gh/user/repo@main/theme.css         ✓ works
+> ```
+>
+> The settings page warns you if you paste one of the known-bad hosts, and offers the jsDelivr rewrite.
+
+### Writing a theme
+
+Almost the entire interface is built from CSS variables, so a theme is usually just a list of values rather than a fight with class names. That also means it keeps working when the markup changes.
+
+```css
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --text: #3f4652;
+  --accent: #e11d48;
+}
+```
+
+Two files in [`themes/`](themes) are the starting point:
+
+| File | What it is |
+| --- | --- |
+| [`themes/template.css`](themes/template.css) | Every variable, its default, and a note on what it affects. Copy it and edit. |
+| [`themes/light.css`](themes/light.css) | A complete light theme, built only from those variables. Fork it or use it as is. |
+
+For anything the variables do not cover, target the class directly; the stable ones are listed at the bottom of `template.css`.
+
+### Good to know
+
+- **The sign-in screen is never themed.** Custom CSS is not loaded on the login or first-run setup pages, so a theme cannot restyle the form people type their password into.
+- **Locked yourself out?** If a theme hides the settings page, open `/settings?nocss=1` to load it without custom CSS and clear the box.
+- **Imports are fetched by the browser.** Each visitor's browser loads the URL itself, so the host it sits on sees their IP and can change the theme whenever it likes. Only import URLs you trust.
+- Changing the theme needs an admin account when authentication is on.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## Optional Features
 
 The normal install already includes the terminal and Web UI dependencies. SSO and the Discord bot are optional:

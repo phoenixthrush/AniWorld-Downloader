@@ -12,6 +12,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ app_version }}" />
+  {# ?nocss=1 is the way back in when a theme hides the settings page #}
+  {% if custom_css_version and request.args.get('nocss') != '1' %}
+  <link rel="stylesheet" data-custom-css href="{{ url_for('pages.custom_css') }}?v={{ custom_css_version }}" />
+  {% endif %}
   <script>
     window.UI_LANGUAGE = {{ ui_language | tojson }};
   </script>
