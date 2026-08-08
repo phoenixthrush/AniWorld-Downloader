@@ -134,14 +134,69 @@ async function loadLibrary() {
     renderLibrary(libraryLocations);
     restoreExpandedState(prevState);
   } catch (e) {
-    list.innerHTML = '<div class="library-empty">Failed to load library</div>';
+    console.error('loadLibrary failed:', e);
+    list.innerHTML = '<div class="library-empty">Failed to load library: ' + e.message + '</div>';
   }
+}
+
+// --- Watched status ---
+
+var WATCHED_BG = "rgba(76, 175, 80, 0.18)";
+
+async function setWatchedStatus(locIndex, folder, skey, episode, file, watched) {
+  var loc = libraryLocations[locIndex];
+  var body = {
+    folder: folder,
+    season: skey,
+    episode: episode,
+    file: file,
+    watched: watched,
+    custom_path_id: loc ? loc.custom_path_id : null,
+  };
+  try {
+    var resp = await fetch("/api/library/watched", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    var data = await resp.json();
+    return !data.error;
+  } catch (e) {
+    return false;
+  }
+}
+
+function applyWatchedStyle(epId, watched) {
+  var el = document.getElementById(epId);
+  if (!el) return;
+  el.dataset.watched = watched ? "1" : "0";
+  el.style.backgroundColor = watched ? WATCHED_BG : "";
+  var btn = el.querySelector(".library-watched-toggle");
+  if (btn) btn.textContent = watched ? "\u2713" : "\u25CB";
+}
+
+function markWatchedOnClick(epId, locIndex, folder, skey, episode, file) {
+  // Fire-and-forget: don't block the new-tab navigation
+  var el = document.getElementById(epId);
+  if (el && el.dataset.watched === "1") return; // already watched
+  setWatchedStatus(locIndex, folder, skey, episode, file, true).then(function (ok) {
+    if (ok) applyWatchedStyle(epId, true);
+  });
+}
+
+async function toggleWatched(epId, locIndex, folder, skey, episode, file) {
+  var el = document.getElementById(epId);
+  var currentlyWatched = el && el.dataset.watched === "1";
+  var next = !currentlyWatched;
+  var ok = await setWatchedStatus(locIndex, folder, skey, episode, file, next);
+  if (ok) applyWatchedStyle(epId, next);
 }
 
 // --- Render helpers ---
 
-function renderTitles(html, titles, idPrefix, padLeft, locIndex, langFolder) {
-  titles.forEach(function (title, ti) {
+function renderTitles(html, titles, idPrefix, padLeft, locIndex, langFolder, indices) {
+  titles.forEach(function (title, i) {
+    var ti = (indices && indices[i] !== undefined) ? indices[i] : i;
     var globalTi = idPrefix + "T" + ti;
     var seasonKeys = Object.keys(title.seasons).sort(function (a, b) {
       return parseInt(a) - parseInt(b);
@@ -216,7 +271,8 @@ function renderTitles(html, titles, idPrefix, padLeft, locIndex, langFolder) {
       var seasonEpCount = eps.filter(function (e) {
         return e.is_video !== false;
       }).length;
-      html.push("<span>Season " + skey + " (" + seasonEpCount + " ep)</span>");
+      var seasonLabel = (skey === "movie") ? "Filme" : ("Season " + skey);
+      html.push("<span>" + seasonLabel + " (" + seasonEpCount + " ep)</span>");
       html.push("</div>");
       html.push('<div class="library-season-right">');
       html.push(
@@ -243,20 +299,39 @@ function renderTitles(html, titles, idPrefix, padLeft, locIndex, langFolder) {
       html.push("</div>");
 
       html.push('<div class="library-season-body" id="' + sid + 'Body">');
-      eps.forEach(function (ep) {
+      eps.forEach(function (ep, epi) {
+        var epId = sid + "_E" + epi;
+        var isWatched = !!ep.watched;
+        var bgStyle = isWatched ? "background-color:" + WATCHED_BG + ";" : "";
         html.push(
-          '<div class="library-episode" style="padding-left:' + epPad + 'px">',
+          '<div class="library-episode" id="' + epId + '" data-watched="' +
+          (isWatched ? "1" : "0") +
+          '" style="padding-left:' + epPad + 'px;' + bgStyle + '">',
         );
         html.push(
           '<span class="library-ep-num">E' +
           String(ep.episode).padStart(3, "0") +
           "</span>",
         );
+        var epUrl = (skey === "movie")
+          ? "/files/" + encodeURIComponent(title.folder) + "/" + encodeURIComponent(ep.file)
+          : "/files/" + encodeURIComponent(title.folder) + "/" +
+            encodeURIComponent("Season " + String(skey).padStart(2, "0")) + "/" +
+            encodeURIComponent(ep.file);
+        var watchArgs =
+          "'" + epId + "'," + locIndex + ",'" + escLib(title.folder) + "','" +
+          skey + "'," + ep.episode + ",'" + escLib(ep.file) + "'";
         html.push(
-          '<span class="library-ep-file">' + escLib(ep.file) + "</span>",
+          '<a class="library-ep-file" href="' + epUrl + '" target="_blank" onclick="markWatchedOnClick(' +
+          watchArgs + ')">' + escLib(ep.file) + "</a>",
         );
         html.push(
           '<span class="library-ep-size">' + formatSize(ep.size) + "</span>",
+        );
+        html.push(
+          '<button class="library-watched-toggle" onclick="event.stopPropagation();toggleWatched(' +
+          watchArgs + ')" title="Als gesehen/ungesehen markieren">' +
+          (isWatched ? "\u2713" : "\u25CB") + "</button>",
         );
         if (libraryCanDelete) {
           var delArgs =
@@ -392,8 +467,109 @@ function renderLibrary(locations) {
         html.push("</div>");
       });
     } else if (loc.titles) {
-      // Lang sep OFF: Location > Title > Season > Episode
-      renderTitles(html, loc.titles, "L" + li, 32, li, null);
+      // Location > MediaType (Filme/Serien) > [Alle | Genre] > Title > (Season >) Episode
+      var mediaGroups = { series: [], movie: [] };
+      loc.titles.forEach(function (t, ti) {
+        var mt = t.media_type === "movie" ? "movie" : "series";
+        mediaGroups[mt].push({ title: t, idx: ti });
+      });
+      ["series", "movie"].forEach(function (mtKey) {
+        var entries = mediaGroups[mtKey];
+        var mtLabel = mtKey === "movie" ? "Filme" : "Serien";
+        var mtId = "L" + li + "MT" + mtKey;
+        var mtEps = 0, mtSize = 0;
+        entries.forEach(function (e) {
+          mtEps += e.title.total_episodes;
+          mtSize += e.title.total_size;
+        });
+        html.push('<div class="library-title-section">');
+        html.push(
+          '<div class="library-season-header" onclick="toggleLibrarySeason(\'' +
+          mtId + '\')" style="padding-left:32px">'
+        );
+        html.push('<div class="library-season-left">');
+        html.push('<span class="library-arrow" id="' + mtId + 'Arrow">&#9654;</span>');
+        html.push('<span style="font-weight:600;color:#fff">' + mtLabel + "</span>");
+        html.push("</div>");
+        html.push('<div class="library-season-right">');
+        html.push('<span class="library-meta">' + mtEps + " ep</span>");
+        html.push('<span class="library-meta library-meta-size">' + formatSize(mtSize) + "</span>");
+        html.push("</div>");
+        html.push("</div>");
+        html.push('<div class="library-title-body" id="' + mtId + 'Body">');
+
+        // "Alle" tab: every title in this media-type group, ungrouped by genre
+        if (entries.length) {
+          var allId = mtId + "GAll";
+          var allEps = 0, allSize = 0;
+          entries.forEach(function (e) {
+            allEps += e.title.total_episodes;
+            allSize += e.title.total_size;
+          });
+          html.push('<div class="library-title-section">');
+          html.push(
+            '<div class="library-season-header" onclick="toggleLibrarySeason(\'' +
+            allId + '\')" style="padding-left:48px">'
+          );
+          html.push('<div class="library-season-left">');
+          html.push('<span class="library-arrow" id="' + allId + 'Arrow">&#9654;</span>');
+          html.push('<span style="font-weight:500">Alle</span>');
+          html.push("</div>");
+          html.push('<div class="library-season-right">');
+          html.push('<span class="library-meta">' + allEps + " ep</span>");
+          html.push('<span class="library-meta library-meta-size">' + formatSize(allSize) + "</span>");
+          html.push("</div>");
+          html.push("</div>");
+          html.push('<div class="library-title-body" id="' + allId + 'Body">');
+          var allTitles = entries.map(function (e) { return e.title; });
+          var allIndices = entries.map(function (e) { return e.idx; });
+          renderTitles(html, allTitles, allId, 64, li, null, allIndices);
+          html.push("</div>");
+          html.push("</div>");
+        }
+
+        var genreGroups = {};
+        entries.forEach(function (e) {
+          var genreStr = e.title.genre || "Sonstiges";
+          var genreList = genreStr.split(",").map(function (g) { return g.trim(); }).filter(Boolean);
+          genreList.forEach(function (g) {
+            if (!genreGroups[g]) genreGroups[g] = [];
+            genreGroups[g].push(e);
+          });
+        });
+        Object.keys(genreGroups).sort().forEach(function (genreName, gi) {
+          var gEntries = genreGroups[genreName];
+          var gId = mtId + "G" + gi;
+          var gEps = 0, gSize = 0;
+          gEntries.forEach(function (e) {
+            gEps += e.title.total_episodes;
+            gSize += e.title.total_size;
+          });
+          html.push('<div class="library-title-section">');
+          html.push(
+            '<div class="library-season-header" onclick="toggleLibrarySeason(\'' +
+            gId + '\')" style="padding-left:48px">'
+          );
+          html.push('<div class="library-season-left">');
+          html.push('<span class="library-arrow" id="' + gId + 'Arrow">&#9654;</span>');
+          html.push('<span style="font-weight:500">' + escLib(genreName) + "</span>");
+          html.push("</div>");
+          html.push('<div class="library-season-right">');
+          html.push('<span class="library-meta">' + gEps + " ep</span>");
+          html.push('<span class="library-meta library-meta-size">' + formatSize(gSize) + "</span>");
+          html.push("</div>");
+          html.push("</div>");
+          html.push('<div class="library-title-body" id="' + gId + 'Body">');
+          var gTitles = gEntries.map(function (e) { return e.title; });
+          var gIndices = gEntries.map(function (e) { return e.idx; });
+          renderTitles(html, gTitles, gId, 64, li, null, gIndices);
+          html.push("</div>");
+          html.push("</div>");
+        });
+
+        html.push("</div>");
+        html.push("</div>");
+      });
     }
 
     html.push("</div>");

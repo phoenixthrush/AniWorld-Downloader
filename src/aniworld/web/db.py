@@ -330,6 +330,11 @@ def init_queue_db():
             conn.execute("ALTER TABLE download_queue ADD COLUMN discord_user_id TEXT")
         except Exception:
             pass  # column already exists
+        # Add genre column so the library view can group by genre
+        try:
+            conn.execute("ALTER TABLE download_queue ADD COLUMN genre TEXT")
+        except Exception:
+            pass  # column already exists
         conn.commit()
     finally:
         conn.close()
@@ -345,14 +350,15 @@ def add_to_queue(
     custom_path_id=None,
     source="manual",
     discord_user_id=None,
+    genre=None,
 ):
     import json
 
     conn = get_db()
     try:
         cur = conn.execute(
-            "INSERT INTO download_queue (title, series_url, episodes, total_episodes, language, provider, username, custom_path_id, source, discord_user_id) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO download_queue (title, series_url, episodes, total_episodes, language, provider, username, custom_path_id, source, discord_user_id, genre) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 title,
                 series_url,
@@ -364,6 +370,7 @@ def add_to_queue(
                 custom_path_id,
                 source,
                 discord_user_id,
+                genre,
             ),
         )
         row_id = cur.lastrowid
@@ -671,6 +678,21 @@ def clear_completed():
         conn.close()
 
 
+def get_genre_lookup():
+    """Return {title_lower: genre} from the most recent queue entry per title
+    that actually has a genre set. Used by the library scan to tag folders."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT title, genre FROM download_queue "
+            "WHERE genre IS NOT NULL AND genre != '' "
+            "ORDER BY id ASC"
+        ).fetchall()
+        return {r["title"].strip().lower(): r["genre"] for r in rows if r["title"]}
+    finally:
+        conn.close()
+
+
 # ===== Custom Download Paths =====
 
 _CREATE_CUSTOM_PATHS_TABLE = """\
@@ -766,6 +788,70 @@ def get_custom_path_by_id(path_id):
             (path_id,),
         ).fetchone()
         return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+# ===== Watched Episodes =====
+
+_CREATE_WATCHED_TABLE = """\
+CREATE TABLE IF NOT EXISTS watched_episodes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    custom_path_id INTEGER NOT NULL DEFAULT 0,
+    folder TEXT NOT NULL,
+    season TEXT NOT NULL,
+    episode INTEGER NOT NULL,
+    file TEXT NOT NULL,
+    watched_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(custom_path_id, folder, season, episode, file)
+);
+"""
+
+
+def init_watched_db():
+    ANIWORLD_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    conn = get_db()
+    try:
+        conn.execute(_CREATE_WATCHED_TABLE)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_watched_set(custom_path_id=None):
+    """Return {(folder, season, episode, file)} for one location (custom_path_id
+    None/0 = default download path)."""
+    cp_key = custom_path_id or 0
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT folder, season, episode, file FROM watched_episodes "
+            "WHERE custom_path_id = ?",
+            (cp_key,),
+        ).fetchall()
+        return {(r["folder"], r["season"], r["episode"], r["file"]) for r in rows}
+    finally:
+        conn.close()
+
+
+def set_watched(custom_path_id, folder, season, episode, file, watched):
+    cp_key = custom_path_id or 0
+    conn = get_db()
+    try:
+        if watched:
+            conn.execute(
+                "INSERT OR IGNORE INTO watched_episodes "
+                "(custom_path_id, folder, season, episode, file) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (cp_key, folder, str(season), int(episode), file),
+            )
+        else:
+            conn.execute(
+                "DELETE FROM watched_episodes WHERE custom_path_id = ? "
+                "AND folder = ? AND season = ? AND episode = ? AND file = ?",
+                (cp_key, folder, str(season), int(episode), file),
+            )
+        conn.commit()
     finally:
         conn.close()
 

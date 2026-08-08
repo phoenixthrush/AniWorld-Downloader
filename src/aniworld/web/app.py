@@ -42,6 +42,10 @@ from ..search import (
 from ..search import query as aniworld_query
 from .db import (
     add_autosync_job,
+    get_genre_lookup,
+    get_watched_set,
+    set_watched,
+    init_watched_db,
     add_custom_path,
     update_custom_path,
     add_to_queue,
@@ -1169,6 +1173,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     init_custom_paths_db()
     init_autosync_db()
     init_planned_db()
+    init_watched_db()
 
     # Wire up captcha hooks so the Playwright module can signal the Web UI
     from ..playwright import captcha as _captcha_mod
@@ -1866,6 +1871,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 )
 
         custom_path_id = data.get("custom_path_id")
+        genre = (data.get("genre") or "").strip()
 
         queue_id = add_to_queue(
             title,
@@ -1875,6 +1881,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             provider,
             username,
             custom_path_id=custom_path_id,
+            genre=genre or None,
         )
         return jsonify({"queue_id": queue_id})
 
@@ -2683,7 +2690,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 cp_base = Path.home() / cp_base
             scan_targets.append((cp["name"], cp["id"], cp_base))
 
-        def _scan_base(base):
+        def _scan_base(base, cp_id):
             """Scan a single base directory and return list of title dicts."""
             lang_folder_set = set(lang_folders)
             titles = {}
@@ -2693,6 +2700,9 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 folders = list(base.iterdir())
             except (PermissionError, OSError):
                 return []
+
+            genre_lookup = get_genre_lookup()
+            watched_set = get_watched_set(cp_id)
 
             for folder in folders:
                 if not folder.is_dir():
@@ -2707,11 +2717,15 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                     if not f.is_file() or f.name.startswith(".temp_"):
                         continue
                     m = ep_re.search(f.name)
-                    if not m:
-                        continue
-                    snum = int(m.group(1))
-                    enum = int(m.group(2))
                     is_video = f.suffix.lower() in video_exts
+                    if m:
+                        snum = int(m.group(1))
+                        enum = int(m.group(2))
+                    elif is_video:
+                        snum = "movie"
+                        enum = len(entry["seasons"].get("movie", [])) + 1
+                    else:
+                        continue
                     try:
                         fsize = f.stat().st_size
                     except OSError:
@@ -2723,12 +2737,14 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                         e["episode"] == enum and e["file"] == f.name
                         for e in entry["seasons"][skey]
                     ):
+                        is_watched = (name, skey, enum, f.name) in watched_set
                         entry["seasons"][skey].append(
                             {
                                 "episode": enum,
                                 "file": f.name,
                                 "size": fsize,
                                 "is_video": is_video,
+                                "watched": is_watched,
                             }
                         )
                         entry["total_size"] += fsize
@@ -2743,12 +2759,28 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 )
                 for skey in entry["seasons"]:
                     entry["seasons"][skey].sort(key=lambda e: e["episode"])
+
+                media_type = (
+                    "movie"
+                    if set(entry["seasons"].keys()) == {"movie"}
+                    else "series"
+                )
+
+                folder_lower = entry["folder"].strip().lower()
+                genre = "Sonstiges"
+                for title_key, title_genre in genre_lookup.items():
+                    if folder_lower.startswith(title_key) or title_key.startswith(folder_lower):
+                        genre = title_genre
+                        break
+
                 result.append(
                     {
                         "folder": entry["folder"],
                         "seasons": entry["seasons"],
                         "total_episodes": total_eps,
                         "total_size": entry["total_size"],
+                        "media_type": media_type,
+                        "genre": genre,
                     }
                 )
             return result
@@ -2758,7 +2790,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             if lang_sep:
                 loc_lang_folders = []
                 for lf in lang_folders:
-                    lf_titles = _scan_base(base_path / lf)
+                    lf_titles = _scan_base(base_path / lf, cp_id)
                     if lf_titles:
                         loc_lang_folders.append(
                             {
@@ -2776,7 +2808,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                         }
                     )
             else:
-                loc_titles = _scan_base(base_path)
+                loc_titles = _scan_base(base_path, cp_id)
                 if loc_titles:
                     locations.append(
                         {
@@ -2890,6 +2922,24 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         if deleted == 0:
             return jsonify({"error": "Nothing found to delete"}), 404
         return jsonify({"ok": True, "deleted": deleted})
+
+    @app.route("/api/library/watched", methods=["POST"])
+    def api_library_watched():
+        data = request.get_json(silent=True) or {}
+        folder = data.get("folder", "")
+        season = data.get("season")
+        episode = data.get("episode")
+        file = data.get("file", "")
+        watched = bool(data.get("watched"))
+        custom_path_id = data.get("custom_path_id")
+
+        if not folder or season is None or episode is None or not file:
+            return jsonify(
+                {"error": "folder, season, episode and file are required"}
+            ), 400
+
+        set_watched(custom_path_id, folder, season, episode, file, watched)
+        return jsonify({"ok": True, "watched": watched})
 
     if auth_enabled:
         from .auth import admin_required
