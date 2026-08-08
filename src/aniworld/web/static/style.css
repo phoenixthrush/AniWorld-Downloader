@@ -299,18 +299,6 @@ h3 {
   margin-bottom: 20px;
 }
 
-.site-footer {
-  margin: auto 0 24px;
-  padding: 24px 24px 0;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 0.85rem;
-}
-
-.site-footer a {
-  font-weight: 600;
-}
-
 /* ===== Navbar ===== */
 .top-bar {
   display: flex;

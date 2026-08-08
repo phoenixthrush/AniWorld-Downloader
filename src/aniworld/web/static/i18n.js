@@ -18,8 +18,6 @@
       "nav.autosync": "Auto-Sync",
       "nav.settings": "Einstellungen",
       "nav.logout": "Abmelden",
-      "footer.opensource": "AniWorld Downloader ist Open Source.",
-      "footer.github": "Auf GitHub ansehen",
 
       "common.save": "Speichern",
       "common.add": "Hinzufügen",
