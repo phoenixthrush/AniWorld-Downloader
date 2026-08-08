@@ -199,7 +199,7 @@ Two files in [`themes/`](themes) are the starting point:
 | [`themes/template.css`](themes/template.css) | Every variable, its default, and a note on what it affects. Copy it and edit. |
 | [`themes/light.css`](themes/light.css) | A complete light theme, built only from those variables. Fork it or use it as is. |
 
-For anything the variables do not cover, target the class directly; the stable ones are listed at the bottom of `template.css`.
+The variables are a shortcut, not a limit. Custom CSS is ordinary CSS, so animated backdrops, pseudo-element layers and backdrop filters all work. The notes at the bottom of `template.css` cover the four things about this app's markup you need to know before layering effects onto it.
 
 ### Good to know
 

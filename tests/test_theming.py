@@ -11,6 +11,10 @@ REPO = Path(__file__).resolve().parent.parent
 STYLE = REPO / "src" / "aniworld" / "web" / "static" / "style.css"
 THEMES = REPO / "themes"
 
+# Every theme file shipped in the repo, checked as a set so adding one cannot
+# quietly skip the checks below.
+SHIPPED = ("template.css", "light.css")
+
 
 @pytest.fixture(autouse=True)
 def clean_css():
@@ -218,7 +222,7 @@ def test_a_bad_import_is_still_saved(client):
 
 def test_the_shipped_themes_do_not_recommend_a_dead_host():
     """The docs pointed at GitHub raw once, and it silently never worked."""
-    for name in ("template.css", "light.css"):
+    for name in SHIPPED:
         text = (THEMES / name).read_text()
         for host in theming.PLAIN_TEXT_HOSTS:
             assert host not in text, f"themes/{name} still suggests {host}"
@@ -501,7 +505,7 @@ def test_the_light_theme_flips_the_colour_scheme():
 
 def test_the_shipped_themes_are_valid_enough_to_store():
     """They go through the same normalising as anything pasted into the box."""
-    for name in ("template.css", "light.css"):
+    for name in SHIPPED:
         stored = theming.write((THEMES / name).read_text())
         assert stored.strip(), f"{name} normalised away to nothing"
 

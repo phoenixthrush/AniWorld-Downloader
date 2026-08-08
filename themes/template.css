@@ -197,8 +197,20 @@
 /*
  * Past the variables
  * ------------------
- * Tokens cover colour, shape and type. For anything structural, target the
- * class directly. These are the ones worth knowing:
+ * The variables are a shortcut, not a limit. Custom CSS is ordinary CSS, so
+ * animations, pseudo-element layers, backdrop filters and layout changes all
+ * work. Four things about this app's markup are worth knowing before you try:
+ *
+ *   1. body carries the page background, so a fixed layer at z-index:-1 behind
+ *      it will not show. Move the colour to html and set body transparent.
+ *   2. body is display:flex; flex-direction:column. A ::before that is not
+ *      positioned becomes a flex item and shifts the whole page. Use
+ *      position:fixed or absolute for decorative layers.
+ *   3. Existing z-index values: .top-bar 50, .overlay 100, .toast 200. Stay out
+ *      of their way.
+ *   4. Put pointer-events:none on anything decorative, or it eats clicks.
+ *
+ * For anything structural, target the class directly. These are worth knowing:
  *
  *   .top-bar          the sticky header
  *   .page .container  the content column, max-width lives here
