@@ -318,6 +318,26 @@
       An imported theme is fetched by each visitor's browser, so the host it sits on sees
       their IP and can change the theme at any time. Only import URLs you trust.
     </p>
+
+    <h3 data-i18n="settings.shader">Background shader</h3>
+    <p class="hint" data-i18n="settings.shader_hint">
+      A GLSL fragment shader painted behind the whole page. Write the body of main() and
+      set fragColor. Available: u_resolution, u_time, and fragColor.
+    </p>
+    <textarea id="customShader" class="code-input code-input-short" rows="10" spellcheck="false"
+      autocomplete="off" autocapitalize="off"
+      placeholder="void main() {&#10;  vec2 uv = gl_FragCoord.xy / u_resolution;&#10;  fragColor = vec4(uv.x, uv.y, abs(sin(u_time)), 1.0);&#10;}"></textarea>
+    <div class="notice css-warning" id="shaderError" hidden></div>
+    <div class="action-row">
+      <button class="btn btn-primary" id="saveShaderBtn" data-i18n="common.save">Save</button>
+      <button class="btn btn-secondary" id="clearShaderBtn" data-i18n="settings.css_clear">Clear</button>
+      <span class="hint" id="shaderStatus"></span>
+    </div>
+    <p class="hint" data-i18n="settings.shader_safety">
+      Shaders run on the GPU and cannot reach your files, cookies or network. They are
+      checked in your browser before saving, paused when the tab is hidden, and skipped
+      entirely with /settings?nocss=1.
+    </p>
   </section>
 
   <section class="card">

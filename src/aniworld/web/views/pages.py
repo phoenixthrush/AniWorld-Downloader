@@ -47,6 +47,17 @@ def custom_css():
     return response
 
 
+@bp.route("/custom.frag")
+def custom_shader():
+    """The theme's fragment shader. GLSL only, never executed on the server."""
+    source = theming.read_shader()
+    response = Response(source, mimetype="text/plain")
+    response.headers["Cache-Control"] = (
+        "public, max-age=31536000, immutable" if source else "no-store"
+    )
+    return response
+
+
 @bp.route("/")
 def index():
     return render_template(

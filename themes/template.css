@@ -210,6 +210,47 @@
  *      of their way.
  *   4. Put pointer-events:none on anything decorative, or it eats clicks.
  *
+ * Surfaces the app provides for you
+ * ----------------------------------
+ * Two empty layers sit behind the whole page, so a theme never has to take
+ * over a pseudo-element the app might want back:
+ *
+ *   .theme-layer[data-layer="1"]   furthest back
+ *   .theme-layer[data-layer="2"]   in front of layer 1, behind the content
+ *
+ * Both are fixed, full window, and pointer-events:none already. Paint them
+ * with a background and they show up. The page colour is on html, not body,
+ * so they are never covered.
+ *
+ * State you can style against, all on <body>:
+ *
+ *   data-page="index|library|autosync|settings"
+ *   data-site="aniworld|sto|megakino|..."   which tab is selected
+ *   data-queue="active|idle"                is anything downloading
+ *   data-queue-count="3"                    how many
+ *   data-modal="open|closed"                is a dialog up
+ *
+ * Prefer these over :has() on internal class names, which break when the
+ * markup changes. For example:
+ *
+ *   body[data-queue="active"] .theme-layer[data-layer="2"] { opacity: .6; }
+ *   body[data-modal="open"] .theme-layer { animation-play-state: paused; }
+ *
+ * Background shader
+ * -----------------
+ * Settings -> Appearance also takes a GLSL fragment shader, painted on a
+ * canvas behind both layers. Write the body of main() and set fragColor:
+ *
+ *   void main() {
+ *     vec2 uv = gl_FragCoord.xy / u_resolution;
+ *     fragColor = vec4(uv, 0.5 + 0.5 * sin(u_time), 1.0);
+ *   }
+ *
+ * Provided: u_resolution (vec2), u_time (seconds), fragColor (out vec4).
+ * It is checked in your browser before saving, capped at half a megapixel,
+ * paused when the tab is hidden, frozen under reduced motion, and skipped
+ * entirely by /settings?nocss=1. Style the canvas itself with .theme-shader.
+ *
  * For anything structural, target the class directly. These are worth knowing:
  *
  *   .top-bar          the sticky header

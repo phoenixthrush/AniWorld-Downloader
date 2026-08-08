@@ -58,14 +58,26 @@ function formatSize(bytes) {
 }
 
 /* ===== Modals ===== */
+
+/* Themes read body[data-modal] to react to a dialog being up, which beats
+   every theme writing its own :has(.overlay.open) and breaking when a class
+   gets renamed. Kept in one place so it cannot drift from reality. */
+function syncModalState() {
+  document.body.dataset.modal = document.querySelector(".overlay.open")
+    ? "open"
+    : "closed";
+}
+
 function openModal(id) {
   const overlay = document.getElementById(id);
   if (overlay) overlay.classList.add("open");
+  syncModalState();
 }
 
 function closeModal(id) {
   const overlay = document.getElementById(id);
   if (overlay) overlay.classList.remove("open");
+  syncModalState();
 }
 
 document.addEventListener("click", (event) => {
@@ -73,6 +85,7 @@ document.addEventListener("click", (event) => {
   if (overlay && event.target === overlay) {
     overlay.classList.remove("open");
     overlay.dispatchEvent(new CustomEvent("modal-closed"));
+    syncModalState();
     return;
   }
 
@@ -82,6 +95,7 @@ document.addEventListener("click", (event) => {
     if (parent) {
       parent.classList.remove("open");
       parent.dispatchEvent(new CustomEvent("modal-closed"));
+      syncModalState();
     }
   }
 });
@@ -92,6 +106,7 @@ document.addEventListener("keydown", (event) => {
     overlay.classList.remove("open");
     overlay.dispatchEvent(new CustomEvent("modal-closed"));
   });
+  syncModalState();
 });
 
 /* ===== Mobile navigation ===== */

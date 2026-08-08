@@ -24,6 +24,8 @@ ADMIN_ENDPOINTS = {
     "api.public_ip",
     "api.get_custom_css",
     "api.update_custom_css",
+    "api.get_custom_shader",
+    "api.update_custom_shader",
     "api.discord_status",
     "api.add_custom_path",
     "api.update_custom_path",

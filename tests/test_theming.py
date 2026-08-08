@@ -18,10 +18,12 @@ SHIPPED = ("template.css", "light.css")
 
 @pytest.fixture(autouse=True)
 def clean_css():
-    """No test may inherit a stylesheet from the one before it."""
-    theming.css_path().unlink(missing_ok=True)
+    """No test may inherit a stylesheet or shader from the one before it."""
+    for path in (theming.css_path(), theming.shader_path()):
+        path.unlink(missing_ok=True)
     yield
-    theming.css_path().unlink(missing_ok=True)
+    for path in (theming.css_path(), theming.shader_path()):
+        path.unlink(missing_ok=True)
 
 
 @pytest.fixture
@@ -520,3 +522,164 @@ def test_the_stylesheet_has_no_stray_colours():
         if re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(", line)
     ]
     assert not offenders, f"hardcoded colours outside :root: {offenders[:5]}"
+
+
+# ---------------------------------------------------------------------------
+# Theme surfaces
+#
+# Layers and body state exist so a theme does not have to hijack a pseudo
+# element or guess at internal class names.
+# ---------------------------------------------------------------------------
+def test_every_page_offers_two_paint_layers(client):
+    for path in ("/", "/library", "/settings"):
+        assert client.get(path).data.count(b'class="theme-layer"') == 2, path
+
+
+def test_body_names_the_page(client):
+    assert b'data-page="index"' in client.get("/").data
+    assert b'data-page="settings"' in client.get("/settings").data
+    assert b'data-page="library"' in client.get("/library").data
+
+
+def test_body_starts_with_neutral_state(client):
+    body = client.get("/").data
+    assert b'data-queue="idle"' in body
+    assert b'data-modal="closed"' in body
+
+
+def test_the_layers_are_not_on_the_login_page(auth_client):
+    """The sign-in page stays outside the theming surface entirely."""
+    assert b'class="theme-layer"' not in auth_client.get("/login").data
+
+
+# ---------------------------------------------------------------------------
+# Fragment shader
+# ---------------------------------------------------------------------------
+def test_no_shader_stored_by_default():
+    assert theming.read_shader() == ""
+    assert theming.shader_version() == ""
+
+
+def test_shader_round_trips():
+    theming.write_shader("void main() { fragColor = vec4(1.0); }")
+    assert "fragColor" in theming.read_shader()
+
+
+def test_shader_version_tracks_the_source():
+    theming.write_shader("void main() { fragColor = vec4(1.0); }")
+    first = theming.shader_version()
+    theming.write_shader("void main() { fragColor = vec4(0.5); }")
+    assert theming.shader_version() != first
+
+
+def test_clearing_the_shader_removes_the_file():
+    theming.write_shader("void main() {}")
+    assert theming.shader_path().exists()
+    theming.write_shader("")
+    assert not theming.shader_path().exists()
+
+
+def test_an_oversized_shader_is_refused():
+    with pytest.raises(theming.ShaderTooLarge):
+        theming.write_shader("a" * (theming.MAX_SHADER_BYTES + 1))
+
+
+def test_a_refused_shader_leaves_the_old_one_alone():
+    theming.write_shader("void main() { /* keep */ }")
+    with pytest.raises(theming.ShaderTooLarge):
+        theming.write_shader("a" * (theming.MAX_SHADER_BYTES + 1))
+    assert "keep" in theming.read_shader()
+
+
+def test_shader_writes_leave_no_temp_files():
+    theming.write_shader("void main() {}")
+    assert list(theming.shader_path().parent.glob("*.tmp")) == []
+
+
+def test_the_shader_is_served_as_plain_text(client):
+    theming.write_shader("void main() { fragColor = vec4(1.0); }")
+    response = client.get("/custom.frag")
+    assert response.status_code == 200
+    assert b"fragColor" in response.data
+
+
+def test_a_stored_shader_may_be_cached_hard(client):
+    theming.write_shader("void main() {}")
+    assert "immutable" in client.get("/custom.frag").headers["Cache-Control"]
+
+
+def test_pages_add_the_canvas_once_a_shader_exists(client):
+    assert b'id="themeShader"' not in client.get("/").data
+    theming.write_shader("void main() { fragColor = vec4(1.0); }")
+    assert b'id="themeShader"' in client.get("/").data
+
+
+def test_the_canvas_carries_the_shader_version(client):
+    theming.write_shader("void main() {}")
+    assert theming.shader_version().encode() in client.get("/").data
+
+
+def test_nocss_skips_the_shader_too(client):
+    """The same escape hatch has to cover a shader that hides the page."""
+    theming.write_shader("void main() { fragColor = vec4(1.0); }")
+    assert b'id="themeShader"' not in client.get("/?nocss=1").data
+    assert b'id="themeShader"' not in client.get("/settings?nocss=1").data
+
+
+def test_the_login_page_never_runs_a_shader(auth_client):
+    theming.write_shader("void main() {}")
+    assert b'id="themeShader"' not in auth_client.get("/login").data
+
+
+def test_the_setup_page_never_runs_a_shader(auth_client):
+    theming.write_shader("void main() {}")
+    assert b'id="themeShader"' not in auth_client.get("/setup").data
+
+
+def test_the_api_returns_the_shader(client):
+    theming.write_shader("void main() { fragColor = vec4(1.0); }")
+    payload = client.get("/api/custom-shader").get_json()
+    assert "fragColor" in payload["shader"]
+    assert payload["max_bytes"] == theming.MAX_SHADER_BYTES
+
+
+def test_the_api_stores_a_shader(client):
+    response = client.put(
+        "/api/custom-shader", json={"shader": "void main() { fragColor = vec4(1.0); }"}
+    )
+    assert response.status_code == 200
+    assert "fragColor" in theming.read_shader()
+
+
+def test_the_api_rejects_a_non_string_shader(client):
+    assert client.put("/api/custom-shader", json={"shader": 7}).status_code == 400
+
+
+def test_the_api_refuses_an_oversized_shader(client):
+    response = client.put(
+        "/api/custom-shader", json={"shader": "a" * (theming.MAX_SHADER_BYTES + 1)}
+    )
+    assert response.status_code == 413
+
+
+def test_the_shader_is_admin_only():
+    from aniworld.web.views import ADMIN_ENDPOINTS
+
+    assert "api.get_custom_shader" in ADMIN_ENDPOINTS
+    assert "api.update_custom_shader" in ADMIN_ENDPOINTS
+    # everyone has to be able to fetch it or the page renders without it
+    assert "pages.custom_shader" not in ADMIN_ENDPOINTS
+
+
+def test_a_plain_user_cannot_change_the_shader(auth_client, plain_user):
+    auth_client.post("/login", data={"username": "bob", "password": "hunter2hunter2"})
+    response = auth_client.put("/api/custom-shader", json={"shader": "void main() {}"})
+    assert response.status_code == 403
+
+
+def test_the_shader_field_never_accepts_script(client):
+    """It is stored verbatim and only ever served as text, never executed."""
+    client.put("/api/custom-shader", json={"shader": "<script>alert(1)</script>"})
+    served = client.get("/custom.frag")
+    assert served.mimetype == "text/plain"
+    assert b"<script>" in served.data

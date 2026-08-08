@@ -42,8 +42,11 @@
   }
 
   function updateBadge(items) {
-    if (!badge) return;
     const active = items.filter((item) => ACTIVE.includes(item.status)).length;
+    // themes hang off these, so they are set even when the badge is missing
+    document.body.dataset.queue = active ? "active" : "idle";
+    document.body.dataset.queueCount = String(active);
+    if (!badge) return;
     badge.textContent = String(active);
     badge.hidden = active === 0;
   }

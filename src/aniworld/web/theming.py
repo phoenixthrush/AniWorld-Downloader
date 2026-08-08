@@ -47,8 +47,17 @@ _GITHUB_RAW = re.compile(
 )
 
 
+# A fragment shader is a lot smaller than a stylesheet, and a huge one would
+# only mean a huge GPU program.
+MAX_SHADER_BYTES = 64 * 1024
+
+
 def css_path():
     return Path(ANIWORLD_CONFIG_DIR) / "custom.css"
+
+
+def shader_path():
+    return Path(ANIWORLD_CONFIG_DIR) / "custom.frag"
 
 
 def _jsdelivr_equivalent(url):
@@ -95,32 +104,25 @@ def normalise(css):
     return f"{body}\n\n{rest}\n" if rest else body + "\n"
 
 
-def read():
-    """The stored stylesheet, or an empty string when there is none."""
+def _read_file(path, label):
     try:
-        return css_path().read_text(encoding="utf-8")
+        return path.read_text(encoding="utf-8")
     except FileNotFoundError:
         return ""
     except OSError as exc:
-        logger.warning("Could not read custom CSS: %s", exc)
+        logger.warning("Could not read %s: %s", label, exc)
         return ""
 
 
-def write(css):
-    """Store the stylesheet. Returns the text as it was written."""
-    text = normalise(css)
-    if len(text.encode("utf-8")) > MAX_BYTES:
-        raise CSSTooLarge(f"Custom CSS must stay under {MAX_BYTES // 1024} KB")
-
-    path = css_path()
+def _write_file(path, text):
+    """Write atomically, or delete when there is nothing to store."""
     path.parent.mkdir(parents=True, exist_ok=True)
-
     if not text:
         path.unlink(missing_ok=True)
         return ""
 
-    # Written via a temp file in the same folder so a crash mid write cannot
-    # leave half a stylesheet behind for every page load to trip over.
+    # Via a temp file in the same folder so a crash mid write cannot leave half
+    # a file behind for every page load to trip over.
     handle, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
     try:
         with os.fdopen(handle, "w", encoding="utf-8") as fh:
@@ -132,9 +134,56 @@ def write(css):
     return text
 
 
+def read():
+    """The stored stylesheet, or an empty string when there is none."""
+    return _read_file(css_path(), "custom CSS")
+
+
+def write(css):
+    """Store the stylesheet. Returns the text as it was written."""
+    text = normalise(css)
+    if len(text.encode("utf-8")) > MAX_BYTES:
+        raise CSSTooLarge(f"Custom CSS must stay under {MAX_BYTES // 1024} KB")
+
+    return _write_file(css_path(), text)
+
+
 def version():
     """Short content hash, used to bust the browser cache after a save."""
-    text = read()
+    return _hash(read())
+
+
+def _hash(text):
     if not text:
         return ""
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
+
+
+# ---------------------------------------------------------------------------
+# Fragment shader
+#
+# Only GLSL is accepted, never JavaScript. A fragment shader runs on the GPU
+# with no DOM, no cookies, no network and no filesystem, so a hostile one can
+# draw something ugly but cannot reach anything. That is the whole reason this
+# is a shader field and not a script field.
+# ---------------------------------------------------------------------------
+class ShaderTooLarge(ValueError):
+    """Raised when the submitted shader is over the size limit."""
+
+
+def read_shader():
+    return _read_file(shader_path(), "custom shader")
+
+
+def write_shader(source):
+    """Store the fragment shader. Returns the text as it was written."""
+    text = str(source).replace("\r\n", "\n").strip()
+    if text:
+        text += "\n"
+    if len(text.encode("utf-8")) > MAX_SHADER_BYTES:
+        raise ShaderTooLarge(f"Shader must stay under {MAX_SHADER_BYTES // 1024} KB")
+    return _write_file(shader_path(), text)
+
+
+def shader_version():
+    return _hash(read_shader())

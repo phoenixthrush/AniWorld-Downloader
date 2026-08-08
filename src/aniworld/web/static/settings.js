@@ -632,6 +632,97 @@
     saveCustomCss();
   });
 
+  /* ===== Background shader =====
+     Compiled here before it is saved, purely so a mistake comes back as a GLSL
+     error with a line number instead of a black screen. The server stores the
+     source and never runs it. */
+  const shaderBox = el("customShader");
+
+  const SHADER_PRELUDE = `#version 300 es
+precision highp float;
+uniform vec2 u_resolution;
+uniform float u_time;
+out vec4 fragColor;
+`;
+
+  function compileShader(source) {
+    const canvas = document.createElement("canvas");
+    const gl = canvas.getContext("webgl2");
+    if (!gl) return { ok: true, skipped: true };
+
+    const shader = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(shader, SHADER_PRELUDE + source);
+    gl.compileShader(shader);
+    const ok = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+    const log = ok ? "" : gl.getShaderInfoLog(shader) || "";
+    gl.deleteShader(shader);
+    // the prelude sits above the author's code, so reported lines are offset
+    const offset = SHADER_PRELUDE.split("\n").length - 1;
+    return {
+      ok,
+      log: log.replace(/(\d+):(\d+)/g, (m, col, line) => `${col}:${line - offset}`)
+    };
+  }
+
+  function showShaderError(text) {
+    const box = el("shaderError");
+    box.textContent = text || "";
+    box.hidden = !text;
+  }
+
+  function applyShader(version) {
+    const existing = document.getElementById("themeShader");
+    if (existing) existing.remove();
+    if (!version) return;
+    // the runner is only on the page once a shader exists, so reload to start it
+    showToast(t("settings.shader_reload", "Saved. Reload to see it."));
+  }
+
+  async function loadShader() {
+    if (!shaderBox) return;
+    try {
+      const data = await apiFetch("/api/custom-shader");
+      shaderBox.value = data.shader || "";
+      showShaderError("");
+    } catch (error) {
+      showToast(error.message);
+    }
+  }
+
+  async function saveShader() {
+    const source = shaderBox.value.trim();
+    if (source) {
+      const result = compileShader(source);
+      if (!result.ok) {
+        showShaderError(result.log.trim());
+        el("shaderStatus").textContent = t("settings.shader_bad", "Not saved");
+        return;
+      }
+    }
+    showShaderError("");
+    try {
+      const data = await apiSend("/api/custom-shader", "PUT", { shader: source });
+      shaderBox.value = data.shader || "";
+      el("shaderStatus").textContent = "";
+      applyShader(data.version);
+      if (!data.version) showToast(t("settings.saved", "Saved"));
+    } catch (error) {
+      showToast(`${t("settings.save_failed", "Could not save")}: ${error.message}`);
+    }
+  }
+
+  if (shaderBox) {
+    el("saveShaderBtn").addEventListener("click", saveShader);
+    el("clearShaderBtn").addEventListener("click", () => {
+      shaderBox.value = "";
+      saveShader();
+    });
+    shaderBox.addEventListener("input", () => {
+      showShaderError("");
+      el("shaderStatus").textContent = "";
+    });
+  }
+
   /* ===== IP check (never runs on its own) ===== */
   el("revealIpBtn").addEventListener("click", async () => {
     const value = el("publicIpValue");
@@ -658,6 +749,7 @@
 
   load();
   loadCustomCss();
+  loadShader();
   loadCustomPaths();
   loadDiscordStatus();
   loadApiKeys();

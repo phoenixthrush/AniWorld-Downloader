@@ -15,6 +15,8 @@ def register(bp):
     bp.add_url_rule("/settings/public-ip", view_func=public_ip)
     bp.add_url_rule("/custom-css", view_func=get_custom_css)
     bp.add_url_rule("/custom-css", view_func=update_custom_css, methods=["PUT"])
+    bp.add_url_rule("/custom-shader", view_func=get_custom_shader)
+    bp.add_url_rule("/custom-shader", view_func=update_custom_shader, methods=["PUT"])
     bp.add_url_rule("/discord/status", view_func=discord_status)
     bp.add_url_rule("/custom-paths", view_func=list_custom_paths)
     bp.add_url_rule("/custom-paths", view_func=add_custom_path, methods=["POST"])
@@ -91,6 +93,36 @@ def update_custom_css():
             "version": theming.version(),
             "warnings": theming.import_warnings(stored),
         }
+    )
+
+
+def get_custom_shader():
+    return jsonify(
+        {"shader": theming.read_shader(), "max_bytes": theming.MAX_SHADER_BYTES}
+    )
+
+
+def update_custom_shader():
+    """Store a fragment shader. It is never compiled or run here, only served.
+
+    GLSL cannot reach the DOM, cookies, the network or the filesystem, so the
+    blast radius of a bad one is a wrong looking background.
+    """
+    data = request.get_json(silent=True) or {}
+    source = data.get("shader", "")
+    if not isinstance(source, str):
+        return jsonify({"error": "shader must be a string"}), 400
+
+    try:
+        stored = theming.write_shader(source)
+    except theming.ShaderTooLarge as exc:
+        return jsonify({"error": str(exc)}), 413
+    except OSError as exc:
+        logger.error("Could not save custom shader: %s", exc)
+        return jsonify({"error": "Could not write the shader"}), 500
+
+    return jsonify(
+        {"ok": True, "shader": stored, "version": theming.shader_version()}
     )
 
 

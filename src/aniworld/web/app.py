@@ -146,6 +146,9 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             "ui_language": settings_store.ui_language(),
             # empty when no theme is stored, which is what hides the link
             "custom_css_version": theming.version(),
+            "custom_shader_version": theming.shader_version(),
+            # themes hang off body[data-page], so it has to name the page
+            "page_name": (request.endpoint or "").rsplit(".", 1)[-1],
             "library_enabled": settings_store.library_enabled(),
             "autosync_enabled": settings_store.autosync_enabled(),
             "github_url": "https://github.com/phoenixthrush/AniWorld-Downloader",

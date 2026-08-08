@@ -85,6 +85,7 @@
 
   function switchSite(site) {
     currentSite = site;
+    document.body.dataset.site = site;
     siteButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.site === site));
     moveThumb();
     searchInput.placeholder = SEARCH_PLACEHOLDERS[site] || "Search...";

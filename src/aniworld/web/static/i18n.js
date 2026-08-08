@@ -190,6 +190,13 @@
       "settings.css_import_blocked":
         "{host} liefert Dateien als reinen Text aus, deshalb ignorieren Browser diesen Import.",
       "settings.css_import_try": "Nimm stattdessen das hier:",
+      "settings.shader": "Hintergrund-Shader",
+      "settings.shader_hint":
+        "Ein GLSL-Fragment-Shader hinter der ganzen Seite. Schreib den Inhalt von main() und setze fragColor. Verfügbar: u_resolution, u_time und fragColor.",
+      "settings.shader_safety":
+        "Shader laufen auf der GPU und kommen nicht an Dateien, Cookies oder Netzwerk. Sie werden vor dem Speichern im Browser geprüft, pausieren bei verstecktem Tab und werden mit /settings?nocss=1 komplett übersprungen.",
+      "settings.shader_reload": "Gespeichert. Zum Ansehen neu laden.",
+      "settings.shader_bad": "Nicht gespeichert",
       "settings.css_recover":
         "Layout kaputt? Öffne /settings?nocss=1, um diese Seite ohne eigenes CSS zu laden.",
       "settings.css_import_hint":

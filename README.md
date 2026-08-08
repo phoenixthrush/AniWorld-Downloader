@@ -201,6 +201,45 @@ Two files in [`themes/`](themes) are the starting point:
 
 The variables are a shortcut, not a limit. Custom CSS is ordinary CSS, so animated backdrops, pseudo-element layers and backdrop filters all work. The notes at the bottom of `template.css` cover the four things about this app's markup you need to know before layering effects onto it.
 
+### Surfaces and state
+
+Two empty layers sit behind the page for themes to paint on, so you never have to take over a pseudo-element the app might want back:
+
+```css
+.theme-layer[data-layer="1"] { background: radial-gradient(...); }  /* furthest back */
+.theme-layer[data-layer="2"] { background: url("data:image/svg+xml,...."); }
+```
+
+And `<body>` carries the app's state, which is sturdier than matching internal class names:
+
+| Attribute | Values |
+| --- | --- |
+| `data-page` | `index`, `library`, `autosync`, `settings` |
+| `data-site` | `aniworld`, `sto`, `megakino`, … |
+| `data-queue` | `active`, `idle` (plus `data-queue-count`) |
+| `data-modal` | `open`, `closed` |
+
+```css
+body[data-queue="active"] .theme-layer[data-layer="2"] { opacity: 0.6; }
+```
+
+### Background shader
+
+Settings → Appearance also accepts a **GLSL fragment shader**, painted on a canvas behind everything:
+
+```glsl
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+  fragColor = vec4(uv, 0.5 + 0.5 * sin(u_time), 1.0);
+}
+```
+
+You get `u_resolution`, `u_time` and `fragColor`. It is compiled in your browser before saving, so a mistake comes back as a GLSL error with a line number rather than a black screen.
+
+> **Only GLSL is accepted, never JavaScript.** A fragment shader runs on the GPU with no access to the DOM, cookies, the network or the filesystem, so the worst a hostile one can do is look wrong. That is deliberate: themes are global and can be imported from a remote host, so allowing scripts would turn a theme URL into code execution in every user's session.
+
+It is capped at half a megapixel, paused when the tab is hidden, frozen under `prefers-reduced-motion`, dropped if it fails to compile, and skipped entirely by `?nocss=1`.
+
 ### Good to know
 
 - **The sign-in screen is never themed.** Custom CSS is not loaded on the login or first-run setup pages, so a theme cannot restyle the form people type their password into.

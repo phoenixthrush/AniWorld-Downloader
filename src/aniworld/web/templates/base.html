@@ -23,7 +23,16 @@
   {% block head %}{% endblock %}
 </head>
 
-<body>
+<body data-page="{{ page_name }}" data-site="" data-queue="idle" data-modal="closed">
+  {# Paint surfaces for themes. Empty and invisible until a theme uses them, so
+     a theme never has to hijack a pseudo-element that belongs to the app. #}
+  <div class="theme-layer" data-layer="1" aria-hidden="true"></div>
+  <div class="theme-layer" data-layer="2" aria-hidden="true"></div>
+  {% if custom_shader_version and request.args.get('nocss') != '1' %}
+  <canvas class="theme-shader" id="themeShader" aria-hidden="true"
+    data-src="{{ url_for('pages.custom_shader') }}?v={{ custom_shader_version }}"></canvas>
+  {% endif %}
+
   <header class="top-bar">
     <a href="{{ url_for('pages.index') }}" class="top-bar-brand">
       AniWorld Downloader{% if app_version %} <span class="top-bar-version">v{{ app_version }}</span>{% endif %}
@@ -104,6 +113,9 @@
 
   <script src="{{ url_for('static', filename='common.js') }}?v={{ app_version }}"></script>
   <script src="{{ url_for('static', filename='queue.js') }}?v={{ app_version }}"></script>
+  {% if custom_shader_version and request.args.get('nocss') != '1' %}
+  <script src="{{ url_for('static', filename='shader.js') }}?v={{ app_version }}" defer></script>
+  {% endif %}
   {% block scripts %}{% endblock %}
 </body>
 
