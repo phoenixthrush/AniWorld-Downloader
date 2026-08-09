@@ -11,11 +11,6 @@ import pytest
 from aniworld.web import db, library, media, paths, settings_store, worker
 
 
-@pytest.fixture(autouse=True)
-def no_worker_thread(monkeypatch):
-    monkeypatch.setattr(worker, "ensure_started", lambda: None)
-
-
 @pytest.fixture
 def fake_download(monkeypatch):
     """Run a queued item to completion, writing the files it claims to fetch."""

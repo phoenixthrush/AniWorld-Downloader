@@ -62,6 +62,24 @@ def clean_env(monkeypatch, tmp_path):
     return downloads
 
 
+@pytest.fixture(autouse=True)
+def no_background_threads(monkeypatch):
+    """No test may start the real queue worker or Auto-Sync.
+
+    Both spawn a daemon thread that lives for the rest of the process, and
+    ensure_started() only starts one per process, so a single test that calls
+    it for real leaks a thread into every test after it. fresh_db repoints
+    DB_PATH per test and the worker re-reads it on every poll, so that thread
+    then claims rows out of later tests' databases and marks them running and
+    then failed. It shows up as an unrelated test failing on the queue order,
+    on a different test each run, and only when the timing lines up.
+    """
+    from aniworld.web import autosync, worker
+
+    monkeypatch.setattr(worker, "ensure_started", lambda: None)
+    monkeypatch.setattr(autosync, "ensure_started", lambda: None)
+
+
 @pytest.fixture
 def downloads(clean_env):
     """The default download root for this test."""

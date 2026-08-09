@@ -7,14 +7,6 @@ import pytest
 from aniworld.web import db
 
 
-@pytest.fixture(autouse=True)
-def no_worker(monkeypatch):
-    """Queueing must not start a real download thread."""
-    from aniworld.web import worker
-
-    monkeypatch.setattr(worker, "ensure_started", lambda: None)
-
-
 def episodes_of(queue_id):
     return json.loads(db.get_queue_item(queue_id)["episodes"])
 
@@ -22,6 +14,31 @@ def episodes_of(queue_id):
 # ---------------------------------------------------------------------------
 # Starting a download
 # ---------------------------------------------------------------------------
+def test_queueing_never_starts_a_real_worker_thread(client):
+    """Guards the conftest stub.
+
+    ensure_started() starts one thread per process, so a single unstubbed call
+    leaks it into every later test, where it claims rows out of their databases
+    and fails them. That surfaces as an unrelated ordering test going red on one
+    Python version and not another, which costs a lot more to find than this
+    test costs to keep.
+    """
+    import threading
+
+    client.post(
+        "/api/download",
+        json={
+            "title": "Naruto",
+            "series_url": "https://aniworld.to/anime/stream/naruto",
+            "episodes": ["https://x/ep1"],
+            "language": "German Sub",
+            "provider": "Vidoza",
+        },
+    )
+    running = [t.name for t in threading.enumerate() if "aniworld-queue" in t.name]
+    assert running == [], f"a queue worker outlived the request: {running}"
+
+
 def test_a_download_lands_in_the_queue(client):
     response = client.post(
         "/api/download",
