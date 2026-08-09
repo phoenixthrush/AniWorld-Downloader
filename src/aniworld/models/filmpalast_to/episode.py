@@ -1,5 +1,6 @@
 import os
 import re
+from html import unescape
 from pathlib import Path
 
 try:
@@ -415,7 +416,8 @@ class FilmPalastEpisode:
     def __extract_title_de(self):
         match = re.search(r'<em itemprop="name">(.*?)</em>', self._html)
         if match:
-            self.__title_de = match.group(1).strip()
+            # Escaped in the markup, and this feeds the folder and file names.
+            self.__title_de = unescape(match.group(1).strip())
 
     def __extract_user_watched(self):
         match = re.search(r"<strong>(\d+)</strong> Nutzer", self._html)

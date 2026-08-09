@@ -413,8 +413,7 @@ def report(results):
     todo = results.count(NOIMPL)
     print("\n" + "=" * 72)
     print(
-        f"  {passed} passed, {failed} failed, {skipped} skipped, "
-        f"{todo} not implemented"
+        f"  {passed} passed, {failed} failed, {skipped} skipped, {todo} not implemented"
     )
     print("=" * 72)
     return failed

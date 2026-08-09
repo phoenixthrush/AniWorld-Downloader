@@ -318,3 +318,102 @@ def test_the_right_folder_is_picked_when_both_exist(feed, downloads):
     (downloads / "Naruto Shippuden (2007)").mkdir()
     feed("Naruto", "naruto")
     assert autosync.find_candidates()[0]["folder"].name == "Naruto (2002)"
+
+
+# ---------------------------------------------------------------------------
+# HTML entities in scraped titles (issue #279)
+#
+# The sites serve titles HTML escaped, so "It's" arrives as "It&#039;s". Left
+# undecoded it goes straight into the folder and file names, and then no longer
+# matches its own folder, so the whole series gets downloaded again.
+#
+# These call the private extractors with canned markup rather than the network,
+# so they belong in the automated suite. The live check lives in
+# tests/test_providers_serienstream.py.
+# ---------------------------------------------------------------------------
+def _with_html(cls, markup):
+    """A model instance holding canned markup, with no network behind it.
+
+    _html is a read-only property that fetches on first access, so the cache it
+    writes into is primed directly instead.
+    """
+    instance = cls.__new__(cls)
+    setattr(instance, f"_{cls.__name__}__html", markup)
+    return instance
+
+
+def _extract(instance, name):
+    """Call a name-mangled private extractor."""
+    return getattr(instance, f"_{type(instance).__name__}{name}")()
+
+
+def test_serienstream_decodes_entities_in_the_title():
+    from aniworld.models.s_to.series import SerienstreamSeries
+
+    series = _with_html(
+        SerienstreamSeries, '<h1 class="h2 mb-1 fw-bold">It&#039;s Always Sunny</h1>'
+    )
+    assert _extract(series, "__extract_title") == "It's Always Sunny"
+
+
+def test_megakino_decodes_entities_in_the_title():
+    from aniworld.models.megakino.series import MegaKinoEpisode
+
+    episode = _with_html(
+        MegaKinoEpisode, '<meta itemprop="name" content="It&#039;s Complicated">'
+    )
+    _extract(episode, "__extract_title")
+    assert episode._MegaKinoEpisode__title == "It's Complicated"
+
+
+def test_filmpalast_decodes_entities_in_the_title():
+    from aniworld.models.filmpalast_to.episode import FilmPalastEpisode
+
+    episode = _with_html(
+        FilmPalastEpisode, '<em itemprop="name">It&#039;s a Wonderful Life</em>'
+    )
+    _extract(episode, "__extract_title_de")
+    assert episode._FilmPalastEpisode__title_de == "It's a Wonderful Life"
+
+
+def test_an_apostrophe_survives_all_the_way_to_the_folder_name():
+    """The whole point: a decoded title has to stay intact through clean_title."""
+    from aniworld.models.common import clean_title
+
+    assert clean_title("It's Always Sunny in Philadelphia") == (
+        "It's Always Sunny in Philadelphia"
+    )
+
+
+def test_an_undecoded_title_would_not_match_its_own_folder():
+    """Why this bug costs a re-download, not just an ugly name."""
+    from aniworld.web.media import folder_matches_title
+
+    assert folder_matches_title(
+        "It's Always Sunny in Philadelphia (2005)", "It's Always Sunny in Philadelphia"
+    )
+    assert not folder_matches_title(
+        "It&#039;s Always Sunny in Philadelphia (2005)",
+        "It's Always Sunny in Philadelphia",
+    )
+
+
+def test_every_provider_decodes_entities_somewhere():
+    """A new provider that forgets to decode fails here rather than on a user."""
+    from pathlib import Path
+
+    models = Path(__file__).resolve().parent.parent / "src" / "aniworld" / "models"
+    missing = []
+    for name, files in {
+        "aniworld_to": ["series.py"],
+        "s_to": ["series.py"],
+        "megakino": ["series.py"],
+        "filmpalast_to": ["episode.py"],
+        "kinox": ["series.py"],
+        "burningseries": ["series.py"],
+    }.items():
+        for file_name in files:
+            text = (models / name / file_name).read_text(encoding="utf-8")
+            if "unescape" not in text:
+                missing.append(f"{name}/{file_name}")
+    assert not missing, f"providers not decoding HTML entities: {missing}"

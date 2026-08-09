@@ -17,4 +17,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from provider_check import run_site  # noqa: E402
 
 if __name__ == "__main__":
-    sys.exit(run_site("BurningSeries", "fetch_burningseries_series", [a.lower() for a in sys.argv[1:]]))
+    sys.exit(
+        run_site(
+            "BurningSeries",
+            "fetch_burningseries_series",
+            [a.lower() for a in sys.argv[1:]],
+        )
+    )
