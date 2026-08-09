@@ -2,6 +2,7 @@ import re
 from html import unescape
 
 from ...config import ANIWORLD_SEASON_PATTERN, GLOBAL_SESSION, logger
+from ..common import run_each
 from .episode import AniworldEpisode
 
 
@@ -329,13 +330,13 @@ class AniworldSeason:
         return count
 
     def download(self):
-        for episode in self.episodes:
-            episode.download()
+        # One failed episode must not abandon the rest of the batch.
+        run_each(self.episodes, "download")
 
     def watch(self):
-        for episode in self.episodes:
-            episode.watch()
+        # One failed episode must not abandon the rest of the batch.
+        run_each(self.episodes, "watch")
 
     def syncplay(self):
-        for episode in self.episodes:
-            episode.syncplay()
+        # One failed episode must not abandon the rest of the batch.
+        run_each(self.episodes, "syncplay")

@@ -1,3 +1,4 @@
+from .batch import run_each
 from .common import (
     ProviderData,
     check_downloaded,
@@ -11,6 +12,7 @@ from .common import (
 
 __all__ = [
     "ProviderData",
+    "run_each",
     "check_downloaded",
     "clean_title",
     "download",

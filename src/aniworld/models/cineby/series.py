@@ -19,7 +19,7 @@ try:
         Subtitles,
         logger,
     )
-    from ..common import check_downloaded, movie_folder_enabled
+    from ..common import run_each, check_downloaded, movie_folder_enabled
     from ..common.common import clean_title
     from ..common.common import download as episode_download
     from ..common.common import syncplay as episode_syncplay
@@ -31,7 +31,11 @@ except ImportError:
         Subtitles,
         logger,
     )
-    from aniworld.models.common import check_downloaded, movie_folder_enabled
+    from aniworld.models.common import (
+        check_downloaded,
+        movie_folder_enabled,
+        run_each,
+    )
     from aniworld.models.common.common import clean_title
     from aniworld.models.common.common import download as episode_download
     from aniworld.models.common.common import syncplay as episode_syncplay
@@ -813,16 +817,16 @@ class CinebySeason:
             return [ENGLISH_LABEL]
 
     def download(self):
-        for episode in self.episodes:
-            episode.download()
+        # One failed episode must not abandon the rest of the batch.
+        run_each(self.episodes, "download")
 
     def watch(self):
-        for episode in self.episodes:
-            episode.watch()
+        # One failed episode must not abandon the rest of the batch.
+        run_each(self.episodes, "watch")
 
     def syncplay(self):
-        for episode in self.episodes:
-            episode.syncplay()
+        # One failed episode must not abandon the rest of the batch.
+        run_each(self.episodes, "syncplay")
 
 
 class CinebySeries:

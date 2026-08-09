@@ -20,7 +20,7 @@ try:
         build_provider_attempt_order,
     )
     from ...extractors import provider_functions
-    from ..common import check_downloaded, movie_folder_enabled
+    from ..common import run_each, check_downloaded, movie_folder_enabled
     from ..common.common import clean_title
     from ..common.common import download as episode_download
     from ..common.common import syncplay as episode_syncplay
@@ -34,7 +34,11 @@ except ImportError:
         build_provider_attempt_order,
     )
     from aniworld.extractors import provider_functions
-    from aniworld.models.common import check_downloaded, movie_folder_enabled
+    from aniworld.models.common import (
+        check_downloaded,
+        movie_folder_enabled,
+        run_each,
+    )
     from aniworld.models.common.common import clean_title
     from aniworld.models.common.common import download as episode_download
     from aniworld.models.common.common import syncplay as episode_syncplay
@@ -532,16 +536,16 @@ class KinoxSeason(_KinoxLanguageMixin):
         ]
 
     def download(self):
-        for episode in self.episodes:
-            episode.download()
+        # One failed episode must not abandon the rest of the batch.
+        run_each(self.episodes, "download")
 
     def watch(self):
-        for episode in self.episodes:
-            episode.watch()
+        # One failed episode must not abandon the rest of the batch.
+        run_each(self.episodes, "watch")
 
     def syncplay(self):
-        for episode in self.episodes:
-            episode.syncplay()
+        # One failed episode must not abandon the rest of the batch.
+        run_each(self.episodes, "syncplay")
 
 
 class KinoxSeries:

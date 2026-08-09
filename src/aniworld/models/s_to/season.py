@@ -2,6 +2,7 @@ import re
 from urllib.parse import urljoin
 
 from ...config import SERIENSTREAM_SEASON_PATTERN, logger
+from ..common import run_each
 from .http import sto_get
 
 
@@ -159,13 +160,13 @@ class SerienstreamSeason:
     # PUBLIC METHODS
     # -----------------------------
     def download(self):
-        for episode in self.episodes:
-            episode.download()
+        # One failed episode must not abandon the rest of the batch.
+        run_each(self.episodes, "download")
 
     def watch(self):
-        for episode in self.episodes:
-            episode.watch()
+        # One failed episode must not abandon the rest of the batch.
+        run_each(self.episodes, "watch")
 
     def syncplay(self):
-        for episode in self.episodes:
-            episode.syncplay()
+        # One failed episode must not abandon the rest of the batch.
+        run_each(self.episodes, "syncplay")

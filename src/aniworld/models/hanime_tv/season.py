@@ -1,3 +1,6 @@
+from ..common import run_each
+
+
 class HanimeTVSeason:
     """
     Represents a season of a hanime.tv franchise.
@@ -67,13 +70,13 @@ class HanimeTVSeason:
         return episodes
 
     def download(self):
-        for episode in self.episodes:
-            episode.download()
+        # One failed episode must not abandon the rest of the batch.
+        run_each(self.episodes, "download")
 
     def watch(self):
-        for episode in self.episodes:
-            episode.watch()
+        # One failed episode must not abandon the rest of the batch.
+        run_each(self.episodes, "watch")
 
     def syncplay(self):
-        for episode in self.episodes:
-            episode.syncplay()
+        # One failed episode must not abandon the rest of the batch.
+        run_each(self.episodes, "syncplay")
