@@ -573,6 +573,8 @@ class KinoxSeries:
                 re.IGNORECASE,
             )
             title = m.group(1) if m else (self.slug or "").replace("_", " ")
+            # The og:title meta content arrives HTML escaped.
+            title = html_lib.unescape(title)
             # og:title reads "Title (Year) Stream online anschauen …" — trim it.
             title = re.split(r"\bStream\b", title, flags=re.IGNORECASE)[0]
             title = re.sub(r"\s*\(\d{4}\)\s*$", "", title).strip()

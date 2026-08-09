@@ -331,14 +331,17 @@ def test_the_right_folder_is_picked_when_both_exist(feed, downloads):
 # so they belong in the automated suite. The live check lives in
 # tests/test_providers_serienstream.py.
 # ---------------------------------------------------------------------------
-def _with_html(cls, markup):
+def _with_html(cls, markup, *empty_caches):
     """A model instance holding canned markup, with no network behind it.
 
     _html is a read-only property that fetches on first access, so the cache it
-    writes into is primed directly instead.
+    writes into is primed directly. Properties that memoise into their own
+    private attribute need that attribute to exist as well, hence empty_caches.
     """
     instance = cls.__new__(cls)
     setattr(instance, f"_{cls.__name__}__html", markup)
+    for name in empty_caches:
+        setattr(instance, f"_{cls.__name__}__{name}", None)
     return instance
 
 
@@ -398,22 +401,69 @@ def test_an_undecoded_title_would_not_match_its_own_folder():
     )
 
 
-def test_every_provider_decodes_entities_somewhere():
-    """A new provider that forgets to decode fails here rather than on a user."""
-    from pathlib import Path
+def test_kinox_decodes_entities_in_the_title():
+    from aniworld.models.kinox.series import KinoxSeries
 
-    models = Path(__file__).resolve().parent.parent / "src" / "aniworld" / "models"
-    missing = []
-    for name, files in {
-        "aniworld_to": ["series.py"],
-        "s_to": ["series.py"],
-        "megakino": ["series.py"],
-        "filmpalast_to": ["episode.py"],
-        "kinox": ["series.py"],
-        "burningseries": ["series.py"],
-    }.items():
-        for file_name in files:
-            text = (models / name / file_name).read_text(encoding="utf-8")
-            if "unescape" not in text:
-                missing.append(f"{name}/{file_name}")
-    assert not missing, f"providers not decoding HTML entities: {missing}"
+    series = _with_html(
+        KinoxSeries,
+        '<meta property="og:title" content="It&#039;s Complicated (2009)">',
+        "title",
+        "slug",
+    )
+    assert series.title == "It's Complicated"
+
+
+def test_burningseries_decodes_entities_in_the_title():
+    from aniworld.models.burningseries.series import BurningSeriesSeries
+
+    series = _with_html(
+        BurningSeriesSeries, "<h2>It&#039;s Always Sunny</h2>", "title", "slug"
+    )
+    assert series.title == "It's Always Sunny"
+
+
+def test_every_provider_decodes_entities_in_its_title_path():
+    """Checking the file merely contains "unescape" is not enough.
+
+    kinox and burningseries both had unescape elsewhere in the file while their
+    title property did not decode, so a grep for the word passed while the bug
+    was live. This drives each provider's real title extraction instead.
+    """
+    from aniworld.models.burningseries.series import BurningSeriesSeries
+    from aniworld.models.filmpalast_to.episode import FilmPalastEpisode
+    from aniworld.models.kinox.series import KinoxSeries
+    from aniworld.models.megakino.series import MegaKinoEpisode
+    from aniworld.models.s_to.series import SerienstreamSeries
+
+    cases = [
+        (
+            SerienstreamSeries,
+            '<h1 class="h2 mb-1 fw-bold">A&#039;B</h1>',
+            lambda o: _extract(o, "__extract_title"),
+        ),
+        (
+            MegaKinoEpisode,
+            '<meta itemprop="name" content="A&#039;B">',
+            lambda o: (_extract(o, "__extract_title"), o._MegaKinoEpisode__title)[1],
+        ),
+        (
+            FilmPalastEpisode,
+            '<em itemprop="name">A&#039;B</em>',
+            lambda o: (
+                _extract(o, "__extract_title_de"),
+                o._FilmPalastEpisode__title_de,
+            )[1],
+        ),
+        (
+            KinoxSeries,
+            '<meta property="og:title" content="A&#039;B">',
+            lambda o: o.title,
+        ),
+        (BurningSeriesSeries, "<h2>A&#039;B</h2>", lambda o: o.title),
+    ]
+
+    still_escaped = []
+    for cls, markup, read in cases:
+        if read(_with_html(cls, markup, "title", "slug")) != "A'B":
+            still_escaped.append(cls.__name__)
+    assert not still_escaped, f"titles still HTML escaped: {still_escaped}"
