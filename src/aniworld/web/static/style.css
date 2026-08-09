@@ -1371,6 +1371,18 @@ select option {
   transition: none;
 }
 
+/* Percentage under the left end of the bar, speed under the right. Tabular
+   figures stop the numbers jittering sideways as they tick. */
+.progress-stats {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 5px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .queue-errors {
   margin-top: 8px;
   font-size: 0.75rem;

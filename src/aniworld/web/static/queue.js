@@ -80,6 +80,16 @@
     return Math.min(100, Math.round(((done + partial) / total) * 100));
   }
 
+  /* "bandwidth" is bytes off the wire, already formatted as MB/s by both the
+     ffmpeg and the segment path. It needs two size samples, so it is empty for
+     the first moment of a download. ffmpeg also reports a "speed=" multiplier
+     against real time, but showing that in the gap swaps the unit under the
+     reader a second later, so the reading stays in MB/s and just starts at 0. */
+  function speedLabel(item, ffmpeg) {
+    if (item.status !== "running") return "";
+    return (ffmpeg.active && ffmpeg.bandwidth) || "0 MB/s";
+  }
+
   function formatDuration(seconds) {
     if (seconds < 60) return t("queue.secs", "{n}s", { n: seconds });
     const minutes = Math.floor(seconds / 60);
@@ -212,6 +222,10 @@
           </div>
         </div>
         <div class="progress-track"><div class="progress-fill" data-percent="${percent}" style="width:${percent}%"></div></div>
+        <div class="progress-stats"${item.status === "running" ? "" : " hidden"}>
+          <span data-progress-percent>${percent}%</span>
+          <span data-progress-speed>${esc(speedLabel(item, ffmpeg))}</span>
+        </div>
         ${captchaBtn ? `<div class="action-row">${captchaBtn}</div>` : ""}
         ${renderErrors(item)}
       </div>`;
@@ -244,14 +258,25 @@
     fill.dataset.percent = percent;
   }
 
+  /* status decides whether the row is there at all and is part of structure(),
+     so by the time we get here it only ever needs its numbers refreshed. */
+  function setStats(node, item, ffmpeg, percent) {
+    const percentNode = node.querySelector("[data-progress-percent]");
+    if (!percentNode) return;
+    percentNode.textContent = `${percent}%`;
+    node.querySelector("[data-progress-speed]").textContent = speedLabel(item, ffmpeg);
+  }
+
   function paint(node, item, ffmpeg) {
     if (node.dataset.structure !== structure(item)) {
       // trimmed, the markup is indented and would leave text nodes behind
       node.outerHTML = renderItem(item, ffmpeg).trim();
       return list.querySelector(`[data-item="${item.id}"]`);
     }
+    const percent = progressPercent(item, ffmpeg);
     node.querySelector(".queue-item-meta").textContent = metaLine(item);
-    setProgress(node, progressPercent(item, ffmpeg));
+    setProgress(node, percent);
+    setStats(node, item, ffmpeg, percent);
     return node;
   }
 

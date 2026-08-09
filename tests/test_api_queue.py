@@ -150,6 +150,29 @@ def test_the_queue_comes_back_with_progress(client, queue_item):
     assert "ffmpeg_progress" in body
 
 
+def test_progress_carries_the_numbers_the_queue_shows(client, queue_item):
+    """The percentage and the speed under the bar come straight from here."""
+    from aniworld.models.common import common
+
+    queue_item("Naruto")
+    with common._ffmpeg_progress_lock:
+        common._ffmpeg_progress.update(
+            percent=42.5, bandwidth="11.7 MB/s", speed="2.4x", active=True
+        )
+    try:
+        progress = client.get("/api/queue").get_json()["ffmpeg_progress"]
+    finally:
+        with common._ffmpeg_progress_lock:
+            common._ffmpeg_progress.update(
+                percent=0.0, bandwidth="", speed="", active=False
+            )
+
+    assert progress["percent"] == 42.5
+    assert progress["bandwidth"] == "11.7 MB/s"
+    assert progress["speed"] == "2.4x"
+    assert progress["active"] is True
+
+
 def test_an_empty_queue_is_an_empty_list(client):
     assert client.get("/api/queue").get_json()["items"] == []
 
