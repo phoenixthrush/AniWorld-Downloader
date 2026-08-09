@@ -137,6 +137,21 @@ class HanimeTVEpisode:
         return self.__episode_number
 
     @property
+    def episode_title(self):
+        title = self._slug_from_url(self.url).rsplit('-', 1)[0].replace('-', ' ')
+        
+        # Capitalize each word, but keep numbers as-is
+        words = title.split()
+        capitalized_words = []
+        for word in words:
+            if word.isdigit():
+                capitalized_words.append(word)
+            else:
+                capitalized_words.append(word.capitalize())
+        
+        return ' '.join(capitalized_words)
+
+    @property
     def series(self):
         if self._series is None:
             from .series import HanimeTVSeries
@@ -301,7 +316,7 @@ class HanimeTVEpisode:
 
             self.__file_name = self._format_naming_part(
                 file_template,
-                self.series.title_cleaned,
+                self.episode_title,
                 self.series.release_year,
                 self.season.season_number,
                 self.episode_number,
