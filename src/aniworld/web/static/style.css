@@ -1930,22 +1930,123 @@ select option {
     flex-wrap: wrap;
   }
 
+  /* three across rather than one per line, so the open menu costs a third of
+     the screen instead of most of it */
   .top-bar-nav {
     display: none;
     width: 100%;
-    flex-direction: column;
-    align-items: stretch;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 2px;
     padding-top: 10px;
   }
 
   .top-bar-nav.open {
-    display: flex;
+    display: grid;
   }
 
-  .top-bar-link {
-    justify-content: space-between;
-    padding: 10px 12px;
+  .top-bar-link,
+  .top-bar-user {
+    justify-content: center;
+    text-align: center;
+    min-height: 40px;
+    min-width: 0;
+    padding: 8px 6px;
+    white-space: nowrap;
+  }
+
+  /* the desktop rule reserves room to the right of Auto-Sync for the ribbon,
+     which here would just make that one column narrower than the other two */
+  .has-ribbon {
+    margin-right: 0;
+  }
+
+  .new-ribbon {
+    top: -5px;
+    right: -2px;
+    transform: rotate(12deg);
+  }
+
+  /* a horizontal scroller hides the sites that do not fit and gives no hint
+     that they are there, so wrap them into a grid instead */
+  .segmented {
+    width: 100%;
+    max-width: 520px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .segmented-track {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    overflow-x: visible;
+  }
+
+  /* the sliding thumb only tracks one row, so the active button carries the
+     highlight itself once the buttons wrap */
+  .segmented-thumb {
+    display: none;
+  }
+
+  .segmented-btn {
+    min-height: 40px;
+    min-width: 0;
+    padding: 8px;
+    border-radius: 9px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .segmented-btn.active {
+    background: var(--gradient-purple);
+    box-shadow: var(--shadow-thumb);
+  }
+
+  /* A row of these does not fit a phone: an unbreakable path or URL plus the
+     site toggles push the last column, and with it the Remove button, off the
+     right edge of the card. Stack each record instead. Only tables whose cells
+     read fine without their column header get this, so nothing is left as an
+     unlabelled value. */
+  .stacked-table,
+  .stacked-table tbody,
+  .stacked-table tr,
+  .stacked-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .stacked-table thead {
+    display: none;
+  }
+
+  .stacked-table tr {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .stacked-table tr:last-child {
+    border-bottom: none;
+  }
+
+  .stacked-table td {
+    padding: 3px 0;
+    border-bottom: none;
+  }
+
+  /* with the column header gone the name has to carry the block itself */
+  .stacked-table td:first-child {
+    font-weight: 600;
+    color: var(--text-strong);
+  }
+
+  /* a path or URL has no spaces to break at, so let it break anywhere */
+  .stacked-table code,
+  .stacked-table a {
+    overflow-wrap: anywhere;
+  }
+
+  .stacked-table td:last-child {
+    padding-top: 8px;
   }
 
   .series-header {
@@ -1979,10 +2080,13 @@ select option {
     display: none;
   }
 
-  /* no room for title and badges side by side, put the badges on their own
-     line but keep them against the right edge */
+  /* no room for title and badges side by side, so stack them.
+     nowrap matters: a column container that is allowed to wrap sizes its line
+     to the widest item's max-content width instead of to the row, which let
+     long titles and badge groups spill off the right edge. */
   .ep-main {
     flex-direction: column;
+    flex-wrap: nowrap;
     align-items: stretch;
     gap: 6px;
   }
@@ -1997,12 +2101,21 @@ select option {
     line-height: 1.45;
   }
 
+  /* show the whole title over as many lines as it needs instead of cutting it
+     off, and break inside a word when a single one is wider than the row */
   .ep-title {
     flex: none;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
   }
 
+  /* under a wrapped title the badges read better aligned with its first
+     character than pushed to the right edge */
   .lang-badges {
     margin-left: 0;
+    justify-content: flex-start;
   }
 
   .library-children .library-row {
