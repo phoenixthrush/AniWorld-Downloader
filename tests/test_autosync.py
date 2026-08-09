@@ -4,6 +4,8 @@ aniworld.to is never contacted: the "newest episodes" feed is replaced with a
 fixed list and series objects are stand-ins.
 """
 
+import json
+
 import pytest
 
 from aniworld.web import autosync, db
@@ -164,6 +166,29 @@ def test_several_new_episodes_of_one_series_count_once(feed, downloads):
     assert len(autosync.find_candidates()) == 1
 
 
+def test_every_announced_episode_is_kept(feed, downloads):
+    """One row per series, but all of its new episode URLs come along."""
+    (downloads / "Naruto").mkdir()
+    feed([entry("Naruto", "naruto", episode=5), entry("Naruto", "naruto", episode=6)])
+    urls = autosync.find_candidates()[0]["new_episode_urls"]
+    assert [url.rsplit("-", 1)[1] for url in urls] == ["5", "6"]
+
+
+def test_the_languages_of_every_announced_episode_are_merged(feed, downloads):
+    """Episode 5 out as a dub and 6 as a sub means the series has both."""
+    (downloads / "Naruto").mkdir()
+    feed(
+        [
+            entry("Naruto", "naruto", languages=("german",), episode=5),
+            entry("Naruto", "naruto", languages=("japanese-german",), episode=6),
+        ]
+    )
+    assert autosync.find_candidates()[0]["new_languages"] == {
+        "German Dub",
+        "German Sub",
+    }
+
+
 def test_entries_without_a_title_are_skipped(feed, downloads):
     (downloads / "Naruto").mkdir()
     feed([entry("", "naruto")])
@@ -218,7 +243,7 @@ def test_a_feed_that_cannot_be_fetched_raises(feed, downloads):
 # ---------------------------------------------------------------------------
 # Handling one candidate
 # ---------------------------------------------------------------------------
-def candidate(folder, languages, path_id=None, lang_folder=None):
+def candidate(folder, languages, path_id=None, lang_folder=None, new_urls=None):
     return {
         "title": "Naruto",
         "series_url": "https://aniworld.to/anime/stream/naruto",
@@ -226,6 +251,7 @@ def candidate(folder, languages, path_id=None, lang_folder=None):
         "custom_path_id": path_id,
         "lang_folder": lang_folder,
         "new_languages": set(languages),
+        "new_episode_urls": new_urls or [],
     }
 
 
@@ -322,6 +348,173 @@ def test_the_preferred_language_is_picked_when_several_match(monkeypatch, downlo
         "VOE",
     )
     assert row["language"] == "German Dub"
+
+
+# ---------------------------------------------------------------------------
+# Only the new episodes
+#
+# The default fills every gap in a series, which is wrong for people who skip
+# episodes on purpose. With the setting on, only what the feed announced and is
+# not on disk gets queued.
+# ---------------------------------------------------------------------------
+EP = "https://aniworld.to/anime/stream/naruto/staffel-1/episode-"
+
+
+@pytest.fixture
+def new_only(monkeypatch):
+    monkeypatch.setenv("ANIWORLD_AUTOSYNC_NEW_ONLY", "1")
+
+
+@pytest.fixture
+def german_folder(monkeypatch, downloads):
+    """A Naruto folder that reads as German Dub, with the series page faked out."""
+    folder = downloads / "german-dub" / "Naruto"
+    folder.mkdir(parents=True)
+    monkeypatch.setattr(
+        autosync, "resolve_provider", lambda url: _FakeProvider("Naruto")
+    )
+    return folder
+
+
+def _on_disk(monkeypatch, *pairs):
+    monkeypatch.setattr(autosync, "downloaded_episodes", lambda series: set(pairs))
+
+
+def test_parsing_the_numbers_out_of_an_episode_url():
+    assert autosync._numbers(f"{EP}12") == (1, 12)
+    assert (
+        autosync._numbers("https://aniworld.to/anime/stream/naruto/filme/film-2")
+        is None
+    )
+
+
+def test_only_the_announced_episode_is_queued(monkeypatch, new_only, german_folder):
+    _on_disk(monkeypatch)
+    row = autosync._handle(
+        candidate(
+            german_folder,
+            {"German Dub"},
+            lang_folder="german-dub",
+            new_urls=[f"{EP}12"],
+        ),
+        "VOE",
+    )
+    assert row["status"] == "queued"
+    queued = json.loads(db.get_queue_item(row["queue_id"])["episodes"])
+    assert queued == [f"{EP}12"]
+
+
+def test_the_gaps_are_left_alone(monkeypatch, new_only, german_folder):
+    """Episodes 2 to 11 are missing on purpose and must stay missing."""
+    _on_disk(monkeypatch, (1, 1))
+    row = autosync._handle(
+        candidate(
+            german_folder,
+            {"German Dub"},
+            lang_folder="german-dub",
+            new_urls=[f"{EP}12"],
+        ),
+        "VOE",
+    )
+    assert row["episodes"] == 1
+
+
+def test_all_announced_episodes_are_queued(monkeypatch, new_only, german_folder):
+    _on_disk(monkeypatch)
+    row = autosync._handle(
+        candidate(
+            german_folder,
+            {"German Dub"},
+            lang_folder="german-dub",
+            new_urls=[f"{EP}12", f"{EP}13"],
+        ),
+        "VOE",
+    )
+    assert row["episodes"] == 2
+
+
+def test_an_announced_episode_already_on_disk_is_not_requeued(
+    monkeypatch, new_only, german_folder
+):
+    _on_disk(monkeypatch, (1, 12))
+    row = autosync._handle(
+        candidate(
+            german_folder,
+            {"German Dub"},
+            lang_folder="german-dub",
+            new_urls=[f"{EP}12"],
+        ),
+        "VOE",
+    )
+    assert row["status"] == "up-to-date"
+    assert db.get_queue() == []
+
+
+def test_new_only_never_walks_the_series_page(monkeypatch, new_only, german_folder):
+    """The whole point of reading the numbers off the URL: no extra requests."""
+    _on_disk(monkeypatch)
+
+    def explode(series):
+        raise AssertionError("_missing_episodes must not run in new-only mode")
+
+    monkeypatch.setattr(autosync, "_missing_episodes", explode)
+    row = autosync._handle(
+        candidate(
+            german_folder,
+            {"German Dub"},
+            lang_folder="german-dub",
+            new_urls=[f"{EP}12"],
+        ),
+        "VOE",
+    )
+    assert row["status"] == "queued"
+
+
+def test_the_setting_off_still_fills_the_series(monkeypatch, german_folder):
+    """Default behaviour is untouched."""
+    monkeypatch.setattr(
+        autosync, "_missing_episodes", lambda series: [f"{EP}2", f"{EP}3", f"{EP}12"]
+    )
+    row = autosync._handle(
+        candidate(
+            german_folder,
+            {"German Dub"},
+            lang_folder="german-dub",
+            new_urls=[f"{EP}12"],
+        ),
+        "VOE",
+    )
+    assert row["episodes"] == 3
+
+
+def test_a_whole_cycle_in_new_only_mode(feed, monkeypatch, new_only, downloads):
+    """Feed to queue, with find_candidates and _handle joined up."""
+    monkeypatch.setenv("ANIWORLD_LANG_SEPARATION", "1")
+    (downloads / "german-dub" / "Naruto").mkdir(parents=True)
+    monkeypatch.setattr(
+        autosync, "resolve_provider", lambda url: _FakeProvider("Naruto")
+    )
+    _on_disk(monkeypatch, (1, 1))
+    feed([entry("Naruto", "naruto", episode=12), entry("Naruto", "naruto", episode=13)])
+
+    report = autosync.run_cycle()
+    assert report["queued"] == 1
+
+    queued = json.loads(db.get_queue()[0]["episodes"])
+    assert queued == [f"{EP}12", f"{EP}13"], "only the two that just came out"
+
+
+def test_new_only_is_off_by_default():
+    from aniworld.web.settings_store import autosync_new_only, read_settings
+
+    assert autosync_new_only() is False
+    assert read_settings()["autosync_new_only"] is False
+
+
+def test_the_setting_shows_up_in_the_status(monkeypatch):
+    assert autosync.status()["new_only"] is False
+    monkeypatch.setenv("ANIWORLD_AUTOSYNC_NEW_ONLY", "1")
+    assert autosync.status()["new_only"] is True
 
 
 class _FakeSeries:

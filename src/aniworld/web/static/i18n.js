@@ -142,6 +142,9 @@
       "settings.enable_autosync": "Auto-Sync aktivieren",
       "settings.enable_autosync_hint":
         "Prüft einmal täglich die neuesten Episoden auf aniworld.to und lädt fehlende Folgen von Serien nach, die du bereits hast. Fügt einen Auto-Sync-Tab nur für Admins hinzu.",
+      "settings.autosync_new_only": "Auto-Sync: nur die neuen Episoden",
+      "settings.autosync_new_only_hint":
+        "Reiht nur die gerade erschienenen Episoden ein, statt alle fehlenden Folgen der Serie nachzuladen. Nutze das, wenn du absichtlich Lücken hast.",
       "autosync.title": "Auto-Sync",
       "autosync.sync_now": "Jetzt synchronisieren",
       "autosync.how_title": "So funktioniert es",
@@ -149,6 +152,7 @@
       "autosync.how_2": "Für jede neue Episode wird geprüft, ob du bereits einen Ordner mit diesem Titel in deiner Bibliothek hast.",
       "autosync.how_3": "Bei einem Treffer wird ermittelt, in welcher Sprache deine vorhandenen Dateien sind, entweder über den Sprachordner oder durch Auslesen der Ton- und Untertitelspuren einer Datei.",
       "autosync.how_4": "Ist die neue Episode in dieser Sprache verfügbar, werden alle noch fehlenden Folgen der Serie eingereiht, in denselben Ordner wie der Rest der Serie.",
+      "autosync.how_4_new_only": "Ist die neue Episode in dieser Sprache verfügbar, wird sie in denselben Ordner wie der Rest der Serie eingereiht. Ältere fehlende Folgen bleiben unangetastet, da in den Einstellungen \"nur die neuen Episoden\" aktiv ist.",
       "autosync.how_note": "Es gibt keine Titelliste zu pflegen. Deine Bibliothek ist die Liste, und alles unten Ausgeschlossene wird übersprungen. Es werden nur aniworld.to-Titel berücksichtigt, da die Liste der neuesten Episoden nur dort existiert.",
       "autosync.status_title": "Status",
       "autosync.last_run": "Letzter Lauf",

@@ -80,6 +80,10 @@
       return;
     }
 
+    // Step 4 of "How it works" describes two different things
+    el("howFill").hidden = Boolean(data.new_only);
+    el("howNewOnly").hidden = !data.new_only;
+
     el("lastRun").textContent = formatTime(data.last_run);
     el("nextRun").textContent = data.running
       ? t("autosync.running", "Running...")

@@ -69,6 +69,14 @@ def autosync_enabled():
     return _flag("ANIWORLD_ENABLE_AUTOSYNC")
 
 
+def autosync_new_only():
+    """Queue only the episodes from the feed instead of filling the gaps.
+
+    Off by default so upgrading does not silently change what AutoSync does.
+    """
+    return _flag("ANIWORLD_AUTOSYNC_NEW_ONLY")
+
+
 def htv_enabled():
     return _flag("ANIWORLD_ENABLE_HTV")
 
@@ -184,6 +192,7 @@ def read_settings():
         "enable_htv": htv_enabled(),
         "enable_library": library_enabled(),
         "enable_autosync": autosync_enabled(),
+        "autosync_new_only": autosync_new_only(),
         "movie_folder": _flag("ANIWORLD_MOVIE_FOLDER", "1"),
         "ui_language": ui_language(),
         "output_format": output_format(),
@@ -201,6 +210,7 @@ _BOOL_SETTINGS = {
     "enable_htv": "ANIWORLD_ENABLE_HTV",
     "enable_library": "ANIWORLD_ENABLE_LIBRARY",
     "enable_autosync": "ANIWORLD_ENABLE_AUTOSYNC",
+    "autosync_new_only": "ANIWORLD_AUTOSYNC_NEW_ONLY",
     "movie_folder": "ANIWORLD_MOVIE_FOLDER",
 }
 

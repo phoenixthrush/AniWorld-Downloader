@@ -6,8 +6,13 @@ series you started stays complete without tracking it by hand.
 
 Nothing is tracked explicitly: the library is the whitelist and the exclusion
 list is the only opt-out.
+
+By default a hit queues everything the series is missing, so one episode on disk
+is enough to pull the rest in. The "only new episodes" setting narrows that to
+the episodes the feed actually announced, for people who have gaps on purpose.
 """
 
+import re
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -18,7 +23,7 @@ from ..providers import resolve_provider
 from ..search import fetch_new_episodes
 from . import db, paths
 from .media import BADGE_ORDER, downloaded_episodes, folder_matches_title
-from .settings_store import autosync_enabled
+from .settings_store import autosync_enabled, autosync_new_only
 
 logger = get_logger(__name__)
 
@@ -160,6 +165,15 @@ def _series_url(episode_url):
     return episode_url.split(marker)[0] if marker in episode_url else episode_url
 
 
+_EPISODE_NUMBERS = re.compile(r"/staffel-(\d+)/episode-(\d+)")
+
+
+def _numbers(episode_url):
+    """(season, episode) read straight off the URL, or None if it has neither."""
+    match = _EPISODE_NUMBERS.search(episode_url)
+    return (int(match.group(1)), int(match.group(2))) if match else None
+
+
 def find_candidates():
     """New episodes whose series already has a folder in the library.
 
@@ -179,7 +193,22 @@ def find_candidates():
         if not title:
             continue
         series_url = _series_url(entry["url"])
-        if series_url in excluded or series_url in candidates:
+        if series_url in excluded:
+            continue
+
+        labels = {
+            FLAG_TO_LABEL[flag]
+            for flag in entry.get("languages", [])
+            if flag in FLAG_TO_LABEL
+        }
+
+        seen = candidates.get(series_url)
+        if seen:
+            # A series shows up once per new episode. Keep every URL so the
+            # "only new episodes" mode has the full set, and merge the flags
+            # since the episodes are not always out in the same languages.
+            seen["new_episode_urls"].append(entry["url"])
+            seen["new_languages"] |= labels
             continue
 
         match = next(
@@ -190,11 +219,6 @@ def find_candidates():
             continue
 
         folder, path_id, lang_folder = match
-        labels = {
-            FLAG_TO_LABEL[flag]
-            for flag in entry.get("languages", [])
-            if flag in FLAG_TO_LABEL
-        }
         candidates[series_url] = {
             "title": title,
             "series_url": series_url,
@@ -202,6 +226,7 @@ def find_candidates():
             "custom_path_id": path_id,
             "lang_folder": lang_folder,
             "new_languages": labels,
+            "new_episode_urls": [entry["url"]],
         }
     return list(candidates.values())
 
@@ -226,6 +251,20 @@ def _missing_episodes(series):
             if (season.season_number, episode.episode_number) not in have:
                 missing.append(episode.url)
     return missing
+
+
+def _announced_episodes(series, episode_urls):
+    """Only the episodes the feed announced, minus whatever is already on disk.
+
+    The season and episode number come off the URL, so unlike the fill mode this
+    never has to walk the series page for every season.
+    """
+    have = downloaded_episodes(series)
+    return [
+        url
+        for url in episode_urls
+        if (numbers := _numbers(url)) is not None and numbers not in have
+    ]
 
 
 def _handle(candidate, provider_name):
@@ -257,7 +296,10 @@ def _handle(candidate, provider_name):
 
     language = _preferred(usable)
     series = resolve_provider(series_url).series_cls(url=series_url)
-    missing = _missing_episodes(series)
+    if autosync_new_only():
+        missing = _announced_episodes(series, candidate.get("new_episode_urls") or [])
+    else:
+        missing = _missing_episodes(series)
     if not missing:
         return {**report, "status": "up-to-date", "language": language}
 
@@ -362,6 +404,7 @@ def status():
 
     return {
         "enabled": autosync_enabled(),
+        "new_only": autosync_new_only(),
         "running": _run_lock.locked(),
         "interval_hours": INTERVAL_SECONDS // 3600,
         "last_run": last_run.isoformat() if last_run else None,
