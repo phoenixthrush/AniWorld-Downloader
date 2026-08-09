@@ -1,6 +1,6 @@
 <a id="readme-top"></a>
 
-# AniWorld Downloader v4
+# AniWorld Downloader v5
 
 AniWorld Downloader is a cross-platform app for finding, streaming, and downloading anime, movies, series, and manga. It has a browser-based Web UI, an interactive terminal menu, and a direct CLI for scripts and headless setups.
 
@@ -68,6 +68,8 @@ Full guides and troubleshooting live in the [documentation](https://www.phoenixt
 - Skip intros and outros with AniSkip
 - Organize downloads with custom paths and naming templates
 - Manage a library from the Web UI
+- Drive it from scripts through the JSON API with scoped API keys
+- Restyle the whole UI with custom CSS and a background shader
 - Protect the Web UI with local accounts or OIDC SSO
 - Accept download requests through the optional Discord bot
 - Run locally, in Docker, or as a standalone build
@@ -153,6 +155,20 @@ docker compose up -d --build
 ```
 
 The comments in [`docker-compose.yaml`](docker-compose.yaml) cover authentication, OIDC, language, provider, naming, and other common settings.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## API
+
+Everything the Web UI does is available as JSON. Create a key in **Settings → API Keys**, then send it as `X-API-Key`:
+
+```bash
+curl -H "X-API-Key: awd_yourkey" http://localhost:8080/api/queue
+```
+
+Keys come in three scopes: **read** (search and browse), **read and download** (also queue and cancel), and **full access** (also settings and library deletion). A key can never create or manage other keys.
+
+The full endpoint list, with examples, is on the settings page itself under *Endpoints and examples*, so it always matches the version you are running.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -285,6 +301,13 @@ When reporting a bug, please include:
 
 Pull requests should stay focused and explain the behavior they change. There is no need to dress it up. A clear description and a reproducible test are worth much more.
 
+There is a test suite, run on every push. It covers everything except the stream providers, which are left out on purpose because they depend on live third-party sites:
+
+```bash
+pip install -e ".[test]"
+pytest
+```
+
 ### Contributors
 
 <a href="https://github.com/phoenixthrush/AniWorld-Downloader/graphs/contributors">
@@ -296,6 +319,8 @@ Pull requests should stay focused and explain the behavior they change. There is
 
 - **Tmaster055** (since Oct 21, 2024)  
   [![Wakatime Badge](https://wakatime.com/badge/user/79a1926c-65a1-4f1c-baf3-368712ebbf97/project/5f191c34-1ee2-4850-95c3-8d85d516c449.svg)](https://wakatime.com/badge/user/79a1926c-65a1-4f1c-baf3-368712ebbf97/project/5f191c34-1ee2-4850-95c3-8d85d516c449.svg)
+
+- **Sirox** (since May 13, 2025)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

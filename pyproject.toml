@@ -1,9 +1,10 @@
 [project]
 name = "aniworld"
-version = "4.8.6"
+version = "5.0.0"
 authors = [{ name = "Phoenixthrush UwU", email = "contact@phoenixthrush.com" }]
 maintainers = [
   { name = "Phoenixthrush UwU", email = "contact@phoenixthrush.com" },
+  { name = "Sirox", email = "iloveshell@proton.me"}
 ]
 description = "AniWorld-Downloader is a command-line tool for downloading and streaming movies and series."
 readme = "README.md"
