@@ -124,6 +124,20 @@ deps = {
 
 
 # -----------------------------
+# Auto-install kill switch
+# -----------------------------
+def auto_install_disabled() -> bool:
+    """True when ANIWORLD_NO_AUTO_INSTALL=1.
+
+    Blocks every unattended download/install the app would otherwise do on its
+    own: the portable binaries, the system package manager (which shells out to
+    sudo), Xvfb and the patchright Chromium. Anything already installed is
+    still used normally.
+    """
+    return os.getenv("ANIWORLD_NO_AUTO_INSTALL", "0").strip() == "1"
+
+
+# -----------------------------
 # Dependency Manager
 # -----------------------------
 class DependencyManager:
@@ -213,6 +227,10 @@ class DependencyManager:
         raise ValueError(f"Unsupported archive format: {archive_path}")
 
     def _confirm_install(self, message: str, default: bool = True) -> bool:
+        if auto_install_disabled():
+            self.logger.debug(f"ANIWORLD_NO_AUTO_INSTALL=1 — skipping: {message}")
+            return False
+
         if not sys.stdin or not sys.stdin.isatty():
             return False
 
@@ -356,6 +374,12 @@ class DependencyManager:
         raise FileNotFoundError(install_hint)
 
     def _install_with_package_manager(self, name: str) -> bool:
+        if auto_install_disabled():
+            self.logger.debug(
+                f"ANIWORLD_NO_AUTO_INSTALL=1 — not installing {name} via package manager"
+            )
+            return False
+
         dep_info = self.deps.get(name, {}).get(PLATFORM, {})
         pkg_name = dep_info.get("package")
         if not pkg_name:
@@ -421,6 +445,12 @@ def _ensure_xvfb():
         return
     _log = get_logger(__name__)
     if not shutil.which("Xvfb"):
+        if auto_install_disabled():
+            _log.warning(
+                "Xvfb not found and ANIWORLD_NO_AUTO_INSTALL=1 — install it yourself "
+                "(e.g. 'sudo apt install xvfb') or set DISPLAY to an existing X server."
+            )
+            return
         _log.info("Xvfb not found — installing via apt...")
         try:
             subprocess.run(
@@ -459,6 +489,10 @@ def _default_playwright_browsers_path() -> Path:
 def ensure_patchright_chromium():
     """Install the patchright Chromium browser if not already present."""
     _log = get_logger(__name__)
+    if auto_install_disabled():
+        _log.debug("ANIWORLD_NO_AUTO_INSTALL=1 — skipping chromium/Xvfb setup")
+        return
+
     try:
         import patchright  # noqa: F401
     except ImportError:
