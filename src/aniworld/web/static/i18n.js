@@ -124,7 +124,10 @@
 
       "settings.title": "Einstellungen",
       "settings.persist_notice":
-        "Änderungen gelten sofort, werden aber beim Neustart zurückgesetzt. Damit sie bleiben, trage sie in deiner .env-Datei ein unter",
+        "Die meisten Änderungen gelten sofort, werden aber beim Neustart zurückgesetzt. Damit sie bleiben, trage sie in deiner .env-Datei ein unter",
+      "settings.persist_notice_badge":
+        "Nur die unten markierten Bereiche werden zurückgesetzt. Alles andere liegt auf der Festplatte und bleibt von selbst erhalten.",
+      "settings.resets": "wird beim Neustart zurückgesetzt",
       "settings.users": "Benutzerverwaltung",
       "settings.user": "Benutzer",
       "settings.role": "Rolle",

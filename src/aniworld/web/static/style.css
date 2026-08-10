@@ -1358,6 +1358,35 @@ body[data-site="htv"] {
   font-size: 0.85rem;
 }
 
+/* A second sentence inside a notice, on its own line under the first. */
+.notice-line {
+  margin-top: 6px;
+}
+
+/* A section heading with its "resets after restart" badge next to it. The badge
+   has to sit outside the h2: data-i18n replaces the heading's textContent,
+   which would take any child element with it. */
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Warns that this section lives in the process environment only. Deliberately
+   quiet: it is a note, not an error. */
+.reset-badge {
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--notice-border);
+  background: var(--notice-bg);
+  color: var(--notice-text);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
 /* ===== Queue ===== */
 .queue-controls {
   display: flex;

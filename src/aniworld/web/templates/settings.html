@@ -8,10 +8,13 @@
 
   <div class="notice">
     <span data-i18n="settings.persist_notice">
-      Changes here apply right away but reset when AniWorld Downloader restarts. To keep them, set them in your .env
-      file at
+      Most changes here apply right away but reset when AniWorld Downloader restarts. To keep those, set them in your
+      .env file at
     </span>
     <code>{{ env_path }}</code>
+    <div class="notice-line" data-i18n="settings.persist_notice_badge">
+      Only the sections marked below reset. Everything else is stored on disk and comes back on its own.
+    </div>
   </div>
 
   {% if auth_enabled %}
@@ -215,7 +218,10 @@
   </section>
 
   <section class="card">
-    <h2 data-i18n="settings.defaults">Defaults</h2>
+    <div class="card-head">
+      <h2 data-i18n="settings.defaults">Defaults</h2>
+      <span class="reset-badge" data-i18n="settings.resets">resets after restart</span>
+    </div>
 
     <h3 data-i18n="settings.download_path">Download Path</h3>
     <div class="inline-form">
@@ -281,7 +287,10 @@
   </section>
 
   <section class="card">
-    <h2 data-i18n="settings.interface">Interface</h2>
+    <div class="card-head">
+      <h2 data-i18n="settings.interface">Interface</h2>
+      <span class="reset-badge" data-i18n="settings.resets">resets after restart</span>
+    </div>
     <div class="control-row">
       <label class="field">
         <span class="field-label" data-i18n="settings.ui_language">Interface Language</span>
