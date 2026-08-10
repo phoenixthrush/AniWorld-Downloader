@@ -243,23 +243,60 @@ def test_a_feed_that_cannot_be_fetched_raises(feed, downloads):
 # ---------------------------------------------------------------------------
 # Handling one candidate
 # ---------------------------------------------------------------------------
-def candidate(folder, languages, path_id=None, lang_folder=None, new_urls=None):
+def candidate(
+    folder,
+    languages,
+    path_id=None,
+    lang_folder=None,
+    new_urls=None,
+    root_name="Default",
+):
     return {
         "title": "Naruto",
         "series_url": "https://aniworld.to/anime/stream/naruto",
         "folder": folder,
         "custom_path_id": path_id,
         "lang_folder": lang_folder,
+        "root_name": root_name,
         "new_languages": set(languages),
         "new_episode_urls": new_urls or [],
     }
 
 
-def test_a_series_already_in_the_queue_is_skipped(downloads, queue_item):
-    queue_item(series_url="https://aniworld.to/anime/stream/naruto")
-    row = autosync._handle(candidate(downloads, {"German Dub"}), "VOE")
+def test_a_copy_already_in_the_queue_is_skipped(downloads, queue_item):
+    folder = downloads / "german-dub" / "Naruto"
+    folder.mkdir(parents=True)
+    queue_item(
+        series_url="https://aniworld.to/anime/stream/naruto", language="German Dub"
+    )
+    row = autosync._handle(
+        candidate(folder, {"German Dub"}, lang_folder="german-dub"), "VOE"
+    )
     assert row["status"] == "skipped"
-    assert "already in the queue" in row["reason"]
+    assert row["reason"] == "This copy is already in the queue."
+
+
+def test_another_copy_of_a_queued_series_is_not_blocked(
+    monkeypatch, downloads, queue_item
+):
+    """The German copy being queued must not silence the English one."""
+    folder = downloads / "english-dub" / "Naruto"
+    folder.mkdir(parents=True)
+    queue_item(
+        series_url="https://aniworld.to/anime/stream/naruto", language="German Dub"
+    )
+    monkeypatch.setattr(
+        autosync, "_missing_episodes", lambda series, have: ["https://x/ep5"]
+    )
+    monkeypatch.setattr(
+        autosync, "resolve_provider", lambda url: _FakeProvider("Naruto")
+    )
+
+    row = autosync._handle(
+        candidate(folder, {"English Dub"}, lang_folder="english-dub"), "VOE"
+    )
+    assert row["status"] == "queued"
+    assert db.get_queue_item(row["queue_id"])["language"] == "English Dub"
 
 
 def test_an_undetectable_language_is_skipped_rather_than_guessed(downloads):
@@ -267,7 +304,7 @@ def test_an_undetectable_language_is_skipped_rather_than_guessed(downloads):
     (downloads / "Naruto").mkdir()
     row = autosync._handle(candidate(downloads / "Naruto", {"German Dub"}), "VOE")
     assert row["status"] == "skipped"
-    assert "could not detect" in row["reason"]
+    assert row["reason"].startswith("Could not detect")
 
 
 def test_a_new_episode_in_the_wrong_language_is_skipped(downloads):
@@ -277,13 +314,14 @@ def test_a_new_episode_in_the_wrong_language_is_skipped(downloads):
         candidate(folder, {"English Dub"}, lang_folder="german-dub"), "VOE"
     )
     assert row["status"] == "skipped"
-    assert "not out in German Dub" in row["reason"]
+    assert "This copy is in German Dub" in row["reason"]
+    assert "only out in English Dub" in row["reason"]
 
 
 def test_a_series_with_nothing_missing_is_up_to_date(monkeypatch, downloads):
     folder = downloads / "german-dub" / "Naruto"
     folder.mkdir(parents=True)
-    monkeypatch.setattr(autosync, "_missing_episodes", lambda series: [])
+    monkeypatch.setattr(autosync, "_missing_episodes", lambda series, have: [])
     monkeypatch.setattr(
         autosync, "resolve_provider", lambda url: _FakeProvider("Naruto")
     )
@@ -299,7 +337,9 @@ def test_missing_episodes_are_queued(monkeypatch, downloads):
     folder = downloads / "german-dub" / "Naruto"
     folder.mkdir(parents=True)
     monkeypatch.setattr(
-        autosync, "_missing_episodes", lambda series: ["https://x/ep5", "https://x/ep6"]
+        autosync,
+        "_missing_episodes",
+        lambda series, have: ["https://x/ep5", "https://x/ep6"],
     )
     monkeypatch.setattr(
         autosync, "resolve_provider", lambda url: _FakeProvider("Naruto Shippuden")
@@ -323,7 +363,9 @@ def test_a_queued_sync_lands_in_the_custom_path_it_came_from(monkeypatch, tmp_pa
     folder = other / "german-dub" / "Naruto"
     folder.mkdir(parents=True)
     path_id = db.add_custom_path("Other", str(other))
-    monkeypatch.setattr(autosync, "_missing_episodes", lambda series: ["https://x/ep5"])
+    monkeypatch.setattr(
+        autosync, "_missing_episodes", lambda series, have: ["https://x/ep5"]
+    )
     monkeypatch.setattr(
         autosync, "resolve_provider", lambda url: _FakeProvider("Naruto")
     )
@@ -338,7 +380,9 @@ def test_a_queued_sync_lands_in_the_custom_path_it_came_from(monkeypatch, tmp_pa
 def test_the_preferred_language_is_picked_when_several_match(monkeypatch, downloads):
     folder = downloads / "german-dub" / "Naruto"
     folder.mkdir(parents=True)
-    monkeypatch.setattr(autosync, "_missing_episodes", lambda series: ["https://x/ep5"])
+    monkeypatch.setattr(
+        autosync, "_missing_episodes", lambda series, have: ["https://x/ep5"]
+    )
     monkeypatch.setattr(
         autosync, "resolve_provider", lambda url: _FakeProvider("Naruto")
     )
@@ -377,7 +421,8 @@ def german_folder(monkeypatch, downloads):
 
 
 def _on_disk(monkeypatch, *pairs):
-    monkeypatch.setattr(autosync, "downloaded_episodes", lambda series: set(pairs))
+    """What this one copy already holds. Scoped per folder, not per library."""
+    monkeypatch.setattr(autosync, "episodes_in_folder", lambda folder: set(pairs))
 
 
 def test_parsing_the_numbers_out_of_an_episode_url():
@@ -473,7 +518,9 @@ def test_new_only_never_walks_the_series_page(monkeypatch, new_only, german_fold
 def test_the_setting_off_still_fills_the_series(monkeypatch, german_folder):
     """Default behaviour is untouched."""
     monkeypatch.setattr(
-        autosync, "_missing_episodes", lambda series: [f"{EP}2", f"{EP}3", f"{EP}12"]
+        autosync,
+        "_missing_episodes",
+        lambda series, have: [f"{EP}2", f"{EP}3", f"{EP}12"],
     )
     row = autosync._handle(
         candidate(
@@ -592,7 +639,9 @@ def test_a_cycle_records_a_failed_fetch(feed):
 def test_a_cycle_queues_what_it_finds(feed, monkeypatch, downloads):
     (downloads / "german-dub" / "Naruto").mkdir(parents=True)
     monkeypatch.setenv("ANIWORLD_LANG_SEPARATION", "1")
-    monkeypatch.setattr(autosync, "_missing_episodes", lambda series: ["https://x/ep5"])
+    monkeypatch.setattr(
+        autosync, "_missing_episodes", lambda series, have: ["https://x/ep5"]
+    )
     monkeypatch.setattr(
         autosync, "resolve_provider", lambda url: _FakeProvider("Naruto")
     )
@@ -617,3 +666,135 @@ def test_one_broken_candidate_does_not_sink_the_cycle(feed, monkeypatch, downloa
     report = autosync.run_cycle()
     assert report["results"][0]["status"] == "error"
     assert "series page is down" in report["results"][0]["reason"]
+
+
+# ---------------------------------------------------------------------------
+# The same show held more than once
+#
+# Two languages side by side, or the same title in two libraries. Each copy is
+# its own download, so each has to be looked at on its own.
+# ---------------------------------------------------------------------------
+def test_every_copy_of_a_series_becomes_its_own_candidate(feed, downloads, monkeypatch):
+    monkeypatch.setenv("ANIWORLD_LANG_SEPARATION", "1")
+    (downloads / "german-dub" / "Naruto").mkdir(parents=True)
+    (downloads / "english-sub" / "Naruto").mkdir(parents=True)
+    feed([entry("Naruto", "naruto", languages=("german", "japanese-english"))])
+
+    candidates = autosync.find_candidates()
+    assert len(candidates) == 2, "one per copy, not one per series"
+    assert {c["lang_folder"] for c in candidates} == {"german-dub", "english-sub"}
+
+
+def test_a_copy_in_a_second_library_is_its_own_candidate(feed, downloads, tmp_path):
+    other = tmp_path / "second-library"
+    other.mkdir()
+    db.add_custom_path("Second", str(other))
+    (downloads / "Naruto").mkdir()
+    (other / "Naruto").mkdir()
+    feed([entry("Naruto", "naruto")])
+
+    candidates = autosync.find_candidates()
+    assert len(candidates) == 2
+    assert {c["root_name"] for c in candidates} == {"Default", "Second"}
+    assert {c["custom_path_id"] for c in candidates} != {None}, (
+        "one carries the path id"
+    )
+
+
+def test_a_report_row_says_which_copy_it_is_about(downloads):
+    folder = downloads / "german-dub" / "Naruto"
+    folder.mkdir(parents=True)
+    row = autosync._handle(
+        candidate(folder, {"English Dub"}, lang_folder="german-dub"), "VOE"
+    )
+    assert row["where"] == "Default / german-dub"
+
+
+# ---------------------------------------------------------------------------
+# What one copy already holds
+# ---------------------------------------------------------------------------
+def test_only_this_copy_counts_as_downloaded(downloads):
+    """The other copy having the episode must not mark this one complete."""
+    german = downloads / "german-dub" / "Naruto"
+    english = downloads / "english-dub" / "Naruto"
+    german.mkdir(parents=True)
+    english.mkdir(parents=True)
+    (german / "Naruto S01E05.mkv").write_bytes(b"x")
+
+    assert autosync.episodes_in_folder(german) == {(1, 5)}
+    assert autosync.episodes_in_folder(english) == set(), "counted per copy"
+
+
+def test_the_second_copy_still_gets_the_episode(monkeypatch, downloads, feed):
+    """The bug this replaced: one copy having it hid it from every other copy."""
+    monkeypatch.setenv("ANIWORLD_LANG_SEPARATION", "1")
+    german = downloads / "german-dub" / "Naruto"
+    english = downloads / "english-dub" / "Naruto"
+    german.mkdir(parents=True)
+    english.mkdir(parents=True)
+    (german / "Naruto S01E05.mkv").write_bytes(b"x")
+
+    monkeypatch.setattr(
+        autosync, "resolve_provider", lambda url: _FakeProvider("Naruto")
+    )
+    monkeypatch.setenv("ANIWORLD_AUTOSYNC_NEW_ONLY", "1")
+    urls = [f"{EP}5"]
+
+    german_row = autosync._handle(
+        candidate(german, {"German Dub"}, lang_folder="german-dub", new_urls=urls),
+        "VOE",
+    )
+    english_row = autosync._handle(
+        candidate(english, {"English Dub"}, lang_folder="english-dub", new_urls=urls),
+        "VOE",
+    )
+
+    assert german_row["status"] == "up-to-date", "this copy already has episode 5"
+    assert english_row["status"] == "queued", "this one does not, and must still get it"
+    assert db.get_queue_item(english_row["queue_id"])["language"] == "English Dub"
+
+
+def test_a_skip_reason_names_both_languages(downloads):
+    folder = downloads / "german-dub" / "Naruto"
+    folder.mkdir(parents=True)
+    row = autosync._handle(
+        candidate(folder, {"English Sub"}, lang_folder="german-dub"), "VOE"
+    )
+    assert row["reason"] == (
+        "This copy is in German Dub, and the new episode is only out in English Sub."
+    )
+
+
+def test_every_reason_reads_as_a_sentence(downloads):
+    """They are printed verbatim on the page, so they start with a capital."""
+    folder = downloads / "german-dub" / "Naruto"
+    folder.mkdir(parents=True)
+    reasons = [
+        autosync._handle(candidate(downloads / "Nope", {"German Dub"}), "VOE")[
+            "reason"
+        ],
+        autosync._handle(
+            candidate(folder, {"English Dub"}, lang_folder="german-dub"), "VOE"
+        )["reason"],
+    ]
+    for reason in reasons:
+        assert reason[0].isupper(), reason
+        assert reason.endswith("."), reason
+
+
+# ---------------------------------------------------------------------------
+# The mixed-language warning on the page
+# ---------------------------------------------------------------------------
+def test_the_mixed_language_notice_is_shown_without_separation(client, monkeypatch):
+    """One file decides a whole title's language, so mixing them silently breaks."""
+    monkeypatch.setenv("ANIWORLD_ENABLE_AUTOSYNC", "1")
+    body = client.get("/autosync").get_data(as_text=True)
+    assert "autosync.mixed_languages" in body
+    assert "autosync.turn_on_separation" in body
+
+
+def test_the_notice_disappears_once_separation_is_on(client, monkeypatch):
+    monkeypatch.setenv("ANIWORLD_ENABLE_AUTOSYNC", "1")
+    monkeypatch.setenv("ANIWORLD_LANG_SEPARATION", "1")
+    body = client.get("/autosync").get_data(as_text=True)
+    assert "autosync.mixed_languages" not in body

@@ -22,7 +22,7 @@ from ..logger import get_logger
 from ..providers import resolve_provider
 from ..search import fetch_new_episodes
 from . import db, paths
-from .media import BADGE_ORDER, downloaded_episodes, folder_matches_title
+from .media import BADGE_ORDER, folder_matches_title
 from .settings_store import autosync_enabled, autosync_new_only
 
 logger = get_logger(__name__)
@@ -140,7 +140,7 @@ def _library_folders():
     separated = paths.lang_separation_enabled()
     entries = []
 
-    for _, path_id, root in paths.download_roots():
+    for root_name, path_id, root in paths.download_roots():
         bases = (
             [(root / name, name) for name in paths.ALL_LANG_FOLDERS]
             if separated
@@ -155,8 +155,16 @@ def _library_folders():
                 continue
             for folder in children:
                 if folder.is_dir() and not folder.name.startswith("."):
-                    entries.append((folder, path_id, lang_folder))
+                    entries.append((folder, path_id, lang_folder, root_name))
     return entries
+
+
+def _where(candidate):
+    """Human label for one copy, so a report row says which one it is about."""
+    parts = [candidate["root_name"]]
+    if candidate["lang_folder"]:
+        parts.append(candidate["lang_folder"])
+    return " / ".join(parts)
 
 
 def _series_url(episode_url):
@@ -175,10 +183,15 @@ def _numbers(episode_url):
 
 
 def find_candidates():
-    """New episodes whose series already has a folder in the library.
+    """One candidate per copy of a series that the feed has new episodes for.
 
     Matching is done on folder names rather than by rendering the naming
     template, so it keeps working after the template changes.
+
+    The same show can sit on disk more than once: twice in different languages,
+    or in two libraries. Every copy is its own download with its own language,
+    so every copy gets its own candidate rather than the first match standing in
+    for all of them.
     """
     episodes = fetch_new_episodes()
     if episodes is None:
@@ -187,7 +200,10 @@ def find_candidates():
     folders = _library_folders()
     excluded = db.excluded_series_urls()
 
-    candidates = {}
+    # A series shows up once per new episode. Collapse the feed first, keeping
+    # every URL so the "only new episodes" mode has the full set, and merging
+    # the flags since the episodes are not always out in the same languages.
+    announced = {}
     for entry in episodes:
         title = (entry.get("title") or "").strip()
         if not title:
@@ -201,34 +217,33 @@ def find_candidates():
             for flag in entry.get("languages", [])
             if flag in FLAG_TO_LABEL
         }
-
-        seen = candidates.get(series_url)
+        seen = announced.get(series_url)
         if seen:
-            # A series shows up once per new episode. Keep every URL so the
-            # "only new episodes" mode has the full set, and merge the flags
-            # since the episodes are not always out in the same languages.
             seen["new_episode_urls"].append(entry["url"])
             seen["new_languages"] |= labels
-            continue
+        else:
+            announced[series_url] = {
+                "title": title,
+                "series_url": series_url,
+                "new_languages": labels,
+                "new_episode_urls": [entry["url"]],
+            }
 
-        match = next(
-            (item for item in folders if folder_matches_title(item[0].name, title)),
-            None,
-        )
-        if not match:
-            continue
-
-        folder, path_id, lang_folder = match
-        candidates[series_url] = {
-            "title": title,
-            "series_url": series_url,
-            "folder": folder,
-            "custom_path_id": path_id,
-            "lang_folder": lang_folder,
-            "new_languages": labels,
-            "new_episode_urls": [entry["url"]],
-        }
-    return list(candidates.values())
+    candidates = []
+    for record in announced.values():
+        for folder, path_id, lang_folder, root_name in folders:
+            if not folder_matches_title(folder.name, record["title"]):
+                continue
+            candidates.append(
+                {
+                    **record,
+                    "folder": folder,
+                    "custom_path_id": path_id,
+                    "lang_folder": lang_folder,
+                    "root_name": root_name,
+                }
+            )
+    return candidates
 
 
 # ---------------------------------------------------------------------------
@@ -242,9 +257,36 @@ def _default_provider():
     return order[0] if order else "VOE"
 
 
-def _missing_episodes(series):
-    """Episode URLs of a series that are not on disk yet."""
-    have = downloaded_episodes(series)
+def episodes_in_folder(folder):
+    """(season, episode) numbers sitting in this one copy.
+
+    media.downloaded_episodes() unions every root and language folder, which is
+    right for the "already downloaded" badge but wrong here: a German copy would
+    look complete because the English copy next to it has the episode, and would
+    then never be filled in.
+    """
+    from .media import EPISODE_RE
+
+    found = set()
+    try:
+        files = folder.rglob("*")
+    except OSError:
+        return found
+
+    for file in files:
+        try:
+            if not file.is_file():
+                continue
+        except OSError:
+            continue
+        match = EPISODE_RE.search(file.name)
+        if match:
+            found.add((int(match.group(1)), int(match.group(2))))
+    return found
+
+
+def _missing_episodes(series, have):
+    """Episode URLs of a series that are not in this copy yet."""
     missing = []
     for season in series.seasons:
         for episode in season.episodes:
@@ -253,13 +295,12 @@ def _missing_episodes(series):
     return missing
 
 
-def _announced_episodes(series, episode_urls):
-    """Only the episodes the feed announced, minus whatever is already on disk.
+def _announced_episodes(episode_urls, have):
+    """Only the episodes the feed announced, minus whatever this copy has.
 
     The season and episode number come off the URL, so unlike the fill mode this
     never has to walk the series page for every season.
     """
-    have = downloaded_episodes(series)
     return [
         url
         for url in episode_urls
@@ -268,13 +309,13 @@ def _announced_episodes(series, episode_urls):
 
 
 def _handle(candidate, provider_name):
-    """Resolve one candidate into a queue entry. Returns a report row."""
+    """Resolve one copy into a queue entry. Returns a report row.
+
+    Reasons are shown verbatim on the Auto-Sync page, so they read as sentences.
+    """
     title = candidate["title"]
     series_url = candidate["series_url"]
-    report = {"title": title, "series_url": series_url}
-
-    if db.is_series_queued_or_running(series_url):
-        return {**report, "status": "skipped", "reason": "already in the queue"}
+    report = {"title": title, "series_url": series_url, "where": _where(candidate)}
 
     have_languages = detect_languages(candidate["folder"], candidate["lang_folder"])
     if not have_languages:
@@ -282,7 +323,7 @@ def _handle(candidate, provider_name):
         return {
             **report,
             "status": "skipped",
-            "reason": "could not detect the language of the existing files",
+            "reason": "Could not detect the language of the existing files.",
         }
 
     usable = have_languages & candidate["new_languages"]
@@ -290,16 +331,30 @@ def _handle(candidate, provider_name):
         return {
             **report,
             "status": "skipped",
-            "reason": "the new episode is not out in "
-            + ", ".join(sorted(have_languages)),
+            "reason": "This copy is in {have}, and the new episode is only out in {new}.".format(
+                have=", ".join(sorted(have_languages)),
+                new=", ".join(sorted(candidate["new_languages"])) or "another language",
+            ),
         }
 
     language = _preferred(usable)
+
+    # Per copy, not per series: the same show queued for another language or
+    # another library is a different download and must not block this one.
+    if db.is_copy_queued_or_running(series_url, language, candidate["custom_path_id"]):
+        return {
+            **report,
+            "status": "skipped",
+            "language": language,
+            "reason": "This copy is already in the queue.",
+        }
+
+    have = episodes_in_folder(candidate["folder"])
     series = resolve_provider(series_url).series_cls(url=series_url)
     if autosync_new_only():
-        missing = _announced_episodes(series, candidate.get("new_episode_urls") or [])
+        missing = _announced_episodes(candidate.get("new_episode_urls") or [], have)
     else:
-        missing = _missing_episodes(series)
+        missing = _missing_episodes(series, have)
     if not missing:
         return {**report, "status": "up-to-date", "language": language}
 
@@ -353,6 +408,7 @@ def run_cycle():
                     {
                         "title": candidate["title"],
                         "series_url": candidate["series_url"],
+                        "where": _where(candidate),
                         "status": "error",
                         "reason": str(exc)[:200],
                     }

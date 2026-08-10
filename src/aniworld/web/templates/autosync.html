@@ -36,6 +36,22 @@
       There is no list of titles to maintain. Your library is the list, and anything you exclude below is skipped.
       Only aniworld.to titles are covered, since the newest-episodes list is specific to that site.
     </p>
+
+    {# Only worth saying when the setting that solves it is off. #}
+    {% if not lang_separation %}
+    <div class="notice">
+      <span data-i18n="autosync.mixed_languages">
+        Keep one language per folder. Without language separation, Auto-Sync works out a title's language by reading
+        a single file, the first episode it finds, and treats the whole title as that language. If a folder holds
+        episodes in more than one language, the other languages are invisible to it and never get new episodes.
+      </span>
+      <div class="notice-line">
+        <a href="{{ url_for('pages.settings') }}" data-i18n="autosync.turn_on_separation">
+          Turn on "Separate languages into their own folders" in the settings
+        </a>
+      </div>
+    </div>
+    {% endif %}
   </section>
 
   <section class="card">

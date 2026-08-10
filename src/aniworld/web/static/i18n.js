@@ -190,6 +190,14 @@
       "autosync.added": "Von Auto-Sync ausgeschlossen",
       "autosync.no_exclusions": "Nichts ausgeschlossen.",
       "autosync.never_ran": "Auto-Sync wurde noch nicht ausgeführt.",
+      "autosync.mixed_languages":
+        "Halte pro Ordner nur eine Sprache. Ohne Sprachtrennung ermittelt Auto-Sync die Sprache eines Titels anhand einer einzigen Datei, der ersten gefundenen Episode, und behandelt den ganzen Titel als diese Sprache. Liegen in einem Ordner Episoden in mehreren Sprachen, sind die übrigen Sprachen für Auto-Sync unsichtbar und bekommen nie neue Episoden.",
+      "autosync.turn_on_separation":
+        "\"Sprachen in eigene Ordner trennen\" in den Einstellungen aktivieren",
+      "autosync.status.queued": "In der Warteschlange",
+      "autosync.status.up_to_date": "Aktuell",
+      "autosync.status.skipped": "Übersprungen",
+      "autosync.status.error": "Fehler",
       "autosync.no_matches": "Keine Titel aus den neuesten Episoden passen zu deiner Bibliothek.",
       "autosync.running": "Läuft...",
       "autosync.started": "Synchronisierung gestartet",

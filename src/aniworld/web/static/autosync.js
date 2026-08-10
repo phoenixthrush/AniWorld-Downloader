@@ -20,6 +20,18 @@
     error: "status-failed"
   };
 
+  const STATUS_LABELS = {
+    queued: "Queued",
+    "up-to-date": "Up to date",
+    skipped: "Skipped",
+    error: "Error"
+  };
+
+  function statusLabel(status) {
+    const key = String(status).replace(/-/g, "_");
+    return t(`autosync.status.${key}`, STATUS_LABELS[status] || status);
+  }
+
   function formatTime(value) {
     if (!value) return "-";
     const date = new Date(value);
@@ -59,13 +71,18 @@
                 language: row.language || ""
               })
             : esc(row.language || "");
+        // A show held twice produces one row per copy, so each has to say which
+        // library and language folder it is talking about.
+        const where = row.where
+          ? `<span class="sync-row-where">${esc(row.where)}</span>`
+          : "";
         return `
           <div class="sync-row">
             <div class="sync-row-main">
-              <span class="sync-row-title">${esc(row.title)}</span>
+              <span class="sync-row-title">${esc(row.title)}${where}</span>
               <span class="sync-row-detail">${detail}</span>
             </div>
-            <span class="status-pill ${STATUS_CLASS[row.status] || "status-queued"}">${esc(row.status)}</span>
+            <span class="status-pill ${STATUS_CLASS[row.status] || "status-queued"}">${esc(statusLabel(row.status))}</span>
           </div>`;
       })
       .join("");

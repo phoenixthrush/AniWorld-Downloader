@@ -572,6 +572,23 @@ def is_series_queued_or_running(series_url):
         return row["n"] > 0
 
 
+def is_copy_queued_or_running(series_url, language, custom_path_id=None):
+    """Same, but for one copy of a series rather than the series as a whole.
+
+    Someone can hold the same show twice, in two languages or two libraries, and
+    each copy is downloaded separately. Blocking on the series alone would let
+    the first copy queued in a run silence every other copy of it.
+    """
+    with session() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) AS n FROM download_queue "
+            "WHERE series_url = ? AND language = ? "
+            "AND custom_path_id IS ? AND status IN ('queued','running')",
+            (series_url, language, custom_path_id),
+        ).fetchone()
+        return row["n"] > 0
+
+
 def get_queue_item(queue_id):
     with session() as conn:
         return _row(conn, "SELECT * FROM download_queue WHERE id = ?", (queue_id,))
