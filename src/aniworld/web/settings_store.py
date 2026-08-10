@@ -81,6 +81,16 @@ def htv_enabled():
     return _flag("ANIWORLD_ENABLE_HTV")
 
 
+def burningseries_enabled():
+    """Off by default: the site is geo-blocked and behind Google reCAPTCHA."""
+    return _flag("ANIWORLD_ENABLE_BURNINGSERIES")
+
+
+def kinox_enabled():
+    """Off by default: every download needs a captcha solved by hand."""
+    return _flag("ANIWORLD_ENABLE_KINOX")
+
+
 def english_sub_disabled():
     return _flag("ANIWORLD_DISABLE_ENGLISH_SUB")
 
@@ -190,6 +200,8 @@ def read_settings():
         "lang_separation": paths.lang_separation_enabled(),
         "disable_english_sub": english_sub_disabled(),
         "enable_htv": htv_enabled(),
+        "enable_burningseries": burningseries_enabled(),
+        "enable_kinox": kinox_enabled(),
         "enable_library": library_enabled(),
         "enable_autosync": autosync_enabled(),
         "autosync_new_only": autosync_new_only(),
@@ -208,6 +220,8 @@ _BOOL_SETTINGS = {
     "lang_separation": "ANIWORLD_LANG_SEPARATION",
     "disable_english_sub": "ANIWORLD_DISABLE_ENGLISH_SUB",
     "enable_htv": "ANIWORLD_ENABLE_HTV",
+    "enable_burningseries": "ANIWORLD_ENABLE_BURNINGSERIES",
+    "enable_kinox": "ANIWORLD_ENABLE_KINOX",
     "enable_library": "ANIWORLD_ENABLE_LIBRARY",
     "enable_autosync": "ANIWORLD_ENABLE_AUTOSYNC",
     "autosync_new_only": "ANIWORLD_AUTOSYNC_NEW_ONLY",

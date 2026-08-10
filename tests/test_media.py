@@ -211,3 +211,47 @@ def test_the_mangafire_format_can_be_changed(monkeypatch):
 def test_only_implemented_providers_are_offered():
     assert media.WORKING_PROVIDERS, "at least one provider must be usable"
     assert "VOE" in media.WORKING_PROVIDERS
+
+
+# ---------------------------------------------------------------------------
+# Site tabs that can be switched off
+# ---------------------------------------------------------------------------
+def test_burningseries_and_kinox_are_hidden_by_default(client):
+    """Both need a captcha nobody can solve for you, so they are opt in."""
+    body = client.get("/").get_data(as_text=True)
+    assert 'data-site="burningseries"' not in body
+    assert 'data-site="kinox"' not in body
+    assert 'data-row="burningseries_series"' not in body
+    assert 'data-row="kinox_movies"' not in body
+    # the sites nobody gated are still there
+    assert 'data-site="aniworld"' in body
+    assert 'data-site="filmpalast"' in body
+
+
+def test_the_flags_bring_the_tabs_back(client, monkeypatch):
+    monkeypatch.setenv("ANIWORLD_ENABLE_BURNINGSERIES", "1")
+    monkeypatch.setenv("ANIWORLD_ENABLE_KINOX", "1")
+    body = client.get("/").get_data(as_text=True)
+    assert 'data-site="burningseries"' in body
+    assert 'data-site="kinox"' in body
+    assert 'data-row="burningseries_series"' in body
+    assert 'data-row="kinox_movies"' in body
+
+
+def test_one_flag_does_not_turn_on_the_other(client, monkeypatch):
+    monkeypatch.setenv("ANIWORLD_ENABLE_KINOX", "1")
+    body = client.get("/").get_data(as_text=True)
+    assert 'data-site="kinox"' in body
+    assert 'data-site="burningseries"' not in body
+
+
+def test_hiding_a_tab_leaves_its_neighbours_alone(client):
+    """The browse rows sit in one list, so a bad {% if %} would swallow them."""
+    body = client.get("/").get_data(as_text=True)
+    for row in (
+        "popular_movies",
+        "filmpalast_movies",
+        "cineby_movies",
+        "mangafire_trending",
+    ):
+        assert f'data-row="{row}"' in body, row

@@ -260,6 +260,23 @@
     <p class="hint" data-i18n="settings.enable_htv_hint">Shows the Hanime tab on the home page.</p>
 
     <label class="checkbox">
+      <input type="checkbox" id="enableBurningSeries" data-setting="enable_burningseries" data-reload="1" />
+      <span data-i18n="settings.enable_burningseries">Enable BurningSeries tab</span>
+    </label>
+    <p class="hint" data-i18n="settings.enable_burningseries_hint">
+      Off by default: the site is geo-blocked and behind Google reCAPTCHA, which we cannot solve for you. Turn it on
+      only if you can reach it yourself.
+    </p>
+
+    <label class="checkbox">
+      <input type="checkbox" id="enableKinox" data-setting="enable_kinox" data-reload="1" />
+      <span data-i18n="settings.enable_kinox">Enable Kinox tab</span>
+    </label>
+    <p class="hint" data-i18n="settings.enable_kinox_hint">
+      Off by default: Kinox asks for a captcha on every single download, which you have to solve by hand each time.
+    </p>
+
+    <label class="checkbox">
       <input type="checkbox" id="enableLibrary" data-setting="enable_library" data-reload="1" />
       <span data-i18n="settings.enable_library">Enable Library</span>
     </label>

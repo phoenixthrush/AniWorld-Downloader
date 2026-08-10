@@ -9,10 +9,14 @@
       <div class="segmented-thumb" id="segmentedThumb"></div>
       <button class="segmented-btn active" data-site="aniworld">AniWorld</button>
       <button class="segmented-btn" data-site="sto">SerienStream</button>
+      {% if burningseries_enabled %}
       <button class="segmented-btn" data-site="burningseries">BurningSeries</button>
+      {% endif %}
       <button class="segmented-btn" data-site="megakino">MegaKino</button>
       <button class="segmented-btn" data-site="cineby">Cineby</button>
+      {% if kinox_enabled %}
       <button class="segmented-btn" data-site="kinox">Kinox</button>
+      {% endif %}
       <button class="segmented-btn" data-site="filmpalast">FilmPalast</button>
       {% if htv_enabled %}
       <button class="segmented-btn" data-site="htv">Hanime</button>
@@ -60,18 +64,22 @@
       <h2 class="browse-heading" data-i18n="browse.popular_movies">Popular Movies</h2>
       <div class="browse-grid"></div>
     </section>
+    {% if kinox_enabled %}
     <section class="browse-section" data-row="kinox_movies" data-sites="kinox">
       <h2 class="browse-heading" data-i18n="browse.new_movies">New Movies</h2>
       <div class="browse-grid"></div>
     </section>
+    {% endif %}
     <section class="browse-section" data-row="filmpalast_movies" data-sites="filmpalast">
       <h2 class="browse-heading" data-i18n="browse.new_movies">New Movies</h2>
       <div class="browse-grid"></div>
     </section>
+    {% if burningseries_enabled %}
     <section class="browse-section" data-row="burningseries_series" data-sites="burningseries">
       <h2 class="browse-heading" data-i18n="browse.recent_series">Recently Updated</h2>
       <div class="browse-grid"></div>
     </section>
+    {% endif %}
     <section class="browse-section" data-row="cineby_movies" data-sites="cineby">
       <h2 class="browse-heading" data-i18n="browse.trending_movies">Trending Movies</h2>
       <div class="browse-grid"></div>

@@ -154,6 +154,12 @@
         "English Sub wird aus der Sprachauswahl ausgeblendet und kann nicht heruntergeladen werden.",
       "settings.enable_htv": "Hanime-Tab aktivieren",
       "settings.enable_htv_hint": "Zeigt den Hanime-Tab auf der Startseite.",
+      "settings.enable_burningseries": "BurningSeries-Tab aktivieren",
+      "settings.enable_burningseries_hint":
+        "Standardmäßig aus: Die Seite ist geoblockiert und zusätzlich durch Google reCAPTCHA geschützt, das wir nicht für dich lösen können. Nur einschalten, wenn du sie selbst erreichst.",
+      "settings.enable_kinox": "Kinox-Tab aktivieren",
+      "settings.enable_kinox_hint":
+        "Standardmäßig aus: Kinox verlangt bei jedem einzelnen Download ein Captcha, das du jedes Mal von Hand lösen musst.",
       "settings.enable_library": "Bibliothek aktivieren",
       "settings.enable_autosync": "Auto-Sync aktivieren",
       "settings.enable_autosync_hint":

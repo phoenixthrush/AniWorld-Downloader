@@ -18,6 +18,8 @@ def test_defaults_of_a_fresh_install():
     assert settings["lang_separation"] is False
     assert settings["disable_english_sub"] is False
     assert settings["enable_htv"] is False
+    assert settings["enable_burningseries"] is False
+    assert settings["enable_kinox"] is False
     assert settings["enable_library"] is True, "the library is on unless turned off"
     assert settings["enable_autosync"] is False
     assert settings["movie_folder"] is True
@@ -48,6 +50,8 @@ def test_read_settings_never_leaks_the_discord_token(monkeypatch):
         ("lang_separation", "ANIWORLD_LANG_SEPARATION"),
         ("disable_english_sub", "ANIWORLD_DISABLE_ENGLISH_SUB"),
         ("enable_htv", "ANIWORLD_ENABLE_HTV"),
+        ("enable_burningseries", "ANIWORLD_ENABLE_BURNINGSERIES"),
+        ("enable_kinox", "ANIWORLD_ENABLE_KINOX"),
         ("enable_library", "ANIWORLD_ENABLE_LIBRARY"),
         ("enable_autosync", "ANIWORLD_ENABLE_AUTOSYNC"),
         ("movie_folder", "ANIWORLD_MOVIE_FOLDER"),

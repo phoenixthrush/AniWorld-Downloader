@@ -154,7 +154,16 @@ To build the image locally instead of using the published image, change `docker-
 docker compose up -d --build
 ```
 
-The comments in [`docker-compose.yaml`](docker-compose.yaml) cover authentication, OIDC, language, provider, naming, and other common settings.
+The comments in [`docker-compose.yaml`](docker-compose.yaml) cover authentication, OIDC, the Discord bot, Auto-Sync, the captcha solver, language, provider, naming, and the other common settings. The complete list, including the options that rarely need touching, is in [`src/aniworld/.env.example`](src/aniworld/.env.example).
+
+Most settings changed in the Web UI apply immediately but are gone after `docker compose down`, because they only live in the running container. The settings page marks those sections with *resets after restart*. Put them in the Compose `environment:` block, or keep a full `.env` on the host and mount it in:
+
+```yaml
+env_file:
+  - ./.env
+```
+
+The named volume holds the database (users, API keys, custom paths, Auto-Sync exclusions), your `.env`, and the `custom.css` a theme is saved to, so keep it if you care about any of those.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

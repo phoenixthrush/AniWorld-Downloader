@@ -8,21 +8,49 @@ services:
     volumes:
       # Persist downloads on the host so they survive container recreation.
       - ./Downloads:/app/Downloads
-      # Persist application config and auth database across restarts.
+      # Persist application config and auth database across restarts. This holds
+      # the database (users, API keys, custom paths, Auto-Sync exclusions), your
+      # .env, and the custom.css / custom.frag a theme is saved to. Losing this
+      # volume loses all of them.
       - aniworld-data:/home/aniworld/.aniworld
 
     # NOTE: Create ./Downloads before running: mkdir -p Downloads
     # Docker creates missing bind-mount directories as root, causing permission errors.
 
+    # Most settings changed in the Web UI apply immediately but are gone on the
+    # next restart, because they only live in the running process. The sections
+    # marked "resets after restart" on the settings page are the ones affected.
+    # Set them here (or in an env_file) to make them stick.
+    #
+    # Alternatively, keep a full .env on the host and mount it in:
+    # env_file:
+    #   - ./.env
+    # A copy with every option documented is in src/aniworld/.env.example.
+
     # environment:
     # --- General settings (uncomment the environment block to customise) ---
     #   ANIWORLD_LANGUAGE: "German Dub"               # Default language (German Dub | English Sub | German Sub | English Dub)
     #   ANIWORLD_PROVIDER: "VOE"                      # Default streaming provider
+    #   ANIWORLD_PROVIDER_FALLBACK_ORDER: "VOE,Vidmoly,Vidoza,Doodstream"  # Tried in order after the selected provider fails
     #   ANIWORLD_NAMING_TEMPLATE: "{title} ({year}) [imdbid-{imdbid}]/Season {season}/{title} S{season}E{episode}.mkv"
     #   ANIWORLD_VIDEO_CODEC: "copy"                  # Video codec: copy | h264 | h265 | av1
     #   ANIWORLD_LANG_SEPARATION: "0"                 # Separate downloads into language subfolders (german-dub/, english-sub/)
+    #   ANIWORLD_MOVIE_FOLDER: "1"                    # 1 = wrap a movie in its own "Title (Year)" folder, 0 = save it directly
     #   ANIWORLD_DISABLE_ENGLISH_SUB: "0"             # Block English Sub downloads entirely
+    #   ANIWORLD_UI_LANGUAGE: "en"                    # Web UI language: en | de
     #   ANIWORLD_DEBUG_MODE: "0"                      # Enable debug logging
+    #   ANIWORLD_NO_AUTO_INSTALL: "0"                 # 1 = never fetch missing dependencies at runtime
+    #   ANIWORLD_HLS_CONCURRENCY: "8"                 # Parallel segment downloads for direct HLS downloads
+    #   # ANIWORLD_DOWNLOAD_PATH is already set to /app/Downloads by the image;
+    #   # change the volume above rather than this, or the bind mount stops matching.
+
+    # --- Features (uncomment the environment block to customise) ---
+    #   ANIWORLD_ENABLE_LIBRARY: "1"                  # Library tab: browse and delete downloaded files
+    #   ANIWORLD_ENABLE_HTV: "0"                      # Show the Hanime tab (adult content)
+    #   ANIWORLD_ENABLE_AUTOSYNC: "0"                 # Auto-Sync: once a day, queue new episodes of series you already have
+    #   ANIWORLD_AUTOSYNC_NEW_ONLY: "0"               # 1 = queue only the newly announced episodes instead of every missing one
+    #   MANGAFIRE_FORMAT: "jpg"                       # MangaFire output: jpg (images) | cbz (archive)
+    #   ANIWORLD_KINOX_DOMAIN: ""                     # Override the Kinox domain if the default one is unreachable
 
     # --- Authentication (uncomment the environment block to enable) ---
     #   ANIWORLD_WEB_AUTH: "1"                        # Enable local username/password login
@@ -38,6 +66,29 @@ services:
     #   ANIWORLD_OIDC_ADMIN_USER: ""                  # SSO username auto-promoted to admin
     #   ANIWORLD_OIDC_ADMIN_SUBJECT: ""               # OIDC subject claim for auto-admin (preferred over username)
     #   ANIWORLD_WEB_BASE_URL: "https://aniworld.example.com"  # External URL for redirects
+
+    # --- Discord request bot (uncomment the environment block to enable) ---
+    # Unlike the settings above, the bot's fields are written through to the .env
+    # in the config volume when you save them in the Web UI, so setting them here
+    # is optional.
+    #   ANIWORLD_DISCORD_BOT_ENABLED: "1"             # Let users request titles from Discord
+    #   ANIWORLD_DISCORD_TOKEN: ""                    # Bot token from the Discord developer portal
+    #   ANIWORLD_DISCORD_OWNER_ID: ""                 # Your user ID, requests are sent here for approval
+    #   ANIWORLD_DISCORD_MODE: "standard"             # standard = you approve each request, advanced = queued immediately
+    #   ANIWORLD_DISCORD_REQUEST_ROLE_ID: ""          # Only this role may request, empty allows everyone
+    #   ANIWORLD_DISCORD_GUILD_ID: ""                 # Register slash commands in one server (instant), empty = global
+    #   ANIWORLD_DISCORD_LANGUAGE: "en"               # Bot language: en | de
+    #   ANIWORLD_DISCORD_ANNOUNCE_CHANNEL_ID: ""      # Post "now available" here when a requested download finishes
+
+    # --- Captcha solving (uncomment the environment block to tune) ---
+    # Kinox asks for a captcha on every download and serienstream.to sometimes
+    # does. The container already ships Chromium and Xvfb for this; these only
+    # matter if solving misbehaves. The full list is in src/aniworld/.env.example.
+    #   ANIWORLD_CAPTCHA_MANUAL: "0"                  # 1 = never auto-click, only your click in the Web UI counts
+    #   ANIWORLD_CAPTCHA_TIMEOUT: ""                  # Seconds to wait for a solve, empty uses the built-in default
+    #   ANIWORLD_CAPTCHA_DEBUG_LOG: "1"               # Log the captcha browser's console and network errors
+    #   ANIWORLD_NO_ADBLOCK: "0"                      # 1 = disable the ad-blocker, try this if a captcha page won't load
+    #   ANIWORLD_SPOOF_WEBGL: "0"                     # 1 = mask SwiftShader on GPU-less servers
 
     restart: unless-stopped
 
