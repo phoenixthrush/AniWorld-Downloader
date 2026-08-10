@@ -71,6 +71,11 @@ def index():
     )
 
 
+@bp.route("/queue")
+def queue():
+    return render_template("queue.html")
+
+
 @bp.route("/library")
 def library():
     if not settings_store.library_enabled():

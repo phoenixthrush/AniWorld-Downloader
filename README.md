@@ -168,6 +168,12 @@ curl -H "X-API-Key: awd_yourkey" http://localhost:8080/api/queue
 
 Keys come in three scopes: **read** (search and browse), **read and download** (also queue and cancel), and **full access** (also settings and library deletion). A key can never create or manage other keys.
 
+`GET /api/queue` without parameters returns the whole queue, as it always has. Add any of `limit`, `offset`, `status`, `q` or `sort` and you get one page instead, along with `total` and per-status `counts`; paged rows leave out the `episodes` list, which is the largest field and the one the UI never shows.
+
+```bash
+curl -H "X-API-Key: awd_yourkey" "http://localhost:8080/api/queue?status=failed&limit=25&sort=newest"
+```
+
 The full endpoint list, with examples, is on the settings page itself under *Endpoints and examples*, so it always matches the version you are running.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>

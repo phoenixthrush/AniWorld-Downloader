@@ -130,6 +130,12 @@
             <td data-i18n="settings.api_providers">Hosters available per language</td></tr>
           <tr><td><code>GET /api/queue</code></td><td>read</td>
             <td data-i18n="settings.api_queue">The queue with live progress</td></tr>
+          <tr><td><code>GET /api/queue?limit=&amp;offset=&amp;status=&amp;q=&amp;sort=</code></td><td>read</td>
+            <td data-i18n="settings.api_queue_page">One page of the queue with totals and counts. Paged rows leave
+              out <code>episodes</code>. status: queued, running, completed, failed, cancelled, active, finished.
+              sort: smart, newest, oldest, title</td></tr>
+          <tr><td><code>GET /api/queue/counts</code></td><td>read</td>
+            <td data-i18n="settings.api_queue_counts">How many items sit in each status</td></tr>
           <tr><td><code>POST /api/download</code></td><td>write</td>
             <td data-i18n="settings.api_download">Queue episodes, see the example below</td></tr>
           <tr><td><code>POST /api/queue/&lt;id&gt;/cancel</code></td><td>write</td>

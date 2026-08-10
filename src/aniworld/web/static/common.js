@@ -22,8 +22,30 @@ function showToast(message) {
   showToast._timer = setTimeout(() => toast.classList.remove("show"), 4000);
 }
 
+/* options.timeoutMs aborts the request instead of letting it hang forever.
+   A poller that never settles is worse than one that fails: the failure can be
+   shown and retried, the hang just leaves the page on "Loading..." for good. */
 async function apiFetch(url, options) {
-  const response = await fetch(url, options);
+  const { timeoutMs, ...init } = options || {};
+  let timer = null;
+  if (timeoutMs) {
+    const controller = new AbortController();
+    init.signal = controller.signal;
+    timer = setTimeout(() => controller.abort(), timeoutMs);
+  }
+
+  let response;
+  try {
+    response = await fetch(url, init);
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error(t("common.timed_out", "The server did not answer in time"));
+    }
+    throw error;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+
   let data = null;
   try {
     data = await response.json();

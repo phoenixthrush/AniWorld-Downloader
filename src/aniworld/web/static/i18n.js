@@ -27,6 +27,7 @@
       "common.retry": "Erneut versuchen",
       "common.cancel": "Abbrechen",
       "common.loading": "Wird geladen...",
+      "common.timed_out": "Der Server hat nicht rechtzeitig geantwortet",
       "common.failed": "Fehlgeschlagen",
 
       "index.heading": "AniWorld Downloader",
@@ -77,7 +78,19 @@
 
       "queue.title": "Download-Warteschlange",
       "queue.empty": "Die Warteschlange ist leer.",
+      "queue.no_matches": "Zu diesem Filter passt nichts.",
       "queue.clear_finished": "Erledigte entfernen",
+      "queue.search": "Titel suchen",
+      "queue.filter.all": "Alle",
+      "queue.filter.active": "Aktiv",
+      "queue.sort": "Sortierung",
+      "queue.sort.smart": "Reihenfolge der Warteschlange",
+      "queue.sort.newest": "Neueste zuerst",
+      "queue.sort.oldest": "Älteste zuerst",
+      "queue.sort.title": "Titel A-Z",
+      "queue.page_of": "Seite {page} von {pages}",
+      "queue.previous": "Zurück",
+      "queue.next": "Weiter",
       "queue.solve_captcha": "Captcha lösen",
       "queue.open_captcha": "Captcha im Browser lösen",
       "queue.errors": "Fehler",
@@ -274,6 +287,11 @@
       "settings.api_episodes": "Episoden einer Staffel, mit Sprachen",
       "settings.api_providers": "Verfügbare Hoster je Sprache",
       "settings.api_queue": "Warteschlange mit Fortschritt",
+      "settings.api_queue_page":
+        "Eine Seite der Warteschlange mit Gesamtzahl und Zählern. Seitenweise abgerufene " +
+        "Einträge enthalten kein episodes-Feld. status: queued, running, completed, failed, " +
+        "cancelled, active, finished. sort: smart, newest, oldest, title",
+      "settings.api_queue_counts": "Wie viele Einträge je Status vorhanden sind",
       "settings.api_download": "Episoden einreihen, siehe Beispiel unten",
       "settings.api_cancel": "Wartenden oder laufenden Eintrag abbrechen",
       "settings.api_retry": "Fehlgeschlagenen Eintrag erneut versuchen",

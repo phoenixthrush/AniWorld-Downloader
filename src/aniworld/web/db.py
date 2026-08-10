@@ -473,6 +473,94 @@ def get_queue():
         )
 
 
+# Sort orders the queue page offers. "smart" is the default the list has always
+# used; the rest are plain and always tiebreak on id so paging cannot repeat or
+# drop a row when two rows share a timestamp.
+_QUEUE_SORTS = {
+    "smart": _QUEUE_ORDER,
+    "newest": "ORDER BY created_at DESC, id DESC",
+    "oldest": "ORDER BY created_at ASC, id ASC",
+    "title": "ORDER BY title COLLATE NOCASE ASC, id ASC",
+}
+
+_QUEUE_STATUSES = ("queued", "running", "completed", "failed", "cancelled")
+
+# Filters that are not a single status value.
+_STATUS_GROUPS = {
+    "active": ("queued", "running"),
+    "finished": ("completed", "failed", "cancelled"),
+}
+
+# Everything except `episodes`, which is a JSON blob of every episode URL in the
+# item. The list never shows it and it is by far the biggest column, so the page
+# asks for the row without it.
+_QUEUE_SLIM_COLUMNS = (
+    "id, title, series_url, total_episodes, language, provider, username, status, "
+    "position, current_episode, current_url, errors, custom_path_id, source, "
+    "captcha_url, discord_user_id, cancel_requested, force_cancelled, "
+    "created_at, started_at, completed_at"
+)
+
+
+def _queue_filter(status=None, search=None):
+    """WHERE clause and params shared by the page query and its count."""
+    clauses = []
+    params = []
+
+    if status:
+        wanted = _STATUS_GROUPS.get(status, (status,))
+        clauses.append(f"status IN ({','.join('?' * len(wanted))})")
+        params.extend(wanted)
+
+    if search:
+        clauses.append("title LIKE ? ESCAPE '\\'")
+        escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        params.append(f"%{escaped}%")
+
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    return where, params
+
+
+def get_queue_page(status=None, search=None, sort="smart", limit=25, offset=0):
+    """One page of the queue, plus how many rows the filter matches in total.
+
+    The total is what the pager needs to know how many pages there are, and it
+    has to be counted under the same filter, not the whole table.
+    """
+    order = _QUEUE_SORTS.get(sort or "smart", _QUEUE_ORDER)
+    where, params = _queue_filter(status, search)
+    limit = max(1, min(int(limit), 200))
+    offset = max(0, int(offset))
+
+    with session() as conn:
+        total = conn.execute(
+            f"SELECT COUNT(*) AS n FROM download_queue {where}", params
+        ).fetchone()["n"]
+        items = _rows(
+            conn,
+            f"SELECT {_QUEUE_SLIM_COLUMNS}, {_DURATION_SQL} FROM download_queue "
+            f"{where} {order} LIMIT ? OFFSET ?",
+            (*params, limit, offset),
+        )
+    return items, total
+
+
+def queue_counts():
+    """How many rows sit in each status, for the nav badge and the filter chips."""
+    with session() as conn:
+        rows = conn.execute(
+            "SELECT status, COUNT(*) AS n FROM download_queue GROUP BY status"
+        ).fetchall()
+
+    counts = {status: 0 for status in _QUEUE_STATUSES}
+    for row in rows:
+        counts[row["status"]] = row["n"]
+    counts["active"] = counts["queued"] + counts["running"]
+    counts["finished"] = counts["completed"] + counts["failed"] + counts["cancelled"]
+    counts["all"] = counts["active"] + counts["finished"]
+    return counts
+
+
 def is_series_queued_or_running(series_url):
     """Stops AutoSync queueing a series that is still working through the queue."""
     with session() as conn:

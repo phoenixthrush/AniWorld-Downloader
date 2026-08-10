@@ -310,3 +310,80 @@ def test_clicking_without_a_session_is_a_404(client, queue_item):
 def test_a_click_needs_coordinates(client, queue_item):
     response = client.post(f"/api/captcha/{queue_item()}/click", json={"x": 1})
     assert response.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# The queue page's view of the list
+# ---------------------------------------------------------------------------
+def test_without_parameters_the_response_is_unchanged(client, queue_item):
+    """Scripts against the documented API must not notice the page exists."""
+    queue_item("Naruto")
+    body = client.get("/api/queue").get_json()
+    assert [item["title"] for item in body["items"]] == ["Naruto"]
+    assert "episodes" in body["items"][0]
+    assert "total" not in body and "counts" not in body
+
+
+def test_asking_for_a_page_returns_the_totals_with_it(client, queue_item):
+    for n in range(30):
+        queue_item(f"Series {n:02d}")
+    body = client.get("/api/queue?limit=25").get_json()
+
+    assert len(body["items"]) == 25
+    assert body["total"] == 30
+    assert body["limit"] == 25 and body["offset"] == 0
+    assert body["counts"]["queued"] == 30
+    assert "episodes" not in body["items"][0]
+
+
+def test_the_second_page_holds_the_rest(client, queue_item):
+    for n in range(30):
+        queue_item(f"Series {n:02d}")
+    body = client.get("/api/queue?limit=25&offset=25").get_json()
+    assert len(body["items"]) == 5
+
+
+def test_filtering_and_searching_over_http(client, queue_item):
+    done = queue_item("Finished thing")
+    db.set_queue_status(done, "completed")
+    queue_item("Waiting thing")
+
+    only_done = client.get("/api/queue?status=completed&limit=25").get_json()
+    assert only_done["total"] == 1
+    assert only_done["items"][0]["title"] == "Finished thing"
+
+    found = client.get("/api/queue?q=Waiting&limit=25").get_json()
+    assert found["total"] == 1
+    assert found["items"][0]["title"] == "Waiting thing"
+
+
+def test_the_counts_endpoint_does_not_return_rows(client, queue_item):
+    """The nav badge polls this on every page, so it must stay small."""
+    queue_item("Naruto")
+    body = client.get("/api/queue/counts").get_json()
+    assert body["counts"]["all"] == 1
+    assert body["counts"]["active"] == 1
+    assert "items" not in body
+
+
+@pytest.mark.parametrize(
+    "query",
+    ["status=bogus", "sort=bogus", "limit=abc", "offset=abc", "limit=0", "offset=-1"],
+)
+def test_bad_paging_parameters_are_rejected(client, query):
+    assert client.get(f"/api/queue?{query}").status_code == 400
+
+
+def test_the_queue_page_renders(client):
+    response = client.get("/queue")
+    assert response.status_code == 200
+    body = response.get_data(as_text=True)
+    assert 'id="queueList"' in body
+    assert 'id="queueFilters"' in body
+    assert 'id="queuePager"' in body
+
+
+def test_the_captcha_viewer_moved_onto_the_queue_page(client):
+    """It is only reachable from a queue row, so it should not be everywhere."""
+    assert 'id="captchaScreenshot"' in client.get("/queue").get_data(as_text=True)
+    assert 'id="captchaScreenshot"' not in client.get("/").get_data(as_text=True)

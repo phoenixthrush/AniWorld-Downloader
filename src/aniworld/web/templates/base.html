@@ -54,10 +54,10 @@
         <span class="new-ribbon" aria-hidden="true">New</span>
       </a>
       {% endif %}
-      <button type="button" class="top-bar-link queue-trigger" id="queueBtn">
+      <a href="{{ url_for('pages.queue') }}" class="top-bar-link">
         <span data-i18n="nav.queue">Queue</span>
         <span class="queue-badge" id="queueBadge" hidden>0</span>
-      </button>
+      </a>
       {% if not auth_enabled or (current_user and current_user.role == 'admin') %}
       <a href="{{ url_for('pages.settings') }}" class="top-bar-link" data-i18n="nav.settings">Settings</a>
       {% endif %}
@@ -82,32 +82,10 @@
 
   <main class="page">{% block content %}{% endblock %}</main>
 
-  <div class="overlay" id="queueOverlay" data-close-on-backdrop>
-    <div class="modal modal-narrow">
-      <button class="modal-close" data-close-modal aria-label="Close">&times;</button>
-      <h2 class="modal-title" data-i18n="queue.title">Download Queue</h2>
-      <div class="queue-toolbar">
-        <button class="btn btn-ghost" id="clearCompletedBtn" data-i18n="queue.clear_finished">Clear finished</button>
-      </div>
-      <div id="queueList" class="queue-list"></div>
-    </div>
-  </div>
-
-  <div class="overlay" id="captchaOverlay" data-close-on-backdrop>
-    <div class="modal modal-narrow">
-      <button class="modal-close" data-close-modal aria-label="Close">&times;</button>
-      <h2 class="modal-title" data-i18n="captcha.title">Solve captcha</h2>
-      <p class="captcha-hint" data-i18n="captcha.hint">Click the image to interact with the browser.</p>
-      <div class="captcha-screen-wrap">
-        <img id="captchaScreenshot" class="captcha-screen" alt="Captcha browser" draggable="false" />
-      </div>
-    </div>
-  </div>
-
   <div class="toast" id="toast" role="status"></div>
 
   <script src="{{ url_for('static', filename='common.js') }}?v={{ app_version }}"></script>
-  <script src="{{ url_for('static', filename='queue.js') }}?v={{ app_version }}"></script>
+  <script src="{{ url_for('static', filename='queue-badge.js') }}?v={{ app_version }}"></script>
   {% if custom_shader_version and request.args.get('nocss') != '1' %}
   <script src="{{ url_for('static', filename='shader.js') }}?v={{ app_version }}" defer></script>
   {% endif %}

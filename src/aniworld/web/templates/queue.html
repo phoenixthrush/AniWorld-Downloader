@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Queue - AniWorld Downloader{% endblock %}
+
+{% block content %}
+<div class="container container-narrow">
+  <div class="page-head">
+    <h1 data-i18n="queue.title">Download Queue</h1>
+    <button class="btn btn-ghost" id="clearCompletedBtn" data-i18n="queue.clear_finished">Clear finished</button>
+  </div>
+
+  <div class="queue-controls">
+    <div class="filter-chips" id="queueFilters">
+      <button type="button" class="chip is-active" data-status="">
+        <span data-i18n="queue.filter.all">All</span>
+        <span class="chip-count" data-count="all">0</span>
+      </button>
+      <button type="button" class="chip" data-status="active">
+        <span data-i18n="queue.filter.active">Active</span>
+        <span class="chip-count" data-count="active">0</span>
+      </button>
+      <button type="button" class="chip" data-status="completed">
+        <span data-i18n="queue.status.completed">Done</span>
+        <span class="chip-count" data-count="completed">0</span>
+      </button>
+      <button type="button" class="chip" data-status="failed">
+        <span data-i18n="queue.status.failed">Failed</span>
+        <span class="chip-count" data-count="failed">0</span>
+      </button>
+      <button type="button" class="chip" data-status="cancelled">
+        <span data-i18n="queue.status.cancelled">Cancelled</span>
+        <span class="chip-count" data-count="cancelled">0</span>
+      </button>
+    </div>
+
+    <div class="queue-tools">
+      <input type="search" id="queueSearch" class="queue-search" autocomplete="off"
+        data-i18n-placeholder="queue.search" placeholder="Search titles" />
+      <select id="queueSort" class="queue-sort" data-i18n-title="queue.sort" title="Sort">
+        <option value="smart" data-i18n="queue.sort.smart">Queue order</option>
+        <option value="newest" data-i18n="queue.sort.newest">Newest first</option>
+        <option value="oldest" data-i18n="queue.sort.oldest">Oldest first</option>
+        <option value="title" data-i18n="queue.sort.title">Title A-Z</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="queueList" class="queue-list"></div>
+
+  <div class="pager" id="queuePager" hidden>
+    <button type="button" class="btn btn-secondary" data-page="prev" data-i18n="queue.previous">Previous</button>
+    <span class="pager-label" id="pagerLabel"></span>
+    <button type="button" class="btn btn-secondary" data-page="next" data-i18n="queue.next">Next</button>
+  </div>
+</div>
+
+{# Only reachable from a queue row, so it lives with the queue rather than on
+   every page in base.html. #}
+<div class="overlay" id="captchaOverlay" data-close-on-backdrop>
+  <div class="modal modal-narrow">
+    <button class="modal-close" data-close-modal aria-label="Close">&times;</button>
+    <h2 class="modal-title" data-i18n="captcha.title">Solve captcha</h2>
+    <p class="captcha-hint" data-i18n="captcha.hint">Click the image to interact with the browser.</p>
+    <div class="captcha-screen-wrap">
+      <img id="captchaScreenshot" class="captcha-screen" alt="Captcha browser" draggable="false" />
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='queue.js') }}?v={{ app_version }}"></script>
+{% endblock %}

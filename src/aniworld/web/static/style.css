@@ -538,6 +538,7 @@ h3 {
 /* ===== Inputs ===== */
 input[type="text"],
 input[type="password"],
+input[type="search"],
 select {
   padding: 10px 14px;
   border-radius: var(--radius-sm);
@@ -1267,18 +1268,107 @@ select option {
 }
 
 /* ===== Queue ===== */
-.queue-toolbar {
+.queue-controls {
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: 12px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.filter-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s, border-color 0.2s;
+}
+
+.chip:hover {
+  color: var(--text-strong);
+  border-color: var(--border-hover);
+}
+
+.chip.is-active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--text-strong);
+}
+
+.chip-count {
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.chip.is-active .chip-count {
+  color: var(--text-strong);
+}
+
+.queue-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.queue-search {
+  width: 200px;
+}
+
+.queue-search,
+.queue-sort {
+  padding: 8px 12px;
+  font-size: 0.83rem;
 }
 
 .queue-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: 60vh;
-  overflow-y: auto;
+}
+
+/* Shown instead of the rows when the very first load fails, so a queue that
+   cannot be reached says so rather than sitting on "Loading..." for good. */
+.queue-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 28px 18px;
+  text-align: center;
+  color: var(--danger-text);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-sm);
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.pager-label {
+  font-size: 0.83rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .queue-item {
@@ -1976,6 +2066,31 @@ select option {
     top: -5px;
     right: -2px;
     transform: rotate(12deg);
+  }
+
+  /* the search box and the sort dropdown get a line of their own rather than
+     being squeezed next to the filter chips */
+  .queue-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .queue-tools {
+    width: 100%;
+  }
+
+  .queue-search {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+
+  .queue-sort {
+    min-width: 0;
+  }
+
+  .pager .btn {
+    padding: 10px 14px;
   }
 
   /* a horizontal scroller hides the sites that do not fit and gives no hint

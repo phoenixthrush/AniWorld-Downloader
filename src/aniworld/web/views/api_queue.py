@@ -13,6 +13,7 @@ logger = get_logger(__name__)
 def register(bp):
     bp.add_url_rule("/download", view_func=start_download, methods=["POST"])
     bp.add_url_rule("/queue", view_func=list_queue)
+    bp.add_url_rule("/queue/counts", view_func=queue_counts)
     bp.add_url_rule("/queue/completed", view_func=clear_completed, methods=["DELETE"])
     bp.add_url_rule("/queue/<int:queue_id>", view_func=remove_item, methods=["DELETE"])
     bp.add_url_rule(
@@ -81,10 +82,71 @@ def _tag_mangafire(episodes, requested_format):
     return tagged
 
 
+# What ?status= accepts: a real status, or one of the two groups.
+_STATUS_FILTERS = frozenset(
+    ("queued", "running", "completed", "failed", "cancelled", "active", "finished")
+)
+_SORTS = frozenset(("smart", "newest", "oldest", "title"))
+
+# Passing any of these switches the response to a page of the queue.
+_PAGE_ARGS = ("limit", "offset", "status", "q", "sort")
+
+
 def list_queue():
+    """The queue, whole or a page of it.
+
+    Without any query parameters this returns every row, which is what the
+    documented API has always done and what scripts expect. Pass any of the
+    paging parameters and you get one page plus the totals the pager needs.
+    Paged rows leave out `episodes`, the largest column by far and one the list
+    never displays; fetch the queue unpaged if you need it.
+    """
     from ...models.common.common import get_ffmpeg_progress
 
-    return jsonify({"items": db.get_queue(), "ffmpeg_progress": get_ffmpeg_progress()})
+    args = request.args
+    if not any(arg in args for arg in _PAGE_ARGS):
+        return jsonify(
+            {"items": db.get_queue(), "ffmpeg_progress": get_ffmpeg_progress()}
+        )
+
+    status = args.get("status") or None
+    if status and status not in _STATUS_FILTERS:
+        return jsonify({"error": f"unknown status filter: {status}"}), 400
+
+    sort = args.get("sort") or "smart"
+    if sort not in _SORTS:
+        return jsonify({"error": f"unknown sort: {sort}"}), 400
+
+    try:
+        limit = int(args.get("limit", 25))
+        offset = int(args.get("offset", 0))
+    except ValueError:
+        return jsonify({"error": "limit and offset must be whole numbers"}), 400
+    if limit < 1 or offset < 0:
+        return jsonify({"error": "limit must be positive and offset cannot be negative"}), 400
+
+    items, total = db.get_queue_page(
+        status=status,
+        search=(args.get("q") or "").strip() or None,
+        sort=sort,
+        limit=limit,
+        offset=offset,
+    )
+    return jsonify(
+        {
+            "items": items,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "counts": db.queue_counts(),
+            "ffmpeg_progress": get_ffmpeg_progress(),
+        }
+    )
+
+
+def queue_counts():
+    """Just the numbers, so the nav badge does not pull the whole queue."""
+    return jsonify({"counts": db.queue_counts()})
 
 
 def _result(ok, error, status=400):

@@ -551,3 +551,132 @@ def test_captcha_url_round_trip(queue_item):
     assert db.get_queue_item(queue_id)["captcha_url"] == "https://kinox.to/captcha"
     db.clear_captcha_url(queue_id)
     assert db.get_queue_item(queue_id)["captcha_url"] is None
+
+
+# ---------------------------------------------------------------------------
+# Paging, filtering and sorting for the queue page
+# ---------------------------------------------------------------------------
+def _spread(queue_item, count=60):
+    """A queue with a third of it done, a third failed and a third waiting."""
+    for n in range(count):
+        queue_id = queue_item(f"Series {n:02d}")
+        if n % 3 == 0:
+            db.set_queue_status(queue_id, "completed")
+        elif n % 3 == 1:
+            db.set_queue_status(queue_id, "failed")
+
+
+def test_a_page_reports_the_total_behind_it(queue_item):
+    _spread(queue_item)
+    items, total = db.get_queue_page(limit=25)
+    assert len(items) == 25
+    assert total == 60, "the total counts the whole filter, not the page"
+
+
+def test_paging_covers_every_row_exactly_once(queue_item):
+    _spread(queue_item)
+    seen = []
+    for offset in range(0, 60, 25):
+        seen += [item["id"] for item in db.get_queue_page(limit=25, offset=offset)[0]]
+    assert len(seen) == 60
+    assert len(set(seen)) == 60, "a row was repeated or skipped between pages"
+
+
+def test_a_page_leaves_out_the_episode_urls(queue_item):
+    """The biggest column by far, and the list never shows it."""
+    queue_item()
+    item = db.get_queue_page(limit=1)[0][0]
+    assert "episodes" not in dict(item)
+    assert "duration_seconds" in dict(item), "the row still has what the list needs"
+
+
+def test_filtering_by_one_status(queue_item):
+    _spread(queue_item)
+    items, total = db.get_queue_page(status="failed", limit=100)
+    assert total == 20
+    assert {item["status"] for item in items} == {"failed"}
+
+
+@pytest.mark.parametrize(
+    "group,expected",
+    [("active", {"queued"}), ("finished", {"completed", "failed"})],
+)
+def test_filtering_by_a_status_group(queue_item, group, expected):
+    _spread(queue_item)
+    items, _ = db.get_queue_page(status=group, limit=100)
+    assert {item["status"] for item in items} == expected
+
+
+def test_search_matches_part_of_the_title(queue_item):
+    _spread(queue_item)
+    items, total = db.get_queue_page(search="ies 1", limit=100)
+    assert total == 10, "Series 10 through 19"
+    assert all("ies 1" in item["title"] for item in items)
+
+
+def test_search_treats_wildcards_as_text(queue_item):
+    """Otherwise a title with a % in it turns the search into a match-all."""
+    queue_item("100% Real")
+    queue_item("Something else")
+    items, total = db.get_queue_page(search="100%", limit=10)
+    assert total == 1
+    assert items[0]["title"] == "100% Real"
+
+
+def test_sorting_by_title(queue_item):
+    queue_item("Zeta")
+    queue_item("alpha")
+    queue_item("Mu")
+    titles = [item["title"] for item in db.get_queue_page(sort="title", limit=10)[0]]
+    assert titles == ["alpha", "Mu", "Zeta"], "sorting ignores case"
+
+
+def test_sorting_by_age(queue_item):
+    first = queue_item("first")
+    last = queue_item("last")
+    assert db.get_queue_page(sort="oldest", limit=1)[0][0]["id"] == first
+    assert db.get_queue_page(sort="newest", limit=1)[0][0]["id"] == last
+
+
+def test_an_unknown_sort_falls_back_to_the_queue_order(queue_item):
+    queue_item("A")
+    smart = [item["id"] for item in db.get_queue_page(sort="smart", limit=10)[0]]
+    assert [
+        item["id"] for item in db.get_queue_page(sort="nonsense", limit=10)[0]
+    ] == smart
+
+
+def test_the_page_size_is_capped(queue_item):
+    """A caller cannot ask for the whole table through the paged query."""
+    queue_item()
+    assert db.get_queue_page(limit=100000)[0]
+    items, _ = db.get_queue_page(limit=100000)
+    assert len(items) <= 200
+
+
+def test_counts_group_the_statuses(queue_item):
+    _spread(queue_item, count=9)
+    running = queue_item("busy")
+    db.set_queue_status(running, "running")
+
+    counts = db.queue_counts()
+    assert counts["completed"] == 3
+    assert counts["failed"] == 3
+    assert counts["queued"] == 3
+    assert counts["running"] == 1
+    assert counts["active"] == 4, "queued plus running"
+    assert counts["finished"] == 6
+    assert counts["all"] == 10
+
+
+def test_counts_start_at_zero_for_every_status():
+    assert db.queue_counts() == {
+        "queued": 0,
+        "running": 0,
+        "completed": 0,
+        "failed": 0,
+        "cancelled": 0,
+        "active": 0,
+        "finished": 0,
+        "all": 0,
+    }
