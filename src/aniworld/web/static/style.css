@@ -107,6 +107,35 @@
   --status-cancelled-bg: rgba(245, 158, 11, 0.18);
   --status-cancelled-text: #fcd34d;
 
+  /* One pair per site for the site switch. aniworld doubles as the fallback,
+     which is what an unknown site gets and what shows before the page has
+     finished picking one.
+
+     Give --site-all-bg / --site-all-shadow a value and every site uses it,
+     which is how a theme turns per-site colouring off in one line. "initial"
+     is how CSS spells "not set" for a custom property: it makes the var()
+     below fall through to the per-site token. */
+  --site-all-bg: initial;
+  --site-all-shadow: initial;
+  --site-aniworld-bg: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  --site-aniworld-shadow: 0 2px 8px rgba(139, 92, 246, 0.35);
+  --site-sto-bg: linear-gradient(135deg, #38bdf8, #2563eb);
+  --site-sto-shadow: 0 2px 8px rgba(56, 189, 248, 0.35);
+  --site-megakino-bg: linear-gradient(135deg, #ef4444, #b91c1c);
+  --site-megakino-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
+  --site-cineby-bg: linear-gradient(135deg, #22d3ee, #0891b2);
+  --site-cineby-shadow: 0 2px 8px rgba(34, 211, 238, 0.35);
+  --site-kinox-bg: linear-gradient(135deg, #34d399, #059669);
+  --site-kinox-shadow: 0 2px 8px rgba(52, 211, 153, 0.35);
+  --site-burningseries-bg: linear-gradient(135deg, #fb923c, #ea580c);
+  --site-burningseries-shadow: 0 2px 8px rgba(251, 146, 60, 0.35);
+  --site-filmpalast-bg: linear-gradient(135deg, #84cc16, #4d7c0f);
+  --site-filmpalast-shadow: 0 2px 8px rgba(132, 204, 22, 0.35);
+  --site-mangafire-bg: linear-gradient(135deg, #f59e0b, #b45309);
+  --site-mangafire-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);
+  --site-htv-bg: linear-gradient(135deg, #ff4fa3, #db2777);
+  --site-htv-shadow: 0 2px 8px rgba(255, 79, 163, 0.35);
+
   /* Language badges on the episode rows */
   --badge-german-dub-border: rgba(37, 99, 235, 0.35);
   --badge-german-dub-text: #93c5fd;
@@ -624,7 +653,66 @@ select option {
   margin-top: 16px;
 }
 
-/* ===== Site switch ===== */
+/* ===== Site switch =====
+   Every site carries its own colour, the way it did before v5. Nothing here is
+   hardcoded into a rule: the colours are tokens, and body[data-site] only maps
+   the current site's pair onto --active-site-*, which is what the switch reads.
+   A theme has two ways in, both from the tokens block above:
+
+     --site-kinox-bg: ...      recolour one site
+     --site-all-bg: ...        one colour for every site, which is how you turn
+                               per-site colouring off entirely
+
+   --site-all-* wins because it is read first, with the per-site token as the
+   fallback. Overriding --active-site-bg directly does not work from a theme:
+   body[data-site="..."] outranks a plain :root or body rule, which is exactly
+   why --site-all-* exists. */
+body,
+body[data-site="aniworld"] {
+  --active-site-bg: var(--site-all-bg, var(--site-aniworld-bg));
+  --active-site-shadow: var(--site-all-shadow, var(--site-aniworld-shadow));
+}
+
+body[data-site="sto"] {
+  --active-site-bg: var(--site-all-bg, var(--site-sto-bg));
+  --active-site-shadow: var(--site-all-shadow, var(--site-sto-shadow));
+}
+
+body[data-site="megakino"] {
+  --active-site-bg: var(--site-all-bg, var(--site-megakino-bg));
+  --active-site-shadow: var(--site-all-shadow, var(--site-megakino-shadow));
+}
+
+body[data-site="cineby"] {
+  --active-site-bg: var(--site-all-bg, var(--site-cineby-bg));
+  --active-site-shadow: var(--site-all-shadow, var(--site-cineby-shadow));
+}
+
+body[data-site="kinox"] {
+  --active-site-bg: var(--site-all-bg, var(--site-kinox-bg));
+  --active-site-shadow: var(--site-all-shadow, var(--site-kinox-shadow));
+}
+
+body[data-site="burningseries"] {
+  --active-site-bg: var(--site-all-bg, var(--site-burningseries-bg));
+  --active-site-shadow: var(--site-all-shadow, var(--site-burningseries-shadow));
+}
+
+body[data-site="filmpalast"] {
+  --active-site-bg: var(--site-all-bg, var(--site-filmpalast-bg));
+  --active-site-shadow: var(--site-all-shadow, var(--site-filmpalast-shadow));
+}
+
+body[data-site="mangafire"] {
+  --active-site-bg: var(--site-all-bg, var(--site-mangafire-bg));
+  --active-site-shadow: var(--site-all-shadow, var(--site-mangafire-shadow));
+}
+
+body[data-site="htv"] {
+  --active-site-bg: var(--site-all-bg, var(--site-htv-bg));
+  --active-site-shadow: var(--site-all-shadow, var(--site-htv-shadow));
+}
+
 .segmented {
   display: flex;
   justify-content: center;
@@ -653,9 +741,12 @@ select option {
   left: 0;
   height: calc(100% - 6px);
   border-radius: 9px;
-  background: var(--gradient-purple);
-  box-shadow: var(--shadow-thumb);
-  transition: transform 0.3s var(--ease), width 0.3s var(--ease);
+  background: var(--active-site-bg);
+  box-shadow: var(--active-site-shadow);
+  /* the colour fades a touch slower than the slide, so switching sites reads
+     as one movement rather than a jump to a new colour */
+  transition: transform 0.3s var(--ease), width 0.3s var(--ease),
+    background 0.4s, box-shadow 0.4s;
   z-index: 0;
   pointer-events: none;
 }
@@ -2125,8 +2216,8 @@ select option {
   }
 
   .segmented-btn.active {
-    background: var(--gradient-purple);
-    box-shadow: var(--shadow-thumb);
+    background: var(--active-site-bg);
+    box-shadow: var(--active-site-shadow);
   }
 
   /* A row of these does not fit a phone: an unbreakable path or URL plus the

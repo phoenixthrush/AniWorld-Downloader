@@ -126,7 +126,7 @@
   --shadow-btn: 0 2px 8px rgba(37, 99, 235, 0.25);
   --shadow-btn-hover: 0 4px 16px rgba(37, 99, 235, 0.35);
   --shadow-ribbon: 0 2px 6px rgba(37, 99, 235, 0.45);
-  --shadow-thumb: 0 2px 8px rgba(147, 51, 234, 0.35); /* the site switch */
+  --shadow-thumb: 0 2px 8px rgba(147, 51, 234, 0.35);
   --shadow-card: 0 12px 32px rgba(0, 0, 0, 0.4); /* poster card on hover */
   --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.6);
   --shadow-toast: 0 8px 24px rgba(0, 0, 0, 0.5);
@@ -141,6 +141,46 @@
   --danger-soft-strong: rgba(239, 68, 68, 0.2); /* hover */
   --danger-border: rgba(239, 68, 68, 0.3);
   --danger-text: #fca5a5;
+
+  /* ===================================================================
+     Site switch colours
+     Each site colours the switch differently. Override one pair to recolour
+     a single site:
+
+       --site-kinox-bg: linear-gradient(135deg, #111, #333);
+
+     or set the two --site-all-* below to give every site the same colour,
+     which is how you turn per-site colouring off:
+
+       --site-all-bg: var(--gradient-accent);
+       --site-all-shadow: none;
+
+     Do not target --active-site-bg from a theme. body[data-site="..."] sets
+     it and outranks anything you write in :root; these tokens are the way in.
+     aniworld's pair also serves as the fallback for an unknown site.
+     =================================================================== */
+  --site-aniworld-bg: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  --site-aniworld-shadow: 0 2px 8px rgba(139, 92, 246, 0.35);
+  --site-sto-bg: linear-gradient(135deg, #38bdf8, #2563eb);
+  --site-sto-shadow: 0 2px 8px rgba(56, 189, 248, 0.35);
+  --site-megakino-bg: linear-gradient(135deg, #ef4444, #b91c1c);
+  --site-megakino-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
+  --site-cineby-bg: linear-gradient(135deg, #22d3ee, #0891b2);
+  --site-cineby-shadow: 0 2px 8px rgba(34, 211, 238, 0.35);
+  --site-kinox-bg: linear-gradient(135deg, #34d399, #059669);
+  --site-kinox-shadow: 0 2px 8px rgba(52, 211, 153, 0.35);
+  --site-burningseries-bg: linear-gradient(135deg, #fb923c, #ea580c);
+  --site-burningseries-shadow: 0 2px 8px rgba(251, 146, 60, 0.35);
+  --site-filmpalast-bg: linear-gradient(135deg, #84cc16, #4d7c0f);
+  --site-filmpalast-shadow: 0 2px 8px rgba(132, 204, 22, 0.35);
+  --site-mangafire-bg: linear-gradient(135deg, #f59e0b, #b45309);
+  --site-mangafire-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);
+  --site-htv-bg: linear-gradient(135deg, #ff4fa3, #db2777);
+  --site-htv-shadow: 0 2px 8px rgba(255, 79, 163, 0.35);
+
+  /* Uncomment either to give every site the same colour instead.
+     --site-all-bg: var(--gradient-purple);
+     --site-all-shadow: var(--shadow-thumb); */
 
   /* ===================================================================
      Queue status pills
