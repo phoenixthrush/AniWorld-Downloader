@@ -221,6 +221,26 @@ class HanimeTVSeries:
             self.__video_title = self.raw_video.get("name", "")
         return self.__video_title
 
+    @staticmethod
+    def strip_episode_number(name):
+        """Drop the trailing episode number from a video name."""
+
+        if not name:
+            return ""
+        return re.sub(r"\s*\d+$", "", name).strip() or name
+
+    def video_title_for_slug(self, slug):
+        """Return one franchise video's own name, by slug.
+
+        The franchise list comes with the api data we already fetched, so this
+        never costs an extra request.
+        """
+
+        for video in self.raw_franchise_videos:
+            if video.get("slug") == slug:
+                return video.get("name") or ""
+        return ""
+
     @property
     def title(self):
         """Return the best series title."""
@@ -228,8 +248,7 @@ class HanimeTVSeries:
         if self.__title is None:
             self.__title = self.franchise_title
             if not self.__title:
-                name = self.video_title
-                self.__title = re.sub(r"\s*\d+$", "", name).strip() or name
+                self.__title = self.strip_episode_number(self.video_title)
             if not self.__title:
                 self.__title = self._title_from_slug(self.slug)
         return self.__title
