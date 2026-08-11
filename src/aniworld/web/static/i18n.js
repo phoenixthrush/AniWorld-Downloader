@@ -137,6 +137,7 @@
         "Gib einem Ordner einen Namen und wähle ihn im Download-Dialog als Ziel aus.",
       "settings.name": "Name",
       "settings.path": "Pfad",
+      "settings.path_required": "Name und Pfad sind erforderlich",
       "settings.default_for": "Standard für Seiten",
       "settings.default_for_hint":
         "Wähle aus, für welche Seiten dieser Pfad vorausgewählt sein soll.",

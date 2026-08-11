@@ -129,7 +129,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     libxcb1 \
     libxext6
 
-# Copy virtual env, playwright browsers, and compressed static ffmpeg/ffprobe from builder stage
+# Copy virtual env and playwright browsers from builder stage. ffmpeg is not in
+# here, the runner installs it from apt above.
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /ms-playwright /ms-playwright
 
