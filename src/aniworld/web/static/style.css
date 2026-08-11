@@ -1523,11 +1523,17 @@ body[data-site="htv"] {
   flex-shrink: 0;
 }
 
+/* inline-flex, not inline-block: the pill is a flex item next to the row
+   buttons and gets stretched to their height, which would leave the text
+   pinned to the top. */
 .status-pill {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 0.7rem;
   font-weight: 700;
-  padding: 2px 8px;
+  line-height: 1;
+  padding: 4px 8px;
   border-radius: 5px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
