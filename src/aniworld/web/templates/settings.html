@@ -343,6 +343,12 @@
       Custom CSS applied for everyone on this instance. Write your own rules, or pull in a
       theme with a single import line. The sign-in screen is never themed.
     </p>
+    {# The link sits outside the span, since data-i18n overwrites textContent. #}
+    <p class="hint">
+      <span data-i18n="settings.css_themes_hint">Ready made themes live in their own repositories, for example</span>
+      <a href="https://github.com/SiroxCW/aniworld-themes" target="_blank" rel="noopener noreferrer">
+        SiroxCW/aniworld-themes</a>.
+    </p>
     <textarea id="customCss" class="code-input" rows="14" spellcheck="false"
       autocomplete="off" autocapitalize="off"
       placeholder="@import url('https://cdn.jsdelivr.net/gh/user/repo@main/theme.css');"></textarea>

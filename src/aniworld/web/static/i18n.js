@@ -216,6 +216,8 @@
       "settings.appearance": "Aussehen",
       "settings.custom_css_hint":
         "Eigenes CSS für alle Nutzer dieser Instanz. Schreib eigene Regeln oder hol dir ein Theme mit einer einzigen Import-Zeile. Die Anmeldeseite wird nie mitgestaltet.",
+      "settings.css_themes_hint":
+        "Fertige Themes liegen in eigenen Repositories, zum Beispiel",
       "settings.css_clear": "Leeren",
       "settings.css_size": "{size} KB",
       "settings.css_size_bytes": "{size} Bytes",
