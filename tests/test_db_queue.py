@@ -680,3 +680,36 @@ def test_counts_start_at_zero_for_every_status():
         "finished": 0,
         "all": 0,
     }
+
+
+# ---------------------------------------------------------------------------
+# Queued genres (write-once, consumed by the worker)
+# ---------------------------------------------------------------------------
+def test_genres_default_to_an_empty_list(queue_item):
+    queue_id = queue_item(title="Naruto")
+    assert db.take_queued_genres(queue_id) == []
+
+
+def test_genres_are_returned_once(queue_item):
+    queue_id = queue_item(title="Naruto", genres=["Action", "Adventure"])
+    assert db.take_queued_genres(queue_id) == ["Action", "Adventure"]
+
+
+def test_genres_are_blanked_after_being_taken(queue_item):
+    queue_id = queue_item(title="Naruto", genres=["Action"])
+    db.take_queued_genres(queue_id)
+    assert db.take_queued_genres(queue_id) == []
+
+
+def test_taking_genres_of_a_missing_item_is_an_empty_list():
+    assert db.take_queued_genres(999999) == []
+
+
+def test_get_queue_item_does_not_leak_genres_after_they_are_taken(queue_item):
+    """genres is meant to be consumed exactly once by the worker. Confirming
+    it is gone from get_queue_item() after take_queued_genres() guards
+    against something else in the app growing a read path back to it."""
+    queue_id = queue_item(title="Naruto", genres=["Action"])
+    db.take_queued_genres(queue_id)
+    item = db.get_queue_item(queue_id)
+    assert json.loads(item["genres"]) == []

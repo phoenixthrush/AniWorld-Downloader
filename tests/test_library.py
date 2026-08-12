@@ -270,3 +270,76 @@ def test_the_same_title_in_another_root_is_untouched(episode_file, tmp_path, dow
 def test_custom_path_labels():
     path_id = db.add_custom_path("Movies", "/tmp/movies")
     assert library.custom_path_labels() == {path_id: "Movies"}
+
+
+# ---------------------------------------------------------------------------
+# Genre sidecar (queue-independent genre storage)
+# ---------------------------------------------------------------------------
+def test_writing_genres_creates_a_sidecar_file(downloads):
+    folder = downloads / "Naruto"
+    library.write_genre_sidecar(folder, ["Action", "Adventure"])
+    assert (folder / library.GENRE_SIDECAR_NAME).is_file()
+
+
+def test_writing_an_empty_genre_list_writes_nothing(downloads):
+    folder = downloads / "Naruto"
+    folder.mkdir()
+    library.write_genre_sidecar(folder, [])
+    assert not (folder / library.GENRE_SIDECAR_NAME).exists()
+
+
+def test_writing_genres_creates_the_folder_if_missing(downloads):
+    folder = downloads / "Naruto"
+    library.write_genre_sidecar(folder, ["Action"])
+    assert folder.is_dir()
+
+
+def test_reading_a_missing_sidecar_returns_an_empty_list(downloads):
+    folder = downloads / "Naruto"
+    folder.mkdir()
+    assert library._read_genre_sidecar(folder) == []
+
+
+def test_a_written_sidecar_round_trips(downloads):
+    folder = downloads / "Naruto"
+    library.write_genre_sidecar(folder, ["Action", "Adventure"])
+    assert library._read_genre_sidecar(folder) == ["Action", "Adventure"]
+
+
+def test_a_malformed_sidecar_is_treated_as_empty(downloads):
+    folder = downloads / "Naruto"
+    folder.mkdir()
+    (folder / library.GENRE_SIDECAR_NAME).write_text("not json", encoding="utf-8")
+    assert library._read_genre_sidecar(folder) == []
+
+
+def test_a_sidecar_holding_something_other_than_a_list_is_treated_as_empty(downloads):
+    folder = downloads / "Naruto"
+    folder.mkdir()
+    (folder / library.GENRE_SIDECAR_NAME).write_text(
+        '{"not": "a list"}', encoding="utf-8"
+    )
+    assert library._read_genre_sidecar(folder) == []
+
+
+def test_list_titles_with_meta_includes_genres_from_the_sidecar(
+    episode_file, downloads
+):
+    episode_file("Naruto", 1, 1)
+    library.write_genre_sidecar(downloads / "Naruto", ["Action"])
+    titles = library.list_titles_with_meta()
+    assert titles == [
+        {"folder": "Naruto", "categories": ["series"], "genres": ["Action"]}
+    ]
+
+
+def test_a_title_without_a_sidecar_has_an_empty_genre_list(episode_file):
+    episode_file("Naruto", 1, 1)
+    titles = library.list_titles_with_meta()
+    assert titles[0]["genres"] == []
+
+
+def test_the_sidecar_file_itself_is_not_listed_as_a_title(episode_file, downloads):
+    episode_file("Naruto", 1, 1)
+    library.write_genre_sidecar(downloads / "Naruto", ["Action"])
+    assert library.list_titles() == ["Naruto"]

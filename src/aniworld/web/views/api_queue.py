@@ -57,6 +57,11 @@ def start_download():
     if provider == "MangaFire":
         episodes = _tag_mangafire(episodes, data.get("mangafire_format"))
 
+    genres = data.get("genres")
+    if not isinstance(genres, list):
+        genres = []
+    genres = [str(g).strip() for g in genres if str(g).strip()]
+
     queue_id = db.add_to_queue(
         title=data.get("title", "Unknown"),
         series_url=data.get("series_url", ""),
@@ -65,6 +70,7 @@ def start_download():
         provider=provider,
         username=_current_username(),
         custom_path_id=data.get("custom_path_id"),
+        genres=genres,
     )
     worker.ensure_started()
     return jsonify({"queue_id": queue_id})

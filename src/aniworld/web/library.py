@@ -5,8 +5,10 @@ directories exist, opening a location lists its folder names, and only opening
 a single title walks that one folder. Nothing ever scans the whole tree.
 """
 
+import json
 import re
 import shutil
+from pathlib import Path
 
 from ..logger import get_logger
 from . import db, paths
@@ -104,8 +106,55 @@ def list_titles(custom_path_id=None, lang_folder=None):
     return titles
 
 
+def _movie_files(target):
+    """Video files with no SxxExx pattern, e.g. a standalone film. Stable order.
+
+    ".temp_" is excluded wherever it appears in the name, not just as a
+    prefix: an in-progress download can carry it as an infix (e.g.
+    "Title.temp_full.mkv"), which a prefix-only check would miss and list
+    as a finished file.
+    """
+    files = [
+        f
+        for f in target.rglob("*")
+        if f.is_file()
+        and ".temp_" not in f.name
+        and f.suffix.lower() in VIDEO_EXTENSIONS
+        and not EPISODE_RE.search(f.name)
+    ]
+    files.sort(key=lambda f: f.name.lower())
+    return files
+
+
+def classify_title(target):
+    """Whether a title folder has numbered seasons, movie files, or both.
+
+    A folder-scoped walk (only this title, never the whole tree), used to
+    sort a title into the "series" and/or "movies" groups in the library
+    view. In-progress (.temp_) files count too: they already carry the
+    SxxExx marker, or lack of it, in their filename, so classification does
+    not have to wait for the download to finish.
+    """
+    has_series = False
+    has_movies = False
+    for file in target.rglob("*"):
+        if not file.is_file():
+            continue
+        if EPISODE_RE.search(file.name):
+            has_series = True
+        elif file.suffix.lower() in VIDEO_EXTENSIONS:
+            has_movies = True
+    return has_series, has_movies
+
+
 def read_title(folder, custom_path_id=None, lang_folder=None):
-    """Seasons and episode files of one title. Only this folder is walked."""
+    """Seasons and episode files of one title. Only this folder is walked.
+
+    Files without a SxxExx marker are not skipped outright: if they are a
+    video file they are almost always a movie rather than a missing episode,
+    so they are grouped under a synthetic "movie" season instead of vanishing
+    from the listing.
+    """
     base = _resolve_base(custom_path_id, lang_folder)
     target = _safe_child(base, folder)
     if target is None or not target.is_dir():
@@ -116,7 +165,7 @@ def read_title(folder, custom_path_id=None, lang_folder=None):
     total_episodes = 0
 
     for file in target.rglob("*"):
-        if not file.is_file() or file.name.startswith(".temp_"):
+        if not file.is_file() or ".temp_" in file.name:
             continue
         match = EPISODE_RE.search(file.name)
         if not match:
@@ -148,6 +197,26 @@ def read_title(folder, custom_path_id=None, lang_folder=None):
     for entries in seasons.values():
         entries.sort(key=lambda e: e["episode"])
 
+    movie_files = _movie_files(target)
+    if movie_files:
+        entries = []
+        for index, file in enumerate(movie_files):
+            try:
+                size = file.stat().st_size
+            except OSError:
+                size = 0
+            entries.append(
+                {
+                    "episode": index + 1,
+                    "file": file.name,
+                    "size": size,
+                    "is_video": True,
+                }
+            )
+            total_size += size
+            total_episodes += 1
+        seasons["movie"] = entries
+
     return {
         "folder": folder,
         "seasons": seasons,
@@ -170,7 +239,7 @@ def _safe_child(base, folder):
 
 
 def delete(folder, season=None, episode=None, custom_path_id=None, lang_folder=None):
-    """Delete a whole title, one season or a single episode."""
+    """Delete a whole title, one season, a single episode, or one movie file."""
     base = _resolve_base(custom_path_id, lang_folder)
     target = _safe_child(base, folder)
     if target is None:
@@ -181,6 +250,25 @@ def delete(folder, season=None, episode=None, custom_path_id=None, lang_folder=N
     if season is None:
         shutil.rmtree(target, ignore_errors=True)
         return 1
+
+    if str(season) == "movie":
+        movie_files = _movie_files(target)
+        if episode is not None:
+            index = int(episode) - 1
+            if index < 0 or index >= len(movie_files):
+                raise LibraryError("Nothing found to delete")
+            movie_files = [movie_files[index]]
+        deleted = 0
+        for file in movie_files:
+            try:
+                file.unlink()
+                deleted += 1
+            except OSError:
+                pass
+        _prune_empty(target)
+        if deleted == 0:
+            raise LibraryError("Nothing found to delete")
+        return deleted
 
     if episode is not None:
         pattern = re.compile(
@@ -216,6 +304,65 @@ def _prune_empty(root):
         root.rmdir()
     except OSError:
         pass
+
+
+GENRE_SIDECAR_NAME = ".genres.json"
+
+
+def write_genre_sidecar(folder, genres):
+    """Write a title's genres next to its episodes, independent of the queue.
+
+    Called once by the worker when a download starts. Kept deliberately
+    dumb: a flat JSON list of strings, no schema versioning, nothing that
+    needs migrating later. An empty list is a no-op rather than writing an
+    empty file, so a provider or a manual download that never had genre data
+    just leaves nothing behind instead of a placeholder file to clean up.
+    """
+    genres = [str(g).strip() for g in (genres or []) if str(g).strip()]
+    if not genres:
+        return
+    folder = Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / GENRE_SIDECAR_NAME).write_text(
+        json.dumps(genres, ensure_ascii=False), encoding="utf-8"
+    )
+
+
+def _read_genre_sidecar(folder):
+    path = Path(folder) / GENRE_SIDECAR_NAME
+    if not path.is_file():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    if not isinstance(data, list):
+        return []
+    return [str(g) for g in data if str(g).strip()]
+
+
+def list_titles_with_meta(custom_path_id=None, lang_folder=None):
+    """Titles plus which of "series"/"movies" each one belongs to, and its
+    genres if a sidecar file was written for it.
+
+    A title can be both series and movies (e.g. a bonus film in the same
+    folder), so categories is a list, not a single value.
+    """
+    base = _resolve_base(custom_path_id, lang_folder)
+    titles = list_titles(custom_path_id, lang_folder)
+
+    result = []
+    for folder in titles:
+        target = _safe_child(base, folder)
+        has_series, has_movies = classify_title(target) if target else (True, False)
+        categories = [
+            c for c, flag in (("series", has_series), ("movies", has_movies)) if flag
+        ]
+        if not categories:
+            categories = ["series"]
+        genres = _read_genre_sidecar(target) if target else []
+        result.append({"folder": folder, "categories": categories, "genres": genres})
+    return result
 
 
 def custom_path_labels():
