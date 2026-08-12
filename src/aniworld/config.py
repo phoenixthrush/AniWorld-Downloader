@@ -429,6 +429,7 @@ _STO_HOST = r"(?:www\.)?(?:" + "|".join(re.escape(h) for h in STO_ALL_HOSTS) + r
 
 STO_HOST_RE = re.compile(r"^(https?://)" + _STO_HOST + r"(?=[:/?#]|$)", re.IGNORECASE)
 
+
 def is_sto_host(url):
     """True if the URL points at any known serienstream host."""
     return bool(STO_HOST_RE.match(str(url or "")))

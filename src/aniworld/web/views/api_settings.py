@@ -121,9 +121,7 @@ def update_custom_shader():
         logger.error("Could not save custom shader: %s", exc)
         return jsonify({"error": "Could not write the shader"}), 500
 
-    return jsonify(
-        {"ok": True, "shader": stored, "version": theming.shader_version()}
-    )
+    return jsonify({"ok": True, "shader": stored, "version": theming.shader_version()})
 
 
 def public_ip():

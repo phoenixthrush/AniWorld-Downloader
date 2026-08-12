@@ -123,7 +123,9 @@ def list_queue():
     except ValueError:
         return jsonify({"error": "limit and offset must be whole numbers"}), 400
     if limit < 1 or offset < 0:
-        return jsonify({"error": "limit must be positive and offset cannot be negative"}), 400
+        return jsonify(
+            {"error": "limit must be positive and offset cannot be negative"}
+        ), 400
 
     items, total = db.get_queue_page(
         status=status,

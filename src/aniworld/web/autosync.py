@@ -396,7 +396,9 @@ def run_cycle():
                 "queued": 0,
                 "results": [],
             }
-            db.set_autosync_state(last_run=started.isoformat(), last_report=_dump(report))
+            db.set_autosync_state(
+                last_run=started.isoformat(), last_report=_dump(report)
+            )
             return report
 
         for candidate in candidates:
@@ -423,7 +425,9 @@ def run_cycle():
         }
         db.set_autosync_state(last_run=started.isoformat(), last_report=_dump(report))
         logger.info(
-            "AutoSync finished: %d matched, %d queued", report["checked"], report["queued"]
+            "AutoSync finished: %d matched, %d queued",
+            report["checked"],
+            report["queued"],
         )
 
         if report["queued"]:

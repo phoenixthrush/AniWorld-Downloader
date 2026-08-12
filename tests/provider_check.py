@@ -393,8 +393,9 @@ def hanime_trending():
 def mangafire_trending():
     """MangaFire's top titles, shaped like the other browse fetchers."""
     import niquests
+    from aniworld.models.mangafire_to.vrf import sign_url
 
-    response = niquests.get("https://mangafire.to/api/top-titles", timeout=20)
+    response = niquests.get(sign_url("https://mangafire.to/api/top-titles"), timeout=20)
     response.raise_for_status()
     out = []
     for item in (response.json() or {}).get("items", []) or []:

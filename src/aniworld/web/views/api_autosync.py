@@ -15,9 +15,7 @@ def register(bp):
     bp.add_url_rule("/autosync/status", view_func=autosync_status)
     bp.add_url_rule("/autosync/run", view_func=autosync_run, methods=["POST"])
     bp.add_url_rule("/autosync/exclusions", view_func=list_exclusions)
-    bp.add_url_rule(
-        "/autosync/exclusions", view_func=add_exclusion, methods=["POST"]
-    )
+    bp.add_url_rule("/autosync/exclusions", view_func=add_exclusion, methods=["POST"])
     bp.add_url_rule(
         "/autosync/exclusions/<int:exclusion_id>",
         view_func=delete_exclusion,

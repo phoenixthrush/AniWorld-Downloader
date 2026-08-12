@@ -187,9 +187,7 @@ FOLDER_UNSAFE = re.compile(r'[<>:"/\\|?*]')
 
 # The same title reads back with straight or curly quotes depending on where
 # it came from, "Ao-chan Can't Study!" against "Ao-chan Can’t Study!".
-_SMART_QUOTES = str.maketrans(
-    {"‘": "'", "’": "'", "“": '"', "”": '"'}
-)
+_SMART_QUOTES = str.maketrans({"‘": "'", "’": "'", "“": '"', "”": '"'})
 
 # What the naming template appends is bracketed: "(2019)", "[imdbid-tt0409591]"
 _DECORATION_OPENERS = "([{"
