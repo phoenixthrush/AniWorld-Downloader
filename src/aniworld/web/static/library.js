@@ -251,6 +251,11 @@
     }
     if (kind === "season") {
       const season = node.closest("[data-season]").dataset.season;
+      if (season === "movie") {
+        return t("library.confirm_movies", 'Really delete all movies of "{name}"?', {
+          name
+        });
+      }
       return t("library.confirm_season", 'Really delete season {season} of "{name}"?', {
         season,
         name
