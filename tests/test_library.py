@@ -336,38 +336,66 @@ def test_deleting_an_out_of_range_movie_index_is_an_error(downloads):
         library.delete("Trilogy", season="movie", episode=5)
 
 
+def test_a_temp_file_with_the_marker_mid_name_is_not_shown_as_a_movie(downloads):
+    folder = downloads / "Some Film"
+    folder.mkdir()
+    (folder / "Some Film (2026).temp_full.mkv").write_bytes(b"x")
+    result = library.read_title("Some Film")
+    assert result["seasons"] == {}
+
+
 # ---------------------------------------------------------------------------
-# Genre grouping
+# Series/movies classification
 # ---------------------------------------------------------------------------
-def test_a_title_gets_its_main_genre_from_queue_history(queue_item, downloads):
-    queue_item(title="Naruto", genre="Action, Adventure")
-    (downloads / "Naruto").mkdir()
+def test_a_series_only_folder_is_classified_as_series(episode_file):
+    episode_file("Naruto", 1, 1)
     titles = library.list_titles_with_meta()
-    assert titles == [{"folder": "Naruto", "genre": "Action"}]
+    assert titles == [{"folder": "Naruto", "categories": ["series"]}]
 
 
-def test_a_title_never_queued_has_no_genre(downloads):
-    (downloads / "Naruto").mkdir()
-    assert library.list_titles_with_meta() == [{"folder": "Naruto", "genre": None}]
+def test_a_movie_only_folder_is_classified_as_movies(downloads):
+    folder = downloads / "Your Name"
+    folder.mkdir()
+    (folder / "Your Name.mkv").write_bytes(b"x")
+    titles = library.list_titles_with_meta()
+    assert titles == [{"folder": "Your Name", "categories": ["movies"]}]
 
 
-def test_genre_lookup_matches_a_decorated_folder_name(queue_item, downloads):
-    queue_item(title="Naruto", genre="Action")
-    (downloads / "Naruto (2002) [imdbid-tt0409591]").mkdir()
-    genres = library.genre_lookup(["Naruto (2002) [imdbid-tt0409591]"])
-    assert genres["Naruto (2002) [imdbid-tt0409591]"] == "Action"
+def test_a_folder_with_both_is_classified_as_both(episode_file, downloads):
+    episode_file("Naruto", 1, 1)
+    (downloads / "Naruto" / "Naruto The Movie.mkv").write_bytes(b"x")
+    titles = library.list_titles_with_meta()
+    assert titles == [{"folder": "Naruto", "categories": ["series", "movies"]}]
 
 
-def test_the_most_recent_queue_entry_wins_the_genre(queue_item, downloads):
-    queue_item(title="Naruto", genre="Old Genre")
-    queue_item(title="Naruto", genre="New Genre")
-    (downloads / "Naruto").mkdir()
-    genres = library.genre_lookup(["Naruto"])
-    assert genres["Naruto"] == "New Genre"
+def test_an_in_progress_movie_download_is_still_classified_as_a_movie(downloads):
+    folder = downloads / "Some Film"
+    folder.mkdir()
+    (folder / "Some Film (2026).temp_full.mkv").write_bytes(b"x")
+    titles = library.list_titles_with_meta()
+    assert titles == [{"folder": "Some Film", "categories": ["movies"]}]
 
 
-def test_an_unrelated_title_does_not_borrow_another_titles_genre(queue_item, downloads):
-    queue_item(title="Naruto", genre="Action")
-    (downloads / "One Piece").mkdir()
-    genres = library.genre_lookup(["One Piece"])
-    assert genres.get("One Piece") is None
+def test_an_empty_folder_falls_back_to_series(downloads):
+    (downloads / "Empty Show").mkdir()
+    titles = library.list_titles_with_meta()
+    assert titles == [{"folder": "Empty Show", "categories": ["series"]}]
+
+
+# ---------------------------------------------------------------------------
+# Temp-file infix handling
+# ---------------------------------------------------------------------------
+def test_a_temp_file_with_the_marker_mid_name_is_not_shown_as_a_movie(downloads):
+    folder = downloads / "Some Film"
+    folder.mkdir()
+    (folder / "Some Film (2026).temp_full.mkv").write_bytes(b"x")
+    result = library.read_title("Some Film")
+    assert result["seasons"] == {}
+
+
+def test_a_temp_episode_with_the_marker_mid_name_is_not_shown(downloads):
+    folder = downloads / "Naruto" / "Season 1"
+    folder.mkdir(parents=True)
+    (folder / "Naruto S01E001.temp_full.mkv").write_bytes(b"x")
+    result = library.read_title("Naruto")
+    assert result["seasons"] == {}

@@ -680,28 +680,3 @@ def test_counts_start_at_zero_for_every_status():
         "finished": 0,
         "all": 0,
     }
-
-
-# ---------------------------------------------------------------------------
-# Genre history (library grouping)
-# ---------------------------------------------------------------------------
-def test_genre_defaults_to_empty_string(queue_item):
-    queue_id = queue_item(title="Naruto")
-    item = db.get_queue_item(queue_id)
-    assert item["genre"] == ""
-
-
-def test_genre_is_stored_when_given(queue_item):
-    queue_item(title="Naruto", genre="Action, Adventure")
-    assert db.genre_history() == [{"title": "Naruto", "genre": "Action, Adventure"}]
-
-
-def test_genre_history_skips_items_without_a_genre(queue_item):
-    queue_item(title="Naruto")
-    assert db.genre_history() == []
-
-
-def test_genre_history_returns_the_most_recent_entry_first(queue_item):
-    queue_item(title="Naruto", genre="Old")
-    queue_item(title="Naruto", genre="New")
-    assert db.genre_history()[0] == {"title": "Naruto", "genre": "New"}

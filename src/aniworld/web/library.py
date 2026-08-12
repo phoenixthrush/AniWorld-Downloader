@@ -10,7 +10,7 @@ import shutil
 
 from ..logger import get_logger
 from . import db, paths
-from .media import EPISODE_RE, folder_matches_title
+from .media import EPISODE_RE
 
 logger = get_logger(__name__)
 
@@ -105,16 +105,44 @@ def list_titles(custom_path_id=None, lang_folder=None):
 
 
 def _movie_files(target):
-    """Video files with no SxxExx pattern, e.g. a standalone film. Stable order."""
+    """Video files with no SxxExx pattern, e.g. a standalone film. Stable order.
+
+    ".temp_" is excluded wherever it appears in the name, not just as a
+    prefix: an in-progress download can carry it as an infix (e.g.
+    "Title.temp_full.mkv"), which a prefix-only check would miss and list
+    as a finished file.
+    """
     files = [
-        f for f in target.rglob("*")
+        f
+        for f in target.rglob("*")
         if f.is_file()
-        and not f.name.startswith(".temp_")
+        and ".temp_" not in f.name
         and f.suffix.lower() in VIDEO_EXTENSIONS
         and not EPISODE_RE.search(f.name)
     ]
     files.sort(key=lambda f: f.name.lower())
     return files
+
+
+def classify_title(target):
+    """Whether a title folder has numbered seasons, movie files, or both.
+
+    A folder-scoped walk (only this title, never the whole tree), used to
+    sort a title into the "series" and/or "movies" groups in the library
+    view. In-progress (.temp_) files count too: they already carry the
+    SxxExx marker, or lack of it, in their filename, so classification does
+    not have to wait for the download to finish.
+    """
+    has_series = False
+    has_movies = False
+    for file in target.rglob("*"):
+        if not file.is_file():
+            continue
+        if EPISODE_RE.search(file.name):
+            has_series = True
+        elif file.suffix.lower() in VIDEO_EXTENSIONS:
+            has_movies = True
+    return has_series, has_movies
 
 
 def read_title(folder, custom_path_id=None, lang_folder=None):
@@ -135,7 +163,7 @@ def read_title(folder, custom_path_id=None, lang_folder=None):
     total_episodes = 0
 
     for file in target.rglob("*"):
-        if not file.is_file() or file.name.startswith(".temp_"):
+        if not file.is_file() or ".temp_" in file.name:
             continue
         match = EPISODE_RE.search(file.name)
         if not match:
@@ -176,7 +204,12 @@ def read_title(folder, custom_path_id=None, lang_folder=None):
             except OSError:
                 size = 0
             entries.append(
-                {"episode": index + 1, "file": file.name, "size": size, "is_video": True}
+                {
+                    "episode": index + 1,
+                    "file": file.name,
+                    "size": size,
+                    "is_video": True,
+                }
             )
             total_size += size
             total_episodes += 1
@@ -271,29 +304,26 @@ def _prune_empty(root):
         pass
 
 
-def genre_lookup(titles):
-    """Best-effort main genre per folder, matched against queue download history.
-
-    A title can carry several genre tags; only the first (its main genre) is
-    used here so a folder appears in exactly one genre group in the library
-    view, plus the always-present "all" group.
-    """
-    history = db.genre_history()
-    result = {}
-    for folder in titles:
-        for row in history:
-            if folder_matches_title(folder, row["title"]):
-                main = row["genre"].split(",")[0].strip()
-                result[folder] = main or None
-                break
-    return result
-
-
 def list_titles_with_meta(custom_path_id=None, lang_folder=None):
-    """Titles plus their main genre, for the library view to group by."""
+    """Titles plus which of "series"/"movies" each one belongs to.
+
+    A title can be both (e.g. a series with a bonus film in the same
+    folder), so this is a list of categories per title, not a single value.
+    """
+    base = _resolve_base(custom_path_id, lang_folder)
     titles = list_titles(custom_path_id, lang_folder)
-    genres = genre_lookup(titles)
-    return [{"folder": t, "genre": genres.get(t)} for t in titles]
+
+    result = []
+    for folder in titles:
+        target = _safe_child(base, folder)
+        has_series, has_movies = classify_title(target) if target else (True, False)
+        categories = [
+            c for c, flag in (("series", has_series), ("movies", has_movies)) if flag
+        ]
+        if not categories:
+            categories = ["series"]
+        result.append({"folder": folder, "categories": categories})
+    return result
 
 
 def custom_path_labels():

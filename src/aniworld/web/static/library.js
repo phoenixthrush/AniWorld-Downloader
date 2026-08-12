@@ -1,12 +1,6 @@
 /* Library tree.
  *
- * Four levels, each fetched only when it is opened:
- *   location -> genre group -> title folders -> seasons/episodes of one title
- *
- * The genre group is derived client-side from the "genre" field the titles
- * endpoint now returns (see library.list_titles_with_meta on the backend):
- * a title's main genre plus an always-present "all" group. Nothing extra is
- * fetched for this, it groups what /api/library/titles already returned.
+ * location -> series/movies -> title folders -> seasons/episodes of one title
  */
 
 (function () {
@@ -33,7 +27,9 @@
   }
 
   function seasonLabel(key) {
-    return key === "movie" ? t("library.movies", "Movies") : `${t("index.season", "Season")} ${esc(key)}`;
+    return key === "movie"
+      ? t("library.movies", "Movies")
+      : `${t("index.season", "Season")} ${esc(key)}`;
   }
 
   /* ===== Level 1: locations ===== */
@@ -65,38 +61,37 @@
               <span class="library-sub">${esc(location.path)}</span>
             </div>
           </div>
-          <div class="library-children" data-level="genres"></div>
+          <div class="library-children" data-level="types"></div>
         </div>`
       )
       .join("");
   }
 
-  /* ===== Genre grouping, done on what titles() already returned ===== */
-  function groupByGenre(titles) {
-    const groups = new Map();
-    groups.set("__all__", titles.slice());
-
-    titles.forEach((entry) => {
-      const genre = (entry.genre || "").trim();
-      if (!genre) return;
-      if (!groups.has(genre)) groups.set(genre, []);
-      groups.get(genre).push(entry);
-    });
-
-    const ordered = [
-      { key: "__all__", label: t("library.all", "All"), titles: groups.get("__all__") }
-    ];
-    Array.from(groups.keys())
-      .filter((key) => key !== "__all__")
-      .sort((a, b) => a.localeCompare(b))
-      .forEach((key) => ordered.push({ key, label: key, titles: groups.get(key) }));
-    return ordered;
+  function renderTitles(titles) {
+    return titles
+      .map(
+        (folder) => `
+        <div class="library-node" data-folder="${esc(folder)}">
+          <div class="library-row" data-toggle="title">
+            <div class="library-row-left">
+              <span class="arrow">&#9654;</span>
+              <span class="library-name">${esc(folder)}</span>
+            </div>
+            <div class="library-row-right">
+              <span class="library-sub" data-summary></span>
+              <button class="icon-btn" data-delete="title" title="${t("common.delete", "Delete")}">&times;</button>
+            </div>
+          </div>
+          <div class="library-children" data-level="title"></div>
+        </div>`
+      )
+      .join("");
   }
 
-  /* ===== Level 2: genre groups, each holding its title folders ===== */
-  async function loadTitles(node) {
+  /* ===== Level 2: series / movies ===== */
+  async function loadTypes(node) {
     const location = locations[Number(node.dataset.location)];
-    const container = node.querySelector('[data-level="genres"]');
+    const container = node.querySelector('[data-level="types"]');
     container.innerHTML = message(t("common.loading", "Loading..."));
 
     let titles = [];
@@ -113,41 +108,32 @@
       return;
     }
 
-    const groups = groupByGenre(titles);
+    const series = titles
+      .filter((entry) => (entry.categories || []).includes("series"))
+      .map((entry) => entry.folder);
+    const movies = titles
+      .filter((entry) => (entry.categories || []).includes("movies"))
+      .map((entry) => entry.folder);
 
-    container.innerHTML = groups
+    const sections = [
+      { key: "series", label: t("library.series", "Series"), titles: series },
+      { key: "movies", label: t("library.movies", "Movies"), titles: movies }
+    ].filter((section) => section.titles.length);
+
+    container.innerHTML = sections
       .map(
-        (group) => `
-        <div class="library-node" data-genre="${esc(group.key)}">
-          <div class="library-row" data-toggle="genre">
+        (section) => `
+        <div class="library-node" data-type="${esc(section.key)}">
+          <div class="library-row" data-toggle="type">
             <div class="library-row-left">
               <span class="arrow">&#9654;</span>
-              <span class="library-name">${esc(group.label)}</span>
+              <span class="library-name">${esc(section.label)}</span>
             </div>
             <div class="library-row-right">
-              <span class="library-sub">${group.titles.length}</span>
+              <span class="library-sub">${section.titles.length}</span>
             </div>
           </div>
-          <div class="library-children" data-level="titles">
-            ${group.titles
-              .map(
-                (entry) => `
-              <div class="library-node" data-folder="${esc(entry.folder)}">
-                <div class="library-row" data-toggle="title">
-                  <div class="library-row-left">
-                    <span class="arrow">&#9654;</span>
-                    <span class="library-name">${esc(entry.folder)}</span>
-                  </div>
-                  <div class="library-row-right">
-                    <span class="library-sub" data-summary></span>
-                    <button class="icon-btn" data-delete="title" title="${t("common.delete", "Delete")}">&times;</button>
-                  </div>
-                </div>
-                <div class="library-children" data-level="title"></div>
-              </div>`
-              )
-              .join("")}
-          </div>
+          <div class="library-children" data-level="titles">${renderTitles(section.titles)}</div>
         </div>`
       )
       .join("");
@@ -178,7 +164,6 @@
       summary.textContent = `${details.total_episodes} ${t("library.episodes", "ep")} | ${formatSize(details.total_size)}`;
     }
 
-    // "movie" sorts after every numbered season, not among them.
     const seasonKeys = Object.keys(details.seasons).sort((a, b) => {
       if (a === "movie") return 1;
       if (b === "movie") return -1;
@@ -226,7 +211,7 @@
   }
 
   /* ===== Expanding ===== */
-  const LOADERS = { location: loadTitles, title: loadTitle };
+  const LOADERS = { location: loadTypes, title: loadTitle };
 
   tree.addEventListener("click", async (event) => {
     if (event.target.closest("[data-delete]")) return;
@@ -239,9 +224,7 @@
     const arrow = row.querySelector(".arrow");
     const expanding = !children.classList.contains("expanded");
 
-    // A genre group only toggles visibility; its titles were already
-    // rendered by loadTitles(), there is nothing left to fetch for it.
-    if (row.dataset.toggle === "genre") {
+    if (row.dataset.toggle === "type") {
       children.classList.toggle("expanded", expanding);
       arrow.classList.toggle("expanded", expanding);
       return;
@@ -294,7 +277,6 @@
       lang_folder: location.lang_folder
     };
     if (kind !== "title") {
-      // "movie" is a synthetic season key, not a number - keep it as-is.
       const season = button.closest("[data-season]").dataset.season;
       payload.season = season === "movie" ? season : Number(season);
     }
