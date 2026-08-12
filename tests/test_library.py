@@ -300,7 +300,9 @@ def test_a_non_video_file_without_an_episode_marker_still_does_not_appear(downlo
     assert result["seasons"] == {}
 
 
-def test_a_title_with_both_seasons_and_a_movie_keeps_them_separate(episode_file, downloads):
+def test_a_title_with_both_seasons_and_a_movie_keeps_them_separate(
+    episode_file, downloads
+):
     episode_file("Naruto", 1, 1)
     (downloads / "Naruto" / "Naruto The Movie.mkv").write_bytes(b"x")
     result = library.read_title("Naruto")
