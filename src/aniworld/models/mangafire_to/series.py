@@ -1,10 +1,10 @@
 import re
+import shutil
+import zipfile
 from os import getenv
 from pathlib import Path
 from pprint import pprint
-import shutil
 from urllib.parse import quote, urlparse
-import zipfile
 
 import niquests
 

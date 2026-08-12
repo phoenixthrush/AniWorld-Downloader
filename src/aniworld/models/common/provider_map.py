@@ -45,8 +45,10 @@ def host_to_provider(label, require_extractor=True):
     if provider is None:
         return None
 
-    if require_extractor:
-        if f"get_direct_link_from_{provider.lower()}" not in provider_functions:
-            return None
+    if (
+        require_extractor
+        and f"get_direct_link_from_{provider.lower()}" not in provider_functions
+    ):
+        return None
 
     return provider

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Pattern, Type
+from re import Pattern
 from urllib.parse import urlparse, urlunparse
 
 from .config import (
@@ -52,13 +52,13 @@ from .models import (
 @dataclass(frozen=True)
 class Provider:
     name: str
-    series_pattern: Optional[Pattern[str]] = None
-    season_pattern: Optional[Pattern[str]] = None
-    episode_pattern: Optional[Pattern[str]] = None
+    series_pattern: Pattern[str] | None = None
+    season_pattern: Pattern[str] | None = None
+    episode_pattern: Pattern[str] | None = None
 
-    series_cls: Optional[Type] = None
-    season_cls: Optional[Type] = None
-    episode_cls: Optional[Type] = None
+    series_cls: type | None = None
+    season_cls: type | None = None
+    episode_cls: type | None = None
 
 
 PROVIDERS = [

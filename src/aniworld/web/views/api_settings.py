@@ -52,8 +52,8 @@ def _reconcile_discord():
         return
     try:
         reconcile()
-    except Exception as exc:
-        logger.error("Discord bot reconcile failed: %s", exc, exc_info=True)
+    except Exception:
+        logger.exception("Discord bot reconcile failed")
 
 
 # ---------------------------------------------------------------------------

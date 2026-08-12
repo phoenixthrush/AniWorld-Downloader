@@ -3,6 +3,7 @@ import binascii
 import json
 import logging
 import re
+import sys
 import time
 from urllib.parse import urlparse
 
@@ -52,7 +53,7 @@ def _voe_get(url, headers, timeout):
         return resp.text, str(resp.url), resp.status_code
     except ImportError:
         pass
-    except Exception as exc:  # noqa: BLE001 - fall back to niquests on any curl error
+    except Exception as exc:
         logger.debug(f"VOE curl_cffi fetch failed ({exc}); using niquests")
 
     resp = GLOBAL_SESSION.get(url, headers=headers, timeout=timeout)
@@ -218,7 +219,7 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
                     m3u8 = M3U8_URL_PATTERN.search(html2)
                     if m3u8:
                         return m3u8.group(0)
-                except Exception as err:  # noqa: BLE001
+                except Exception as err:
                     logger.debug(f"VOE redirect fetch failed: {err}")
 
             # Last resort: a bare m3u8 URL anywhere on the original page.
@@ -281,7 +282,7 @@ if __name__ == "__main__":
     link = input("Enter VOE Link: ").strip()
     if not link:
         print("Error: No link provided")
-        exit(1)
+        sys.exit(1)
 
     try:
         print("=" * 25)

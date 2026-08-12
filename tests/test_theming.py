@@ -40,7 +40,7 @@ def tokens_in(text):
     """Variable names declared in the first :root block of a stylesheet."""
     start = text.index(":root")
     block = text[start : text.index("\n}", start)]
-    return set(re.findall(r"^\s+(--[a-z0-9-]+)\s*:", block, re.M))
+    return set(re.findall(r"^\s+(--[a-z0-9-]+)\s*:", block, re.MULTILINE))
 
 
 # ---------------------------------------------------------------------------

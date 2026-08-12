@@ -5,6 +5,7 @@ import os
 import sys
 from enum import Enum
 from pathlib import Path
+from typing import ClassVar
 
 import npyscreen
 
@@ -16,7 +17,7 @@ def _extract_menu_languages(provider_name: str, provider_data: dict) -> list[str
     languages: list[str] = []
 
     if provider_name == "AniWorld":
-        for key in provider_data.keys():
+        for key in provider_data:
             site_key = INVERSE_LANG_KEY_MAP.get(key)
             if site_key is None:
                 continue
@@ -28,7 +29,7 @@ def _extract_menu_languages(provider_name: str, provider_data: dict) -> list[str
     if provider_name == "SerienStream":
         # SerienStream provider_data keys are usually tuples of Enums like
         # (Audio.GERMAN, Subtitles.NONE) or (Audio.ENGLISH, Subtitles.NONE).
-        for key in provider_data.keys():
+        for key in provider_data:
             if not (isinstance(key, tuple) and len(key) == 2):
                 continue
             audio = getattr(key[0], "value", str(key[0]))
@@ -52,7 +53,7 @@ def _extract_menu_providers(provider_data: dict) -> list[str]:
 
     for providers_map in provider_data.values():
         if isinstance(providers_map, dict):
-            provider_names.update(str(p) for p in providers_map.keys())
+            provider_names.update(str(p) for p in providers_map)
 
     return sorted(provider_names)
 
@@ -112,7 +113,7 @@ if sys.version_info >= (3, 14):
 class CustomTheme(npyscreen.ThemeManager):
     """Color reference: https://npyscreen.readthedocs.io/color.html"""
 
-    default_colors = {
+    default_colors: ClassVar[dict[str, str]] = {
         "DEFAULT": "WHITE_BLACK",
         "FORMDEFAULT": "MAGENTA_BLACK",
         "NO_EDIT": "BLUE_BLACK",

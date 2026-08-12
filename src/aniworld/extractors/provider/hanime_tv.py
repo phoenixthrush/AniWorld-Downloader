@@ -332,7 +332,7 @@ def _parse_hanime_manifest_token(token):
         raise ValueError("Invalid Hanime handshake token") from exc
 
     if not isinstance(manifest, dict) or not isinstance(manifest.get("sources"), list):
-        raise ValueError("Hanime handshake did not contain video sources")
+        raise TypeError("Hanime handshake did not contain video sources")
     return manifest
 
 
@@ -390,7 +390,7 @@ def get_direct_link_from_hanime_tv(api_data, refresh=False):
 
 def get_download_url_from_hanime_tv(api_data):
     """Hanime-only mode deliberately does not use third-party file mirrors."""
-    return None
+    return
 
 
 def _parse_sitemap_slugs(xml_text):

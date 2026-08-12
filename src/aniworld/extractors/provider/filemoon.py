@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import re
+import sys
 from urllib.parse import urlparse
 
 import niquests
@@ -299,7 +300,7 @@ if __name__ == "__main__":
     link = input("Enter Filemoon Link: ").strip()
     if not link:
         print("Error: No link provided")
-        exit(1)
+        sys.exit(1)
 
     try:
         print("=" * 25)

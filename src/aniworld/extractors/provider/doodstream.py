@@ -1,6 +1,7 @@
 import logging
 import random
 import re
+import sys
 import time
 import warnings
 from urllib.parse import urljoin
@@ -14,6 +15,7 @@ except ImportError:
     from aniworld.config import DEFAULT_USER_AGENT
 
 warnings.simplefilter("ignore", InsecureRequestWarning)
+logger = logging.getLogger(__name__)
 
 # -----------------------------
 # Constants
@@ -79,7 +81,7 @@ def get_direct_link_from_doodstream(embed_url):
     if not embed_url:
         raise ValueError("Embed URL cannot be empty")
 
-    logging.info(f"Extracting Doodstream direct link from: {embed_url}")
+    logger.info(f"Extracting Doodstream direct link from: {embed_url}")
     headers = _get_headers(embed_url)
 
     embed_html = _get_embed_page(embed_url, headers)
@@ -96,7 +98,7 @@ def get_direct_link_from_doodstream(embed_url):
     expiry = int(time.time())
     direct_link = f"{video_base_url}{random_str}?token={token}&expiry={expiry}"
 
-    logging.info("Successfully extracted Doodstream direct link")
+    logger.info("Successfully extracted Doodstream direct link")
     return direct_link
 
 
@@ -114,7 +116,7 @@ if __name__ == "__main__":
     link = input("Enter Doodstream Link: ").strip()
     if not link:
         print("Error: No link provided")
-        exit(1)
+        sys.exit(1)
 
     try:
         print("=" * 25)
@@ -138,4 +140,4 @@ if __name__ == "__main__":
 
     except Exception as e:
         print("Error:", e)
-        exit(1)
+        sys.exit(1)

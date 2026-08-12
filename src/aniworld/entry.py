@@ -5,10 +5,10 @@ from pathlib import Path
 
 from .arguments import parse_args
 from .autodeps import ensure_patchright_chromium
-from .models.common import run_each
 from .config import ACTION_METHODS, ANIWORLD_CONFIG_DIR, VERSION
 from .env import merge_env
 from .logger import get_logger
+from .models.common import run_each
 from .providers import resolve_provider
 
 merge_env(
@@ -56,7 +56,7 @@ def aniworld():
         set_terminal_title()
         args = parse_args()
 
-        if not os.getenv("ANIWORLD_DOWNLOAD_PATH") == "/app/Downloads":
+        if os.getenv("ANIWORLD_DOWNLOAD_PATH") != "/app/Downloads":
             logger.debug("Checking dependencies...")
             ensure_patchright_chromium()
             logger.debug("Dependencies OK")
@@ -235,7 +235,7 @@ def aniworld():
         return 130
 
     except Exception as err:
-        logger.error("Unexpected error occurred", exc_info=True)
+        logger.exception("Unexpected error occurred")
         print(f"\nAn unexpected error occurred: {err}", file=sys.stderr)
         print("Please check the logs for more details.", file=sys.stderr)
         return 1

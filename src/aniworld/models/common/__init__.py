@@ -12,12 +12,12 @@ from .common import (
 
 __all__ = [
     "ProviderData",
-    "run_each",
     "check_downloaded",
     "clean_title",
     "download",
     "download_hanime",
     "movie_folder_enabled",
+    "run_each",
     "syncplay",
     "watch",
 ]

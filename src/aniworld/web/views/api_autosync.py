@@ -55,8 +55,8 @@ def _run_quietly():
         autosync.run_cycle()
     except RuntimeError as exc:
         logger.info("AutoSync manual run skipped: %s", exc)
-    except Exception as exc:
-        logger.error("AutoSync manual run failed: %s", exc, exc_info=True)
+    except Exception:
+        logger.exception("AutoSync manual run failed")
 
 
 def list_exclusions():

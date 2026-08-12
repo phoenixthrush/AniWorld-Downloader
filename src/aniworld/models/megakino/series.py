@@ -917,7 +917,7 @@ class MegaKinoEpisode:
             return language
 
         if not isinstance(language, str):
-            raise ValueError(f"Unsupported MegaKino language selection: {language}")
+            raise TypeError(f"Unsupported MegaKino language selection: {language}")
 
         normalized = language.strip().lower()
         if normalized in {"german", "deutsch", "german dub"}:
@@ -1036,7 +1036,7 @@ class MegaKinoEpisode:
         language = self._normalize_language(language)
         provider_data = self.provider_data
         if provider_data is None:
-            return tuple()
+            return ()
 
         if isinstance(provider_data, ProviderData):
             provider_dict = provider_data.get((Audio.ENGLISH, Subtitles.NONE))
@@ -1045,7 +1045,7 @@ class MegaKinoEpisode:
         else:
             provider_dict = provider_data.get((Audio.GERMAN, Subtitles.NONE))
 
-        return tuple(provider_dict.keys()) if provider_dict else tuple()
+        return tuple(provider_dict.keys()) if provider_dict else ()
 
     def provider_attempt_order(self):
         return build_provider_attempt_order(

@@ -8,7 +8,8 @@ def build():
             "-m",
             "nuitka",
             "src/aniworld",
-        ]
+        ],
+        check=False,
     )
 
 

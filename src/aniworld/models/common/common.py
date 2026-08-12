@@ -10,7 +10,6 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Optional, Tuple
 
 import ffmpeg
 import niquests
@@ -88,7 +87,7 @@ def _quote_windows_cmd_arg(arg) -> str:
     return "".join(escaped)
 
 
-def format_command_for_shell(cmd, windows: Optional[bool] = None) -> str:
+def format_command_for_shell(cmd, windows: bool | None = None) -> str:
     """Format a subprocess argv list as a shell-safe copy/paste command."""
     if windows is None:
         windows = os.name == "nt"
@@ -168,11 +167,11 @@ class ProviderData:
         return f"{self.__class__.__name__}({self._data!r})"
 
     # Accept a tuple directly
-    def get(self, lang_tuple: Tuple[Audio, Subtitles]):
+    def get(self, lang_tuple: tuple[Audio, Subtitles]):
         return self._data.get(lang_tuple, {})
 
     # Behave like a dictionary
-    def __getitem__(self, lang_tuple: Tuple[Audio, Subtitles]):
+    def __getitem__(self, lang_tuple: tuple[Audio, Subtitles]):
         return self._data[lang_tuple]
 
 
@@ -232,7 +231,7 @@ def _cleanup_episode_download(self):
 
 def _reset_provider_resolution_cache(self):
     for attr in list(vars(self)):
-        if attr.endswith("__redirect_url") or attr.endswith("__provider_url"):
+        if attr.endswith(("__redirect_url", "__provider_url")):
             setattr(self, attr, None)
 
 
@@ -458,7 +457,7 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
                 break
 
             # Log the line
-            if line_str.startswith("frame=") or line_str.startswith("size="):
+            if line_str.startswith(("frame=", "size=")):
                 # --- extract progress values ---
                 cur_frame = None
                 cur_time = None
@@ -533,8 +532,8 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
                     break
 
                 try:
-                    from ...web.db import is_queue_force_cancelled
                     from ...playwright.captcha import _local
+                    from ...web.db import is_queue_force_cancelled
 
                     qid = getattr(_local, "queue_id", None)
                     if qid is not None and is_queue_force_cancelled(qid):
@@ -865,7 +864,7 @@ def _fetch_hls_segment(session, seg_url, headers, hosts, timeout=90):
                 resp = session.get(url, headers=headers, timeout=timeout)
                 resp.raise_for_status()
                 return resp.content
-            except Exception as exc:  # noqa: BLE001 - try the next mirror
+            except Exception as exc:
                 last_exc = exc
         if attempt == 0:
             time.sleep(1.0)
@@ -1318,8 +1317,8 @@ def download(self):
                 _cleanup_episode_download(self)
 
                 try:
-                    from ...web.db import is_queue_force_cancelled
                     from ...playwright.captcha import _local
+                    from ...web.db import is_queue_force_cancelled
 
                     qid = getattr(_local, "queue_id", None)
                     if qid is not None and is_queue_force_cancelled(qid):
@@ -1330,7 +1329,7 @@ def download(self):
                             self._base_folder,
                             protected=getattr(self, "selected_path", None),
                         )
-                        raise e
+                        raise
                 except Exception as inner_e:
                     if inner_e is e:
                         raise
@@ -1417,7 +1416,7 @@ def watch(self):
                     cmd.extend(_build_player_header_args(headers))
 
                 print(format_command_for_shell(cmd))
-                process = subprocess.run(cmd)
+                process = subprocess.run(cmd, check=False)
                 if process.returncode != 0:
                     raise RuntimeError(f"player exited with code {process.returncode}")
                 return
@@ -1478,9 +1477,7 @@ def syncplay(self):
         logger.debug(f"{room}-{file_name}-{syncplay_password}")
         room += (
             "-"
-            + hashlib.sha256(
-                f"-{file_name}-{syncplay_password}".encode("utf-8")
-            ).hexdigest()
+            + hashlib.sha256(f"-{file_name}-{syncplay_password}".encode()).hexdigest()
         )
     else:
         logger.debug(f"{room}-{file_name}")
@@ -1533,7 +1530,7 @@ def syncplay(self):
 
     print(format_command_for_shell(cmd))
     logger.debug("\n" + format_command_for_shell(cmd))
-    subprocess.run(cmd)
+    subprocess.run(cmd, check=False)
 
 
 if __name__ == "__main__":

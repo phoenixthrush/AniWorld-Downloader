@@ -20,7 +20,7 @@ try:
         build_provider_attempt_order,
     )
     from ...extractors import provider_functions
-    from ..common import run_each, check_downloaded, movie_folder_enabled
+    from ..common import check_downloaded, movie_folder_enabled, run_each
     from ..common.common import clean_title
     from ..common.common import download as episode_download
     from ..common.common import syncplay as episode_syncplay

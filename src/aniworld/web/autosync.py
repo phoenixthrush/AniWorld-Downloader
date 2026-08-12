@@ -129,7 +129,7 @@ def detect_languages(folder, lang_folder=None):
 def _preferred(labels):
     """Pick one label when a title is held in several languages."""
     order = {label: index for index, label in enumerate(BADGE_ORDER)}
-    return sorted(labels, key=lambda label: order.get(label, len(order)))[0]
+    return min(labels, key=lambda label: order.get(label, len(order)))
 
 
 # ---------------------------------------------------------------------------
@@ -491,8 +491,8 @@ def _loop():
             # Re-read the toggle every tick so turning it off takes effect
             if autosync_enabled() and _due():
                 run_cycle()
-        except Exception as exc:
-            logger.error("AutoSync worker error: %s", exc, exc_info=True)
+        except Exception:
+            logger.exception("AutoSync worker error")
         time.sleep(TICK_SECONDS)
 
 

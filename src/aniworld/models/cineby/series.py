@@ -19,7 +19,7 @@ try:
         Subtitles,
         logger,
     )
-    from ..common import run_each, check_downloaded, movie_folder_enabled
+    from ..common import check_downloaded, movie_folder_enabled, run_each
     from ..common.common import clean_title
     from ..common.common import download as episode_download
     from ..common.common import syncplay as episode_syncplay
@@ -84,7 +84,7 @@ def _fetch(url, params=None, timeout=15):
         )
     except ImportError:
         pass
-    except Exception as exc:  # noqa: BLE001 - fall back to niquests on any curl error
+    except Exception as exc:
         logger.debug(f"cineby curl_cffi fetch failed ({exc}); using niquests")
 
     return get_session().get(url, params=params, headers=_TMDB_HEADERS, timeout=timeout)
@@ -157,7 +157,7 @@ def resolve_stream_via_api(
             if url:
                 return url
             raise RuntimeError("no playable m3u8 in decrypted sources")
-        except Exception as exc:  # noqa: BLE001 - retry, then fall back to browser
+        except Exception as exc:
             last_err = exc
             logger.debug(
                 f"cineby API resolve attempt {attempt + 1}/{attempts} failed: {exc}"
@@ -235,7 +235,7 @@ def _fetch_decrypted_sources(
             if src_resp.text.lstrip().startswith("{"):
                 raise RuntimeError(f"sources error: {src_resp.text[:80]!r}")
             return decrypt_sources(src_resp.text, seed, int(tmdb_id))
-        except Exception as exc:  # noqa: BLE001 - retry with a fresh seed
+        except Exception as exc:
             last_err = exc
             logger.debug(
                 f"cineby {endpoint} fetch attempt {attempt + 1}/{attempts} failed: {exc}"
@@ -318,7 +318,7 @@ def detect_audio_languages(
             continue
         try:
             text = _fetch(master).text
-        except Exception as exc:  # noqa: BLE001 - unreachable mirror, try next server
+        except Exception as exc:
             logger.debug(f"cineby manifest fetch failed for {endpoint}: {exc}")
             continue
         if not text.lstrip().startswith("#EXTM3U"):
@@ -550,7 +550,7 @@ class CinebyEpisode:
                 self.__lang_detect = detect_audio_languages(
                     self.media_type, self.tmdb_id, title, year, imdb, season, episode
                 )
-            except Exception as exc:  # noqa: BLE001 - never block on detection
+            except Exception as exc:
                 logger.debug(f"cineby language detection failed: {exc}")
                 self.__lang_detect = {"labels": [ENGLISH_LABEL], "german_server": None}
         return self.__lang_detect
@@ -812,7 +812,7 @@ class CinebySeason:
         # every season — see CinebySeries.available_language_labels.
         try:
             return list(self.series.available_language_labels)
-        except Exception as exc:  # noqa: BLE001 - never break the episode listing
+        except Exception as exc:
             logger.debug(f"cineby season language labels failed: {exc}")
             return [ENGLISH_LABEL]
 

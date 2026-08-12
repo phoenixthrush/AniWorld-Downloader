@@ -1,5 +1,7 @@
 """Accounts: local logins, SSO identities and the last admin rule."""
 
+import sqlite3
+
 import pytest
 
 from aniworld.web import db
@@ -51,7 +53,7 @@ def test_bad_credentials_are_rejected(username, password):
 
 def test_usernames_are_unique():
     db.create_user("bob", "hunter2hunter2")
-    with pytest.raises(Exception):
+    with pytest.raises(sqlite3.IntegrityError):
         db.create_user("bob", "another-password")
 
 

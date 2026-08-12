@@ -72,7 +72,7 @@ def _parse_attributes(line):
 
 
 class _Variant:
-    __slots__ = ("uri", "bandwidth", "audio_group")
+    __slots__ = ("audio_group", "bandwidth", "uri")
 
     def __init__(self, uri, bandwidth, audio_group):
         self.uri = uri
@@ -81,7 +81,7 @@ class _Variant:
 
 
 class _Rendition:
-    __slots__ = ("uri", "group_id", "language", "name", "is_default")
+    __slots__ = ("group_id", "is_default", "language", "name", "uri")
 
     def __init__(self, uri, group_id, language, name, is_default):
         self.uri = uri
@@ -92,7 +92,7 @@ class _Rendition:
 
 
 class _Key:
-    __slots__ = ("method", "uri", "iv")
+    __slots__ = ("iv", "method", "uri")
 
     def __init__(self, method, uri, iv):
         self.method = method
