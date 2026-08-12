@@ -41,6 +41,7 @@
   --surface-code: rgba(0, 0, 0, 0.35);
   --surface-code-inline: rgba(0, 0, 0, 0.3);
   --surface-captcha: #000;
+  --surface-video: #000;
   --overlay-bg: rgba(0, 0, 0, 0.75);
 
   /* Borders */
@@ -2080,6 +2081,29 @@ body[data-site="htv"] {
   font-variant-numeric: tabular-nums;
 }
 
+.library-episode[data-playable="1"] {
+  cursor: pointer;
+}
+
+/* Sits as its own row below the episode, not inside it, so the video is not
+   constrained by the 66px label indent the episode row uses for its icons. */
+.library-video-player {
+  padding: 0 14px 0 66px;
+}
+
+.library-video-player:empty {
+  padding: 0;
+}
+
+.library-video-player video {
+  display: block;
+  width: 100%;
+  max-height: 70vh;
+  margin: 8px 0 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-video);
+}
+
 /* ===== Toast ===== */
 .toast {
   display: none;
@@ -2387,6 +2411,10 @@ body[data-site="htv"] {
   }
 
   .library-episode {
+    padding-left: 46px;
+  }
+
+  .library-video-player {
     padding-left: 46px;
   }
 }
