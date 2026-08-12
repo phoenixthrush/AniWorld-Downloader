@@ -204,6 +204,7 @@ _MIGRATIONS = {
         "cancel_requested": "INTEGER NOT NULL DEFAULT 0",
         "force_cancelled": "INTEGER NOT NULL DEFAULT 0",
         "started_at": "TEXT",
+        "genre": "TEXT NOT NULL DEFAULT ''",
     },
 }
 
@@ -416,13 +417,14 @@ def add_to_queue(
     custom_path_id=None,
     source="manual",
     discord_user_id=None,
+    genre="",
 ):
     with session() as conn:
         cur = conn.execute(
             "INSERT INTO download_queue "
             "(title, series_url, episodes, total_episodes, language, provider, username, "
-            " custom_path_id, source, discord_user_id) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " custom_path_id, source, discord_user_id, genre) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 title,
                 series_url,
@@ -434,6 +436,7 @@ def add_to_queue(
                 custom_path_id,
                 source,
                 discord_user_id,
+                genre,
             ),
         )
         queue_id = cur.lastrowid
@@ -908,6 +911,22 @@ def touch_api_key(key_id):
             "UPDATE api_keys SET last_used_at = datetime('now') WHERE id = ? AND "
             "(last_used_at IS NULL OR last_used_at < datetime('now', '-60 seconds'))",
             (key_id,),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Library genre grouping
+# ---------------------------------------------------------------------------
+# The genre a title was downloaded under, kept on the queue row itself. The
+# library view has no metadata source of its own, so it borrows this history
+# to tag folders it finds on disk (see library.genre_lookup).
+def genre_history():
+    """Every (title, genre) the queue has on record, most recent first."""
+    with session() as conn:
+        return _rows(
+            conn,
+            "SELECT DISTINCT title, genre FROM download_queue "
+            "WHERE genre != '' ORDER BY id DESC",
         )
 
 

@@ -270,3 +270,102 @@ def test_the_same_title_in_another_root_is_untouched(episode_file, tmp_path, dow
 def test_custom_path_labels():
     path_id = db.add_custom_path("Movies", "/tmp/movies")
     assert library.custom_path_labels() == {path_id: "Movies"}
+
+
+# ---------------------------------------------------------------------------
+# Movie detection (files with no SxxExx pattern)
+# ---------------------------------------------------------------------------
+def test_a_video_file_without_an_episode_marker_is_grouped_as_a_movie(downloads):
+    (downloads / "Your Name").mkdir()
+    (downloads / "Your Name" / "Your Name.mkv").write_bytes(b"x" * 500)
+    result = library.read_title("Your Name")
+    assert [e["file"] for e in result["seasons"]["movie"]] == ["Your Name.mkv"]
+    assert result["total_episodes"] == 1
+
+
+def test_movie_files_are_numbered_in_stable_alphabetical_order(downloads):
+    folder = downloads / "Trilogy"
+    folder.mkdir()
+    (folder / "Part 2.mkv").write_bytes(b"x")
+    (folder / "Part 1.mkv").write_bytes(b"x")
+    movies = library.read_title("Trilogy")["seasons"]["movie"]
+    assert [m["file"] for m in movies] == ["Part 1.mkv", "Part 2.mkv"]
+    assert [m["episode"] for m in movies] == [1, 2]
+
+
+def test_a_non_video_file_without_an_episode_marker_still_does_not_appear(downloads):
+    (downloads / "Naruto").mkdir()
+    (downloads / "Naruto" / "poster.jpg").write_bytes(b"x")
+    result = library.read_title("Naruto")
+    assert result["seasons"] == {}
+
+
+def test_a_title_with_both_seasons_and_a_movie_keeps_them_separate(episode_file, downloads):
+    episode_file("Naruto", 1, 1)
+    (downloads / "Naruto" / "Naruto The Movie.mkv").write_bytes(b"x")
+    result = library.read_title("Naruto")
+    assert sorted(result["seasons"]) == ["1", "movie"]
+
+
+def test_deleting_a_single_movie_file(downloads):
+    folder = downloads / "Trilogy"
+    folder.mkdir()
+    (folder / "Part 1.mkv").write_bytes(b"x")
+    (folder / "Part 2.mkv").write_bytes(b"x")
+    assert library.delete("Trilogy", season="movie", episode=1) == 1
+    remaining = [m["file"] for m in library.read_title("Trilogy")["seasons"]["movie"]]
+    assert remaining == ["Part 2.mkv"]
+
+
+def test_deleting_all_movies_of_a_title(downloads):
+    folder = downloads / "Trilogy"
+    folder.mkdir()
+    (folder / "Part 1.mkv").write_bytes(b"x")
+    (folder / "Part 2.mkv").write_bytes(b"x")
+    assert library.delete("Trilogy", season="movie") == 2
+    assert not folder.exists(), "the now-empty title folder is pruned, like any other"
+
+
+def test_deleting_an_out_of_range_movie_index_is_an_error(downloads):
+    folder = downloads / "Trilogy"
+    folder.mkdir()
+    (folder / "Part 1.mkv").write_bytes(b"x")
+    with pytest.raises(library.LibraryError):
+        library.delete("Trilogy", season="movie", episode=5)
+
+
+# ---------------------------------------------------------------------------
+# Genre grouping
+# ---------------------------------------------------------------------------
+def test_a_title_gets_its_main_genre_from_queue_history(queue_item, downloads):
+    queue_item(title="Naruto", genre="Action, Adventure")
+    (downloads / "Naruto").mkdir()
+    titles = library.list_titles_with_meta()
+    assert titles == [{"folder": "Naruto", "genre": "Action"}]
+
+
+def test_a_title_never_queued_has_no_genre(downloads):
+    (downloads / "Naruto").mkdir()
+    assert library.list_titles_with_meta() == [{"folder": "Naruto", "genre": None}]
+
+
+def test_genre_lookup_matches_a_decorated_folder_name(queue_item, downloads):
+    queue_item(title="Naruto", genre="Action")
+    (downloads / "Naruto (2002) [imdbid-tt0409591]").mkdir()
+    genres = library.genre_lookup(["Naruto (2002) [imdbid-tt0409591]"])
+    assert genres["Naruto (2002) [imdbid-tt0409591]"] == "Action"
+
+
+def test_the_most_recent_queue_entry_wins_the_genre(queue_item, downloads):
+    queue_item(title="Naruto", genre="Old Genre")
+    queue_item(title="Naruto", genre="New Genre")
+    (downloads / "Naruto").mkdir()
+    genres = library.genre_lookup(["Naruto"])
+    assert genres["Naruto"] == "New Genre"
+
+
+def test_an_unrelated_title_does_not_borrow_another_titles_genre(queue_item, downloads):
+    queue_item(title="Naruto", genre="Action")
+    (downloads / "One Piece").mkdir()
+    genres = library.genre_lookup(["One Piece"])
+    assert genres.get("One Piece") is None

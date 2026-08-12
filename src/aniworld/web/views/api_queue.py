@@ -65,6 +65,7 @@ def start_download():
         provider=provider,
         username=_current_username(),
         custom_path_id=data.get("custom_path_id"),
+        genre=data.get("genre", ""),
     )
     worker.ensure_started()
     return jsonify({"queue_id": queue_id})

@@ -10,7 +10,7 @@ import shutil
 
 from ..logger import get_logger
 from . import db, paths
-from .media import EPISODE_RE
+from .media import EPISODE_RE, folder_matches_title
 
 logger = get_logger(__name__)
 
@@ -104,8 +104,27 @@ def list_titles(custom_path_id=None, lang_folder=None):
     return titles
 
 
+def _movie_files(target):
+    """Video files with no SxxExx pattern, e.g. a standalone film. Stable order."""
+    files = [
+        f for f in target.rglob("*")
+        if f.is_file()
+        and not f.name.startswith(".temp_")
+        and f.suffix.lower() in VIDEO_EXTENSIONS
+        and not EPISODE_RE.search(f.name)
+    ]
+    files.sort(key=lambda f: f.name.lower())
+    return files
+
+
 def read_title(folder, custom_path_id=None, lang_folder=None):
-    """Seasons and episode files of one title. Only this folder is walked."""
+    """Seasons and episode files of one title. Only this folder is walked.
+
+    Files without a SxxExx marker are not skipped outright: if they are a
+    video file they are almost always a movie rather than a missing episode,
+    so they are grouped under a synthetic "movie" season instead of vanishing
+    from the listing.
+    """
     base = _resolve_base(custom_path_id, lang_folder)
     target = _safe_child(base, folder)
     if target is None or not target.is_dir():
@@ -148,6 +167,21 @@ def read_title(folder, custom_path_id=None, lang_folder=None):
     for entries in seasons.values():
         entries.sort(key=lambda e: e["episode"])
 
+    movie_files = _movie_files(target)
+    if movie_files:
+        entries = []
+        for index, file in enumerate(movie_files):
+            try:
+                size = file.stat().st_size
+            except OSError:
+                size = 0
+            entries.append(
+                {"episode": index + 1, "file": file.name, "size": size, "is_video": True}
+            )
+            total_size += size
+            total_episodes += 1
+        seasons["movie"] = entries
+
     return {
         "folder": folder,
         "seasons": seasons,
@@ -170,7 +204,7 @@ def _safe_child(base, folder):
 
 
 def delete(folder, season=None, episode=None, custom_path_id=None, lang_folder=None):
-    """Delete a whole title, one season or a single episode."""
+    """Delete a whole title, one season, a single episode, or one movie file."""
     base = _resolve_base(custom_path_id, lang_folder)
     target = _safe_child(base, folder)
     if target is None:
@@ -181,6 +215,25 @@ def delete(folder, season=None, episode=None, custom_path_id=None, lang_folder=N
     if season is None:
         shutil.rmtree(target, ignore_errors=True)
         return 1
+
+    if str(season) == "movie":
+        movie_files = _movie_files(target)
+        if episode is not None:
+            index = int(episode) - 1
+            if index < 0 or index >= len(movie_files):
+                raise LibraryError("Nothing found to delete")
+            movie_files = [movie_files[index]]
+        deleted = 0
+        for file in movie_files:
+            try:
+                file.unlink()
+                deleted += 1
+            except OSError:
+                pass
+        _prune_empty(target)
+        if deleted == 0:
+            raise LibraryError("Nothing found to delete")
+        return deleted
 
     if episode is not None:
         pattern = re.compile(
@@ -216,6 +269,31 @@ def _prune_empty(root):
         root.rmdir()
     except OSError:
         pass
+
+
+def genre_lookup(titles):
+    """Best-effort main genre per folder, matched against queue download history.
+
+    A title can carry several genre tags; only the first (its main genre) is
+    used here so a folder appears in exactly one genre group in the library
+    view, plus the always-present "all" group.
+    """
+    history = db.genre_history()
+    result = {}
+    for folder in titles:
+        for row in history:
+            if folder_matches_title(folder, row["title"]):
+                main = row["genre"].split(",")[0].strip()
+                result[folder] = main or None
+                break
+    return result
+
+
+def list_titles_with_meta(custom_path_id=None, lang_folder=None):
+    """Titles plus their main genre, for the library view to group by."""
+    titles = list_titles(custom_path_id, lang_folder)
+    genres = genre_lookup(titles)
+    return [{"folder": t, "genre": genres.get(t)} for t in titles]
 
 
 def custom_path_labels():
