@@ -40,15 +40,11 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=cache,target=/root/.cache/ms-playwright \
     pip install patchright && \
-    python -m patchright install chromium && \
+    python -m patchright install chromium --no-shell && \
     rm -rf /ms-playwright/ffmpeg-* && \
     find /ms-playwright -name "*.pak*" | grep -vE "(resources|chrome_100|chrome_200|de|en-US|en-GB)\.pak" | xargs -r rm -f && \
-    headless_dir=$(ls -d /ms-playwright/chromium_headless_shell-* | head -n 1) && \
     chrome_dir=$(ls -d /ms-playwright/chromium-* | grep -v headless_shell | head -n 1) && \
-    rm -rf "$headless_dir" && \
-    ln -s "$(basename "$chrome_dir")" "$headless_dir" && \
     chrome_inner_dir=$(ls -d "$chrome_dir"/chrome-* | head -n 1) && \
-    ln -s chrome "$chrome_inner_dir/headless_shell" && \
     arch=$(dpkg --print-architecture) && \
     if [ "$arch" = "amd64" ]; then \
         upx -9 /opt/venv/lib/python3.13/site-packages/patchright/driver/node; \

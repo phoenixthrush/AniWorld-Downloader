@@ -22,7 +22,7 @@ context to solve it:
     play button to trigger its in-page Turnstile modal, then extracts the
     resulting player-iframe URL (e.g. voe.sx/e/...).
   - playwright_get_iframe_url() / playwright_get_hanime_stream_url() /
-    playwright_get_cineby_stream_url(): headless stream-URL sniffers for
+    playwright_get_cineby_stream_url(): background stream-URL sniffers for
     providers whose embed only exists after client-side JS runs. Not part of
     the captcha solver proper, kept here for historical reasons.
 
@@ -1440,7 +1440,7 @@ def solve_captcha(url: str):
 
     - WebUI mode  (queue_id set in threading-local): streams screenshots to the
       Web UI so the user can click inside the browser; injects cookies afterwards.
-    - CLI mode: opens a visible browser window and waits for the user to solve.
+    - CLI mode: runs the same browser-assisted solver without Web UI streaming.
 
     After a successful solve all browser cookies are injected into GLOBAL_SESSION
     so subsequent requests work without re-solving.
@@ -1458,8 +1458,8 @@ def solve_captcha(url: str):
     return _solve_captcha_cli(url)
 
 
-def _solve_captcha_cli(url: str) -> bool:
-    """CLI mode captcha solver — opens a visible browser, injects cookies on success."""
+def _solve_captcha_cli(url: str):
+    """CLI mode captcha solver — injects browser cookies into the HTTP session."""
     try:
         from patchright.sync_api import sync_playwright
     except ImportError:
@@ -1478,25 +1478,27 @@ def _solve_captcha_cli(url: str) -> bool:
         with _captcha_state_lock:
             _captcha_state = {"url": url, "started_at": _time.time(), "solved": False}
 
-        logger.warning(
-            f"CAPTCHA detected for {url} — opening browser for manual solving"
-        )
+        logger.warning(f"CAPTCHA detected for {url} — opening browser solver")
 
         try:
             from ..autodeps import _ensure_xvfb
 
             _ensure_xvfb()
             with sync_playwright() as p:
-                browser = p.chromium.launch(headless=False)
-                context = browser.new_context(ignore_https_errors=True)
+                handle = _launch_browser_context(
+                    p, offscreen=not _env_flag("ANIWORLD_CAPTCHA_VISIBLE")
+                )
+                context = handle.context
                 page = context.new_page()
                 _attach_debug_listeners(page, logger)
                 page.goto(url, wait_until="domcontentloaded")
                 _focus_page(page)
+                _sync_session_user_agent(page)
 
                 timeout = _captcha_timeout(300)  # default 5 minutes
                 start = _time.time()
                 solved = False
+                final_url = url
                 challenge_solver = _ChallengeSolver()
 
                 while _time.time() - start < timeout:
@@ -1521,6 +1523,7 @@ def _solve_captcha_cli(url: str) -> bool:
 
                     # Check for classic full-page solve using lightweight DOM query
                     if not _is_captcha_page_dom(page):
+                        final_url = page.url
                         solved = True
                         break
 
@@ -1548,7 +1551,7 @@ def _solve_captcha_cli(url: str) -> bool:
                 else:
                     logger.warning("CAPTCHA timeout after 5 minutes")
 
-                browser.close()
+                handle.close()
 
             with _captcha_state_lock:
                 _captcha_state = None
@@ -1794,7 +1797,7 @@ def _inject_session_cookies(context, url: str) -> None:
 
 
 def playwright_get_iframe_url(url: str, timeout: int = 20) -> str:
-    """Open `url` in a headless browser and return the first external iframe URL.
+    """Open `url` in a background browser and return the first external iframe URL.
 
     Some sites (e.g. burning-series.io) render the hoster embed client-side, so
     the embed URL only exists after JavaScript runs. This loads the page, waits
@@ -1815,8 +1818,8 @@ def playwright_get_iframe_url(url: str, timeout: int = 20) -> str:
 
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True, args=["--disable-gpu"])
-            context = browser.new_context(viewport={"width": 1280, "height": 720})
+            _handle = _launch_browser_context(p, offscreen=True)
+            context = _handle.context
             _inject_session_cookies(context, url)
             page = context.new_page()
             logger.debug(f"Opening page for iframe capture: {url}")
@@ -1831,7 +1834,7 @@ def playwright_get_iframe_url(url: str, timeout: int = 20) -> str:
                     break
                 page.wait_for_timeout(500)
 
-            browser.close()
+            _handle.close()
         return found
     except Exception as e:
         logger.error(f"Failed to capture iframe URL for {url}: {e}")
@@ -1841,9 +1844,8 @@ def playwright_get_iframe_url(url: str, timeout: int = 20) -> str:
 def playwright_get_hanime_manifest_token(url: str, timeout: int = 15) -> str:
     """Capture Hanime's official player-handshake token.
 
-    Only first-party Hanime hosts are allowed during this short browser run.
-    Images, fonts, media and unrelated APIs are blocked because the handshake
-    only needs Hanime's page scripts and ``auth.hanime.tv``.
+    Uses the same full Chromium context and challenge solver as the other
+    browser-assisted extractors, including under Docker's Xvfb display.
     """
     try:
         from patchright.sync_api import sync_playwright
@@ -1860,39 +1862,18 @@ def playwright_get_hanime_manifest_token(url: str, timeout: int = 15) -> str:
     timeout = max(1, int(timeout))
 
     try:
+        from ..autodeps import _ensure_xvfb
+
+        _ensure_xvfb()
         with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=True,
-                args=["--disable-gpu"],
+            _handle = _launch_browser_context(
+                p, offscreen=not _env_flag("ANIWORLD_CAPTCHA_VISIBLE")
             )
-            context = browser.new_context(
-                viewport={"width": 1280, "height": 720},
-                service_workers="block",
-            )
+            context = _handle.context
             _inject_session_cookies(context, url)
-
-            def _first_party_only(route):
-                from urllib.parse import urlparse
-
-                request = route.request
-                host = (urlparse(request.url).hostname or "").lower()
-                is_hanime = (
-                    host == "hanime.tv"
-                    or host.endswith(".hanime.tv")
-                    or host == "hanime-cdn.com"
-                    or host.endswith(".hanime-cdn.com")
-                )
-                if not is_hanime or request.resource_type in (
-                    "image",
-                    "font",
-                    "media",
-                ):
-                    route.abort()
-                else:
-                    route.continue_()
-
-            context.route("**/*", _first_party_only)
             page = context.new_page()
+            _attach_debug_listeners(page, logger)
+            _sync_session_user_agent(page)
 
             def _capture_handshake(response):
                 nonlocal token
@@ -1919,12 +1900,14 @@ def playwright_get_hanime_manifest_token(url: str, timeout: int = 15) -> str:
                 if not token:
                     raise
 
-            deadline = _time.monotonic() + timeout
+            deadline = _time.monotonic() + _captcha_timeout(timeout)
+            challenge_solver = _ChallengeSolver()
             while _time.monotonic() < deadline and not token:
+                if _is_captcha_page_dom(page):
+                    challenge_solver.ready_to_submit(page, logger)
                 page.wait_for_timeout(100)
 
-            context.close()
-            browser.close()
+            _handle.close()
 
     except Exception as e:
         logger.error(f"Failed to capture Hanime handshake: {e}", exc_info=True)
@@ -1976,10 +1959,8 @@ def playwright_get_cineby_stream_url(url: str, timeout: int = 40) -> str:
 
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True, args=["--disable-gpu"])
-            context = browser.new_context(
-                viewport={"width": 1280, "height": 720}, locale="en-US"
-            )
+            _handle = _launch_browser_context(p, offscreen=True)
+            context = _handle.context
             page = context.new_page()
 
             def _capture(response):
@@ -2017,7 +1998,7 @@ def playwright_get_cineby_stream_url(url: str, timeout: int = 40) -> str:
                     pass
                 page.wait_for_timeout(1200)
 
-            browser.close()
+            _handle.close()
 
         if final_url:
             logger.info("Captured cineby/vidking manifest URL")

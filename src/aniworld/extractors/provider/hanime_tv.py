@@ -14,11 +14,19 @@ import niquests
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 try:
-    from ...config import DEFAULT_USER_AGENT, logger
-    from ...playwright.captcha import playwright_get_hanime_manifest_token
+    from ...config import DEFAULT_USER_AGENT, GLOBAL_SESSION, logger
+    from ...playwright.captcha import (
+        is_captcha_page,
+        playwright_get_hanime_manifest_token,
+        solve_captcha,
+    )
 except ImportError:
-    from aniworld.config import DEFAULT_USER_AGENT, logger
-    from aniworld.playwright.captcha import playwright_get_hanime_manifest_token
+    from aniworld.config import DEFAULT_USER_AGENT, GLOBAL_SESSION, logger
+    from aniworld.playwright.captcha import (
+        is_captcha_page,
+        playwright_get_hanime_manifest_token,
+        solve_captcha,
+    )
 
 
 HANIME_BASE_URL = "https://hanime.tv"
@@ -29,6 +37,7 @@ HANIME_TRENDING_URL = f"{HANIME_BASE_URL}/browse/trending"
 _HANIME_HEADERS = {
     "User-Agent": DEFAULT_USER_AGENT,
     "Referer": f"{HANIME_BASE_URL}/",
+    "Accept-Encoding": "gzip, deflate",
 }
 _HANIME_AES_KEY = bytes.fromhex(
     "5d657a4dcb0bad1c637ff2e221059b10ff17ae39fe855003e846918941f4ebe3"
@@ -268,9 +277,22 @@ def _build_synthetic_payload(slug, html):
 
 def _request_hanime(url, *, timeout=20):
     last_error = None
+    challenged = False
     for attempt in range(_HANIME_REQUEST_ATTEMPTS):
         try:
-            response = niquests.get(url, headers=_HANIME_HEADERS, timeout=timeout)
+            headers = {
+                **_HANIME_HEADERS,
+                "User-Agent": GLOBAL_SESSION.headers.get(
+                    "User-Agent", DEFAULT_USER_AGENT
+                ),
+            }
+            response = GLOBAL_SESSION.get(url, headers=headers, timeout=timeout)
+            response.encoding = "utf-8"
+            body = response.text or ""
+            if not challenged and is_captcha_page(body, response.status_code):
+                challenged = True
+                solve_captcha(url)
+                continue
             response.raise_for_status()
             return response
         except Exception as exc:

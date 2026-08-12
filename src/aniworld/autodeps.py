@@ -517,7 +517,13 @@ def ensure_patchright_chromium():
 
         _log.debug("Installing patchright chromium (this may take a moment)...")
         subprocess.run(
-            [driver_path.as_posix(), driver_cli, "install", "chromium"],
+            [
+                driver_path.as_posix(),
+                driver_cli,
+                "install",
+                "chromium",
+                "--no-shell",
+            ],
             check=True,
             env=get_driver_env(),
             stdout=subprocess.DEVNULL,
