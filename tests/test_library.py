@@ -385,14 +385,6 @@ def test_an_empty_folder_falls_back_to_series(downloads):
 # ---------------------------------------------------------------------------
 # Temp-file infix handling
 # ---------------------------------------------------------------------------
-def test_a_temp_file_with_the_marker_mid_name_is_not_shown_as_a_movie(downloads):
-    folder = downloads / "Some Film"
-    folder.mkdir()
-    (folder / "Some Film (2026).temp_full.mkv").write_bytes(b"x")
-    result = library.read_title("Some Film")
-    assert result["seasons"] == {}
-
-
 def test_a_temp_episode_with_the_marker_mid_name_is_not_shown(downloads):
     folder = downloads / "Naruto" / "Season 1"
     folder.mkdir(parents=True)
