@@ -117,6 +117,7 @@
       "library.no_titles": "Dieser Ordner ist leer.",
       "library.load_failed": "Bibliothek konnte nicht geladen werden.",
       "library.episodes": "Ep.",
+      "library.play": "Abspielen",
       "library.confirm_title": 'Wirklich "{name}" komplett löschen?',
       "library.confirm_season": 'Wirklich Staffel {season} von "{name}" löschen?',
       "library.confirm_episode": "Wirklich diese Episode löschen?",

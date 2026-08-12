@@ -2060,6 +2060,14 @@ body[data-site="htv"] {
   background: var(--surface-subtle);
 }
 
+.library-ep-play {
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent);
+  font-size: 0.62rem;
+  flex-shrink: 0;
+}
+
 .library-ep-num {
   color: var(--text-muted);
   font-size: 0.75rem;

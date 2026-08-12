@@ -150,9 +150,13 @@
           .map((episode) => {
             const playable = episode.is_video !== false && episode.path;
             const playUrl = playable ? fileUrl(location, folder, episode.path) : "";
+            const playIcon = playable
+              ? `<span class="library-ep-play" title="${t("library.play", "Play")}">&#9654;</span>`
+              : "";
             return `
             <div class="library-episode" data-episode="${episode.episode}"
                  data-playable="${playable ? "1" : "0"}" data-play="${esc(playUrl)}">
+              ${playIcon}
               <span class="library-ep-num">E${String(episode.episode).padStart(3, "0")}</span>
               <span class="library-ep-file" title="${esc(episode.file)}">${esc(episode.file)}</span>
               <span class="library-ep-size">${formatSize(episode.size)}</span>
