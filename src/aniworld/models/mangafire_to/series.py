@@ -16,6 +16,7 @@ CHAPTER_URL = "https://mangafire.to/title/{}/chapter/{}"
 CHAPTER_API = "https://mangafire.to/api/chapters/{}"
 
 SESSION = niquests.Session()
+SESSION.headers["Referer"] = "https://mangafire.to/"
 
 
 # -----------------------------
