@@ -810,7 +810,11 @@
       title: seriesTitle,
       series_url: seriesUrl,
       language: hanime ? "Japanese" : manga ? "MangaFire" : languageSelect.value,
-      provider: hanime ? "HanimeTV" : manga ? "MangaFire" : providerSelect.value
+      provider: hanime ? "HanimeTV" : manga ? "MangaFire" : providerSelect.value,
+      // Only the main (first) genre tag is sent; the library groups by one
+      // genre per title, and language tags like "Sub"/"Dub" show up as
+      // genre entries on some sites, so those are filtered out here too.
+      genre: (seriesGenres || []).filter((g) => !/sub|dub/i.test(g))[0] || ""
     };
     if (manga) body.mangafire_format = el("mangaFireFormat").value;
     if (customPathSelect.value) body.custom_path_id = Number(customPathSelect.value);
