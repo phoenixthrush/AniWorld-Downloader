@@ -112,14 +112,17 @@
 
       "library.title": "Bibliothek",
       "library.hint":
-        "Ordner werden erst beim Öffnen geladen, es wird nichts im Voraus durchsucht.",
+        "Der Typ (Serie/Film) jedes Ordners wird sofort ermittelt; die Episodendateien selbst werden erst beim Öffnen eines Titels geladen.",
       "library.empty": "Keine heruntergeladenen Inhalte gefunden.",
       "library.no_titles": "Dieser Ordner ist leer.",
       "library.load_failed": "Bibliothek konnte nicht geladen werden.",
       "library.episodes": "Ep.",
       "library.confirm_title": 'Wirklich "{name}" komplett löschen?',
       "library.confirm_season": 'Wirklich Staffel {season} von "{name}" löschen?',
+      "library.confirm_movies": 'Wirklich alle Filme von "{name}" löschen?',
       "library.confirm_episode": "Wirklich diese Episode löschen?",
+      "library.series": "Serien",
+      "library.movies": "Filme",
       "library.deleted": "Gelöscht",
 
       "settings.title": "Einstellungen",
