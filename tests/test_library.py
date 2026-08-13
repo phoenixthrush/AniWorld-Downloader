@@ -440,4 +440,3 @@ def test_resolving_from_a_custom_path(episode_file, tmp_path):
     )
     assert directory == other / "Naruto"
     assert filename == "Season 1/Naruto S01E001.mkv"
-

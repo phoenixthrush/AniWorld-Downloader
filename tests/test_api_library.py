@@ -348,7 +348,9 @@ def test_streaming_a_non_video_file_is_refused(client, downloads):
     assert response.status_code == 404
 
 
-def test_the_file_route_closes_when_the_library_is_off(client, episode_file, monkeypatch):
+def test_the_file_route_closes_when_the_library_is_off(
+    client, episode_file, monkeypatch
+):
     episode_file("Naruto", 1, 1)
     monkeypatch.setenv("ANIWORLD_ENABLE_LIBRARY", "0")
     response = client.get(
