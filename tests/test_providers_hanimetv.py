@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from provider_check import run_stream_site  # noqa: E402
+from provider_check import run_stream_site
 
 if __name__ == "__main__":
     sys.exit(run_stream_site("HanimeTV", "hanime_trending"))

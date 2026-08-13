@@ -43,9 +43,7 @@ def _claim_next():
     try:
         db.set_queue_status(item["id"], "running")
     except Exception:
-        logger.error(
-            "Could not mark queue item %s as running", item["id"], exc_info=True
-        )
+        logger.exception("Could not mark queue item %s as running", item["id"])
         return None
     return item
 
@@ -60,7 +58,7 @@ def _run():
                 continue
             _process(item)
         except Exception:
-            logger.error("Queue worker error", exc_info=True)
+            logger.exception("Queue worker error")
             if item:
                 try:
                     db.set_queue_status(item["id"], "failed")

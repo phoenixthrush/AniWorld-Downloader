@@ -15,10 +15,10 @@ from pathlib import Path
 _SANDBOX = Path(tempfile.mkdtemp(prefix="aniworld-tests-"))
 os.environ["ANIWORLD_INSTALL_FOLDER"] = str(_SANDBOX / "config")
 
-import pytest  # noqa: E402
+import pytest
 
-from aniworld.web import app as web_app  # noqa: E402
-from aniworld.web import db  # noqa: E402
+from aniworld.web import app as web_app
+from aniworld.web import db
 
 # Prefixes wiped between tests. Settings live in the environment, so without
 # this a test that flips a setting would change the next one's behaviour.

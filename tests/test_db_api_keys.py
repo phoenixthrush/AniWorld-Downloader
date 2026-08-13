@@ -1,5 +1,7 @@
 """API key storage: hashing, expiry and usage tracking."""
 
+import sqlite3
+
 import pytest
 
 from aniworld.web import apikeys, db
@@ -51,13 +53,13 @@ def test_every_scope_can_be_stored(api_key, scope):
 
 
 def test_an_invalid_scope_is_refused_by_the_schema():
-    with pytest.raises(Exception):
+    with pytest.raises(sqlite3.IntegrityError):
         db.create_api_key("bad", "hash", "awd_x", "superuser")
 
 
 def test_key_hashes_are_unique():
     db.create_api_key("one", "same-hash", "awd_a", "read")
-    with pytest.raises(Exception):
+    with pytest.raises(sqlite3.IntegrityError):
         db.create_api_key("two", "same-hash", "awd_b", "read")
 
 

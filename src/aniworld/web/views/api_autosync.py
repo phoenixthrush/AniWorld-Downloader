@@ -15,9 +15,7 @@ def register(bp):
     bp.add_url_rule("/autosync/status", view_func=autosync_status)
     bp.add_url_rule("/autosync/run", view_func=autosync_run, methods=["POST"])
     bp.add_url_rule("/autosync/exclusions", view_func=list_exclusions)
-    bp.add_url_rule(
-        "/autosync/exclusions", view_func=add_exclusion, methods=["POST"]
-    )
+    bp.add_url_rule("/autosync/exclusions", view_func=add_exclusion, methods=["POST"])
     bp.add_url_rule(
         "/autosync/exclusions/<int:exclusion_id>",
         view_func=delete_exclusion,
@@ -57,8 +55,8 @@ def _run_quietly():
         autosync.run_cycle()
     except RuntimeError as exc:
         logger.info("AutoSync manual run skipped: %s", exc)
-    except Exception as exc:
-        logger.error("AutoSync manual run failed: %s", exc, exc_info=True)
+    except Exception:
+        logger.exception("AutoSync manual run failed")
 
 
 def list_exclusions():

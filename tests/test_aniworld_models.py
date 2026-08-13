@@ -21,9 +21,7 @@ def object_to_json(obj):
     mangled_prefix = f"_{cls.__name__}__"
     data = {}
     for name in vars(obj):
-        clean_name = (
-            name[len(mangled_prefix) :] if name.startswith(mangled_prefix) else name
-        )
+        clean_name = name.removeprefix(mangled_prefix)
         if clean_name.startswith(("_series", "_season", "html")):
             continue
         value = getattr(obj, clean_name, None)

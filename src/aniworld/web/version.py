@@ -1,7 +1,8 @@
 """Resolve the version string shown in the navbar."""
 
 import re
-from importlib.metadata import PackageNotFoundError, version as package_version
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as package_version
 from pathlib import Path
 
 

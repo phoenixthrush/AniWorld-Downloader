@@ -1,3 +1,5 @@
+import sys
+
 try:
     from ...config import DEFAULT_USER_AGENT
 except ImportError:
@@ -25,7 +27,7 @@ if __name__ == "__main__":
     link = input("Enter Streamtape Link: ").strip()
     if not link:
         print("Error: No link provided")
-        exit(1)
+        sys.exit(1)
 
     try:
         print("=" * 25)

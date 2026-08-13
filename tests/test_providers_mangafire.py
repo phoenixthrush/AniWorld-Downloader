@@ -18,7 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from provider_check import run_image_site  # noqa: E402
+from provider_check import run_image_site
 
 if __name__ == "__main__":
     sys.exit(run_image_site("MangaFire", "mangafire_trending"))

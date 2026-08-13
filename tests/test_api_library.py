@@ -24,7 +24,8 @@ def test_locations_are_listed(client, downloads):
 
 def test_titles_are_listed(client, episode_file):
     episode_file("Naruto", 1, 1)
-    assert client.get("/api/library/titles").get_json()["titles"] == ["Naruto"]
+    titles = client.get("/api/library/titles").get_json()["titles"]
+    assert [t["folder"] for t in titles] == ["Naruto"]
 
 
 def test_titles_of_a_custom_path(client, episode_file, tmp_path):
@@ -33,7 +34,7 @@ def test_titles_of_a_custom_path(client, episode_file, tmp_path):
     path_id = db.add_custom_path("Other", str(other))
     episode_file("Naruto", 1, 1, base=other)
     body = client.get(f"/api/library/titles?path_id={path_id}").get_json()
-    assert body["titles"] == ["Naruto"]
+    assert [t["folder"] for t in body["titles"]] == ["Naruto"]
 
 
 def test_a_bad_path_id_is_a_400(client):

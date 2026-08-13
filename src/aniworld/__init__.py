@@ -7,11 +7,11 @@ from .models.hanime_tv import HanimeTVEpisode
 from .models.s_to import SerienstreamEpisode, SerienstreamSeason, SerienstreamSeries
 
 __all__ = [
-    "AniworldSeries",
-    "AniworldSeason",
     "AniworldEpisode",
+    "AniworldSeason",
+    "AniworldSeries",
     "HanimeTVEpisode",
-    "SerienstreamSeries",
-    "SerienstreamSeason",
     "SerienstreamEpisode",
+    "SerienstreamSeason",
+    "SerienstreamSeries",
 ]

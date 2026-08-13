@@ -9,14 +9,15 @@ from flask import Response, jsonify, request
 from ...config import DEFAULT_USER_AGENT, GLOBAL_SESSION
 from ...extractors.provider.hanime_tv import fetch_hanime_trending
 from ...logger import get_logger
+from ...models.mangafire_to.vrf import sign_url as sign_mangafire_url
 from ...providers import resolve_provider
 from ...search import (
     fetch_burningseries_series,
     fetch_cineby_movies,
     fetch_filmpalast_movies,
-    fetch_kinox_movies,
     fetch_genre_animes,
     fetch_genres,
+    fetch_kinox_movies,
     fetch_new_animes,
     fetch_new_series,
     fetch_popular_animes,
@@ -163,7 +164,7 @@ def series():
                     "release_year": "",
                 }
             )
-        logger.error("Series fetch failed: %s", exc, exc_info=True)
+        logger.exception("Series fetch failed")
         return jsonify({"error": str(exc)}), 500
 
 
@@ -201,7 +202,7 @@ def seasons():
         if provider is not None and provider.name == "HanimeTV":
             logger.warning("Hanime seasons fallback for %s: %s", url, exc)
             return jsonify({"seasons": []})
-        logger.error("Seasons fetch failed: %s", exc, exc_info=True)
+        logger.exception("Seasons fetch failed")
         return jsonify({"error": str(exc)}), 500
 
 
@@ -243,7 +244,7 @@ def episodes():
         if provider is not None and provider.name == "HanimeTV":
             logger.warning("Hanime episodes fallback for %s: %s", url, exc)
             return jsonify({"episodes": []})
-        logger.error("Episodes fetch failed: %s", exc, exc_info=True)
+        logger.exception("Episodes fetch failed")
         return jsonify({"error": str(exc)}), 500
 
 
@@ -414,7 +415,7 @@ def providers():
             }
         )
     except Exception as exc:
-        logger.error("Providers fetch failed: %s", exc, exc_info=True)
+        logger.exception("Providers fetch failed")
         return jsonify({"error": str(exc)}), 500
 
 
@@ -537,7 +538,9 @@ def _fetch_hanime_trending():
 
 
 def _fetch_mangafire_trending():
-    response = requests.get("https://mangafire.to/api/top-titles", timeout=20)
+    response = requests.get(
+        sign_mangafire_url("https://mangafire.to/api/top-titles"), timeout=20
+    )
     response.raise_for_status()
     items = (response.json() or {}).get("items", [])
     return [_mangafire_card(item) for item in items if isinstance(item, dict)]

@@ -3,7 +3,7 @@ from .season import AniworldSeason
 from .series import AniworldSeries
 
 __all__ = [
-    "AniworldSeries",
-    "AniworldSeason",
     "AniworldEpisode",
+    "AniworldSeason",
+    "AniworldSeries",
 ]

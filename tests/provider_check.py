@@ -22,7 +22,8 @@ runner or goes down, and that must never turn a push red.
 """
 
 import time
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 
 TIMEOUT = 45
 PASS, FAIL, SKIP, NOIMPL = "PASS", "FAIL", "SKIP", "NOIMPL"
@@ -394,7 +395,9 @@ def mangafire_trending():
     """MangaFire's top titles, shaped like the other browse fetchers."""
     import niquests
 
-    response = niquests.get("https://mangafire.to/api/top-titles", timeout=20)
+    from aniworld.models.mangafire_to.vrf import sign_url
+
+    response = niquests.get(sign_url("https://mangafire.to/api/top-titles"), timeout=20)
     response.raise_for_status()
     out = []
     for item in (response.json() or {}).get("items", []) or []:

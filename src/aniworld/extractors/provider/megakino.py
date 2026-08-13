@@ -1,4 +1,5 @@
 import re
+import sys
 
 import niquests
 
@@ -68,7 +69,7 @@ if __name__ == "__main__":
     link = input("Enter Megakino Link: ").strip()
     if not link:
         print("Error: No link provided")
-        exit(1)
+        sys.exit(1)
 
     try:
         print("=" * 25)

@@ -106,7 +106,7 @@ def _protect_endpoints(app, csrf):
     # JSON APIs are exempt from CSRF tokens: they require an application/json
     # content type, which a cross-origin form cannot send without a preflight.
     for endpoint, view in app.view_functions.items():
-        if endpoint.startswith("api.") or endpoint.startswith("auth.admin_"):
+        if endpoint.startswith(("api.", "auth.admin_")):
             csrf.exempt(view)
 
 

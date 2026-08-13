@@ -37,7 +37,7 @@ def library_titles():
     _guard()
     path_id, lang_folder = _location_args()
     try:
-        return jsonify({"titles": library.list_titles(path_id, lang_folder)})
+        return jsonify({"titles": library.list_titles_with_meta(path_id, lang_folder)})
     except library.LibraryError as exc:
         return jsonify({"error": str(exc)}), 400
 

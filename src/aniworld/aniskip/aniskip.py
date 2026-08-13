@@ -53,7 +53,7 @@ def get_skip_times(mal_id: int, episode_number: int):
 
 def ftoi(seconds: float) -> int:
     """Convert seconds to milliseconds as integer."""
-    return int(round(seconds * 1000))
+    return round(seconds * 1000)
 
 
 def build_mpv_flags(skip_data) -> str:
@@ -64,26 +64,19 @@ def build_mpv_flags(skip_data) -> str:
     if not skip_data or skip_data.get("found") is not True:
         return ""
 
-    chapters_file = tempfile.NamedTemporaryFile("w", delete=False)
-    chapters_file.write(";FFMETADATA1\n")
-
     options_list = []
-
-    for entry in skip_data.get("results", []):
-        st = entry["interval"]["start_time"]
-        ed = entry["interval"]["end_time"]
-        skip_type = entry["skip_type"]  # 'op' or 'ed'
-
-        # Write chapters format for FFMETADATA
-        chapters_file.write(
-            f"[CHAPTER]\nTIMEBASE=1/1000\nSTART={ftoi(st)}\nEND={ftoi(ed)}\nTITLE={skip_type.upper()}\n"
-        )
-
-        # Build script options
-        options_list.append(f"skip-{skip_type}_start={st},skip-{skip_type}_end={ed}")
-
-    chapters_file.flush()
-    chapters_file.close()
+    with tempfile.NamedTemporaryFile("w", delete=False) as chapters_file:
+        chapters_file.write(";FFMETADATA1\n")
+        for entry in skip_data.get("results", []):
+            st = entry["interval"]["start_time"]
+            ed = entry["interval"]["end_time"]
+            skip_type = entry["skip_type"]  # 'op' or 'ed'
+            chapters_file.write(
+                f"[CHAPTER]\nTIMEBASE=1/1000\nSTART={ftoi(st)}\nEND={ftoi(ed)}\nTITLE={skip_type.upper()}\n"
+            )
+            options_list.append(
+                f"skip-{skip_type}_start={st},skip-{skip_type}_end={ed}"
+            )
 
     options_str = ",".join(options_list)
 

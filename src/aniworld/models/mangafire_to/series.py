@@ -1,12 +1,14 @@
 import re
+import shutil
+import zipfile
 from os import getenv
 from pathlib import Path
 from pprint import pprint
-import shutil
 from urllib.parse import quote, urlparse
-import zipfile
 
 import niquests
+
+from .vrf import sign_url
 
 SEARCH_API = "https://mangafire.to/api/titles?keyword={}&limit=20"
 CHAPTERS_API = "https://mangafire.to/api/titles/{}/chapters?language=en&sort=number&order=asc&page=1&limit=200"
@@ -14,6 +16,7 @@ CHAPTER_URL = "https://mangafire.to/title/{}/chapter/{}"
 CHAPTER_API = "https://mangafire.to/api/chapters/{}"
 
 SESSION = niquests.Session()
+SESSION.headers["Referer"] = "https://mangafire.to/"
 
 
 # -----------------------------
@@ -35,6 +38,8 @@ def _file_suffix_from_url(url: str) -> str:
 
 def _get(url: str):
     """Send a get request."""
+    if url.startswith("https://mangafire.to/api/"):
+        url = sign_url(url)
     response = SESSION.get(url)
     response.raise_for_status()
     return response

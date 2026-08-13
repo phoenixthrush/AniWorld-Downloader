@@ -273,6 +273,127 @@ def test_custom_path_labels():
 
 
 # ---------------------------------------------------------------------------
+# Movie detection (files with no SxxExx pattern)
+# ---------------------------------------------------------------------------
+def test_a_video_file_without_an_episode_marker_is_grouped_as_a_movie(downloads):
+    (downloads / "Your Name").mkdir()
+    (downloads / "Your Name" / "Your Name.mkv").write_bytes(b"x" * 500)
+    result = library.read_title("Your Name")
+    assert [e["file"] for e in result["seasons"]["movie"]] == ["Your Name.mkv"]
+    assert result["total_episodes"] == 1
+
+
+def test_movie_files_are_numbered_in_stable_alphabetical_order(downloads):
+    folder = downloads / "Trilogy"
+    folder.mkdir()
+    (folder / "Part 2.mkv").write_bytes(b"x")
+    (folder / "Part 1.mkv").write_bytes(b"x")
+    movies = library.read_title("Trilogy")["seasons"]["movie"]
+    assert [m["file"] for m in movies] == ["Part 1.mkv", "Part 2.mkv"]
+    assert [m["episode"] for m in movies] == [1, 2]
+
+
+def test_a_non_video_file_without_an_episode_marker_still_does_not_appear(downloads):
+    (downloads / "Naruto").mkdir()
+    (downloads / "Naruto" / "poster.jpg").write_bytes(b"x")
+    result = library.read_title("Naruto")
+    assert result["seasons"] == {}
+
+
+def test_a_title_with_both_seasons_and_a_movie_keeps_them_separate(
+    episode_file, downloads
+):
+    episode_file("Naruto", 1, 1)
+    (downloads / "Naruto" / "Naruto The Movie.mkv").write_bytes(b"x")
+    result = library.read_title("Naruto")
+    assert sorted(result["seasons"]) == ["1", "movie"]
+
+
+def test_deleting_a_single_movie_file(downloads):
+    folder = downloads / "Trilogy"
+    folder.mkdir()
+    (folder / "Part 1.mkv").write_bytes(b"x")
+    (folder / "Part 2.mkv").write_bytes(b"x")
+    assert library.delete("Trilogy", season="movie", episode=1) == 1
+    remaining = [m["file"] for m in library.read_title("Trilogy")["seasons"]["movie"]]
+    assert remaining == ["Part 2.mkv"]
+
+
+def test_deleting_all_movies_of_a_title(downloads):
+    folder = downloads / "Trilogy"
+    folder.mkdir()
+    (folder / "Part 1.mkv").write_bytes(b"x")
+    (folder / "Part 2.mkv").write_bytes(b"x")
+    assert library.delete("Trilogy", season="movie") == 2
+    assert not folder.exists(), "the now-empty title folder is pruned, like any other"
+
+
+def test_deleting_an_out_of_range_movie_index_is_an_error(downloads):
+    folder = downloads / "Trilogy"
+    folder.mkdir()
+    (folder / "Part 1.mkv").write_bytes(b"x")
+    with pytest.raises(library.LibraryError):
+        library.delete("Trilogy", season="movie", episode=5)
+
+
+def test_a_temp_file_with_the_marker_mid_name_is_not_shown_as_a_movie(downloads):
+    folder = downloads / "Some Film"
+    folder.mkdir()
+    (folder / "Some Film (2026).temp_full.mkv").write_bytes(b"x")
+    result = library.read_title("Some Film")
+    assert result["seasons"] == {}
+
+
+# ---------------------------------------------------------------------------
+# Series/movies classification
+# ---------------------------------------------------------------------------
+def test_a_series_only_folder_is_classified_as_series(episode_file):
+    episode_file("Naruto", 1, 1)
+    titles = library.list_titles_with_meta()
+    assert titles == [{"folder": "Naruto", "categories": ["series"]}]
+
+
+def test_a_movie_only_folder_is_classified_as_movies(downloads):
+    folder = downloads / "Your Name"
+    folder.mkdir()
+    (folder / "Your Name.mkv").write_bytes(b"x")
+    titles = library.list_titles_with_meta()
+    assert titles == [{"folder": "Your Name", "categories": ["movies"]}]
+
+
+def test_a_folder_with_both_is_classified_as_both(episode_file, downloads):
+    episode_file("Naruto", 1, 1)
+    (downloads / "Naruto" / "Naruto The Movie.mkv").write_bytes(b"x")
+    titles = library.list_titles_with_meta()
+    assert titles == [{"folder": "Naruto", "categories": ["series", "movies"]}]
+
+
+def test_an_in_progress_movie_download_is_still_classified_as_a_movie(downloads):
+    folder = downloads / "Some Film"
+    folder.mkdir()
+    (folder / "Some Film (2026).temp_full.mkv").write_bytes(b"x")
+    titles = library.list_titles_with_meta()
+    assert titles == [{"folder": "Some Film", "categories": ["movies"]}]
+
+
+def test_an_empty_folder_falls_back_to_series(downloads):
+    (downloads / "Empty Show").mkdir()
+    titles = library.list_titles_with_meta()
+    assert titles == [{"folder": "Empty Show", "categories": ["series"]}]
+
+
+# ---------------------------------------------------------------------------
+# Temp-file infix handling
+# ---------------------------------------------------------------------------
+def test_a_temp_episode_with_the_marker_mid_name_is_not_shown(downloads):
+    folder = downloads / "Naruto" / "Season 1"
+    folder.mkdir(parents=True)
+    (folder / "Naruto S01E001.temp_full.mkv").write_bytes(b"x")
+    result = library.read_title("Naruto")
+    assert result["seasons"] == {}
+
+
+# ---------------------------------------------------------------------------
 # Resolving a playable file (for the in-browser player)
 # ---------------------------------------------------------------------------
 def test_resolving_a_video_file(episode_file, downloads):
@@ -319,3 +440,4 @@ def test_resolving_from_a_custom_path(episode_file, tmp_path):
     )
     assert directory == other / "Naruto"
     assert filename == "Season 1/Naruto S01E001.mkv"
+

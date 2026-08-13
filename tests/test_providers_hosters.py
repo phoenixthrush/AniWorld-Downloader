@@ -20,7 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from provider_check import run_hosters  # noqa: E402
+from provider_check import run_hosters
 
 if __name__ == "__main__":
     sys.exit(run_hosters([a.lower() for a in sys.argv[1:]]))

@@ -1,4 +1,5 @@
 import re
+import sys
 
 try:
     from ...config import GLOBAL_SESSION
@@ -80,7 +81,7 @@ if __name__ == "__main__":
     link = input("Enter Vidmoly Link: ").strip()
     if not link:
         print("Error: No link provided")
-        exit(1)
+        sys.exit(1)
 
     try:
         print("=" * 25)
@@ -100,4 +101,4 @@ if __name__ == "__main__":
 
     except Exception as e:
         print("Error:", e)
-        exit(1)
+        sys.exit(1)

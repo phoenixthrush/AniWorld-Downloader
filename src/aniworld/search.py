@@ -2,8 +2,9 @@ import html as html_module
 import os
 import random
 import re
-import niquests
 from urllib.parse import quote, quote_plus, urljoin
+
+import niquests
 
 try:
     from .ascii import display_ascii_art
@@ -911,9 +912,13 @@ def query_filmpalast(keyword):
 
             poster = ""
             pm = re.search(
-                r'<img\s+[^>]*src="([^"]+)"[^>]*class="[^"]*cover[^"]*"', block, re.I
+                r'<img\s+[^>]*src="([^"]+)"[^>]*class="[^"]*cover[^"]*"',
+                block,
+                re.IGNORECASE,
             ) or re.search(
-                r'<img\s+[^>]*class="[^"]*cover[^"]*"[^>]*src="([^"]+)"', block, re.I
+                r'<img\s+[^>]*class="[^"]*cover[^"]*"[^>]*src="([^"]+)"',
+                block,
+                re.IGNORECASE,
             )
             if pm:
                 poster = pm.group(1).strip()
@@ -978,7 +983,9 @@ def query_kinox(keyword):
         title = re.sub(r"\s*\(\d{4}\)\s*$", "", title).strip()
 
         poster = ""
-        pm = re.search(r'<div class="Thumb"><img[^>]*src="([^"]+)"', block, re.I)
+        pm = re.search(
+            r'<div class="Thumb"><img[^>]*src="([^"]+)"', block, re.IGNORECASE
+        )
         if pm:
             poster = pm.group(1).strip()
             if poster.startswith("/"):
@@ -999,7 +1006,7 @@ _bs_index_cache = None
 
 def query_burningseries(keyword):
     """Search burning-series by scanning its full series index (cached)."""
-    from .models.burningseries.series import bs_get_with_fallback, bs_current_base
+    from .models.burningseries.series import bs_current_base, bs_get_with_fallback
 
     global _bs_index_cache
     if _bs_index_cache is None:
@@ -1137,9 +1144,9 @@ def fetch_filmpalast_movies():
 
         poster = ""
         pm = re.search(
-            r'<img\s+[^>]*src="([^"]+)"[^>]*class="[^"]*cover[^"]*"', art, re.I
+            r'<img\s+[^>]*src="([^"]+)"[^>]*class="[^"]*cover[^"]*"', art, re.IGNORECASE
         ) or re.search(
-            r'<img\s+[^>]*class="[^"]*cover[^"]*"[^>]*src="([^"]+)"', art, re.I
+            r'<img\s+[^>]*class="[^"]*cover[^"]*"[^>]*src="([^"]+)"', art, re.IGNORECASE
         )
         if pm:
             poster = pm.group(1).strip()
@@ -1197,7 +1204,9 @@ def fetch_kinox_movies():
         title = re.sub(r"\s*\(\d{4}\)\s*$", "", title).strip()
 
         poster = ""
-        pm = re.search(r'<div class="Thumb"><img[^>]*src="([^"]+)"', block, re.I)
+        pm = re.search(
+            r'<div class="Thumb"><img[^>]*src="([^"]+)"', block, re.IGNORECASE
+        )
         if pm:
             poster = pm.group(1).strip()
             if poster.startswith("/"):
@@ -1375,7 +1384,7 @@ def search(is_aniworld=None):
             logger.debug(f"Auto-selected: {title}")
             return f"{base_url}{selected_item['link']}"
 
-        def menu_wrapper(stdscr):
+        def menu_wrapper(stdscr, stream_results=stream_results):
             curses.start_color()
             curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_CYAN)
             selected_item = _curses_menu(stdscr, stream_results)

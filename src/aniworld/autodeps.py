@@ -5,7 +5,6 @@ import subprocess
 import sys
 import zipfile
 from pathlib import Path
-from typing import List, Optional
 
 PLATFORM = platform.system()
 
@@ -74,7 +73,7 @@ def get_ffmpeg_windows_url() -> str:
 # -----------------------------
 # Syncplay
 # -----------------------------
-def get_syncplay_release_url() -> List[str]:
+def get_syncplay_release_url() -> list[str]:
     """Fetch the URLs for the latest Windows Syncplay portable ZIP release."""
     repo = "Syncplay/syncplay"
     portable_pattern = r"Syncplay[_-]\d+(?:\.\d+)*_Portable\.zip$"
@@ -167,7 +166,7 @@ class DependencyManager:
 
     def _find_binary_in_dir(
         self, search_dir: Path, binary_names: list[str]
-    ) -> Optional[Path]:
+    ) -> Path | None:
         for binary_name in binary_names:
             direct_match = search_dir / binary_name
             if direct_match.exists():
@@ -182,7 +181,7 @@ class DependencyManager:
 
         return None
 
-    def _find_binary_on_path(self, name: str, dep_info: dict) -> Optional[Path]:
+    def _find_binary_on_path(self, name: str, dep_info: dict) -> Path | None:
         binary_names = [name, *(dep_info.get("binary_names") or [])]
 
         for binary_name in dict.fromkeys(binary_names):
@@ -192,7 +191,7 @@ class DependencyManager:
 
         return None
 
-    def _find_local_binary(self, name: str, dep_info: dict) -> Optional[Path]:
+    def _find_local_binary(self, name: str, dep_info: dict) -> Path | None:
         binary_names = dep_info.get("binary_names") or [name]
         binary_path = self._find_binary_in_dir(self.install_folder, binary_names)
         if binary_path:
@@ -240,7 +239,7 @@ class DependencyManager:
             return default
         return reply in {"y", "yes"}
 
-    def _resolve_download_url(self, name: str, dep_info: dict) -> Optional[str]:
+    def _resolve_download_url(self, name: str, dep_info: dict) -> str | None:
         url = dep_info.get("url")
 
         if name == "mpv" and PLATFORM == "Windows" and not url:
@@ -264,8 +263,7 @@ class DependencyManager:
         resp = GLOBAL_SESSION.get(url, stream=True)
         resp.raise_for_status()
         with open(local_path, "wb") as f:
-            for chunk in resp.iter_content(chunk_size=8192):
-                f.write(chunk)
+            f.writelines(resp.iter_content(chunk_size=8192))
 
         if PLATFORM != "Windows":
             local_path.chmod(0o755)
@@ -274,9 +272,7 @@ class DependencyManager:
         resolved_binary = self._resolve_local_binary(name, dep_info, local_path)
         return resolved_binary or local_path
 
-    def _resolve_local_binary(
-        self, name: str, dep_info: dict, local_path: Optional[Path]
-    ):
+    def _resolve_local_binary(self, name: str, dep_info: dict, local_path: Path | None):
         if not local_path or not local_path.exists():
             return None
 
@@ -335,15 +331,14 @@ class DependencyManager:
         package_error = None
         portable_error = None
 
-        if url:
-            if self._confirm_install(
-                f"{name} was not found on PATH. Install a portable copy into {self.install_folder} for this runtime?"
-            ):
-                try:
-                    return self._download_binary(name, dep_info, url)
-                except Exception as exc:
-                    portable_error = exc
-                    self.logger.warning(f"Portable install failed for {name}: {exc}")
+        if url and self._confirm_install(
+            f"{name} was not found on PATH. Install a portable copy into {self.install_folder} for this runtime?"
+        ):
+            try:
+                return self._download_binary(name, dep_info, url)
+            except Exception as exc:
+                portable_error = exc
+                self.logger.warning(f"Portable install failed for {name}: {exc}")
 
         pkg_name = dep_info.get("package")
         if pkg_name and self._confirm_install(
@@ -517,7 +512,13 @@ def ensure_patchright_chromium():
 
         _log.debug("Installing patchright chromium (this may take a moment)...")
         subprocess.run(
-            [driver_path.as_posix(), driver_cli, "install", "chromium"],
+            [
+                driver_path.as_posix(),
+                driver_cli,
+                "install",
+                "chromium",
+                "--no-shell",
+            ],
             check=True,
             env=get_driver_env(),
             stdout=subprocess.DEVNULL,

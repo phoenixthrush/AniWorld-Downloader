@@ -139,8 +139,6 @@ def unzip(file_path, target_dir):
         else:
             # Use system 7z on macOS/Linux
             print(f"Extracting 7z: {file_path} -> {target_dir}")
-            subprocess.run(
-                ["7z", "x", str(file_path), f"-o{str(target_dir)}"], check=True
-            )
+            subprocess.run(["7z", "x", str(file_path), f"-o{target_dir!s}"], check=True)
     else:
         raise ValueError(f"Unsupported archive format: {file_path}")
