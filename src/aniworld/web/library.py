@@ -337,7 +337,7 @@ def _safe_relative(base, relative):
     absolute paths and anything that resolves outside base.
     """
     name = str(relative or "")
-    if not name or "\x00" in name or name.startswith("/") or name.startswith("\\"):
+    if not name or "\x00" in name or name.startswith(("/", "\\")):
         return None
     candidate = base / name
     try:
