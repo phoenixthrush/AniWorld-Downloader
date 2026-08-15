@@ -3,13 +3,12 @@
 import re
 import time
 
-import niquests as requests
 from flask import Response, jsonify, request
 
 from ...config import DEFAULT_USER_AGENT, GLOBAL_SESSION
 from ...extractors.provider.hanime_tv import fetch_hanime_trending
 from ...logger import get_logger
-from ...models.mangafire_to.vrf import sign_url as sign_mangafire_url
+from ...models.mangafire_to.series import _get as get_mangafire
 from ...providers import resolve_provider
 from ...search import (
     fetch_burningseries_series,
@@ -538,10 +537,7 @@ def _fetch_hanime_trending():
 
 
 def _fetch_mangafire_trending():
-    response = requests.get(
-        sign_mangafire_url("https://mangafire.to/api/top-titles"), timeout=20
-    )
-    response.raise_for_status()
+    response = get_mangafire("https://mangafire.to/api/top-titles", timeout=20)
     items = (response.json() or {}).get("items", [])
     return [_mangafire_card(item) for item in items if isinstance(item, dict)]
 

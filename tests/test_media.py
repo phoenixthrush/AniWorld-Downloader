@@ -1,7 +1,10 @@
 """Poster handling, site keys and detecting what is already downloaded."""
 
+from types import SimpleNamespace
+
 import pytest
 
+from aniworld.models.mangafire_to import series as mangafire
 from aniworld.web import db, media
 
 
@@ -206,6 +209,55 @@ def test_the_mangafire_format_defaults_to_jpg():
 def test_the_mangafire_format_can_be_changed(monkeypatch):
     monkeypatch.setenv("MANGAFIRE_FORMAT", "pdf")
     assert media.mangafire_format() == "pdf"
+
+
+def test_mangafire_loads_every_chapter_page(monkeypatch):
+    calls = []
+    pages = iter(
+        [
+            {"items": [{"id": 1}]},
+            {"items": [{"id": 2}]},
+            {"items": [{"id": 2}]},
+        ]
+    )
+
+    def get(url):
+        calls.append(url)
+        return SimpleNamespace(json=lambda: next(pages))
+
+    monkeypatch.setattr(mangafire, "_get", get)
+    found = mangafire.MangaFireToSeries("https://mangafire.to/title/test-title")
+
+    assert found.chapters_data["items"] == [{"id": 1}, {"id": 2}]
+    assert [url.split("page=")[1].split("&")[0] for url in calls] == ["1", "2", "3"]
+
+
+def test_mangafire_retries_after_a_captcha(monkeypatch):
+    responses = iter(
+        [
+            SimpleNamespace(text="challenge", status_code=403),
+            SimpleNamespace(
+                text='{"items": []}',
+                status_code=200,
+                raise_for_status=lambda: None,
+            ),
+        ]
+    )
+    solved = []
+
+    monkeypatch.setattr(
+        mangafire.GLOBAL_SESSION, "get", lambda *_args, **_kwargs: next(responses)
+    )
+    monkeypatch.setattr(mangafire, "sign_url", lambda url: f"{url}?signed")
+    monkeypatch.setattr(
+        mangafire, "is_captcha_page", lambda _body, status: status == 403
+    )
+    monkeypatch.setattr(mangafire, "solve_captcha", solved.append)
+
+    response = mangafire._get("https://mangafire.to/api/top-titles")
+
+    assert response.status_code == 200
+    assert solved == ["https://mangafire.to/api/top-titles?signed"]
 
 
 def test_only_implemented_providers_are_offered():

@@ -6,17 +6,16 @@ from pathlib import Path
 from pprint import pprint
 from urllib.parse import quote, urlparse
 
-import niquests
-
+from ...config import GLOBAL_SESSION
+from ...playwright.captcha import is_captcha_page, solve_captcha
 from .vrf import sign_url
 
 SEARCH_API = "https://mangafire.to/api/titles?keyword={}&limit=20"
-CHAPTERS_API = "https://mangafire.to/api/titles/{}/chapters?language=en&sort=number&order=asc&page=1&limit=200"
+CHAPTERS_API = "https://mangafire.to/api/titles/{}/chapters?language=en&sort=number&order=asc&page={}&limit=200"
 CHAPTER_URL = "https://mangafire.to/title/{}/chapter/{}"
 CHAPTER_API = "https://mangafire.to/api/chapters/{}"
 
-SESSION = niquests.Session()
-SESSION.headers["Referer"] = "https://mangafire.to/"
+HEADERS = {"Referer": "https://mangafire.to/"}
 
 
 # -----------------------------
@@ -36,11 +35,15 @@ def _file_suffix_from_url(url: str) -> str:
     return suffix or ".jpg"
 
 
-def _get(url: str):
+def _get(url: str, timeout=None):
     """Send a get request."""
-    if url.startswith("https://mangafire.to/api/"):
-        url = sign_url(url)
-    response = SESSION.get(url)
+    request_url = sign_url(url) if url.startswith("https://mangafire.to/api/") else url
+    response = GLOBAL_SESSION.get(request_url, headers=HEADERS, timeout=timeout)
+    if url.startswith("https://mangafire.to/") and is_captcha_page(
+        response.text or "", response.status_code
+    ):
+        solve_captcha(request_url)
+        response = GLOBAL_SESSION.get(request_url, headers=HEADERS, timeout=timeout)
     response.raise_for_status()
     return response
 
@@ -620,14 +623,34 @@ class MangaFireToSeries:
     @property
     def chapters_api_url(self) -> str:
         """Return the chapters API url."""
-        return CHAPTERS_API.format(self.hid)
+        return CHAPTERS_API.format(self.hid, 1)
 
     @property
     def chapters_data(self) -> dict:
         """Return raw chapter data."""
         if self.__chapters_data is None:
-            response = _get(self.chapters_api_url)
-            self.__chapters_data = response.json()
+            chapters_data = {}
+            items = []
+            seen = set()
+            page = 1
+
+            while True:
+                payload = _get(CHAPTERS_API.format(self.hid, page)).json()
+                if page == 1:
+                    chapters_data = payload
+
+                new_items = [
+                    item for item in payload.get("items", []) if item["id"] not in seen
+                ]
+                if not new_items:
+                    break
+
+                items.extend(new_items)
+                seen.update(item["id"] for item in new_items)
+                page += 1
+
+            chapters_data["items"] = items
+            self.__chapters_data = chapters_data
         return self.__chapters_data
 
     @property
