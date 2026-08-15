@@ -241,6 +241,7 @@ def test_a_failed_handshake_only_opens_one_browser(monkeypatch, tmp_path):
 
     monkeypatch.setattr(extractor, "playwright_get_hanime_manifest_token", fail)
     monkeypatch.setattr(common, "_prepare_resolution_naming", lambda _episode: None)
+    monkeypatch.setattr(common.platform, "system", lambda: "Linux")
 
     class Episode:
         _episode_path = tmp_path / "episode.mkv"
