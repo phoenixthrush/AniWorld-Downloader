@@ -143,3 +143,84 @@ def test_no_season_still_loops_episodes_unguarded():
         if "for episode in self.episodes:" in text:
             offenders.append(str(path.relative_to(models)))
     assert not offenders, f"unguarded batch loops: {offenders}"
+
+
+# ---------------------------------------------------------------------------
+# Series must delegate to Season, not loop episodes itself (issue #274,
+# follow-up: s_to, hanime_tv and aniworld_to still reimplemented the loop
+# at the Series level, bypassing the run_each() guard entirely)
+# ---------------------------------------------------------------------------
+class FakeSeason:
+    """A season exactly as batch-safe as the real ones: delegates to run_each."""
+
+    def __init__(self, episodes):
+        self.episodes = episodes
+
+    def download(self):
+        return run_each(self.episodes, "download")
+
+    def watch(self):
+        return run_each(self.episodes, "watch")
+
+    def syncplay(self):
+        return run_each(self.episodes, "syncplay")
+
+
+_SERIES_PROVIDERS = [
+    (
+        "aniworld.models.aniworld_to.series",
+        "AniworldSeries",
+        "https://aniworld.to/anime/stream/example-series",
+    ),
+    (
+        "aniworld.models.s_to.series",
+        "SerienstreamSeries",
+        "https://serienstream.to/serie/example-series",
+    ),
+    (
+        "aniworld.models.hanime_tv.series",
+        "HanimeTVSeries",
+        "https://hanime.tv/videos/hentai/example-video-1",
+    ),
+]
+
+
+@pytest.mark.parametrize("module_path, class_name, url", _SERIES_PROVIDERS)
+def test_series_delegates_to_season_so_one_failure_does_not_abort_the_batch(
+    monkeypatch, module_path, class_name, url
+):
+    """A single failed episode must not kill Series.download() either -
+    Series has to go through Season (which already guards with run_each()),
+    not loop season.episodes directly."""
+    import importlib
+
+    module = importlib.import_module(module_path)
+    series_cls = getattr(module, class_name)
+
+    episodes = [
+        FakeEpisode(1),
+        FakeEpisode(2, fail=ValueError("no stream found")),
+        FakeEpisode(3),
+    ]
+    fake_season = FakeSeason(episodes)
+    monkeypatch.setattr(series_cls, "seasons", property(lambda self: [fake_season]))
+
+    series = series_cls(url)
+    series.download()  # must not raise
+
+    assert all(e.ran for e in episodes), "every episode must still be attempted"
+
+
+def test_no_series_still_loops_season_episodes_unguarded():
+    """A provider added later must not reintroduce the Series-level version
+    of #274: looping season.episodes directly instead of delegating to
+    season.download()/.watch()/.syncplay()."""
+    from pathlib import Path
+
+    models = Path(__file__).resolve().parent.parent / "src" / "aniworld" / "models"
+    offenders = []
+    for path in models.rglob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        if "for episode in season.episodes:" in text:
+            offenders.append(str(path.relative_to(models)))
+    assert not offenders, f"unguarded Series-level batch loops: {offenders}"
