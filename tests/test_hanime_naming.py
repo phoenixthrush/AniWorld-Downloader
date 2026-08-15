@@ -9,6 +9,8 @@ uses the franchise.
 
 import pytest
 
+from aniworld.extractors.provider import hanime_tv as extractor
+from aniworld.models.common import common
 from aniworld.models.hanime_tv.episode import HanimeTVEpisode
 from aniworld.models.hanime_tv.series import HanimeTVSeries
 
@@ -228,3 +230,28 @@ def test_strip_episode_number_keeps_a_title_that_is_only_a_number():
     )
     assert HanimeTVSeries.strip_episode_number("2") == "2"
     assert HanimeTVSeries.strip_episode_number("") == ""
+
+
+def test_a_failed_handshake_only_opens_one_browser(monkeypatch, tmp_path):
+    calls = []
+
+    def fail(_url, timeout):
+        calls.append(timeout)
+        raise TimeoutError("handshake timed out")
+
+    monkeypatch.setattr(extractor, "playwright_get_hanime_manifest_token", fail)
+    monkeypatch.setattr(common, "_prepare_resolution_naming", lambda _episode: None)
+
+    class Episode:
+        _episode_path = tmp_path / "episode.mkv"
+        _folder_path = tmp_path
+        _file_name = "episode"
+
+        @property
+        def stream_url(self):
+            return extractor.fetch_hanime_manifest("episode")
+
+    with pytest.raises(RuntimeError, match="Hanime download failed"):
+        common.download_hanime(Episode())
+
+    assert calls == [15]

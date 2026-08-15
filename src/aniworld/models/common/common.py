@@ -918,13 +918,14 @@ def download_hanime(self):
         return
 
     os.makedirs(self._folder_path, exist_ok=True)
+    try:
+        stream_url = self.stream_url
+    except Exception as exc:
+        raise RuntimeError(f"Hanime download failed: {exc}") from exc
+
     last_error = None
     for attempt in range(1, 4):
         try:
-            if attempt == 1:
-                stream_url = self.stream_url
-            else:
-                stream_url = self.refresh_stream_url()
             _download_hls_stream(
                 self._episode_path,
                 stream_url,
@@ -939,6 +940,12 @@ def download_hanime(self):
                     f"Hanime download attempt {attempt}/3 failed: {exc}; retrying with a fresh stream"
                 )
                 time.sleep(attempt)
+                try:
+                    stream_url = self.refresh_stream_url()
+                except Exception as refresh_exc:
+                    raise RuntimeError(
+                        f"Hanime download failed: {refresh_exc}"
+                    ) from refresh_exc
 
     raise RuntimeError(
         f"Hanime download failed after 3 attempts: {last_error}"

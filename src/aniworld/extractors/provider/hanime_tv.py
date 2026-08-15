@@ -339,18 +339,13 @@ def _parse_hanime_manifest_token(token):
 def fetch_hanime_manifest(slug):
     """Resolve a fresh stream manifest through Hanime's own web player."""
     page_url = HANIME_VIDEO_URL.format(slug=slug)
-    last_error = None
-    for attempt in range(2):
-        try:
-            token = playwright_get_hanime_manifest_token(page_url, timeout=15)
-            if not token:
-                raise TimeoutError("Hanime handshake returned no X-Token")
-            return _parse_hanime_manifest_token(token)
-        except Exception as exc:
-            last_error = exc
-            if attempt == 0:
-                time.sleep(0.5)
-    raise RuntimeError(f"Hanime stream handshake failed: {last_error}") from last_error
+    try:
+        token = playwright_get_hanime_manifest_token(page_url, timeout=15)
+        if not token:
+            raise TimeoutError("Hanime handshake returned no X-Token")
+        return _parse_hanime_manifest_token(token)
+    except Exception as exc:
+        raise RuntimeError(f"Hanime stream handshake failed: {exc}") from exc
 
 
 def _manifest_sources(manifest):

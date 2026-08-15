@@ -1876,9 +1876,7 @@ def playwright_get_hanime_manifest_token(url: str, timeout: int = 15) -> str:
 
             def _capture_handshake(response):
                 nonlocal token
-                if token or "/api/v11/handshake" not in response.url:
-                    return
-                if response.status != 200:
+                if token or response.status != 200:
                     return
                 try:
                     token = response.header_value("x-token")
