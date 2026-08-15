@@ -1,4 +1,5 @@
 import getpass
+import glob
 import hashlib
 import os
 import platform
@@ -22,6 +23,7 @@ try:
         INVERSE_LANG_LABELS,
         LANG_CODE_MAP,
         LANG_KEY_MAP,
+        NAMING_TEMPLATE,
         PROVIDER_HEADERS_D,
         PROVIDER_HEADERS_W,
         Audio,
@@ -36,6 +38,7 @@ except ImportError:
         INVERSE_LANG_LABELS,
         LANG_CODE_MAP,
         LANG_KEY_MAP,
+        NAMING_TEMPLATE,
         PROVIDER_HEADERS_D,
         PROVIDER_HEADERS_W,
         Audio,
@@ -52,6 +55,99 @@ FORBIDDEN_CHARS = re.compile(r'[<>:"/\\|?*]')
 def clean_title(title: str) -> str:
     """Clean a string to make it safe for use as a filename."""
     return FORBIDDEN_CHARS.sub("", title).strip()
+
+
+def _naming_template_uses_resolution():
+    template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
+    return "{resolution}" in template or "%resolution%" in template
+
+
+def _read_container_resolution(path):
+    """Read one local video stream's height from FFmpeg's container output."""
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-hide_banner", "-i", str(path)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return "unknown"
+    streams = re.findall(
+        r"^\s*Stream #.*Video:.*?\b\d{2,5}x(\d{2,5})\b",
+        result.stderr or "",
+        re.MULTILINE,
+    )
+    return f"{streams[0]}p" if len(streams) == 1 else "unknown"
+
+
+def _reset_naming_cache(self):
+    suffixes = (
+        "__base_folder",
+        "__folder_path",
+        "__file_name",
+        "__episode_path",
+        "__is_downloaded",
+    )
+    for name in vars(self):
+        if name.endswith(suffixes):
+            setattr(self, name, None)
+
+
+def _set_naming_resolution(self, resolution):
+    self._resolution = resolution
+    _reset_naming_cache(self)
+
+
+def _prepare_resolution_naming(self):
+    """Start with unknown, or reuse a matching previously downloaded file."""
+    if not _naming_template_uses_resolution():
+        return
+    _set_naming_resolution(self, "unknown")
+    if self._episode_path.exists():
+        return
+
+    marker = "__ANIWORLD_RESOLUTION__"
+    _set_naming_resolution(self, marker)
+    pattern = glob.escape(str(self._episode_path)).replace(marker, "*")
+    candidates = [Path(path) for path in glob.glob(pattern)]
+    for candidate in candidates:
+        resolution = _read_container_resolution(candidate)
+        _set_naming_resolution(self, resolution)
+        if self._episode_path == candidate:
+            return
+    _set_naming_resolution(self, "unknown")
+
+
+def _finalize_resolution_naming(self):
+    """Rename a finished local container using its unambiguous resolution."""
+    if not _naming_template_uses_resolution():
+        return
+    old_path = self._episode_path
+    _set_naming_resolution(self, _read_container_resolution(old_path))
+    new_path = self._episode_path
+    if new_path != old_path:
+        new_path.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(old_path, new_path)
+
+
+def _progress_file_name(self):
+    """Hide post-processed resolution metadata from the live progress label."""
+    name = self._file_name or ""
+    resolution = str(getattr(self, "_resolution", "") or "")
+    if not _naming_template_uses_resolution() or not resolution:
+        return name
+    index = name.rfind(resolution)
+    if index < 0:
+        return name
+    start, end = index, index + len(resolution)
+    separators = "._- "
+    if start and name[start - 1] in separators:
+        start -= 1
+    elif end < len(name) and name[end] in separators:
+        end += 1
+    return name[:start] + name[end:]
 
 
 def _quote_windows_cmd_arg(arg) -> str:
@@ -597,7 +693,7 @@ def movie_folder_enabled():
     return os.getenv("ANIWORLD_MOVIE_FOLDER", "1") != "0"
 
 
-def _finalize_episode(temp_path, episode_path, label=""):
+def _finalize_episode(temp_path, episode_path, label="", owner=None):
     """Move `temp_path` onto `episode_path`, remuxing when containers differ.
 
     The muxer always writes Matroska, so a naming template ending in `.mp4`
@@ -610,6 +706,8 @@ def _finalize_episode(temp_path, episode_path, label=""):
 
     if target_ext == source_ext or target_ext not in ("mkv", "mp4"):
         os.replace(temp_path, episode_path)
+        if owner is not None:
+            _finalize_resolution_naming(owner)
         return
 
     converted = episode_path.with_suffix(f".convert.{target_ext}")
@@ -645,12 +743,14 @@ def _finalize_episode(temp_path, episode_path, label=""):
 
     os.replace(converted, episode_path)
     temp_path.unlink(missing_ok=True)
+    if owner is not None:
+        _finalize_resolution_naming(owner)
 
 
 def _download_direct_http(episode_path, stream_url, file_name):
     """Download a video via direct HTTP (e.g. pixeldrain). Shared helper."""
     temp_file = episode_path.with_suffix(".temp_dl.mp4")
-    ep_label = os.path.splitext(file_name)[0] if file_name else ""
+    ep_label = file_name or ""
 
     try:
         logger.debug(f"[DOWNLOADING] {ep_label} via direct download")
@@ -725,9 +825,11 @@ def _download_direct_http(episode_path, stream_url, file_name):
             )
 
 
-def _download_hls_stream(episode_path, stream_url, file_name, audio_lang="jpn"):
+def _download_hls_stream(
+    episode_path, stream_url, file_name, audio_lang="jpn", owner=None
+):
     """Download a Hanime HLS stream with per-segment retries."""
-    ep_label = os.path.splitext(file_name)[0] if file_name else ""
+    ep_label = file_name or ""
     temp_full = episode_path.with_suffix(".temp_full.mkv")
     temp_prefix = episode_path.with_suffix(".hanime_hls")
 
@@ -791,7 +893,7 @@ def _download_hls_stream(episode_path, stream_url, file_name, audio_lang="jpn"):
                 audio_lang,
             )
 
-        _finalize_episode(temp_full, episode_path, ep_label)
+        _finalize_episode(temp_full, episode_path, ep_label, owner=owner)
     except Exception:
         if temp_full.exists():
             temp_full.unlink()
@@ -809,6 +911,8 @@ def download_hanime(self):
         manager = DependencyManager()
         manager.fetch_binary("ffmpeg")
 
+    _prepare_resolution_naming(self)
+
     if self._episode_path.exists():
         logger.debug(f"[SKIPPED] {self._file_name} (already downloaded)")
         return
@@ -821,7 +925,12 @@ def download_hanime(self):
                 stream_url = self.stream_url
             else:
                 stream_url = self.refresh_stream_url()
-            _download_hls_stream(self._episode_path, stream_url, self._file_name)
+            _download_hls_stream(
+                self._episode_path,
+                stream_url,
+                _progress_file_name(self),
+                owner=self,
+            )
             return
         except Exception as exc:
             last_error = exc
@@ -1054,6 +1163,7 @@ def download(self):
     max_retries = 3
     provider_order = _get_provider_attempt_order(self)
     provider_errors = {}
+    _prepare_resolution_naming(self)
 
     for provider_index, provider_name in enumerate(provider_order):
         _set_selected_provider(self, provider_name)
@@ -1062,9 +1172,8 @@ def download(self):
             try:
                 _reset_provider_resolution_cache(self)
                 stream_url = self.stream_url
-                check = check_downloaded(self._episode_path)
-
                 headers = PROVIDER_HEADERS_D.get(provider_name, {})
+                check = check_downloaded(self._episode_path)
                 input_kwargs = {
                     "reconnect": 1,
                     "reconnect_streamed": 1,
@@ -1123,9 +1232,7 @@ def download(self):
 
                 os.makedirs(self._folder_path, exist_ok=True)
 
-                ep_label = (
-                    os.path.splitext(self._file_name)[0] if self._file_name else ""
-                )
+                ep_label = _progress_file_name(self)
 
                 full_stream_needed = need_audio and need_video
 
@@ -1202,9 +1309,13 @@ def download(self):
                         _run_ffmpeg_with_progress(
                             ffmpeg.output(*inputs, str(output_path), c="copy")
                         )
-                        _finalize_episode(output_path, self._episode_path, ep_label)
+                        _finalize_episode(
+                            output_path, self._episode_path, ep_label, owner=self
+                        )
                     else:
-                        _finalize_episode(temp_full, self._episode_path, ep_label)
+                        _finalize_episode(
+                            temp_full, self._episode_path, ep_label, owner=self
+                        )
 
                     if temp_full.exists():
                         temp_full.unlink()
@@ -1283,7 +1394,7 @@ def download(self):
                 _run_ffmpeg_with_progress(
                     ffmpeg.output(*inputs, str(output_path), c="copy")
                 )
-                _finalize_episode(output_path, self._episode_path, ep_label)
+                _finalize_episode(output_path, self._episode_path, ep_label, owner=self)
 
                 for f in (temp_audio, temp_video):
                     if f.exists():

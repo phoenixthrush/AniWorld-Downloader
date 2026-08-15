@@ -207,6 +207,7 @@ class AniworldEpisode:
                     season=f"{self.season.season_number:02d}",
                     episode=f"{self.episode_number:03d}",
                     language=self.selected_language,
+                    resolution=getattr(self, "_resolution", "unknown"),
                 )
                 self.__base_folder = Path(self.selected_path) / folder_str
         return self.__base_folder
@@ -227,6 +228,7 @@ class AniworldEpisode:
                     season=f"{self.season.season_number:02d}",
                     episode=f"{self.episode_number:03d}",
                     language=self.selected_language,
+                    resolution=getattr(self, "_resolution", "unknown"),
                 )
                 self.__folder_path = self._base_folder / folder_str
         return self.__folder_path
@@ -251,6 +253,7 @@ class AniworldEpisode:
             file_template = file_template.replace("%season%", "{season}")
             file_template = file_template.replace("%episode%", "{episode}")
             file_template = file_template.replace("%language%", "{language}")
+            file_template = file_template.replace("%resolution%", "{resolution}")
 
             self.__file_name = file_template.format(
                 title=self.series.title_cleaned,
@@ -259,6 +262,7 @@ class AniworldEpisode:
                 season=f"{self.season.season_number:02d}",
                 episode=f"{self.episode_number:03d}",
                 language=self.selected_language,
+                resolution=getattr(self, "_resolution", "unknown"),
             )
         return self.__file_name
 

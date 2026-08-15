@@ -2,13 +2,20 @@
 
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+from aniworld.models.aniworld_to.episode import AniworldEpisode
 from aniworld.models.common.common import (
     DownloadCancelled,
+    _finalize_resolution_naming,
     _parse_ffmpeg_time,
+    _prepare_resolution_naming,
+    _progress_file_name,
+    _read_container_resolution,
     _remove_empty_dirs,
+    _set_naming_resolution,
     clean_title,
     format_command_for_shell,
     get_ffmpeg_progress,
@@ -51,6 +58,96 @@ def test_a_cleaned_title_is_usable_as_a_folder_name(tmp_path):
     folder = tmp_path / clean_title('Re:Zero "Season" 2?')
     folder.mkdir()
     assert folder.is_dir()
+
+
+def test_container_resolution_uses_the_only_video_height(monkeypatch):
+    monkeypatch.setattr(
+        "aniworld.models.common.common.subprocess.run",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            stderr="Stream #0:0: Video: h264, yuv420p, 1280x720\n"
+        ),
+    )
+    assert _read_container_resolution("episode.mkv") == "720p"
+
+
+def test_container_resolution_is_unknown_with_multiple_video_streams(monkeypatch):
+    monkeypatch.setattr(
+        "aniworld.models.common.common.subprocess.run",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            stderr=(
+                "Stream #0:0: Video: h264, yuv420p, 1280x720\n"
+                "Stream #0:1: Video: h264, yuv420p, 1920x1080\n"
+            )
+        ),
+    )
+    assert _read_container_resolution("episode.mkv") == "unknown"
+
+
+def test_resolution_placeholder_is_used_in_aniworld_filename(monkeypatch, tmp_path):
+    monkeypatch.setenv(
+        "ANIWORLD_NAMING_TEMPLATE",
+        "{title}.S{season}E{episode}.{resolution}.{language}.mp4",
+    )
+    episode = AniworldEpisode(
+        "https://aniworld.to/anime/stream/seriesname/staffel-1/episode-1",
+        series=SimpleNamespace(title_cleaned="Seriesname", release_year="", imdb=""),
+        season=SimpleNamespace(season_number=1),
+        episode_number=1,
+        selected_path=tmp_path,
+        selected_language="English Dub",
+    )
+    _prepare_resolution_naming(episode)
+    _set_naming_resolution(episode, "720p")
+
+    assert episode._episode_path.name == "Seriesname.S01E001.720p.English Dub.mp4"
+
+
+def test_pending_resolution_is_hidden_from_progress(monkeypatch, tmp_path):
+    monkeypatch.setenv(
+        "ANIWORLD_NAMING_TEMPLATE",
+        "{title}.S{season}E{episode}.{resolution} - {language}.mkv",
+    )
+    episode = AniworldEpisode(
+        "https://aniworld.to/anime/stream/seriesname/staffel-1/episode-2",
+        series=SimpleNamespace(title_cleaned="Seriesname", release_year="", imdb=""),
+        season=SimpleNamespace(season_number=1),
+        episode_number=2,
+        selected_path=tmp_path,
+        selected_language="English Dub",
+    )
+    _prepare_resolution_naming(episode)
+
+    assert episode._file_name == "Seriesname.S01E002.unknown - English Dub"
+    assert _progress_file_name(episode) == "Seriesname.S01E002 - English Dub"
+
+
+def test_finished_download_is_renamed_with_its_resolution(monkeypatch, tmp_path):
+    monkeypatch.setenv(
+        "ANIWORLD_NAMING_TEMPLATE", "{title}.{resolution}.{language}.mkv"
+    )
+    episode = AniworldEpisode(
+        "https://aniworld.to/anime/stream/seriesname/staffel-1/episode-1",
+        series=SimpleNamespace(title_cleaned="Seriesname", release_year="", imdb=""),
+        season=SimpleNamespace(season_number=1),
+        episode_number=1,
+        selected_path=tmp_path,
+        selected_language="English Dub",
+    )
+    _prepare_resolution_naming(episode)
+    unknown_path = episode._episode_path
+    unknown_path.write_bytes(b"video")
+    monkeypatch.setattr(
+        "aniworld.models.common.common.subprocess.run",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            stderr="Stream #0:0: Video: h264, yuv420p, 1280x720\n"
+        ),
+    )
+
+    _finalize_resolution_naming(episode)
+
+    assert not unknown_path.exists()
+    assert episode._episode_path.name == "Seriesname.720p.English Dub.mkv"
+    assert episode._episode_path.read_bytes() == b"video"
 
 
 # ---------------------------------------------------------------------------
