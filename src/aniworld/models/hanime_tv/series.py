@@ -536,17 +536,16 @@ class HanimeTVSeries:
     # -----------------------------
 
     def download(self):
-        print(self.to_dict())
+        # One failed episode must not abandon the rest of the batch.
         for season in self.seasons:
-            for episode in season.episodes:
-                episode.download()
+            season.download()
 
     def watch(self):
+        # One failed episode must not abandon the rest of the batch.
         for season in self.seasons:
-            for episode in season.episodes:
-                episode.watch()
+            season.watch()
 
     def syncplay(self):
+        # One failed episode must not abandon the rest of the batch.
         for season in self.seasons:
-            for episode in season.episodes:
-                episode.syncplay()
+            season.syncplay()
