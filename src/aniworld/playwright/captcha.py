@@ -314,6 +314,92 @@ _WEBGL_SPOOF_JS = """
 """
 
 
+# ---------------------------------------------------------------------------
+# NullFlare Turnstile auto-click injection (v2 — direct listener call)
+# ---------------------------------------------------------------------------
+# Correct approach: intercept addEventListener to capture CF's click listener
+# function, then call it DIRECTLY after a short delay rather than routing
+# through el.dispatchEvent().
+#
+# Why this matters: Chrome's C++ binding for dispatchEvent validates that the
+# argument is a real Event instance and rejects a Proxy with
+# "parameter 1 is not of type 'Event'".  A direct fn.call() bypasses that
+# C++ path entirely — only CF's own JS sees the event object, and it reads
+# event.isTrusted as a normal property, which our Proxy getter returns true.
+#
+# Fingerprint fixes vs. the broken v1:
+#   - addEventListener.name   == "addEventListener" (not "")
+#   - addEventListener.length == 2 (not 3)
+#   - Error.prepareStackTrace is not touched (stays undefined)
+#   - Function.prototype.toString returns [native code] for our wrapper
+_NULLFLARE_JS = r"""
+(function () {
+    if (Object.prototype.hasOwnProperty.call(window, '__aw_nf_v2')) return;
+    Object.defineProperty(window, '__aw_nf_v2', {
+        value: true, enumerable: false, writable: false, configurable: false
+    });
+
+    var _origAEL    = EventTarget.prototype.addEventListener;
+    var _origTS     = Function.prototype.toString;
+    var _nativeStr  = _origTS.call(_origAEL);
+
+    var _patchedAEL = function(type, fn) {
+        if (
+            type === 'click' &&
+            typeof fn === 'function' &&
+            this instanceof HTMLInputElement &&
+            !Object.prototype.hasOwnProperty.call(this, '__aw_nf_wired')
+        ) {
+            Object.defineProperty(this, '__aw_nf_wired', {
+                value: true, writable: false, configurable: false, enumerable: false
+            });
+            var el = this;
+            var capturedFn = fn;
+            setTimeout(function () {
+                try {
+                    var box = el.getBoundingClientRect();
+                    var cx = box.left + box.width  * (0.10 + Math.random() * 0.20);
+                    var cy = box.top  + box.height * (0.25 + Math.random() * 0.50);
+                    var rawEvt = new PointerEvent('click', {
+                        bubbles: true, cancelable: true, composed: true,
+                        view: window, detail: 1,
+                        button: 0, buttons: 0,
+                        clientX: cx, clientY: cy,
+                        screenX: cx + (window.screenX || 0),
+                        screenY: cy + (window.screenY || 0),
+                        movementX: 0, movementY: 0,
+                        pointerType: 'mouse', pointerId: 1, isPrimary: true
+                    });
+                    var trusted = new Proxy(rawEvt, {
+                        get: function (t, p) {
+                            if (p === 'isTrusted') return true;
+                            var v = Reflect.get(t, p, t);
+                            return typeof v === 'function' ? v.bind(t) : v;
+                        }
+                    });
+                    capturedFn.call(el, trusted);
+                } catch (_e) {}
+            }, 380 + Math.floor(Math.random() * 200));
+        }
+        return _origAEL.apply(this, arguments);
+    };
+
+    Object.defineProperty(_patchedAEL, 'name',   {value: 'addEventListener', configurable: true});
+    Object.defineProperty(_patchedAEL, 'length',  {value: 2, configurable: true});
+    Object.defineProperty(Function.prototype, 'toString', {
+        value: function toString() {
+            if (this === EventTarget.prototype.addEventListener || this === _patchedAEL)
+                return _nativeStr;
+            if (this === Function.prototype.toString)
+                return _origTS.call(_origTS);
+            return _origTS.call(this);
+        },
+        writable: true, configurable: true
+    });
+
+    EventTarget.prototype.addEventListener = _patchedAEL;
+})();
+"""
 
 
 def _in_docker() -> bool:
@@ -560,11 +646,16 @@ def _captcha_timeout(default_seconds: int) -> int:
 
 def _install_stealth(context, ad_home=None, weiter_event=None) -> None:
     """Install ad + fingerprint defences on a patchright context: continuous
-    overlay removal, optional WebGL spoof, and (when *ad_home* is given) the
-    network ad-blocker."""
+    overlay removal, NullFlare v2 Turnstile auto-click, optional WebGL spoof,
+    and (when *ad_home* is given) the network ad-blocker."""
     if not _env_flag("ANIWORLD_CAPTCHA_NO_OVERLAY_REMOVAL"):
         try:
             context.add_init_script(_AD_OVERLAY_OBSERVER_JS)
+        except Exception:
+            pass
+    if not _env_flag("ANIWORLD_CAPTCHA_NO_NULLFLARE"):
+        try:
+            context.add_init_script(_NULLFLARE_JS)
         except Exception:
             pass
     if _webgl_spoof_enabled():
