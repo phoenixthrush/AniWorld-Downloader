@@ -514,6 +514,12 @@ BURNINGSERIES_EPISODE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# filmo.to — movies only, no season/episode hierarchy
+FILMO_SERIES_PATTERN = re.compile(
+    r"^https?://(?:www\.)?filmo\.to/movies/[a-zA-Z0-9\-]+/?$",
+    re.IGNORECASE,
+)
+
 # -----------------------------
 # Directories
 # -----------------------------

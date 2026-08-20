@@ -18,6 +18,7 @@ _ALIASES = (
     ("dood", "Doodstream"),
     ("vidmoly", "Vidmoly"),
     ("vidoza", "Vidoza"),
+    ("byse", "Filemoon"),   # filmo.to labels Filemoon as "Byse"
     ("filemoon", "Filemoon"),
     ("streamtape", "Streamtape"),
     ("luluvdo", "Luluvdo"),
