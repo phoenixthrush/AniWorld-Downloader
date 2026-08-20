@@ -787,18 +787,32 @@ def _click_turnstile(page, logger=None) -> bool:
     # finds the challenge frame at any depth; frame.frame_element() returns the
     # hosting <iframe> whose bounding box is already mapped into top-level page
     # coords.
-    iframe_el = None
+    #
+    # Some pages (e.g. nopecha demo) render multiple CF frames — the first may
+    # be hidden (bounding_box=None); collect all candidates and pick the first
+    # that has a usable box.
+    _candidates = []
     try:
         for fr in page.frames:
             if _looks_like_turnstile(fr.url):
                 try:
                     el = fr.frame_element()
                 except Exception:
-                    el = None
+                    continue
                 if el:
-                    iframe_el = el
-                    break
+                    _candidates.append(el)
     except Exception:
+        pass
+
+    iframe_el = None
+    for _el in _candidates:
+        _b = _el.bounding_box()
+        if _b and _b["width"] > 0 and _b["height"] > 0:
+            iframe_el = _el
+            break
+    if iframe_el is None and _candidates:
+        # No immediately visible box — fall through to the top-frame locator
+        # rather than picking a hidden element.
         pass
 
     # Fallback: top-frame locator (covers the non-nested case).
