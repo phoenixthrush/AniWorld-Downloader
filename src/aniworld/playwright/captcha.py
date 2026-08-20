@@ -317,19 +317,26 @@ _WEBGL_SPOOF_JS = """
 # ---------------------------------------------------------------------------
 # NullFlare Turnstile auto-click injection
 # ---------------------------------------------------------------------------
-# Correct approach: intercept addEventListener to capture CF's click listener
-# function, then call it DIRECTLY after a short delay rather than routing
-# through el.dispatchEvent().
+# Intercepts addEventListener to capture CF's click listener, then calls it
+# DIRECTLY (capturedFn.call) instead of routing through el.dispatchEvent().
 #
-# Why this matters: Chrome's C++ binding for dispatchEvent validates that the
-# argument is a real Event instance and rejects a Proxy with
-# "parameter 1 is not of type 'Event'".  A direct fn.call() bypasses that
-# C++ path entirely — only CF's own JS sees the event object, and it reads
-# event.isTrusted as a normal property, which our Proxy getter returns true.
+# Why direct call: Chrome's C++ binding for dispatchEvent rejects a Proxy
+# with "parameter 1 is not of type 'Event'".  A direct fn.call() bypasses
+# that path — CF's JS reads event.isTrusted as a plain property, which our
+# Proxy getter returns as true, and no C++ type check runs.
 #
-# Fingerprint fixes vs. the broken v1:
-#   - addEventListener.name   == "addEventListener" (not "")
-#   - addEventListener.length == 2 (not 3)
+# Scope / known limitation: CF's client-side code accepts this event and
+# dispatches the server request, but CF's *server-side* scoring may still
+# reject the interaction when there is no real mouse-movement history
+# preceding the click.  NullFlare is therefore a best-effort fast path
+# (~500 ms) for light or low-friction challenges.  The coordinate-click
+# fallback (_click_turnstile) covers strict real-sitekey Turnstile because
+# page.mouse.move() generates real OS-level CDP events that Chrome records
+# in its internal state — giving CF's scoring a believable movement trace.
+#
+# Fingerprint: clean (vs. original broken injection)
+#   - addEventListener.name   == "addEventListener"
+#   - addEventListener.length == 2
 #   - Error.prepareStackTrace is not touched (stays undefined)
 #   - Function.prototype.toString returns [native code] for our wrapper
 _NULLFLARE_JS = r"""
