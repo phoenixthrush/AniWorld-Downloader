@@ -314,90 +314,6 @@ _WEBGL_SPOOF_JS = """
 """
 
 
-# ---------------------------------------------------------------------------
-# NullFlare Turnstile auto-click injection
-# ---------------------------------------------------------------------------
-# patchright's add_init_script() maps to CDP addScriptToEvaluateOnNewDocument,
-# which runs in the MAIN world of EVERY frame — including cross-origin ones
-# like challenges.cloudflare.com — before any page scripts execute.
-#
-# Technique (same as the NullFlare browser extension):
-#   CF's challenge JS adds a 'click' addEventListener on its <input> checkbox.
-#   Our patched addEventListener intercepts that registration, then ~500 ms later
-#   dispatches a synthetic PointerEvent wrapped in a Proxy whose 'isTrusted'
-#   getter always returns true.  CF's listener receives the proxied object and
-#   sees isTrusted===true → accepts the click as genuine user input, without any
-#   real mouse movement or bounding-box coordinate work.
-#
-#   The coordinate-clicking path (_click_turnstile / _ChallengeSolver) is kept
-#   as a redundant backup: if NullFlare fires first (~500 ms) the token will
-#   already be in place by the time the coordinate click would run (~3-4 s).
-_NULLFLARE_JS = r"""
-(function () {
-    if (Object.prototype.hasOwnProperty.call(window, '__aw_ts_patched')) return;
-    Object.defineProperty(window, '__aw_ts_patched', {value: true, enumerable: false, writable: false, configurable: false});
-
-    var _origAEL = EventTarget.prototype.addEventListener;
-    var _origTS  = Function.prototype.toString;
-
-    // Make our addEventListener look native in Function.prototype.toString so
-    // CF's source-inspection heuristics don't see a wrapper.
-    Function.prototype.toString = function toString() {
-        if (this === EventTarget.prototype.addEventListener) return _origTS.call(_origAEL);
-        if (this === Function.prototype.toString)            return _origTS.call(_origTS);
-        return _origTS.call(this);
-    };
-
-    EventTarget.prototype.addEventListener = function (type, fn, opts) {
-        if (type === 'click' && this instanceof HTMLInputElement &&
-                !Object.prototype.hasOwnProperty.call(this, '__aw_ts_wired')) {
-            Object.defineProperty(this, '__aw_ts_wired', {value: true, writable: false, configurable: false});
-            var el = this;
-            // 380-580 ms: enough for CF's internal state machine to finish
-            // wiring its risk assessment before our synthetic click arrives.
-            var delay = 380 + Math.floor(Math.random() * 200);
-            setTimeout(function () {
-                try {
-                    var box = el.getBoundingClientRect();
-                    var cx = box.left + box.width  * (0.10 + Math.random() * 0.20);
-                    var cy = box.top  + box.height * (0.25 + Math.random() * 0.50);
-                    var rawEvt = new PointerEvent('click', {
-                        bubbles: true, cancelable: true, composed: true, view: window,
-                        detail: 1, button: 0, buttons: 0,
-                        clientX: cx, clientY: cy, screenX: cx, screenY: cy,
-                        movementX: 0, movementY: 0,
-                        pointerType: 'mouse', pointerId: 1, isPrimary: true,
-                    });
-                    // Proxy intercepts the isTrusted property read so CF's
-                    // listener sees true at the JavaScript level.
-                    var trusted = new Proxy(rawEvt, {
-                        get: function (t, p) {
-                            if (p === 'isTrusted') return true;
-                            var v = Reflect.get(t, p, t);
-                            return typeof v === 'function' ? v.bind(t) : v;
-                        }
-                    });
-                    el.dispatchEvent(trusted);
-                } catch (e) {}
-            }, delay);
-        }
-        return _origAEL.call(this, type, fn, opts);
-    };
-
-    // Suppress injected-script frames from V8 Error.prepareStackTrace so
-    // stack-inspection bot detection doesn't spot our init script.
-    try {
-        var _origPST = Error.prepareStackTrace;
-        Error.prepareStackTrace = function (err, stack) {
-            var clean = (stack || []).filter(function (f) {
-                try { var s = f.getFileName(); return s && s !== '<anonymous>'; } catch (e) { return true; }
-            });
-            return _origPST ? _origPST(err, clean)
-                : clean.map(function (f) { return '    at ' + f; }).join('\n');
-        };
-    } catch (e) {}
-})();
-"""
 
 
 def _in_docker() -> bool:
@@ -644,20 +560,11 @@ def _captcha_timeout(default_seconds: int) -> int:
 
 def _install_stealth(context, ad_home=None, weiter_event=None) -> None:
     """Install ad + fingerprint defences on a patchright context: continuous
-    overlay removal, NullFlare Turnstile auto-click injection, optional WebGL
-    spoof, and (when *ad_home* is given) the network ad-blocker."""
+    overlay removal, optional WebGL spoof, and (when *ad_home* is given) the
+    network ad-blocker."""
     if not _env_flag("ANIWORLD_CAPTCHA_NO_OVERLAY_REMOVAL"):
         try:
             context.add_init_script(_AD_OVERLAY_OBSERVER_JS)
-        except Exception:
-            pass
-    if not _env_flag("ANIWORLD_CAPTCHA_NO_NULLFLARE"):
-        # Inject NullFlare into every frame's MAIN world (including cross-origin
-        # challenges.cloudflare.com iframes) so the Turnstile checkbox gets a
-        # synthetic trusted click ~500 ms after CF wires its listener — before
-        # the coordinate-clicking fallback (_click_turnstile) fires at ~3-4 s.
-        try:
-            context.add_init_script(_NULLFLARE_JS)
         except Exception:
             pass
     if _webgl_spoof_enabled():
