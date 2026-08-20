@@ -315,7 +315,7 @@ _WEBGL_SPOOF_JS = """
 
 
 # ---------------------------------------------------------------------------
-# NullFlare Turnstile auto-click injection (v2 — direct listener call)
+# NullFlare Turnstile auto-click injection
 # ---------------------------------------------------------------------------
 # Correct approach: intercept addEventListener to capture CF's click listener
 # function, then call it DIRECTLY after a short delay rather than routing
@@ -334,8 +334,8 @@ _WEBGL_SPOOF_JS = """
 #   - Function.prototype.toString returns [native code] for our wrapper
 _NULLFLARE_JS = r"""
 (function () {
-    if (Object.prototype.hasOwnProperty.call(window, '__aw_nf_v2')) return;
-    Object.defineProperty(window, '__aw_nf_v2', {
+    if (Object.prototype.hasOwnProperty.call(window, '__aw_nf')) return;
+    Object.defineProperty(window, '__aw_nf', {
         value: true, enumerable: false, writable: false, configurable: false
     });
 
@@ -646,7 +646,7 @@ def _captcha_timeout(default_seconds: int) -> int:
 
 def _install_stealth(context, ad_home=None, weiter_event=None) -> None:
     """Install ad + fingerprint defences on a patchright context: continuous
-    overlay removal, NullFlare v2 Turnstile auto-click, optional WebGL spoof,
+    overlay removal, NullFlare Turnstile auto-click, optional WebGL spoof,
     and (when *ad_home* is given) the network ad-blocker."""
     if not _env_flag("ANIWORLD_CAPTCHA_NO_OVERLAY_REMOVAL"):
         try:
