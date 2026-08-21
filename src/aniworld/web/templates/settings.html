@@ -289,7 +289,7 @@
       <span data-i18n="settings.enable_autosync">Enable Auto-Sync</span>
     </label>
     <p class="hint" data-i18n="settings.enable_autosync_hint">
-      Checks the newest aniworld.to episodes once a day and downloads what is missing for series you already have.
+      Checks the newest aniworld.to episodes on a schedule and downloads what is missing for series you already have.
       Adds an admin-only Auto-Sync tab.
     </p>
 
@@ -301,6 +301,63 @@
       Queue only the episodes that just came out instead of filling in every episode of the series you are missing.
       Use this if you leave gaps on purpose.
     </p>
+
+    <h3 data-i18n="settings.autosync_schedule">Auto-Sync Schedule</h3>
+    <div class="control-row">
+      <label class="field">
+        <span class="field-label" data-i18n="settings.autosync_mode">When it runs</span>
+        <select id="autosyncMode">
+          <option value="interval" data-i18n="settings.autosync_mode_interval">Every so often</option>
+          <option value="cron" data-i18n="settings.autosync_mode_cron">At fixed times</option>
+        </select>
+      </label>
+    </div>
+
+    <div id="autosyncIntervalRow">
+      <div class="control-row">
+        <label class="field field-compact">
+          <span class="field-label" data-i18n="settings.autosync_every">Run every</span>
+          <div class="interval-input">
+            <input type="number" id="autosyncIntervalValue" min="1" step="1" />
+            <select id="autosyncIntervalUnit">
+              <option value="m" data-i18n="settings.unit_minutes">minutes</option>
+              <option value="h" data-i18n="settings.unit_hours">hours</option>
+            </select>
+          </div>
+        </label>
+      </div>
+      <p class="hint" data-i18n="settings.autosync_interval_hint">
+        Counted from the last run. Five minutes is the shortest it will take.
+      </p>
+    </div>
+
+    <div id="autosyncCronRow" hidden>
+      <div class="day-picker" id="autosyncDays"></div>
+      <div class="inline-form">
+        <input type="text" id="autosyncTimes" placeholder="22:00"
+          data-i18n-placeholder="settings.autosync_times_placeholder" />
+      </div>
+      <p class="hint" data-i18n="settings.autosync_times_hint">
+        One or more times, separated by commas: "22:00" or "8am, 8pm". With no day ticked it runs every day.
+      </p>
+
+      <details class="advanced" id="autosyncCronDetails">
+        <summary data-i18n="settings.autosync_cron_advanced">Type it out instead</summary>
+        <div class="inline-form">
+          <input type="text" id="autosyncCron" placeholder="every monday and friday at 10pm"
+            data-i18n-placeholder="settings.autosync_cron_placeholder" />
+        </div>
+        <p class="hint" data-i18n="settings.autosync_cron_hint">
+          A cron expression ("0 22 * * 1,5"), or plain language ("every monday and friday at 10pm").
+          Several lines separated by ";" all run.
+        </p>
+      </details>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn-primary" id="saveAutosyncScheduleBtn" data-i18n="common.save">Save</button>
+      <span class="hint schedule-summary" id="autosyncScheduleSummary"></span>
+    </div>
   </section>
 
   <section class="card">

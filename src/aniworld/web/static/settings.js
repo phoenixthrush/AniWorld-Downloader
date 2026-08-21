@@ -51,6 +51,7 @@
     providerOrder = settings.provider_fallback_order || [];
     savedOrder = providerOrder.slice();
     renderProviderOrder();
+    applyAutosyncSchedule(settings);
     applyDiscord(settings.discord || {});
   }
 
@@ -192,6 +193,271 @@
     row.focus();
     commitOrder();
   });
+
+  /* ===== Auto-Sync schedule =====
+     The day chips and the times field build a phrase ("every mon,fri at
+     22:00") and the server hands cron back. Cron the chips cannot show, a
+     step or a day of the month, leaves them empty and is edited as text. */
+  const WEEKDAYS = [
+    [1, "settings.day_mon", "Mon"],
+    [2, "settings.day_tue", "Tue"],
+    [3, "settings.day_wed", "Wed"],
+    [4, "settings.day_thu", "Thu"],
+    [5, "settings.day_fri", "Fri"],
+    [6, "settings.day_sat", "Sat"],
+    [0, "settings.day_sun", "Sun"]
+  ];
+  const CRON_DAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+  const dayPicker = el("autosyncDays");
+  dayPicker.innerHTML = WEEKDAYS.map(
+    ([number, key, fallback]) => `
+      <label class="day-chip">
+        <input type="checkbox" value="${number}" />
+        <span>${esc(t(key, fallback))}</span>
+      </label>`
+  ).join("");
+
+  function pad(value) {
+    return String(value).padStart(2, "0");
+  }
+
+  /* A cron field as plain numbers, or null for anything with a * / - in it. */
+  function numberList(field, max) {
+    const values = [];
+    for (const part of field.split(",")) {
+      if (!/^\d+$/.test(part)) return null;
+      const value = Number(part);
+      if (value > max) return null;
+      values.push(value);
+    }
+    return values;
+  }
+
+  /* "0 8,22 * * 1,5" -> {days: [1, 5], times: ["08:00", "22:00"]} */
+  function readCron(expression) {
+    const lines = String(expression || "")
+      .split(";")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    const times = new Set();
+    let days = null;
+
+    for (const line of lines) {
+      const fields = line.split(/\s+/);
+      if (fields.length !== 5) return null;
+      const [minute, hour, monthDay, month, weekday] = fields;
+      if (monthDay !== "*" || month !== "*") return null;
+
+      const minutes = numberList(minute, 59);
+      const hours = numberList(hour, 23);
+      const picked = weekday === "*" ? [] : numberList(weekday, 6);
+      if (!minutes || !hours || !picked) return null;
+
+      // Lines that disagree on the days are not one row of chips
+      const key = picked.join(",");
+      if (days === null) days = key;
+      else if (days !== key) return null;
+
+      hours.forEach((h) => minutes.forEach((m) => times.add(`${pad(h)}:${pad(m)}`)));
+    }
+
+    if (!times.size) return null;
+    return {
+      days: days ? days.split(",").map(Number) : [],
+      times: Array.from(times).sort()
+    };
+  }
+
+  /* The reading the server last sent, shown whenever nothing is being typed */
+  let savedSummary = "";
+
+  function showSummary(text, invalid) {
+    const summary = el("autosyncScheduleSummary");
+    summary.textContent = text;
+    summary.classList.toggle("invalid", Boolean(invalid));
+  }
+
+  function applyAutosyncSchedule(settings) {
+    const mode = settings.autosync_mode === "cron" ? "cron" : "interval";
+    el("autosyncMode").value = mode;
+    el("autosyncIntervalRow").hidden = mode !== "interval";
+    el("autosyncCronRow").hidden = mode === "interval";
+
+    const seconds = Number(settings.autosync_interval_seconds) || 24 * 3600;
+    const hourly = seconds % 3600 === 0;
+    el("autosyncIntervalValue").value = hourly
+      ? seconds / 3600
+      : Math.round(seconds / 60);
+    el("autosyncIntervalUnit").value = hourly ? "h" : "m";
+
+    const expression = settings.autosync_cron || "";
+    el("autosyncCron").value = expression;
+
+    const parsed = readCron(expression);
+    dayPicker.querySelectorAll("input").forEach((box) => {
+      box.checked = Boolean(parsed && parsed.days.includes(Number(box.value)));
+    });
+    el("autosyncTimes").value = parsed ? parsed.times.join(", ") : "";
+
+    // Nothing the chips can show, so point at the text field instead
+    const custom = Boolean(expression) && !parsed;
+    dayPicker.hidden = custom;
+    el("autosyncTimes").closest(".inline-form").hidden = custom;
+    if (custom) el("autosyncCronDetails").open = true;
+
+    savedSummary = settings.autosync_schedule
+      ? t("settings.autosync_runs", "Auto-Sync runs: {schedule}", {
+          schedule: settings.autosync_schedule
+        })
+      : "";
+    showSummary(savedSummary, false);
+  }
+
+  /* ===== Reading back what is on screen =====
+     The parser lives on the server, so the fields ask it what they would mean
+     while they are edited. Nothing here saves: that is the Save button, the
+     same as the download path. Only the newest answer is shown, a slow reply
+     to an older keystroke would otherwise land on top of a newer one. */
+  let previewTimer = null;
+  let previewToken = 0;
+
+  /* Exactly what Save would send, so the reading cannot disagree with it. */
+  function scheduleFields() {
+    if (el("autosyncMode").value === "interval") {
+      const amount = el("autosyncIntervalValue").value.trim();
+      return amount
+        ? { autosync_interval: amount + el("autosyncIntervalUnit").value }
+        : null;
+    }
+    const typed = el("autosyncCron").value.trim();
+    return typed ? { autosync_cron: typed } : null;
+  }
+
+  function preview(normalise) {
+    clearTimeout(previewTimer);
+    const token = ++previewToken;
+    const fields = scheduleFields();
+    if (!fields) {
+      showSummary(savedSummary, false);
+      return;
+    }
+
+    previewTimer = setTimeout(async () => {
+      try {
+        const data = await apiSend("/api/settings/schedule-preview", "POST", fields);
+        if (token !== previewToken) return;
+        // A time the pickers could not write as cron comes back as cron here
+        if (normalise && data.cron) el("autosyncCron").value = data.cron;
+
+        // Only worth appending when it says something the reading does not:
+        // a sentence that became cron, not the same cron spaced differently
+        const bare = (value) => String(value || "").replace(/\s+/g, "");
+        const cron =
+          data.cron &&
+          data.cron !== data.description &&
+          bare(data.cron) !== bare(fields.autosync_cron)
+            ? ` (${data.cron})`
+            : "";
+
+        showSummary(
+          t("settings.autosync_runs", "Auto-Sync runs: {schedule}", {
+            schedule: data.description
+          }) + cron,
+          false
+        );
+      } catch (error) {
+        if (token !== previewToken) return;
+        showSummary(
+          t("settings.autosync_invalid", "Not a schedule: {error}", {
+            error: error.message
+          }),
+          true
+        );
+      }
+    }, 250);
+  }
+
+  el("autosyncMode").addEventListener("change", () => {
+    const mode = el("autosyncMode").value;
+    el("autosyncIntervalRow").hidden = mode !== "interval";
+    el("autosyncCronRow").hidden = mode === "interval";
+    preview();
+  });
+
+  el("autosyncIntervalValue").addEventListener("input", preview);
+  el("autosyncIntervalUnit").addEventListener("change", preview);
+
+  /* The chips and the times write the text field, so what gets saved is
+     always the one thing you can also read, and it reads as cron. */
+  function cronFromPickers() {
+    const days = Array.from(dayPicker.querySelectorAll("input:checked"))
+      .map((box) => Number(box.value))
+      .sort((a, b) => a - b);
+    const dayField = days.length ? days.join(",") : "*";
+
+    const written = el("autosyncTimes").value.trim() || "00:00";
+    const parts = written
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    const clock = parts.map((part) => /^(\d{1,2}):(\d{2})$/.exec(part));
+
+    // Anything not written as HH:MM ("8am", "noon") is left to the server:
+    // the phrase goes out and comes back as cron with the reading
+    if (clock.some((match) => !match)) {
+      const named = days.length ? days.map((day) => CRON_DAYS[day]).join(",") : "day";
+      return `every ${named} at ${written}`;
+    }
+
+    // Cron cannot put 08:00 and 22:30 on one line, they would cross-multiply
+    // into four runs, so a minute of its own gets a line of its own
+    const byMinute = new Map();
+    clock.forEach((match) => {
+      const minute = Number(match[2]);
+      if (!byMinute.has(minute)) byMinute.set(minute, []);
+      byMinute.get(minute).push(Number(match[1]));
+    });
+
+    return Array.from(byMinute.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(
+        ([minute, hours]) =>
+          `${minute} ${hours.sort((a, b) => a - b).join(",")} * * ${dayField}`
+      )
+      .join("; ");
+  }
+
+  function pickersChanged() {
+    el("autosyncCron").value = cronFromPickers();
+    preview(true);
+  }
+
+  dayPicker.addEventListener("change", pickersChanged);
+  el("autosyncTimes").addEventListener("input", pickersChanged);
+  el("autosyncCron").addEventListener("input", () => preview(false));
+
+  const saveScheduleBtn = el("saveAutosyncScheduleBtn");
+
+  saveScheduleBtn.addEventListener("click", async () => {
+    const payload = scheduleFields() || {};
+    payload.autosync_mode = el("autosyncMode").value;
+    saveScheduleBtn.disabled = true;
+    try {
+      if (await save(payload)) load();
+    } finally {
+      saveScheduleBtn.disabled = false;
+    }
+  });
+
+  [el("autosyncTimes"), el("autosyncCron"), el("autosyncIntervalValue")].forEach(
+    (field) => {
+      field.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") saveScheduleBtn.click();
+      });
+    }
+  );
 
   /* ===== Custom paths ===== */
   function renderCustomPaths(paths) {

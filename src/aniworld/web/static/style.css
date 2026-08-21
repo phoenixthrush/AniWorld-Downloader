@@ -568,6 +568,7 @@ h3 {
 input[type="text"],
 input[type="password"],
 input[type="search"],
+input[type="number"],
 select {
   padding: 10px 14px;
   border-radius: var(--radius-sm);
@@ -1804,6 +1805,83 @@ body[data-site="htv"] {
   width: 13px;
   height: 13px;
   cursor: pointer;
+}
+
+/* Auto-Sync schedule: an amount and its unit, weekday chips, and the
+   fold-out text field with a live reading of what it means */
+.field-compact {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.interval-input {
+  display: flex;
+  gap: 8px;
+}
+
+.interval-input input {
+  width: 96px;
+}
+
+.interval-input select {
+  width: 132px;
+}
+
+.schedule-summary.invalid {
+  color: var(--danger-text);
+}
+
+
+.day-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.day-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: border-color 0.15s var(--ease);
+}
+
+.day-chip:hover {
+  border-color: var(--border-hover);
+}
+
+.day-chip:has(input:checked) {
+  border-color: var(--accent);
+  color: var(--text-strong);
+}
+
+.day-chip input {
+  accent-color: var(--accent);
+  width: 13px;
+  height: 13px;
+  cursor: pointer;
+}
+
+details.advanced {
+  margin-top: 14px;
+}
+
+details.advanced summary {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  cursor: pointer;
+  width: fit-content;
+}
+
+details.advanced summary:hover {
+  color: var(--text-bright);
 }
 
 .provider-order {

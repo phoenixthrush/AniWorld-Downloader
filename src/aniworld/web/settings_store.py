@@ -17,13 +17,18 @@ from ..config import (
     parse_provider_order,
 )
 from ..logger import get_logger
-from . import paths
+from . import paths, schedule
 from .media import WORKING_PROVIDERS
 
 logger = get_logger(__name__)
 
 UI_LANGUAGES = ("en", "de")
 OUTPUT_FORMATS = ("mkv", "mp4")
+
+# How Auto-Sync decides when to run: every so often, or at fixed times
+AUTOSYNC_MODES = ("interval", "cron")
+DEFAULT_AUTOSYNC_INTERVAL_SECONDS = 24 * 60 * 60
+DEFAULT_AUTOSYNC_CRON = "0 3 * * *"
 
 DISCORD_MODES = ("standard", "advanced")
 DISCORD_LANGUAGES = ("en", "de")
@@ -75,6 +80,63 @@ def autosync_new_only():
     Off by default so upgrading does not silently change what AutoSync does.
     """
     return _flag("ANIWORLD_AUTOSYNC_NEW_ONLY")
+
+
+# ---------------------------------------------------------------------------
+# When Auto-Sync runs
+#
+# A broken value in the environment must never take the worker down with it, so
+# every reader below falls back to the default and says so in the log. The
+# settings page rejects bad input up front, this is for a hand-edited .env.
+# ---------------------------------------------------------------------------
+def autosync_mode():
+    mode = os.environ.get("ANIWORLD_AUTOSYNC_MODE", "").strip().lower()
+    return mode if mode in AUTOSYNC_MODES else "interval"
+
+
+def autosync_interval_seconds():
+    """Seconds between two runs in interval mode."""
+    raw = os.environ.get("ANIWORLD_AUTOSYNC_INTERVAL", "").strip()
+    if not raw:
+        return DEFAULT_AUTOSYNC_INTERVAL_SECONDS
+    try:
+        return schedule.parse_interval(raw)
+    except schedule.ScheduleError as exc:
+        logger.warning("Ignoring ANIWORLD_AUTOSYNC_INTERVAL=%r: %s", raw, exc)
+        return DEFAULT_AUTOSYNC_INTERVAL_SECONDS
+
+
+def autosync_interval():
+    """The same interval written the way it is stored, e.g. "24h"."""
+    return schedule.format_interval(autosync_interval_seconds())
+
+
+def autosync_cron():
+    """The cron expression for fixed times, normalised."""
+    raw = os.environ.get("ANIWORLD_AUTOSYNC_CRON", "").strip()
+    if not raw:
+        return DEFAULT_AUTOSYNC_CRON
+    try:
+        return schedule.parse(raw).expression
+    except schedule.ScheduleError as exc:
+        logger.warning("Ignoring ANIWORLD_AUTOSYNC_CRON=%r: %s", raw, exc)
+        return DEFAULT_AUTOSYNC_CRON
+
+
+def autosync_cron_schedule():
+    """Parsed fixed times, or None when Auto-Sync runs on an interval."""
+    if autosync_mode() != "cron":
+        return None
+    return schedule.parse(autosync_cron())
+
+
+def autosync_schedule_description(language=None):
+    """One line for the UI: "Every day at 22:00", "Every 6 hours"."""
+    language = language or ui_language()
+    fixed = autosync_cron_schedule()
+    if fixed is not None:
+        return fixed.describe(language)
+    return schedule.describe_interval(autosync_interval_seconds(), language)
 
 
 def htv_enabled():
@@ -205,6 +267,11 @@ def read_settings():
         "enable_library": library_enabled(),
         "enable_autosync": autosync_enabled(),
         "autosync_new_only": autosync_new_only(),
+        "autosync_mode": autosync_mode(),
+        "autosync_interval": autosync_interval(),
+        "autosync_interval_seconds": autosync_interval_seconds(),
+        "autosync_cron": autosync_cron(),
+        "autosync_schedule": autosync_schedule_description(),
         "movie_folder": _flag("ANIWORLD_MOVIE_FOLDER", "1"),
         "ui_language": ui_language(),
         "output_format": output_format(),
@@ -212,6 +279,7 @@ def read_settings():
         "available_providers": list(WORKING_PROVIDERS),
         "available_ui_languages": list(UI_LANGUAGES),
         "available_output_formats": list(OUTPUT_FORMATS),
+        "available_autosync_modes": list(AUTOSYNC_MODES),
         "discord": discord_settings(),
     }
 
@@ -251,6 +319,30 @@ def _collect_provider_order(raw, updates):
     )
 
 
+def _collect_autosync_schedule(data, updates):
+    """Validate the Auto-Sync schedule fields, both stored the way they parse."""
+    if "autosync_mode" in data:
+        mode = str(data["autosync_mode"]).strip().lower()
+        if mode not in AUTOSYNC_MODES:
+            raise SettingsError(f"Invalid autosync_mode: {mode}")
+        updates["ANIWORLD_AUTOSYNC_MODE"] = mode
+
+    if "autosync_interval" in data:
+        try:
+            seconds = schedule.parse_interval(data["autosync_interval"])
+        except schedule.ScheduleError as exc:
+            raise SettingsError(str(exc)) from None
+        updates["ANIWORLD_AUTOSYNC_INTERVAL"] = schedule.format_interval(seconds)
+
+    if "autosync_cron" in data:
+        # Plain language is accepted here and comes back out as cron
+        try:
+            parsed = schedule.parse(str(data["autosync_cron"]))
+        except schedule.ScheduleError as exc:
+            raise SettingsError(str(exc)) from None
+        updates["ANIWORLD_AUTOSYNC_CRON"] = parsed.expression
+
+
 def update_settings(data):
     """Apply a settings payload. Raises SettingsError on invalid input.
 
@@ -279,6 +371,8 @@ def update_settings(data):
 
     if "provider_fallback_order" in data:
         _collect_provider_order(data["provider_fallback_order"], updates)
+
+    _collect_autosync_schedule(data, updates)
 
     discord_changed = "discord" in data
     if discord_changed:

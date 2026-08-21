@@ -13,7 +13,7 @@
     <h2 data-i18n="autosync.how_title">How it works</h2>
     <ol class="explainer">
       <li data-i18n="autosync.how_1">
-        Once a day it pulls the newest episodes list from aniworld.to.
+        On the schedule you set (once a day unless you change it) it pulls the newest episodes list from aniworld.to.
       </li>
       <li data-i18n="autosync.how_2">
         For every new episode it checks whether you already have a folder for that title in your library.
@@ -57,6 +57,10 @@
   <section class="card">
     <h2 data-i18n="autosync.status_title">Status</h2>
     <div class="sync-stats">
+      <div>
+        <div class="ip-label" data-i18n="autosync.schedule">Schedule</div>
+        <div class="sync-value" id="scheduleValue">-</div>
+      </div>
       <div>
         <div class="ip-label" data-i18n="autosync.last_run">Last run</div>
         <div class="sync-value" id="lastRun">-</div>

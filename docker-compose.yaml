@@ -47,8 +47,11 @@ services:
     # --- Features (uncomment the environment block to customise) ---
     #   ANIWORLD_ENABLE_LIBRARY: "1"                  # Library tab: browse and delete downloaded files
     #   ANIWORLD_ENABLE_HTV: "0"                      # Show the Hanime tab (adult content)
-    #   ANIWORLD_ENABLE_AUTOSYNC: "0"                 # Auto-Sync: once a day, queue new episodes of series you already have
+    #   ANIWORLD_ENABLE_AUTOSYNC: "0"                 # Auto-Sync: on a schedule, queue new episodes of series you already have
     #   ANIWORLD_AUTOSYNC_NEW_ONLY: "0"               # 1 = queue only the newly announced episodes instead of every missing one
+    #   ANIWORLD_AUTOSYNC_MODE: "interval"            # When Auto-Sync runs: interval (every so often) | cron (fixed times)
+    #   ANIWORLD_AUTOSYNC_INTERVAL: "24h"             # Interval mode: 24h | 6h | 90m | 1h30m (a bare number means hours)
+    #   ANIWORLD_AUTOSYNC_CRON: "0 3 * * *"           # Cron mode, local time. Plain language works too ("every monday, friday at 10pm")
     #   MANGAFIRE_FORMAT: "jpg"                       # MangaFire output: jpg (images) | cbz (archive)
     #   ANIWORLD_KINOX_DOMAIN: ""                     # Override the Kinox domain if the default one is unreachable
 

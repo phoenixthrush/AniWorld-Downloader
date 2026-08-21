@@ -101,6 +101,7 @@
     el("howFill").hidden = Boolean(data.new_only);
     el("howNewOnly").hidden = !data.new_only;
 
+    el("scheduleValue").textContent = data.schedule || "-";
     el("lastRun").textContent = formatTime(data.last_run);
     el("nextRun").textContent = data.running
       ? t("autosync.running", "Running...")

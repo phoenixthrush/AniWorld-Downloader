@@ -67,6 +67,103 @@ def test_every_toggle_round_trips(field, env_key):
     assert settings_store.read_settings()[field] is False
 
 
+# ---------------------------------------------------------------------------
+# The Auto-Sync schedule
+#
+# Whatever comes in is stored the way it parses, so the settings page always
+# gets a clean value back no matter how it was written.
+# ---------------------------------------------------------------------------
+def test_auto_sync_runs_once_a_day_unless_told_otherwise():
+    settings = settings_store.read_settings()
+    assert settings["autosync_mode"] == "interval"
+    assert settings["autosync_interval"] == "24h"
+    assert settings["autosync_interval_seconds"] == 86400
+    assert settings["autosync_cron"] == "0 3 * * *"
+    assert settings["autosync_schedule"] == "Every day"
+
+
+def test_the_mode_can_be_switched():
+    update_settings({"autosync_mode": "cron"})
+    assert os.environ["ANIWORLD_AUTOSYNC_MODE"] == "cron"
+    assert settings_store.read_settings()["autosync_mode"] == "cron"
+
+
+def test_an_unknown_mode_is_rejected():
+    with pytest.raises(SettingsError, match="weekly"):
+        update_settings({"autosync_mode": "weekly"})
+
+
+@pytest.mark.parametrize(
+    "written,stored", [("6h", "6h"), ("90m", "90m"), (12, "12h"), ("1h30m", "90m")]
+)
+def test_an_interval_is_stored_the_way_it_parses(written, stored):
+    update_settings({"autosync_interval": written})
+    assert os.environ["ANIWORLD_AUTOSYNC_INTERVAL"] == stored
+    assert settings_store.read_settings()["autosync_interval"] == stored
+
+
+def test_an_impossible_interval_is_rejected():
+    with pytest.raises(SettingsError, match="at least"):
+        update_settings({"autosync_interval": "10s"})
+
+
+def test_a_nonsense_interval_is_rejected():
+    with pytest.raises(SettingsError):
+        update_settings({"autosync_interval": "sometimes"})
+
+
+def test_fixed_times_can_be_written_as_cron():
+    update_settings({"autosync_cron": "0 22 * * 1,5"})
+    assert os.environ["ANIWORLD_AUTOSYNC_CRON"] == "0 22 * * 1,5"
+
+
+def test_fixed_times_can_be_written_as_a_sentence():
+    update_settings({"autosync_cron": "every monday and friday at 10pm"})
+    assert os.environ["ANIWORLD_AUTOSYNC_CRON"] == "0 22 * * 1,5"
+
+
+def test_a_nonsense_schedule_is_rejected():
+    with pytest.raises(SettingsError, match="blursday"):
+        update_settings({"autosync_cron": "every blursday"})
+
+
+def test_a_rejected_schedule_leaves_the_old_one():
+    update_settings({"autosync_cron": "0 22 * * 1"})
+    with pytest.raises(SettingsError):
+        update_settings({"autosync_cron": "0 99 * * *"})
+    assert settings_store.autosync_cron() == "0 22 * * 1"
+
+
+def test_the_schedule_is_described_for_the_page(monkeypatch):
+    monkeypatch.setenv("ANIWORLD_AUTOSYNC_MODE", "cron")
+    update_settings({"autosync_cron": "every day at 08:00, 22:30"})
+    assert settings_store.autosync_schedule_description() == (
+        "Every day at 08:00 and 22:30"
+    )
+
+
+def test_the_description_follows_the_ui_language(monkeypatch):
+    monkeypatch.setenv("ANIWORLD_UI_LANGUAGE", "de")
+    assert settings_store.autosync_schedule_description() == "Jeden Tag"
+
+
+@pytest.mark.parametrize(
+    "key,value",
+    [
+        ("ANIWORLD_AUTOSYNC_MODE", "yearly"),
+        ("ANIWORLD_AUTOSYNC_INTERVAL", "whenever"),
+        ("ANIWORLD_AUTOSYNC_CRON", "0 99 * * *"),
+    ],
+)
+def test_a_hand_edited_env_never_breaks_the_worker(monkeypatch, key, value):
+    """The settings page validates, a text editor does not."""
+    monkeypatch.setenv(key, value)
+    settings = settings_store.read_settings()
+    assert settings["autosync_mode"] in settings_store.AUTOSYNC_MODES
+    assert settings["autosync_interval"] == "24h"
+    assert settings["autosync_cron"] == "0 3 * * *"
+
+
 @pytest.mark.parametrize("truthy", [True, 1, "yes", "0", [1]])
 def test_anything_truthy_turns_a_toggle_on(truthy):
     update_settings({"enable_htv": truthy})

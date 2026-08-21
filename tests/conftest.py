@@ -80,6 +80,18 @@ def no_background_threads(monkeypatch):
     monkeypatch.setattr(autosync, "ensure_started", lambda: None)
 
 
+@pytest.fixture(autouse=True)
+def fresh_autosync_anchor(monkeypatch):
+    """Auto-Sync counts fixed times from when the process first saw them.
+
+    That moment is remembered in a module global, so without this a test that
+    looks at the schedule would fix the anchor for every test after it.
+    """
+    from aniworld.web import autosync
+
+    monkeypatch.setattr(autosync, "_anchored_at", None)
+
+
 @pytest.fixture
 def downloads(clean_env):
     """The default download root for this test."""

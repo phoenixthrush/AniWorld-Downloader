@@ -1,8 +1,11 @@
 """AutoSync.
 
-Once a day it pulls aniworld's newest-episodes list and looks for titles you
+On a schedule it pulls aniworld's newest-episodes list and looks for titles you
 already have on disk. A hit queues the missing episodes of that series, so a
 series you started stays complete without tracking it by hand.
+
+The schedule is either an interval (every 24 hours by default) or fixed times
+in cron form ("every monday and friday at 22:00"). See schedule.py.
 
 Nothing is tracked explicitly: the library is the whitelist and the exclusion
 list is the only opt-out.
@@ -21,16 +24,27 @@ from ..config import LANG_CODE_MAP, LANG_KEY_MAP, LANG_LABELS
 from ..logger import get_logger
 from ..providers import resolve_provider
 from ..search import fetch_new_episodes
-from . import db, paths
+from . import db, paths, schedule
 from .media import BADGE_ORDER, folder_matches_title
-from .settings_store import autosync_enabled, autosync_new_only
+from .settings_store import (
+    autosync_cron_schedule,
+    autosync_enabled,
+    autosync_interval_seconds,
+    autosync_mode,
+    autosync_new_only,
+    autosync_schedule_description,
+)
 
 logger = get_logger(__name__)
 
-INTERVAL_SECONDS = 24 * 60 * 60
-
-# How often the thread wakes to see whether a run is due.
+# How long the thread sleeps at most. A run that is due sooner shortens the nap
+# so a fixed time is hit on the minute, and waking up regardless keeps a
+# schedule changed in the settings from needing a restart.
 TICK_SECONDS = 300
+MIN_TICK_SECONDS = 5
+
+# How far ahead of now a stored "last run" may be before it is treated as junk
+_CLOCK_SLACK = timedelta(minutes=5)
 
 # aniworld tags each row with the flag graphic of its language
 FLAG_TO_LABEL = {
@@ -44,16 +58,34 @@ _run_lock = threading.Lock()
 _started = False
 _start_lock = threading.Lock()
 
+# Set the first time the schedule is looked at, see _anchor()
+_anchored_at = None
+
 
 def _now():
     return datetime.now(timezone.utc)
 
 
+def _local(moment):
+    """A UTC instant as naive local wall-clock time, which is what cron means."""
+    return moment.astimezone().replace(tzinfo=None)
+
+
+def _utc(wall_clock):
+    """Naive local wall-clock time back to UTC."""
+    return wall_clock.astimezone(timezone.utc)
+
+
 def _parse(value):
     try:
-        return datetime.fromisoformat(value) if value else None
+        parsed = datetime.fromisoformat(value) if value else None
     except (TypeError, ValueError):
         return None
+    if parsed is not None and parsed.tzinfo is None:
+        # Hand-edited, or written by a version that stored it without one.
+        # Everything else here is UTC, and comparing the two kinds raises.
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
 
 
 # ---------------------------------------------------------------------------
@@ -462,45 +494,129 @@ def status():
         except ValueError:
             report = None
 
+    fixed = _fixed_times()
+    interval_seconds = autosync_interval_seconds()
+    upcoming = next_run_at()
+
     return {
         "enabled": autosync_enabled(),
         "new_only": autosync_new_only(),
         "running": _run_lock.locked(),
-        "interval_hours": INTERVAL_SECONDS // 3600,
+        "mode": autosync_mode(),
+        "interval": schedule.format_interval(interval_seconds),
+        "interval_seconds": interval_seconds,
+        # Kept for anything that read the status before the schedule was
+        # settable, when it was always 24. Whole hours no longer cover it.
+        "interval_hours": round(interval_seconds / 3600, 4),
+        "cron": fixed.expression if fixed else None,
+        "schedule": autosync_schedule_description(),
         "last_run": last_run.isoformat() if last_run else None,
-        "next_run": (last_run + timedelta(seconds=INTERVAL_SECONDS)).isoformat()
-        if last_run
-        else None,
+        "next_run": upcoming.isoformat() if upcoming else None,
         "last_report": report,
     }
 
 
 # ---------------------------------------------------------------------------
-# Daily worker
+# The worker
 # ---------------------------------------------------------------------------
-def _due():
+def _fixed_times():
+    """The parsed fixed times, or None for interval mode and a broken schedule."""
+    try:
+        return autosync_cron_schedule()
+    except schedule.ScheduleError as exc:
+        # settings_store already falls back to the default, so this is only
+        # reachable if that default itself stopped parsing.
+        logger.error(
+            "AutoSync: unusable schedule, falling back to the interval: %s", exc
+        )
+        return None
+
+
+def _anchor():
+    """Stands in for "last run" while Auto-Sync has never run.
+
+    Fixed times are counted from the moment Auto-Sync was switched on, so
+    turning it on at 23:00 with "every day at 22:00" waits for tomorrow
+    instead of queueing a pile of downloads on the spot.
+    """
+    global _anchored_at
+    if _anchored_at is None:
+        _anchored_at = _now()
+    return _anchored_at
+
+
+def _reset_anchor():
+    """While Auto-Sync is off there is nothing to count from, so the anchor
+    follows the clock and freezes at the moment it is switched on."""
+    global _anchored_at
+    _anchored_at = _now()
+
+
+def next_run_at():
+    """When the next cycle is due, in UTC, or None if the schedule never fires."""
     last_run = _parse(db.get_autosync_state().get("last_run"))
-    if last_run is None:
-        return True
-    return _now() - last_run >= timedelta(seconds=INTERVAL_SECONDS)
+    fixed = _fixed_times()
+
+    if last_run is not None and last_run - _now() > _CLOCK_SLACK:
+        # Written while the clock was wrong, a dead CMOS battery say. Counting
+        # from it would park the next run in that future and never run again,
+        # so ignore it: the next cycle writes a sane one and it heals itself.
+        logger.warning(
+            "AutoSync: the last run is in the future (%s), ignoring it", last_run
+        )
+        last_run = None
+
+    if fixed is None:
+        # An interval install that has never run is due right away, which is
+        # what Auto-Sync did before the schedule was configurable.
+        if last_run is None:
+            return _anchor()
+        return last_run + timedelta(seconds=autosync_interval_seconds())
+
+    upcoming = fixed.next_run(_local(last_run or _anchor()))
+    return _utc(upcoming) if upcoming else None
+
+
+def _due():
+    upcoming = next_run_at()
+    return upcoming is not None and _now() >= upcoming
+
+
+def _nap_seconds():
+    """How long to sleep: long enough to stay cheap, short enough to be on time."""
+    if not autosync_enabled():
+        return TICK_SECONDS
+    try:
+        upcoming = next_run_at()
+    except Exception:
+        logger.exception("AutoSync: could not work out the next run")
+        return TICK_SECONDS
+    if upcoming is None:
+        return TICK_SECONDS
+    seconds = (upcoming - _now()).total_seconds()
+    return max(MIN_TICK_SECONDS, min(TICK_SECONDS, seconds))
 
 
 def _loop():
     while True:
         try:
-            # Re-read the toggle every tick so turning it off takes effect
-            if autosync_enabled() and _due():
-                run_cycle()
+            # Re-read the settings every tick so a change takes effect
+            if autosync_enabled():
+                if _due():
+                    run_cycle()
+            else:
+                _reset_anchor()
         except Exception:
             logger.exception("AutoSync worker error")
-        time.sleep(TICK_SECONDS)
+        time.sleep(_nap_seconds())
 
 
 def ensure_started():
-    """Start the daily thread once per process."""
+    """Start the scheduling thread once per process."""
     global _started
     with _start_lock:
         if _started:
             return
         _started = True
+    _anchor()
     threading.Thread(target=_loop, name="aniworld-autosync", daemon=True).start()

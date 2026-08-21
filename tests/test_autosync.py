@@ -5,6 +5,7 @@ fixed list and series objects are stand-ins.
 """
 
 import json
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -604,6 +605,151 @@ def test_an_unknown_language_folder_falls_through_to_probing(downloads):
 
 
 # ---------------------------------------------------------------------------
+# When it runs
+#
+# The schedule itself is tested in test_schedule.py, this is about what
+# Auto-Sync does with it.
+# ---------------------------------------------------------------------------
+def _ran(hours_ago):
+    db.set_autosync_state(
+        last_run=(datetime.now(timezone.utc) - timedelta(hours=hours_ago)).isoformat()
+    )
+
+
+def test_an_install_that_never_ran_is_due_right_away():
+    """The behaviour from before the schedule was configurable."""
+    assert autosync._due() is True
+
+
+def test_the_default_interval_is_a_day():
+    _ran(hours_ago=2)
+    assert autosync._due() is False
+    _ran(hours_ago=25)
+    assert autosync._due() is True
+
+
+def test_the_interval_can_be_shortened(monkeypatch):
+    monkeypatch.setenv("ANIWORLD_AUTOSYNC_INTERVAL", "90m")
+    _ran(hours_ago=2)
+    assert autosync._due() is True
+
+
+def test_the_interval_can_be_lengthened(monkeypatch):
+    monkeypatch.setenv("ANIWORLD_AUTOSYNC_INTERVAL", "7d")
+    _ran(hours_ago=48)
+    assert autosync._due() is False
+
+
+def test_a_broken_interval_falls_back_to_a_day(monkeypatch):
+    """A hand-edited .env must not take the worker down with it."""
+    monkeypatch.setenv("ANIWORLD_AUTOSYNC_INTERVAL", "whenever")
+    _ran(hours_ago=2)
+    assert autosync._due() is False
+    _ran(hours_ago=25)
+    assert autosync._due() is True
+
+
+@pytest.fixture
+def fixed_times(monkeypatch):
+    """Switch Auto-Sync over to a cron schedule."""
+
+    def use(expression):
+        monkeypatch.setenv("ANIWORLD_AUTOSYNC_MODE", "cron")
+        monkeypatch.setenv("ANIWORLD_AUTOSYNC_CRON", expression)
+
+    return use
+
+
+def test_a_fixed_time_is_read_as_local_time(fixed_times):
+    """A cron line means 22:00 on the wall, whatever the machine's timezone."""
+    fixed_times("0 22 * * *")
+    _ran(hours_ago=2)
+    upcoming = autosync._local(autosync.next_run_at())
+    assert (upcoming.hour, upcoming.minute) == (22, 0)
+
+
+def test_the_next_fixed_time_follows_the_last_run(fixed_times):
+    fixed_times("every day at 08:00, 22:30")
+    _ran(hours_ago=2)
+    upcoming = autosync._local(autosync.next_run_at())
+    assert (upcoming.hour, upcoming.minute) in {(8, 0), (22, 30)}
+
+
+def test_a_fixed_time_does_not_fire_the_moment_it_is_turned_on(fixed_times):
+    """Counted from now, so enabling it never sets a download going at once."""
+    fixed_times("* * * * *")
+    assert autosync._due() is False
+    assert autosync.next_run_at() > autosync._now()
+
+
+def test_a_missed_fixed_time_is_caught_up_on(fixed_times):
+    """The machine was off at 22:00, so it runs as soon as it is back."""
+    fixed_times("0 22 * * *")
+    _ran(hours_ago=24 * 7)
+    assert autosync._due() is True
+
+
+def test_a_last_run_without_a_timezone_does_not_stall_the_worker():
+    """One of these in the database raised on every tick, and Auto-Sync then
+    never ran again: the error was caught and logged, so nothing said why."""
+    db.set_autosync_state(last_run="2026-01-01T00:00:00")
+    assert autosync._due() is True, "a year ago, so it is due"
+    assert autosync.next_run_at() is not None
+
+
+def test_switching_it_on_is_what_starts_the_clock(monkeypatch, fixed_times):
+    """The worker keeps the anchor fresh while Auto-Sync is off.
+
+    Without that, a server up since Monday would count Friday's switch-on from
+    Monday, find a fixed time long past, and queue downloads on the spot.
+    """
+    fixed_times("0 3 * * *")
+    monkeypatch.setattr(
+        autosync, "_anchored_at", datetime.now(timezone.utc) - timedelta(days=4)
+    )
+    assert autosync._due() is True, "the stale anchor is what causes it"
+
+    autosync._reset_anchor()
+    assert autosync._due() is False
+    assert autosync._local(autosync.next_run_at()).hour == 3
+
+
+def test_a_last_run_from_a_wrong_clock_is_ignored():
+    """A box whose clock was years ahead once would otherwise never run again."""
+    db.set_autosync_state(
+        last_run=(datetime.now(timezone.utc) + timedelta(days=900)).isoformat()
+    )
+    assert autosync._due() is True, "back to a fresh install, not parked in 2028"
+
+
+def test_a_run_a_minute_ahead_is_left_alone():
+    """Clocks drift, and a cycle stamps its start before it stamps anything."""
+    db.set_autosync_state(
+        last_run=(datetime.now(timezone.utc) + timedelta(minutes=1)).isoformat()
+    )
+    assert autosync._due() is False
+
+
+def test_a_broken_cron_line_falls_back_to_the_default(fixed_times):
+    fixed_times("every blursday at half past nonsense")
+    assert autosync.status()["cron"] == "0 3 * * *"
+
+
+def test_the_nap_never_outlasts_a_tick(monkeypatch, fixed_times):
+    """However far off the next run is, settings changes still get picked up."""
+    monkeypatch.setenv("ANIWORLD_ENABLE_AUTOSYNC", "1")
+    fixed_times("0 4 1 1 *")
+    assert autosync._nap_seconds() == autosync.TICK_SECONDS
+
+
+def test_the_nap_shrinks_to_hit_a_fixed_time(monkeypatch, fixed_times):
+    """A five minute tick would otherwise make 22:00 mean "22:00 give or take"."""
+    monkeypatch.setenv("ANIWORLD_ENABLE_AUTOSYNC", "1")
+    fixed_times("* * * * *")
+    assert autosync.MIN_TICK_SECONDS <= autosync._nap_seconds() <= 60
+
+
+# ---------------------------------------------------------------------------
 # Reporting
 # ---------------------------------------------------------------------------
 def test_status_of_a_fresh_install():
@@ -619,6 +765,39 @@ def test_status_reports_the_last_run():
     report = autosync.status()
     assert report["last_run"] == "2026-01-01T00:00:00+00:00"
     assert report["last_report"]["queued"] == 2
+
+
+def test_status_describes_an_interval_schedule(monkeypatch):
+    monkeypatch.setenv("ANIWORLD_AUTOSYNC_INTERVAL", "6h")
+    report = autosync.status()
+    assert report["mode"] == "interval"
+    assert report["interval"] == "6h"
+    assert report["interval_seconds"] == 6 * 3600
+    assert report["interval_hours"] == 6
+    assert report["cron"] is None
+    assert report["schedule"] == "Every 6 hours"
+
+
+def test_a_sub_hour_interval_is_still_reported_in_hours(monkeypatch):
+    """It used to floor to 0, which read as "no interval at all"."""
+    monkeypatch.setenv("ANIWORLD_AUTOSYNC_INTERVAL", "90m")
+    assert autosync.status()["interval_hours"] == 1.5
+
+
+def test_status_describes_fixed_times(monkeypatch):
+    monkeypatch.setenv("ANIWORLD_AUTOSYNC_MODE", "cron")
+    monkeypatch.setenv("ANIWORLD_AUTOSYNC_CRON", "every monday and friday at 10pm")
+    report = autosync.status()
+    assert report["mode"] == "cron"
+    assert report["cron"] == "0 22 * * 1,5"
+    assert report["schedule"] == "On Monday and Friday at 22:00"
+
+
+def test_status_describes_the_schedule_in_the_ui_language(monkeypatch):
+    monkeypatch.setenv("ANIWORLD_UI_LANGUAGE", "de")
+    monkeypatch.setenv("ANIWORLD_AUTOSYNC_MODE", "cron")
+    monkeypatch.setenv("ANIWORLD_AUTOSYNC_CRON", "0 22 * * 1")
+    assert autosync.status()["schedule"] == "Jeden Montag um 22:00"
 
 
 def test_a_full_cycle_with_nothing_to_do(feed, downloads):

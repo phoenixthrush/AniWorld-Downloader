@@ -3,7 +3,7 @@
 from flask import jsonify, request
 
 from ...logger import get_logger
-from .. import db, settings_store, theming
+from .. import db, schedule, settings_store, theming
 from ..media import normalize_default_sites
 
 logger = get_logger(__name__)
@@ -13,6 +13,9 @@ def register(bp):
     bp.add_url_rule("/settings", view_func=get_settings)
     bp.add_url_rule("/settings", view_func=update_settings, methods=["PUT"])
     bp.add_url_rule("/settings/public-ip", view_func=public_ip)
+    bp.add_url_rule(
+        "/settings/schedule-preview", view_func=preview_schedule, methods=["POST"]
+    )
     bp.add_url_rule("/custom-css", view_func=get_custom_css)
     bp.add_url_rule("/custom-css", view_func=update_custom_css, methods=["PUT"])
     bp.add_url_rule("/custom-shader", view_func=get_custom_shader)
@@ -42,6 +45,38 @@ def update_settings():
     if discord_changed:
         _reconcile_discord()
     return jsonify({"ok": True})
+
+
+def preview_schedule():
+    """What an Auto-Sync schedule would mean, for the hint under the fields.
+
+    Takes the same fields as PUT /settings, so the page can ask about what is
+    on screen before anything is saved. This only reads: nothing is stored and
+    saving stays a separate request.
+    """
+    data = request.get_json(silent=True) or {}
+    language = settings_store.ui_language()
+
+    if "autosync_interval" in data:
+        try:
+            seconds = schedule.parse_interval(data["autosync_interval"])
+        except schedule.ScheduleError as exc:
+            return jsonify({"error": str(exc)}), 400
+        return jsonify(
+            {
+                "interval": schedule.format_interval(seconds),
+                "description": schedule.describe_interval(seconds, language),
+            }
+        )
+
+    try:
+        parsed = schedule.parse(str(data.get("autosync_cron", "")))
+    except schedule.ScheduleError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    return jsonify(
+        {"cron": parsed.expression, "description": parsed.describe(language)}
+    )
 
 
 def _reconcile_discord():

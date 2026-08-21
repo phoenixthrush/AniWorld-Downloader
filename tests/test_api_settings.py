@@ -36,6 +36,87 @@ def test_a_rejected_change_leaves_the_old_value(client):
     assert settings_store.ui_language() == "de"
 
 
+def test_the_autosync_schedule_can_be_saved_as_a_sentence(client):
+    response = client.put(
+        "/api/settings", json={"autosync_cron": "every monday, friday at 10pm"}
+    )
+    assert response.status_code == 200
+    assert client.get("/api/settings").get_json()["autosync_cron"] == "0 22 * * 1,5"
+
+
+def test_an_impossible_autosync_schedule_is_a_400_with_a_reason(client):
+    response = client.put("/api/settings", json={"autosync_cron": "every blursday"})
+    assert response.status_code == 400
+    assert "blursday" in response.get_json()["error"]
+
+
+def test_a_too_short_autosync_interval_is_a_400(client):
+    response = client.put("/api/settings", json={"autosync_interval": "10s"})
+    assert response.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# The live reading under the schedule field
+# ---------------------------------------------------------------------------
+def test_fixed_times_can_be_previewed_before_they_are_saved(client):
+    body = client.post(
+        "/api/settings/schedule-preview",
+        json={"autosync_cron": "every monday and friday at 10pm"},
+    ).get_json()
+    assert body["cron"] == "0 22 * * 1,5"
+    assert body["description"] == "On Monday and Friday at 22:00"
+
+
+def test_an_interval_can_be_previewed_before_it_is_saved(client):
+    body = client.post(
+        "/api/settings/schedule-preview", json={"autosync_interval": "90m"}
+    ).get_json()
+    assert body["interval"] == "90m"
+    assert body["description"] == "Every 90 minutes"
+
+
+def test_previewing_changes_nothing(client):
+    """The page asks on every keystroke, long before anyone presses Save."""
+    client.post("/api/settings/schedule-preview", json={"autosync_cron": "0 22 * * 1"})
+    client.post("/api/settings/schedule-preview", json={"autosync_interval": "90m"})
+    assert settings_store.autosync_cron() == "0 3 * * *", "still the default"
+    assert settings_store.autosync_interval() == "24h", "still the default"
+
+
+def test_a_preview_of_nonsense_is_a_400_with_the_reason(client):
+    response = client.post(
+        "/api/settings/schedule-preview", json={"autosync_cron": "every blursday"}
+    )
+    assert response.status_code == 400
+    assert "blursday" in response.get_json()["error"]
+
+
+def test_a_preview_of_an_impossible_interval_is_a_400(client):
+    response = client.post(
+        "/api/settings/schedule-preview", json={"autosync_interval": "10s"}
+    )
+    assert response.status_code == 400
+    assert "at least" in response.get_json()["error"]
+
+
+def test_an_empty_preview_is_a_400(client):
+    assert client.post("/api/settings/schedule-preview", json={}).status_code == 400
+
+
+def test_previewing_is_admin_only_like_the_rest_of_the_settings():
+    from aniworld.web.views import ADMIN_ENDPOINTS
+
+    assert "api.preview_schedule" in ADMIN_ENDPOINTS
+
+
+def test_a_preview_is_described_in_the_ui_language(client, monkeypatch):
+    monkeypatch.setenv("ANIWORLD_UI_LANGUAGE", "de")
+    body = client.post(
+        "/api/settings/schedule-preview", json={"autosync_cron": "0 22 * * 1"}
+    ).get_json()
+    assert body["description"] == "Jeden Montag um 22:00"
+
+
 def test_the_provider_order_can_be_saved(client):
     from aniworld.web.media import WORKING_PROVIDERS
 
