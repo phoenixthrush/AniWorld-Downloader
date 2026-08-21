@@ -99,7 +99,7 @@ def parse_interval(value):
 
 
 def _checked_interval(seconds, original):
-    seconds = int(round(seconds))
+    seconds = round(seconds)
     if seconds < MIN_INTERVAL_SECONDS:
         raise ScheduleError(
             f'"{original}" is too short, the interval has to be at least '
@@ -250,14 +250,14 @@ class CronEntry:
     """One cron line."""
 
     __slots__ = (
-        "expression",
-        "minutes",
-        "hours",
         "days",
-        "months",
-        "weekdays",
         "dom_any",
         "dow_any",
+        "expression",
+        "hours",
+        "minutes",
+        "months",
+        "weekdays",
     )
 
     def __init__(self, expression, minute, hour, day, month, weekday):
@@ -511,14 +511,10 @@ def _looks_like_time(token):
 def _step_schedule(amount, unit, time_part):
     """The one repeating phrase cron can express: "every 6 hours" and friends."""
     if time_part:
-        raise ScheduleError(
-            '"every {0} {1}" cannot be combined with a time'.format(amount, unit)
-        )
+        raise ScheduleError(f'"every {amount} {unit}" cannot be combined with a time')
     if unit.startswith("d"):
         raise ScheduleError(
-            'Use the interval instead of "every {0} days" for fixed times'.format(
-                amount
-            )
+            f'Use the interval instead of "every {amount} days" for fixed times'
         )
     if amount < 1:
         raise ScheduleError("A repeat has to be at least 1")
@@ -560,7 +556,7 @@ def _weekday_range(first, last):
         raise ScheduleError(f'"{first}-{last}" is not a range of weekdays')
     if start <= end:
         return set(range(start, end + 1))
-    return set(range(start, 7)) | set(range(0, end + 1))
+    return set(range(start, 7)) | set(range(end + 1))
 
 
 def _parse_times(text):
@@ -615,11 +611,7 @@ def _build(weekdays, times):
         by_minute.setdefault(minute, []).append(hour)
 
     return Schedule(
-        parse_entry(
-            "{0} {1} * * {2}".format(
-                minute, ",".join(str(hour) for hour in hours), day_field
-            )
-        )
+        parse_entry(f"{minute} {','.join(str(hour) for hour in hours)} * * {day_field}")
         for minute, hours in sorted(by_minute.items())
     )
 
@@ -739,7 +731,7 @@ def _days_phrase(days, words):
 def _join(items, words):
     if len(items) == 1:
         return items[0]
-    return "{0} {1} {2}".format(", ".join(items[:-1]), words["and"], items[-1])
+    return f"{', '.join(items[:-1])} {words['and']} {items[-1]}"
 
 
 def _capitalise(text):

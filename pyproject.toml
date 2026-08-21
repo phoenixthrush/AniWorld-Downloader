@@ -83,6 +83,16 @@ aniworld = [
 [project.scripts]
 aniworld = "aniworld.__main__:main"
 
+[tool.ruff.lint.per-file-ignores]
+# schedule.py works on naive wall-clock datetimes by design: that is what keeps
+# a cron line at 22:00 across a DST switch. Its tests build them by hand, so the
+# "always pass a timezone" rule does not apply to them.
+"tests/test_schedule.py" = ["DTZ001"]
+# Both set an environment variable that has to be in place before aniworld is
+# imported, so their imports cannot all sit at the top of the file.
+"tests/autosync_simulation.py" = ["E402"]
+"tests/conftest.py" = ["E402"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # The two legacy scripts in tests/ are manual smoke checks against the live

@@ -18,6 +18,7 @@ the clock and the two bits of state the loop touches are stand-ins, and the
 body of run() is the body of autosync._loop() minus the downloading.
 """
 
+import itertools
 import os
 import sys
 import tempfile
@@ -28,7 +29,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 os.environ["ANIWORLD_INSTALL_FOLDER"] = tempfile.mkdtemp()
 
-from aniworld.web import autosync  # noqa: E402  (after the path is set up)
+from aniworld.web import autosync
 
 
 class Sim:
@@ -151,7 +152,7 @@ print("\n=== interval mode ===")
 fresh(ANIWORLD_AUTOSYNC_INTERVAL="6h")
 sim = Sim("2026-06-01 00:00")
 runs = sim.run(days=7)
-gaps = {round((b - a).total_seconds()) for a, b in zip(runs, runs[1:])}
+gaps = {round((b - a).total_seconds()) for a, b in itertools.pairwise(runs)}
 case("first run is immediate", runs and runs[0] == sim.runs[0], "")
 case("every six hours", gaps == {6 * 3600}, gaps)
 case("one at once plus one every six hours", len(runs) == 28, f"{len(runs)} runs")
@@ -160,7 +161,7 @@ print("\n=== a 90 minute interval ===")
 fresh(ANIWORLD_AUTOSYNC_INTERVAL="90m")
 sim = Sim("2026-06-01 00:00")
 runs = sim.run(days=2)
-gaps = {round((b - a).total_seconds()) for a, b in zip(runs, runs[1:])}
+gaps = {round((b - a).total_seconds()) for a, b in itertools.pairwise(runs)}
 case("every 90 minutes", gaps == {5400}, gaps)
 
 print("\n=== every 30 minutes, as cron ===")
