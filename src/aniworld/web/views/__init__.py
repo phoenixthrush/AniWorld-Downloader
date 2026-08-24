@@ -23,6 +23,8 @@ ADMIN_ENDPOINTS = {
     "api.update_settings",
     "api.public_ip",
     "api.preview_schedule",
+    "api.export_env",
+    "api.path_preview",
     "api.get_custom_css",
     "api.update_custom_css",
     "api.get_custom_shader",

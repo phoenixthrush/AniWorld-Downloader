@@ -47,6 +47,12 @@ services:
     # --- Features (uncomment the environment block to customise) ---
     #   ANIWORLD_ENABLE_LIBRARY: "1"                  # Library tab: browse and delete downloaded files
     #   ANIWORLD_ENABLE_HTV: "0"                      # Show the Hanime tab (adult content)
+    #   ANIWORLD_ENABLE_ANIWORLD: "1"                 # Every site has a toggle: ANIWORLD | STO | MEGAKINO | CINEBY |
+    #   ANIWORLD_ENABLE_STO: "1"                      # FILMPALAST | MANGAFIRE | HTV | KINOX | BURNINGSERIES.
+    #   ANIWORLD_ENABLE_MEGAKINO: "1"                 # Off means no tab and no rows on the home page.
+    #   ANIWORLD_ENABLE_CINEBY: "1"                   # At least one has to stay on.
+    #   ANIWORLD_ENABLE_FILMPALAST: "1"
+    #   ANIWORLD_ENABLE_MANGAFIRE: "1"
     #   ANIWORLD_ENABLE_AUTOSYNC: "0"                 # Auto-Sync: on a schedule, queue new episodes of series you already have
     #   ANIWORLD_AUTOSYNC_NEW_ONLY: "0"               # 1 = queue only the newly announced episodes instead of every missing one
     #   ANIWORLD_AUTOSYNC_MODE: "interval"            # When Auto-Sync runs: interval (every so often) | cron (fixed times)

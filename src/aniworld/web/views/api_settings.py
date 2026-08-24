@@ -1,6 +1,6 @@
 """Settings, custom paths and Discord bot status."""
 
-from flask import jsonify, request
+from flask import Response, jsonify, request
 
 from ...logger import get_logger
 from .. import db, schedule, settings_store, theming
@@ -16,6 +16,8 @@ def register(bp):
     bp.add_url_rule(
         "/settings/schedule-preview", view_func=preview_schedule, methods=["POST"]
     )
+    bp.add_url_rule("/settings/env", view_func=export_env)
+    bp.add_url_rule("/settings/path-preview", view_func=path_preview)
     bp.add_url_rule("/custom-css", view_func=get_custom_css)
     bp.add_url_rule("/custom-css", view_func=update_custom_css, methods=["PUT"])
     bp.add_url_rule("/custom-shader", view_func=get_custom_shader)
@@ -76,6 +78,29 @@ def preview_schedule():
 
     return jsonify(
         {"cron": parsed.expression, "description": parsed.describe(language)}
+    )
+
+
+def path_preview():
+    """Where a download would land, for the box under the download path.
+
+    Takes the path being typed so the preview can follow it before it is
+    saved. Everything else comes from the settings as they stand.
+    """
+    typed = (request.args.get("download_path") or "").strip()
+    return jsonify(settings_store.preview_paths(typed or None))
+
+
+def export_env():
+    """Hand back the running settings as a .env file to save.
+
+    Most of them live in the environment and reset on a restart, which is the
+    point: this is how someone makes the ones they care about stick.
+    """
+    return Response(
+        settings_store.export_env(),
+        mimetype="text/plain",
+        headers={"Content-Disposition": 'attachment; filename="aniworld.env"'},
     )
 
 

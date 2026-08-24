@@ -1807,6 +1807,303 @@ body[data-site="htv"] {
   cursor: pointer;
 }
 
+/* The two paths a download can take, shown under the download path */
+.path-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-code);
+}
+
+.path-preview-row {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.path-preview-label {
+  flex: none;
+  width: 58px;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.path-preview code {
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--text-bright);
+  /* a long path wraps rather than pushing the card sideways */
+  overflow-wrap: anywhere;
+}
+
+/* ===== Settings, one section at a time =====
+   The page is a sidebar of sections and a stack of panes, only one of which is
+   ever shown. Everything stays in the DOM so the scripts can reach a field in
+   a section nobody has opened yet. */
+.container-settings {
+  max-width: 1150px;
+}
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: 218px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.settings-nav {
+  position: sticky;
+  /* clears the sticky top bar */
+  top: 78px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+}
+
+.settings-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+
+.settings-nav-item:hover {
+  background: var(--surface-hover);
+  color: var(--text-bright);
+}
+
+.settings-nav-item.active {
+  background: var(--surface-strong);
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
+/* the rail that marks where you are */
+.settings-nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.settings-nav-item.active .settings-nav-icon {
+  color: var(--accent);
+}
+
+.settings-nav-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Font Awesome draws a glyph, so it takes a width and a size rather than a box.
+   Colour still comes from the item, which keeps custom themes in charge. */
+.settings-nav-icon {
+  width: 18px;
+  flex: none;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.settings-pane[hidden] {
+  display: none;
+}
+
+.settings-pane {
+  animation: pane-in 0.18s var(--ease);
+}
+
+.settings-pane .card:last-child {
+  margin-bottom: 0;
+}
+
+@keyframes pane-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ===== Sites =====
+   One card per site, switched on means it has a tab on the home page. Cards in
+   a row are the same height whatever the description says, so the list reads
+   as a list and not as a pile. */
+.site-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.site-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  cursor: pointer;
+  transition: border-color 0.15s var(--ease), background 0.15s var(--ease);
+}
+
+.site-row:hover {
+  border-color: var(--border-hover);
+  background: var(--surface);
+}
+
+.site-row:has(.site-switch:checked) {
+  border-color: var(--accent);
+  background: var(--surface-strong);
+}
+
+.site-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.site-row-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.site-row-name {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.site-row-kind {
+  padding: 1px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  font-size: 0.64rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.site-row-hint {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* The checkbox, drawn as a switch */
+.site-switch {
+  position: relative;
+  flex: none;
+  width: 38px;
+  height: 21px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-disabled);
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  transition: background 0.18s var(--ease), border-color 0.18s var(--ease);
+}
+
+.site-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: transform 0.18s var(--ease), background 0.18s var(--ease);
+}
+
+.site-switch:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.site-switch:checked::after {
+  transform: translateX(17px);
+  background: var(--text-strong);
+}
+
+.site-switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-switch,
+  .site-switch::after {
+    transition: none;
+  }
+}
+
+/* On a phone the sidebar lies down and scrolls sideways */
+@media (max-width: 860px) {
+  .settings-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .settings-nav {
+    position: static;
+    flex-direction: row;
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .settings-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .settings-nav-item {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  .settings-nav-item.active::before {
+    display: none;
+  }
+}
+
 /* Auto-Sync schedule: an amount and its unit, weekday chips, and the
    fold-out text field with a live reading of what it means */
 .field-compact {

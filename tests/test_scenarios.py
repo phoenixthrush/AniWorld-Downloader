@@ -471,3 +471,141 @@ def test_an_admin_key_can_change_a_setting_that_the_next_download_uses(
     ).get_json()["queue_id"]
     fake_download(queue_id, files=["Naruto/Naruto S01E001.mkv"])
     assert (downloads / "german-dub" / "Naruto").exists()
+
+
+# ---------------------------------------------------------------------------
+# Switching a site off
+#
+# The home page is built from the site settings, so a site that is off has to
+# lose its tab and the rows it fills, and the page has to open on whatever is
+# left rather than on a site that is no longer there.
+# ---------------------------------------------------------------------------
+def _tabs(client):
+    import re
+
+    body = client.get("/").get_data(as_text=True)
+    return re.findall(r'segmented-btn" data-site="(\w+)"', body)
+
+
+def test_the_home_page_shows_the_sites_that_are_on(client):
+    tabs = _tabs(client)
+    assert "aniworld" in tabs and "sto" in tabs
+    assert "htv" not in tabs, "adult content is off unless asked for"
+    assert "kinox" not in tabs and "burningseries" not in tabs
+
+
+def test_a_site_switched_off_loses_its_tab(client, monkeypatch):
+    monkeypatch.setenv("ANIWORLD_ENABLE_MEGAKINO", "0")
+    assert "megakino" not in _tabs(client)
+
+
+def test_a_site_switched_off_loses_its_browse_rows(client, monkeypatch):
+    monkeypatch.setenv("ANIWORLD_ENABLE_MANGAFIRE", "0")
+    body = client.get("/").get_data(as_text=True)
+    assert 'data-row="mangafire_trending"' not in body
+    assert 'data-row="new_animes"' in body, "the others stay"
+
+
+def test_a_site_switched_on_gains_its_tab_and_rows(client, monkeypatch):
+    monkeypatch.setenv("ANIWORLD_ENABLE_KINOX", "1")
+    body = client.get("/").get_data(as_text=True)
+    assert "kinox" in _tabs(client)
+    assert 'data-row="kinox_movies"' in body
+
+
+def test_the_first_tab_is_whatever_is_still_there(client, monkeypatch):
+    """home.js opens on the first tab, so it must not be a hidden one."""
+    monkeypatch.setenv("ANIWORLD_ENABLE_ANIWORLD", "0")
+    assert _tabs(client)[0] == "sto"
+
+
+def test_the_toggles_on_the_settings_page_match_the_api(client):
+    """A checkbox whose name the settings API does not know saves nothing."""
+    import re
+
+    body = client.get("/settings").get_data(as_text=True)
+    known = set(client.get("/api/settings").get_json())
+    for field in re.findall(r'data-setting="([\w-]+)"', body):
+        assert field in known, f"the page offers {field}, the API does not have it"
+
+
+def test_every_site_has_a_checkbox_on_the_settings_page(client):
+    from aniworld.web.media import SITE_KEYS
+
+    body = client.get("/settings").get_data(as_text=True)
+    for site in SITE_KEYS:
+        assert f'data-setting="enable_{site}"' in body, site
+
+
+def test_the_settings_page_is_split_into_sections(client):
+    """Every tab in the sidebar points at a pane that is really there."""
+    import re
+
+    body = client.get("/settings").get_data(as_text=True)
+    tabs = re.findall(r'data-pane="([\w-]+)"', body)
+    assert len(tabs) >= 8
+    for name in tabs:
+        assert f'id="pane-{name}"' in body, name
+        assert f'aria-controls="pane-{name}"' in body, name
+
+
+def test_the_users_section_only_exists_with_accounts(client, auth_client):
+    from aniworld.web import db
+
+    assert 'id="pane-users"' not in client.get("/settings").get_data(as_text=True)
+
+    db.create_user("root", "hunter2hunter2", role="admin")
+    auth_client.post("/login", data={"username": "root", "password": "hunter2hunter2"})
+    body = auth_client.get("/settings").get_data(as_text=True)
+    assert 'id="pane-users"' in body
+    assert 'data-pane="users"' in body
+
+
+def test_every_site_says_what_it_is(client):
+    """A row of names alone tells nobody what they are switching off."""
+    import re
+
+    body = client.get("/settings").get_data(as_text=True)
+    from aniworld.web.media import SITE_KEYS
+
+    for site in SITE_KEYS:
+        assert f'data-i18n="settings.enable_{site}_hint"' in body, site
+    assert len(re.findall(r'class="site-row-hint"', body)) == len(SITE_KEYS)
+    assert len(re.findall(r'class="site-switch"', body)) == len(SITE_KEYS)
+
+
+def test_the_sidebar_uses_font_awesome(client):
+    """Hand-drawn icons were guesswork, these are a pinned, hash-checked set."""
+    import re
+
+    settings = client.get("/settings").get_data(as_text=True)
+    icons = re.findall(r'class="settings-nav-icon ([\w -]+)"', settings)
+    assert len(icons) == len(re.findall(r'data-pane="', settings))
+    assert all(icon.startswith("fa-solid fa-") for icon in icons), icons
+    sidebar = settings[settings.index('id="settingsNav"') :]
+    sidebar = sidebar[: sidebar.index("</nav>")]
+    assert "<svg" not in sidebar, "no drawings left in the sidebar"
+
+    head = client.get("/").get_data(as_text=True)
+    assert "fontawesome-free@7.3.1" in head, "pinned to a version"
+    assert 'integrity="sha384-' in head, "and checked against its hash"
+
+
+def test_the_downloads_pane_previews_where_a_file_lands(client):
+    body = client.get("/settings").get_data(as_text=True)
+    assert 'id="previewEpisode"' in body
+    assert 'id="previewMovie"' in body
+    # right under the field it belongs to, not somewhere else on the page
+    assert body.index('id="downloadPath"') < body.index('id="pathPreview"')
+    assert body.index('id="pathPreview"') < body.index("settings.provider_fallback")
+
+
+def test_every_pane_is_a_card(client):
+    """The Discord one was bare, which made it the odd one out on the page."""
+    import re
+
+    body = client.get("/settings").get_data(as_text=True)
+    for name in re.findall(r'data-pane="([\w-]+)"', body):
+        pane = body[body.index(f'id="pane-{name}"') :]
+        pane = pane[: pane.index("\n      </section>")]
+        assert '<section class="card">' in pane, f"the {name} pane has no card"

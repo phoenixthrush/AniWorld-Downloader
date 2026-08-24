@@ -18,7 +18,7 @@ from ..config import (
 )
 from ..logger import get_logger
 from . import paths, schedule
-from .media import WORKING_PROVIDERS
+from .media import SITE_KEYS, SITE_LABELS, SITES_OFF_BY_DEFAULT, WORKING_PROVIDERS
 
 logger = get_logger(__name__)
 
@@ -139,18 +139,40 @@ def autosync_schedule_description(language=None):
     return schedule.describe_interval(autosync_interval_seconds(), language)
 
 
+# ---------------------------------------------------------------------------
+# Sites
+#
+# Every site can be switched off, which takes its tab off the home page along
+# with the rows it fills there. Three of them start off (see media.py), the
+# rest start on, and all of them follow the same ANIWORLD_ENABLE_<SITE> name.
+# ---------------------------------------------------------------------------
+def site_env_key(site):
+    return f"ANIWORLD_ENABLE_{site.upper()}"
+
+
+def site_enabled(site):
+    if site not in SITE_KEYS:
+        return False
+    return _flag(site_env_key(site), "0" if site in SITES_OFF_BY_DEFAULT else "1")
+
+
+def enabled_sites():
+    """{site key: on or off} for every site there is."""
+    return {site: site_enabled(site) for site in SITE_KEYS}
+
+
 def htv_enabled():
-    return _flag("ANIWORLD_ENABLE_HTV")
+    return site_enabled("htv")
 
 
 def burningseries_enabled():
     """Off by default: the site is geo-blocked and behind Google reCAPTCHA."""
-    return _flag("ANIWORLD_ENABLE_BURNINGSERIES")
+    return site_enabled("burningseries")
 
 
 def kinox_enabled():
     """Off by default: every download needs a captcha solved by hand."""
-    return _flag("ANIWORLD_ENABLE_KINOX")
+    return site_enabled("kinox")
 
 
 def english_sub_disabled():
@@ -190,6 +212,91 @@ def _template_with_extension(extension):
     parts[-1] = parts[-1].rsplit(".", 1)[0] + f".{extension}"
     rebuilt = "/".join(parts)
     return f'"{rebuilt}"' if quoted else rebuilt
+
+
+# ---------------------------------------------------------------------------
+# Where a download lands
+#
+# Not a second implementation of the naming rules: the episode path is built by
+# the downloader itself, a real AniworldEpisode handed a stand-in series, so the
+# box on the settings page cannot say one thing while the disk gets another.
+#
+# The stand-in carries what a real page gives, which is why the title is the
+# whole cleaned title and the year is a range rather than one year.
+#
+# Movies never go through the naming template. Every movie site writes
+# "Title (Year)", inside a folder of the same name unless that is switched off,
+# and takes only the file extension from the template.
+# ---------------------------------------------------------------------------
+_PREVIEW_URL = (
+    "https://aniworld.to/anime/stream/konosuba-gods-blessing-on-this-wonderful-world"
+    "/staffel-1/episode-3"
+)
+_PREVIEW_TITLE = "KonoSuba God\u2019s blessing on this wonderful world!"
+_PREVIEW_YEARS = "2016-2025"
+_PREVIEW_IMDB = "tt5370118"
+_PREVIEW_RESOLUTION = "1080p"
+_PREVIEW_MOVIE = ("Your Name", "2016")
+
+
+def _preview_episode(root, language):
+    """A real episode object, built without touching the network."""
+    from types import SimpleNamespace
+
+    from ..models.aniworld_to.episode import AniworldEpisode
+
+    episode = AniworldEpisode(
+        url=_PREVIEW_URL,
+        series=SimpleNamespace(
+            title_cleaned=_PREVIEW_TITLE,
+            release_year=_PREVIEW_YEARS,
+            imdb=_PREVIEW_IMDB,
+        ),
+        season=SimpleNamespace(season_number=1),
+        episode_number=3,
+        selected_path=str(root),
+        selected_language=language,
+    )
+    # What the downloader sets once it has probed the finished file, so a
+    # template using {resolution} previews the name the file ends up with
+    episode._resolution = _PREVIEW_RESOLUTION
+    return episode
+
+
+def preview_paths(download_path=None):
+    """The full path a movie and an episode would be written to."""
+    from ..models.common.common import movie_folder_enabled
+
+    root = (
+        paths.expand(download_path) if download_path else paths.default_download_path()
+    )
+    language = default_language()
+    if paths.lang_separation_enabled():
+        root = root / paths.lang_folder_for(language)
+
+    try:
+        episode = _preview_episode(root, language)
+        episode_path = str(episode._episode_path)
+        extension = episode._file_extension
+    except KeyError as exc:
+        # The downloader raises the same way on the first download, so saying
+        # it here is the whole point of having a preview
+        return {
+            "error": f"The naming template uses {{{exc.args[0]}}}, "
+            "which is not one of the placeholders a download can fill in"
+        }
+    except Exception as exc:
+        # A preview must never take the settings page down with it
+        logger.warning("Could not work out the download path preview: %s", exc)
+        return {"error": "Could not work this out from the naming template"}
+
+    title, year = _PREVIEW_MOVIE
+    movie_name = f"{title} ({year})"
+    folder = root / movie_name if movie_folder_enabled() else root
+    return {
+        "episode": episode_path,
+        "movie": str(folder / f"{movie_name}.{extension}"),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -261,9 +368,7 @@ def read_settings():
         "download_path": str(paths.default_download_path()),
         "lang_separation": paths.lang_separation_enabled(),
         "disable_english_sub": english_sub_disabled(),
-        "enable_htv": htv_enabled(),
-        "enable_burningseries": burningseries_enabled(),
-        "enable_kinox": kinox_enabled(),
+        **{f"enable_{site}": state for site, state in enabled_sites().items()},
         "enable_library": library_enabled(),
         "enable_autosync": autosync_enabled(),
         "autosync_new_only": autosync_new_only(),
@@ -272,6 +377,7 @@ def read_settings():
         "autosync_interval_seconds": autosync_interval_seconds(),
         "autosync_cron": autosync_cron(),
         "autosync_schedule": autosync_schedule_description(),
+        "path_preview": preview_paths(),
         "movie_folder": _flag("ANIWORLD_MOVIE_FOLDER", "1"),
         "ui_language": ui_language(),
         "output_format": output_format(),
@@ -280,6 +386,14 @@ def read_settings():
         "available_ui_languages": list(UI_LANGUAGES),
         "available_output_formats": list(OUTPUT_FORMATS),
         "available_autosync_modes": list(AUTOSYNC_MODES),
+        "available_sites": [
+            {
+                "key": site,
+                "label": SITE_LABELS[site],
+                "default_on": site not in SITES_OFF_BY_DEFAULT,
+            }
+            for site in SITE_KEYS
+        ],
         "discord": discord_settings(),
     }
 
@@ -287,13 +401,11 @@ def read_settings():
 _BOOL_SETTINGS = {
     "lang_separation": "ANIWORLD_LANG_SEPARATION",
     "disable_english_sub": "ANIWORLD_DISABLE_ENGLISH_SUB",
-    "enable_htv": "ANIWORLD_ENABLE_HTV",
-    "enable_burningseries": "ANIWORLD_ENABLE_BURNINGSERIES",
-    "enable_kinox": "ANIWORLD_ENABLE_KINOX",
     "enable_library": "ANIWORLD_ENABLE_LIBRARY",
     "enable_autosync": "ANIWORLD_ENABLE_AUTOSYNC",
     "autosync_new_only": "ANIWORLD_AUTOSYNC_NEW_ONLY",
     "movie_folder": "ANIWORLD_MOVIE_FOLDER",
+    **{f"enable_{site}": site_env_key(site) for site in SITE_KEYS},
 }
 
 
@@ -317,6 +429,25 @@ def _collect_provider_order(raw, updates):
     updates["ANIWORLD_PROVIDER_FALLBACK_ORDER"] = ",".join(
         parse_provider_order(",".join(requested), allowed_providers=WORKING_PROVIDERS)
     )
+
+
+def _check_a_site_is_left(data):
+    """Refuse the change that would leave the home page with nothing on it.
+
+    Only a payload that touches a site is checked: a .env with everything off
+    is the user's business, and must not block every other setting on the page.
+    """
+    if not any(f"enable_{site}" in data for site in SITE_KEYS):
+        return
+
+    wanted = {
+        site: bool(data[f"enable_{site}"])
+        if f"enable_{site}" in data
+        else site_enabled(site)
+        for site in SITE_KEYS
+    }
+    if not any(wanted.values()):
+        raise SettingsError("At least one site has to stay enabled")
 
 
 def _collect_autosync_schedule(data, updates):
@@ -373,6 +504,7 @@ def update_settings(data):
         _collect_provider_order(data["provider_fallback_order"], updates)
 
     _collect_autosync_schedule(data, updates)
+    _check_a_site_is_left(data)
 
     discord_changed = "discord" in data
     if discord_changed:
@@ -385,6 +517,105 @@ def update_settings(data):
         _persist_discord(updates)
 
     return discord_changed
+
+
+# ---------------------------------------------------------------------------
+# Exporting what is running
+#
+# Most settings live in the environment and go back to their defaults on a
+# restart, which is deliberate. This writes out what the instance is using
+# right now as a .env, so anyone who wants a setting to stick can save it.
+#
+# Secrets are left out on purpose. The Discord token is already written to the
+# .env by the bot settings themselves, and nothing else here should end up in
+# a file that lands in a downloads folder.
+# ---------------------------------------------------------------------------
+def _env_sections():
+    """(heading, [(key, value)]) in the order they should be written."""
+    discord = discord_settings()
+    return [
+        (
+            "General",
+            [
+                ("ANIWORLD_DOWNLOAD_PATH", str(paths.default_download_path())),
+                ("ANIWORLD_UI_LANGUAGE", ui_language()),
+            ],
+        ),
+        (
+            "Downloads",
+            [
+                ("ANIWORLD_NAMING_TEMPLATE", _naming_template()),
+                (
+                    "ANIWORLD_PROVIDER_FALLBACK_ORDER",
+                    ",".join(get_provider_fallback_order(WORKING_PROVIDERS)),
+                ),
+                ("ANIWORLD_LANG_SEPARATION", _one_or_zero(paths.lang_separation_enabled())),
+                ("ANIWORLD_DISABLE_ENGLISH_SUB", _one_or_zero(english_sub_disabled())),
+                ("ANIWORLD_MOVIE_FOLDER", _one_or_zero(_flag("ANIWORLD_MOVIE_FOLDER", "1"))),
+            ],
+        ),
+        (
+            "Sites",
+            [
+                (site_env_key(site), _one_or_zero(state))
+                for site, state in enabled_sites().items()
+            ],
+        ),
+        (
+            "Library and Auto-Sync",
+            [
+                ("ANIWORLD_ENABLE_LIBRARY", _one_or_zero(library_enabled())),
+                ("ANIWORLD_ENABLE_AUTOSYNC", _one_or_zero(autosync_enabled())),
+                ("ANIWORLD_AUTOSYNC_NEW_ONLY", _one_or_zero(autosync_new_only())),
+                ("ANIWORLD_AUTOSYNC_MODE", autosync_mode()),
+                ("ANIWORLD_AUTOSYNC_INTERVAL", autosync_interval()),
+                ("ANIWORLD_AUTOSYNC_CRON", autosync_cron()),
+            ],
+        ),
+        (
+            "Discord bot (the token is not exported, it is already in your .env)",
+            [
+                (DISCORD_KEYS["enabled"], _one_or_zero(discord["enabled"])),
+                (DISCORD_KEYS["owner_id"], discord["owner_id"]),
+                (DISCORD_KEYS["mode"], discord["mode"]),
+                (DISCORD_KEYS["language"], discord["language"]),
+                (DISCORD_KEYS["request_role_id"], discord["request_role_id"]),
+                (DISCORD_KEYS["guild_id"], discord["guild_id"]),
+                (DISCORD_KEYS["announce_channel_id"], discord["announce_channel_id"]),
+            ],
+        ),
+    ]
+
+
+def _one_or_zero(state):
+    return "1" if state else "0"
+
+
+def _env_value(value):
+    """Quote the way the shipped .env.example does, only where it is needed."""
+    value = "" if value is None else str(value)
+    if value and value[0] in "\"'" and value[-1] == value[0]:
+        return value
+    return f'"{value}"' if any(ch in value for ch in ' \t#') else value
+
+
+def export_env():
+    """The running settings as the text of a .env file."""
+    lines = [
+        "# AniWorld Downloader settings, exported from the web UI.",
+        "#",
+        "# These are the values this instance is running with right now. Save the",
+        "# file as your .env, or copy the lines you want into the one you have, and",
+        "# they will be there again after a restart.",
+        "#",
+        "# Passwords and tokens are deliberately not in here: the Discord bot token,",
+        "# the OIDC client secret and any admin password stay where they are.",
+    ]
+    for heading, entries in _env_sections():
+        lines.append("")
+        lines.append(f"# ===== {heading} =====")
+        lines.extend(f"{key}={_env_value(value)}" for key, value in entries)
+    return "\n".join(lines) + "\n"
 
 
 # ---------------------------------------------------------------------------

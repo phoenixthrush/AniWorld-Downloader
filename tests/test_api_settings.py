@@ -397,3 +397,113 @@ def test_ping_reports_a_signed_in_user(auth_client):
     auth_client.post("/login", data={"username": "bob", "password": "hunter2hunter2"})
     body = auth_client.get("/api/ping").get_json()
     assert body["scope"] == "write", "a plain user is not an admin"
+
+
+# ---------------------------------------------------------------------------
+# Exporting the running settings
+#
+# Settings live in the environment and reset on a restart on purpose. This is
+# the way out for anyone who wants one to stick.
+# ---------------------------------------------------------------------------
+def test_the_settings_can_be_downloaded_as_an_env_file(client):
+    response = client.get("/api/settings/env")
+    assert response.status_code == 200
+    assert "attachment" in response.headers["Content-Disposition"]
+    assert "aniworld.env" in response.headers["Content-Disposition"]
+    assert response.mimetype == "text/plain"
+
+
+def test_the_export_holds_what_is_running(client):
+    client.put(
+        "/api/settings",
+        json={"enable_kinox": True, "ui_language": "de", "autosync_interval": "6h"},
+    )
+    body = client.get("/api/settings/env").get_data(as_text=True)
+    assert "ANIWORLD_ENABLE_KINOX=1" in body
+    assert "ANIWORLD_UI_LANGUAGE=de" in body
+    assert "ANIWORLD_AUTOSYNC_INTERVAL=6h" in body
+
+
+def test_the_export_covers_every_site(client):
+    from aniworld.web.media import SITE_KEYS
+
+    body = client.get("/api/settings/env").get_data(as_text=True)
+    for site in SITE_KEYS:
+        assert f"ANIWORLD_ENABLE_{site.upper()}=" in body, site
+
+
+def test_the_export_leaves_secrets_out(client, monkeypatch):
+    """It lands in a downloads folder, so nothing worth stealing goes in it."""
+    monkeypatch.setenv("ANIWORLD_DISCORD_TOKEN", "super-secret-token")
+    monkeypatch.setenv("ANIWORLD_OIDC_CLIENT_SECRET", "oidc-secret")
+    monkeypatch.setenv("ANIWORLD_WEB_ADMIN_PASS", "hunter2hunter2")
+
+    body = client.get("/api/settings/env").get_data(as_text=True)
+    for secret in ("super-secret-token", "oidc-secret", "hunter2hunter2"):
+        assert secret not in body
+    for key in (
+        "ANIWORLD_DISCORD_TOKEN",
+        "ANIWORLD_OIDC_CLIENT_SECRET",
+        "ANIWORLD_WEB_ADMIN_PASS",
+    ):
+        assert key not in body
+
+
+def test_the_export_reads_back_as_the_same_settings(client, tmp_path):
+    """A file that does not load back the way it was written is no use."""
+    from dotenv import dotenv_values
+
+    client.put(
+        "/api/settings",
+        json={
+            "autosync_mode": "cron",
+            "autosync_cron": "every monday and friday at 10pm",
+            "output_format": "mp4",
+            "enable_htv": True,
+            "enable_megakino": False,
+        },
+    )
+    written = tmp_path / ".env"
+    written.write_text(client.get("/api/settings/env").get_data(as_text=True))
+    loaded = dotenv_values(written)
+
+    assert loaded["ANIWORLD_AUTOSYNC_CRON"] == "0 22 * * 1,5", "quotes survive"
+    assert loaded["ANIWORLD_ENABLE_HTV"] == "1"
+    assert loaded["ANIWORLD_ENABLE_MEGAKINO"] == "0"
+    assert loaded["ANIWORLD_NAMING_TEMPLATE"].endswith(".mp4"), "spaces survive"
+    assert loaded["ANIWORLD_UI_LANGUAGE"] == "en"
+
+
+def test_the_export_needs_an_admin():
+    from aniworld.web.views import ADMIN_ENDPOINTS
+
+    assert "api.export_env" in ADMIN_ENDPOINTS
+
+
+def test_the_path_preview_follows_a_path_that_is_being_typed(client, tmp_path):
+    """The box under the field updates before anything is saved."""
+    typed = str(tmp_path / "nas")
+    body = client.get(
+        "/api/settings/path-preview", query_string={"download_path": typed}
+    ).get_json()
+    assert body["episode"].startswith(typed)
+    assert body["movie"].startswith(typed)
+
+
+def test_the_path_preview_changes_nothing(client, tmp_path):
+    before = settings_store.read_settings()["download_path"]
+    client.get(
+        "/api/settings/path-preview", query_string={"download_path": "/tmp/nope"}
+    )
+    assert settings_store.read_settings()["download_path"] == before
+
+
+def test_the_path_preview_falls_back_to_the_saved_path(client):
+    body = client.get("/api/settings/path-preview").get_json()
+    assert body["episode"].startswith(settings_store.read_settings()["download_path"])
+
+
+def test_the_path_preview_needs_an_admin():
+    from aniworld.web.views import ADMIN_ENDPOINTS
+
+    assert "api.path_preview" in ADMIN_ENDPOINTS

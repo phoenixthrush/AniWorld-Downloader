@@ -3,7 +3,7 @@
 {% block title %}Settings - AniWorld Downloader{% endblock %}
 
 {% block content %}
-<div class="container container-narrow">
+<div class="container container-settings">
   <h1 data-i18n="settings.title">Settings</h1>
 
   <div class="notice">
@@ -17,515 +17,766 @@
     </div>
   </div>
 
-  {% if auth_enabled %}
-  <section class="card">
-    <h2 data-i18n="settings.users">User Management</h2>
-    {% if not force_sso %}
-    <div class="inline-form">
-      <input type="text" id="newUsername" placeholder="Username" autocomplete="off" />
-      <input type="password" id="newPassword" placeholder="Password" autocomplete="new-password" />
-      <select id="newRole">
-        <option value="user">User</option>
-        <option value="admin">Admin</option>
-      </select>
-      <button class="btn btn-primary" id="addUserBtn" data-i18n="common.add">Add</button>
-    </div>
-    {% endif %}
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th data-i18n="settings.user">User</th>
-          <th data-i18n="settings.role">Role</th>
-          <th data-i18n="settings.auth">Auth</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="userTableBody"></tbody>
-    </table>
-  </section>
-  {% endif %}
+  <div class="settings-layout">
+    <nav class="settings-nav" id="settingsNav" role="tablist" aria-orientation="vertical"
+      aria-label="Settings sections">
+      <button class="settings-nav-item active" id="tab-downloads" data-pane="downloads" type="button"
+        role="tab" aria-controls="pane-downloads" aria-selected="true" tabindex="0">
+        <i class="settings-nav-icon fa-solid fa-download" aria-hidden="true"></i>
+        <span data-i18n="settings.nav.downloads">Downloads</span>
+      </button>
+      <button class="settings-nav-item" id="tab-library" data-pane="library" type="button"
+        role="tab" aria-controls="pane-library" aria-selected="false" tabindex="-1">
+        <i class="settings-nav-icon fa-solid fa-folder-open" aria-hidden="true"></i>
+        <span data-i18n="settings.nav.library">Library</span>
+      </button>
+      <button class="settings-nav-item" id="tab-sites" data-pane="sites" type="button"
+        role="tab" aria-controls="pane-sites" aria-selected="false" tabindex="-1">
+        <i class="settings-nav-icon fa-solid fa-globe" aria-hidden="true"></i>
+        <span data-i18n="settings.nav.sites">Sites</span>
+      </button>
+      <button class="settings-nav-item" id="tab-autosync" data-pane="autosync" type="button"
+        role="tab" aria-controls="pane-autosync" aria-selected="false" tabindex="-1">
+        <i class="settings-nav-icon fa-solid fa-sync" aria-hidden="true"></i>
+        <span data-i18n="settings.nav.autosync">Auto-Sync</span>
+      </button>
+      <button class="settings-nav-item" id="tab-appearance" data-pane="appearance" type="button"
+        role="tab" aria-controls="pane-appearance" aria-selected="false" tabindex="-1">
+        <i class="settings-nav-icon fa-solid fa-palette" aria-hidden="true"></i>
+        <span data-i18n="settings.nav.appearance">Appearance</span>
+      </button>
+      {% if auth_enabled %}
+      <button class="settings-nav-item" id="tab-users" data-pane="users" type="button"
+        role="tab" aria-controls="pane-users" aria-selected="false" tabindex="-1">
+        <i class="settings-nav-icon fa-solid fa-users" aria-hidden="true"></i>
+        <span data-i18n="settings.nav.users">Users</span>
+      </button>
+      {% endif %}
+      <button class="settings-nav-item" id="tab-api" data-pane="api" type="button"
+        role="tab" aria-controls="pane-api" aria-selected="false" tabindex="-1">
+        <i class="settings-nav-icon fa-solid fa-key" aria-hidden="true"></i>
+        <span data-i18n="settings.nav.api">API</span>
+      </button>
+      <button class="settings-nav-item" id="tab-integrations" data-pane="integrations" type="button"
+        role="tab" aria-controls="pane-integrations" aria-selected="false" tabindex="-1">
+        <i class="settings-nav-icon fa-solid fa-plug" aria-hidden="true"></i>
+        <span data-i18n="settings.nav.integrations">Integrations</span>
+      </button>
+      <button class="settings-nav-item" id="tab-administration" data-pane="administration" type="button"
+        role="tab" aria-controls="pane-administration" aria-selected="false" tabindex="-1">
+        <i class="settings-nav-icon fa-solid fa-toolbox" aria-hidden="true"></i>
+        <span data-i18n="settings.nav.administration">Administration</span>
+      </button>
+    </nav>
 
-  <section class="card">
-    <h2 data-i18n="settings.api_keys">API Keys</h2>
-    <p class="hint" data-i18n="settings.api_keys_hint">
-      Keys let scripts and other tools use the JSON API without logging in. Send the key as an X-API-Key header.
-      A key is only shown once, right after you create it.
-    </p>
-
-    {% if not auth_enabled %}
-    <div class="notice" data-i18n="settings.api_keys_open">
-      The web UI is running without login, so the API is already reachable by anyone who can open this page. Keys are
-      still checked when sent, but start the web UI with -wa if you want the API locked down.
-    </div>
-    {% endif %}
-
-    <div class="inline-form">
-      <input type="text" id="newKeyName" placeholder="Name (e.g. Homelab script)"
-        data-i18n-placeholder="settings.api_key_name" autocomplete="off" />
-      <select id="newKeyScope">
-        <option value="read" data-i18n="settings.scope_read">Read only</option>
-        <option value="write" selected data-i18n="settings.scope_write">Read and download</option>
-        <option value="admin" data-i18n="settings.scope_admin">Full access</option>
-      </select>
-      <select id="newKeyExpiry">
-        <option value="" data-i18n="settings.expiry_never">Never expires</option>
-        <option value="30" data-i18n="settings.expiry_30">30 days</option>
-        <option value="90" data-i18n="settings.expiry_90">90 days</option>
-        <option value="365" data-i18n="settings.expiry_365">1 year</option>
-      </select>
-      <button class="btn btn-primary" id="addKeyBtn" data-i18n="common.add">Add</button>
-    </div>
-
-    <div class="new-key" id="newKeyResult" hidden>
-      <div class="ip-label" data-i18n="settings.api_key_once">Copy this now, it is not shown again</div>
-      <div class="new-key-row">
-        <code id="newKeyValue"></code>
-        <button class="btn btn-secondary" id="copyKeyBtn" data-i18n="settings.copy">Copy</button>
-      </div>
-    </div>
-
-    <div class="api-scroll">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th data-i18n="settings.name">Name</th>
-            <th data-i18n="settings.api_key_prefix">Key</th>
-            <th data-i18n="settings.api_key_scope">Access</th>
-            <th data-i18n="settings.api_key_last_used">Last used</th>
-            <th data-i18n="settings.api_key_expires">Expires</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="apiKeysBody"></tbody>
-      </table>
-    </div>
-
-    <details class="api-docs">
-      <summary data-i18n="settings.api_docs">Endpoints and examples</summary>
-
-      <p class="hint" data-i18n="settings.api_docs_hint">
-        Every write needs a Content-Type of application/json. Read keys may call anything in the read column, write
-        keys everything up to downloads, full access keys everything.
-      </p>
-
-      <div class="api-scroll">
-      <table class="data-table api-endpoints">
-        <thead>
-          <tr>
-            <th data-i18n="settings.api_endpoint">Endpoint</th>
-            <th data-i18n="settings.api_needs">Needs</th>
-            <th data-i18n="settings.api_what">What it does</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td><code>GET /api/ping</code></td><td>read</td>
-            <td data-i18n="settings.api_ping">Check the key and see its access level</td></tr>
-          <tr><td><code>POST /api/search</code></td><td>read</td>
-            <td data-i18n="settings.api_search">Search a site, body: keyword, site</td></tr>
-          <tr><td><code>GET /api/series?url=</code></td><td>read</td>
-            <td data-i18n="settings.api_series">Title, poster, description and genres</td></tr>
-          <tr><td><code>GET /api/seasons?url=</code></td><td>read</td>
-            <td data-i18n="settings.api_seasons">Seasons of a series</td></tr>
-          <tr><td><code>GET /api/episodes?url=</code></td><td>read</td>
-            <td data-i18n="settings.api_episodes">Episodes of a season, with languages</td></tr>
-          <tr><td><code>GET /api/providers?url=</code></td><td>read</td>
-            <td data-i18n="settings.api_providers">Hosters available per language</td></tr>
-          <tr><td><code>GET /api/queue</code></td><td>read</td>
-            <td data-i18n="settings.api_queue">The queue with live progress</td></tr>
-          <tr><td><code>GET /api/queue?limit=&amp;offset=&amp;status=&amp;q=&amp;sort=</code></td><td>read</td>
-            <td data-i18n="settings.api_queue_page">One page of the queue with totals and counts. Paged rows leave
-              out <code>episodes</code>. status: queued, running, completed, failed, cancelled, active, finished.
-              sort: smart, newest, oldest, title</td></tr>
-          <tr><td><code>GET /api/queue/counts</code></td><td>read</td>
-            <td data-i18n="settings.api_queue_counts">How many items sit in each status</td></tr>
-          <tr><td><code>POST /api/download</code></td><td>write</td>
-            <td data-i18n="settings.api_download">Queue episodes, see the example below</td></tr>
-          <tr><td><code>POST /api/queue/&lt;id&gt;/cancel</code></td><td>write</td>
-            <td data-i18n="settings.api_cancel">Cancel a queued or running item</td></tr>
-          <tr><td><code>POST /api/queue/&lt;id&gt;/retry</code></td><td>write</td>
-            <td data-i18n="settings.api_retry">Retry a failed item</td></tr>
-          <tr><td><code>DELETE /api/queue/&lt;id&gt;</code></td><td>write</td>
-            <td data-i18n="settings.api_remove">Remove an item from the queue</td></tr>
-          <tr><td><code>DELETE /api/queue/completed</code></td><td>write</td>
-            <td data-i18n="settings.api_clear">Clear finished items</td></tr>
-          <tr><td><code>GET /api/library/locations</code></td><td>read</td>
-            <td data-i18n="settings.api_lib_locations">Download folders that exist</td></tr>
-          <tr><td><code>GET /api/library/titles</code></td><td>read</td>
-            <td data-i18n="settings.api_lib_titles">Titles in one location</td></tr>
-          <tr><td><code>GET /api/library/title?folder=</code></td><td>read</td>
-            <td data-i18n="settings.api_lib_title">Files of a single title</td></tr>
-          <tr><td><code>POST /api/library/delete</code></td><td>full</td>
-            <td data-i18n="settings.api_lib_delete">Delete a title, season or episode</td></tr>
-          <tr><td><code>GET /api/autosync/status</code></td><td>full</td>
-            <td data-i18n="settings.api_sync_status">Last run and its report</td></tr>
-          <tr><td><code>POST /api/autosync/run</code></td><td>full</td>
-            <td data-i18n="settings.api_sync_run">Start a sync right now</td></tr>
-          <tr><td><code>GET /api/settings</code></td><td>full</td>
-            <td data-i18n="settings.api_settings">Read the current settings</td></tr>
-        </tbody>
-      </table>
-      </div>
-
-      <h3 data-i18n="settings.api_example_queue">Read the queue</h3>
-      <pre class="api-example"><code>curl -H "X-API-Key: awd_yourkey" \
-  http://localhost:8080/api/queue</code></pre>
-
-      <h3 data-i18n="settings.api_example_download">Start a download</h3>
-      <pre class="api-example"><code>curl -X POST http://localhost:8080/api/download \
-  -H "X-API-Key: awd_yourkey" \
-  -H "Content-Type: application/json" \
-  -d '{
-        "title": "Naruto",
-        "series_url": "https://aniworld.to/anime/stream/naruto",
-        "language": "German Dub",
-        "provider": "VOE",
-        "episodes": [
-          "https://aniworld.to/anime/stream/naruto/staffel-1/episode-1"
-        ]
-      }'</code></pre>
-      <p class="hint" data-i18n="settings.api_example_hint">
-        The episode URLs come from /api/episodes, and /api/providers tells you which hosters carry the language you
-        want. Add "custom_path_id" to send a download to one of your custom paths.
-      </p>
-    </details>
-  </section>
-
-  <section class="card">
-    <h2 data-i18n="settings.custom_paths">Custom Paths</h2>
-    <p class="hint" data-i18n="settings.custom_paths_hint">
-      Give a folder a name and pick it as the download target from the download dialog.
-    </p>
-    <div class="inline-form">
-      <input type="text" id="newPathName" placeholder="Name (e.g. NAS)" />
-      <input type="text" id="newPathValue" placeholder="/mnt/nas/anime" />
-      <button class="btn btn-primary" id="addPathBtn" data-i18n="common.add">Add</button>
-    </div>
-    <table class="data-table stacked-table">
-      <thead>
-        <tr>
-          <th data-i18n="settings.name">Name</th>
-          <th data-i18n="settings.path">Path</th>
-          <th data-i18n="settings.default_for">Default for sites</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="customPathsBody"></tbody>
-    </table>
-    <p class="hint" data-i18n="settings.default_for_hint">
-      Tick the sites a path should be the pre-selected download folder for.
-    </p>
-  </section>
-
-  <section class="card">
-    <div class="card-head">
-      <h2 data-i18n="settings.defaults">Defaults</h2>
-      <span class="reset-badge" data-i18n="settings.resets">resets after restart</span>
-    </div>
-
-    <h3 data-i18n="settings.download_path">Download Path</h3>
-    <div class="inline-form">
-      <input type="text" id="downloadPath" placeholder="/path/to/downloads" />
-      <button class="btn btn-primary" id="saveDownloadPathBtn" data-i18n="common.save">Save</button>
-    </div>
-    <p class="hint" data-i18n="settings.download_path_hint">Applies to new downloads immediately.</p>
-
-    <h3 data-i18n="settings.provider_fallback">Provider Fallback Order</h3>
-    <div id="providerOrder" class="provider-order" role="list"></div>
-    <p class="hint" data-i18n="settings.provider_fallback_hint">
-      Drag a provider to reorder it. The selected provider is always tried first. If it fails, downloads fall back
-      through this order.
-    </p>
-
-    <label class="checkbox">
-      <input type="checkbox" id="langSeparation" data-setting="lang_separation" />
-      <span data-i18n="settings.lang_separation">Separate languages into folders</span>
-    </label>
-    <p class="hint" data-i18n="settings.lang_separation_hint">
-      Downloads are sorted into subfolders per language (german-dub/, english-sub/, ...).
-    </p>
-
-    <label class="checkbox">
-      <input type="checkbox" id="disableEnglishSub" data-setting="disable_english_sub" />
-      <span data-i18n="settings.disable_english_sub">Disable English Sub downloads</span>
-    </label>
-    <p class="hint" data-i18n="settings.disable_english_sub_hint">
-      English Sub is hidden from the language selector and cannot be downloaded.
-    </p>
-
-    <label class="checkbox">
-      <input type="checkbox" id="enableHtv" data-setting="enable_htv" data-reload="1" />
-      <span data-i18n="settings.enable_htv">Enable Hanime tab</span>
-    </label>
-    <p class="hint" data-i18n="settings.enable_htv_hint">Shows the Hanime tab on the home page.</p>
-
-    <label class="checkbox">
-      <input type="checkbox" id="enableBurningSeries" data-setting="enable_burningseries" data-reload="1" />
-      <span data-i18n="settings.enable_burningseries">Enable BurningSeries tab</span>
-    </label>
-    <p class="hint" data-i18n="settings.enable_burningseries_hint">
-      Off by default: the site is geo-blocked and behind Google reCAPTCHA, which we cannot solve for you. Turn it on
-      only if you can reach it yourself.
-    </p>
-
-    <label class="checkbox">
-      <input type="checkbox" id="enableKinox" data-setting="enable_kinox" data-reload="1" />
-      <span data-i18n="settings.enable_kinox">Enable Kinox tab</span>
-    </label>
-    <p class="hint" data-i18n="settings.enable_kinox_hint">
-      Off by default: Kinox asks for a captcha on every single download, which you have to solve by hand each time.
-    </p>
-
-    <label class="checkbox">
-      <input type="checkbox" id="enableLibrary" data-setting="enable_library" data-reload="1" />
-      <span data-i18n="settings.enable_library">Enable Library</span>
-    </label>
-    <p class="hint" data-i18n="settings.enable_library_hint">
-      Shows the Library tab for browsing and deleting downloaded files.
-    </p>
-
-    <label class="checkbox">
-      <input type="checkbox" id="enableAutosync" data-setting="enable_autosync" data-reload="1" />
-      <span data-i18n="settings.enable_autosync">Enable Auto-Sync</span>
-    </label>
-    <p class="hint" data-i18n="settings.enable_autosync_hint">
-      Checks the newest aniworld.to episodes on a schedule and downloads what is missing for series you already have.
-      Adds an admin-only Auto-Sync tab.
-    </p>
-
-    <label class="checkbox">
-      <input type="checkbox" id="autosyncNewOnly" data-setting="autosync_new_only" />
-      <span data-i18n="settings.autosync_new_only">Auto-Sync: only the new episodes</span>
-    </label>
-    <p class="hint" data-i18n="settings.autosync_new_only_hint">
-      Queue only the episodes that just came out instead of filling in every episode of the series you are missing.
-      Use this if you leave gaps on purpose.
-    </p>
-
-    <h3 data-i18n="settings.autosync_schedule">Auto-Sync Schedule</h3>
-    <div class="control-row">
-      <label class="field">
-        <span class="field-label" data-i18n="settings.autosync_mode">When it runs</span>
-        <select id="autosyncMode">
-          <option value="interval" data-i18n="settings.autosync_mode_interval">Every so often</option>
-          <option value="cron" data-i18n="settings.autosync_mode_cron">At fixed times</option>
-        </select>
-      </label>
-    </div>
-
-    <div id="autosyncIntervalRow">
-      <div class="control-row">
-        <label class="field field-compact">
-          <span class="field-label" data-i18n="settings.autosync_every">Run every</span>
-          <div class="interval-input">
-            <input type="number" id="autosyncIntervalValue" min="1" step="1" />
-            <select id="autosyncIntervalUnit">
-              <option value="m" data-i18n="settings.unit_minutes">minutes</option>
-              <option value="h" data-i18n="settings.unit_hours">hours</option>
-            </select>
+    <div class="settings-panes">
+      {# Open by default: without the script this page would be blank #}
+      <section class="settings-pane" id="pane-downloads" role="tabpanel"
+        aria-labelledby="tab-downloads" tabindex="-1">
+        <section class="card">
+          <div class="card-head">
+            <h2 data-i18n="settings.downloads">Downloads</h2>
+            <span class="reset-badge" data-i18n="settings.resets">resets after restart</span>
           </div>
-        </label>
-      </div>
-      <p class="hint" data-i18n="settings.autosync_interval_hint">
-        Counted from the last run. Five minutes is the shortest it will take.
-      </p>
+          <h3 data-i18n="settings.download_path">Download Path</h3>
+          <div class="inline-form">
+            <input type="text" id="downloadPath" placeholder="/path/to/downloads" />
+            <button class="btn btn-primary" id="saveDownloadPathBtn" data-i18n="common.save">Save</button>
+          </div>
+          <p class="hint" data-i18n="settings.download_path_hint">Applies to new downloads immediately.</p>
+
+          <div class="path-preview" id="pathPreview">
+            <div class="path-preview-row">
+              <span class="path-preview-label" data-i18n="settings.preview_episode">Episode</span>
+              <code id="previewEpisode"></code>
+            </div>
+            <div class="path-preview-row">
+              <span class="path-preview-label" data-i18n="settings.preview_movie">Movie</span>
+              <code id="previewMovie"></code>
+            </div>
+          </div>
+          <p class="hint schedule-summary invalid" id="pathPreviewError" hidden></p>
+          <p class="hint" data-i18n="settings.preview_hint">
+            Where a download ends up, the path above and the naming template from your .env put together.
+            Movies do not use the template beyond its file extension.
+          </p>
+
+          <h3 data-i18n="settings.provider_fallback">Provider Fallback Order</h3>
+          <div id="providerOrder" class="provider-order" role="list"></div>
+          <p class="hint" data-i18n="settings.provider_fallback_hint">
+            Drag a provider to reorder it. The selected provider is always tried first. If it fails, downloads fall back
+            through this order.
+          </p>
+
+          <h3 data-i18n="settings.output_format">Output Format</h3>
+          <div class="control-row">
+            <label class="field field-compact">
+              <select id="outputFormat">
+                <option value="mkv">MKV</option>
+                <option value="mp4">MP4</option>
+              </select>
+            </label>
+          </div>
+          <p class="hint" data-i18n="settings.output_format_hint">
+            Container for downloaded files. MP4 is the most compatible with players and Plex.
+          </p>
+
+          <label class="checkbox">
+            <input type="checkbox" id="langSeparation" data-setting="lang_separation" />
+            <span data-i18n="settings.lang_separation">Separate languages into folders</span>
+          </label>
+          <p class="hint" data-i18n="settings.lang_separation_hint">
+            Downloads are sorted into subfolders per language (german-dub/, english-sub/, ...).
+          </p>
+
+          <label class="checkbox">
+            <input type="checkbox" id="disableEnglishSub" data-setting="disable_english_sub" />
+            <span data-i18n="settings.disable_english_sub">Disable English Sub downloads</span>
+          </label>
+          <p class="hint" data-i18n="settings.disable_english_sub_hint">
+            English Sub is hidden from the language selector and cannot be downloaded.
+          </p>
+
+          <label class="checkbox">
+            <input type="checkbox" id="movieFolder" data-setting="movie_folder" />
+            <span data-i18n="settings.movie_folder">Wrap movies in their own folder</span>
+          </label>
+          <p class="hint" data-i18n="settings.movie_folder_hint">
+            When off, a movie is saved straight into the download path instead of a "Title (Year)" folder.
+          </p>
+        </section>
+      </section>
+
+      <section class="settings-pane" id="pane-library" role="tabpanel"
+        aria-labelledby="tab-library" tabindex="-1" hidden>
+        <section class="card">
+          <div class="card-head">
+            <h2 data-i18n="settings.library">Library</h2>
+            <span class="reset-badge" data-i18n="settings.resets">resets after restart</span>
+          </div>
+          <label class="checkbox">
+            <input type="checkbox" id="enableLibrary" data-setting="enable_library" data-reload="1" />
+            <span data-i18n="settings.enable_library">Enable Library</span>
+          </label>
+          <p class="hint" data-i18n="settings.enable_library_hint">
+            Shows the Library tab for browsing and deleting downloaded files.
+          </p>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="settings.custom_paths">Custom Paths</h2>
+          <p class="hint" data-i18n="settings.custom_paths_hint">
+            Give a folder a name and pick it as the download target from the download dialog.
+          </p>
+          <div class="inline-form">
+            <input type="text" id="newPathName" placeholder="Name (e.g. NAS)" />
+            <input type="text" id="newPathValue" placeholder="/mnt/nas/anime" />
+            <button class="btn btn-primary" id="addPathBtn" data-i18n="common.add">Add</button>
+          </div>
+          <table class="data-table stacked-table">
+            <thead>
+              <tr>
+                <th data-i18n="settings.name">Name</th>
+                <th data-i18n="settings.path">Path</th>
+                <th data-i18n="settings.default_for">Default for sites</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="customPathsBody"></tbody>
+          </table>
+          <p class="hint" data-i18n="settings.default_for_hint">
+            Tick the sites a path should be the pre-selected download folder for.
+          </p>
+        </section>
+      </section>
+
+      <section class="settings-pane" id="pane-sites" role="tabpanel"
+        aria-labelledby="tab-sites" tabindex="-1" hidden>
+        <section class="card">
+          <div class="card-head">
+            <h2 data-i18n="settings.sites">Sites</h2>
+            <span class="reset-badge" data-i18n="settings.resets">resets after restart</span>
+          </div>
+          <p class="hint" data-i18n="settings.sites_hint">
+            Every site you switch off loses its tab on the home page, along with the rows it fills
+            there. Nothing you have already downloaded is touched.
+          </p>
+
+          <div class="site-grid">
+            <label class="site-row">
+              <span class="site-row-text">
+                <span class="site-row-top">
+                  <span class="site-row-name">AniWorld</span>
+                  <span class="site-row-kind" data-i18n="settings.kind.anime">Anime</span>
+                </span>
+                <span class="site-row-hint" data-i18n="settings.enable_aniworld_hint">
+                  Anime and anime movies. One of the two sites this app is built around.
+                </span>
+              </span>
+              <input type="checkbox" class="site-switch" id="enableAniWorld"
+                data-setting="enable_aniworld" data-reload="1" role="switch"
+                aria-label="AniWorld" />
+            </label>
+            <label class="site-row">
+              <span class="site-row-text">
+                <span class="site-row-top">
+                  <span class="site-row-name">SerienStream</span>
+                  <span class="site-row-kind" data-i18n="settings.kind.series">Series</span>
+                </span>
+                <span class="site-row-hint" data-i18n="settings.enable_sto_hint">
+                  Series. The other site this app is built around.
+                </span>
+              </span>
+              <input type="checkbox" class="site-switch" id="enableSerienStream"
+                data-setting="enable_sto" data-reload="1" role="switch"
+                aria-label="SerienStream" />
+            </label>
+            <label class="site-row">
+              <span class="site-row-text">
+                <span class="site-row-top">
+                  <span class="site-row-name">BurningSeries</span>
+                  <span class="site-row-kind" data-i18n="settings.kind.series">Series</span>
+                </span>
+                <span class="site-row-hint" data-i18n="settings.enable_burningseries_hint">
+                  Series. Off by default: getting in depends on your region, and a Google reCAPTCHA we
+                  cannot solve for you stands in front of it.
+                </span>
+              </span>
+              <input type="checkbox" class="site-switch" id="enableBurningSeries"
+                data-setting="enable_burningseries" data-reload="1" role="switch"
+                aria-label="BurningSeries" />
+            </label>
+            <label class="site-row">
+              <span class="site-row-text">
+                <span class="site-row-top">
+                  <span class="site-row-name">MegaKino</span>
+                  <span class="site-row-kind" data-i18n="settings.kind.mixed">Movies & series</span>
+                </span>
+                <span class="site-row-hint" data-i18n="settings.enable_megakino_hint">
+                  Movies and series, in German.
+                </span>
+              </span>
+              <input type="checkbox" class="site-switch" id="enableMegaKino"
+                data-setting="enable_megakino" data-reload="1" role="switch"
+                aria-label="MegaKino" />
+            </label>
+            <label class="site-row">
+              <span class="site-row-text">
+                <span class="site-row-top">
+                  <span class="site-row-name">Cineby</span>
+                  <span class="site-row-kind" data-i18n="settings.kind.mixed">Movies & series</span>
+                </span>
+                <span class="site-row-hint" data-i18n="settings.enable_cineby_hint">
+                  Movies and series. German tracks are not always reliable there.
+                </span>
+              </span>
+              <input type="checkbox" class="site-switch" id="enableCineby"
+                data-setting="enable_cineby" data-reload="1" role="switch"
+                aria-label="Cineby" />
+            </label>
+            <label class="site-row">
+              <span class="site-row-text">
+                <span class="site-row-top">
+                  <span class="site-row-name">Kinox</span>
+                  <span class="site-row-kind" data-i18n="settings.kind.mixed">Movies & series</span>
+                </span>
+                <span class="site-row-hint" data-i18n="settings.enable_kinox_hint">
+                  Movies and series. Off by default: a download almost always asks for a captcha you have to
+                  solve by hand.
+                </span>
+              </span>
+              <input type="checkbox" class="site-switch" id="enableKinox"
+                data-setting="enable_kinox" data-reload="1" role="switch"
+                aria-label="Kinox" />
+            </label>
+            <label class="site-row">
+              <span class="site-row-text">
+                <span class="site-row-top">
+                  <span class="site-row-name">FilmPalast</span>
+                  <span class="site-row-kind" data-i18n="settings.kind.movies">Movies</span>
+                </span>
+                <span class="site-row-hint" data-i18n="settings.enable_filmpalast_hint">
+                  Movies, in German.
+                </span>
+              </span>
+              <input type="checkbox" class="site-switch" id="enableFilmPalast"
+                data-setting="enable_filmpalast" data-reload="1" role="switch"
+                aria-label="FilmPalast" />
+            </label>
+            <label class="site-row">
+              <span class="site-row-text">
+                <span class="site-row-top">
+                  <span class="site-row-name">Hanime</span>
+                  <span class="site-row-kind" data-i18n="settings.kind.adult">Adult</span>
+                </span>
+                <span class="site-row-hint" data-i18n="settings.enable_htv_hint">
+                  Adult animation. Off by default.
+                </span>
+              </span>
+              <input type="checkbox" class="site-switch" id="enableHanime"
+                data-setting="enable_htv" data-reload="1" role="switch"
+                aria-label="Hanime" />
+            </label>
+            <label class="site-row">
+              <span class="site-row-text">
+                <span class="site-row-top">
+                  <span class="site-row-name">MangaFire</span>
+                  <span class="site-row-kind" data-i18n="settings.kind.manga">Manga</span>
+                </span>
+                <span class="site-row-hint" data-i18n="settings.enable_mangafire_hint">
+                  Manga, saved as loose images or as one CBZ archive per chapter.
+                </span>
+              </span>
+              <input type="checkbox" class="site-switch" id="enableMangaFire"
+                data-setting="enable_mangafire" data-reload="1" role="switch"
+                aria-label="MangaFire" />
+            </label>
+          </div>
+        </section>
+      </section>
+
+      <section class="settings-pane" id="pane-autosync" role="tabpanel"
+        aria-labelledby="tab-autosync" tabindex="-1" hidden>
+        <section class="card">
+          <div class="card-head">
+            <h2 data-i18n="settings.autosync">Auto-Sync</h2>
+            <span class="reset-badge" data-i18n="settings.resets">resets after restart</span>
+          </div>
+          <label class="checkbox">
+            <input type="checkbox" id="enableAutosync" data-setting="enable_autosync" data-reload="1" />
+            <span data-i18n="settings.enable_autosync">Enable Auto-Sync</span>
+          </label>
+          <p class="hint" data-i18n="settings.enable_autosync_hint">
+            Checks the newest aniworld.to episodes on a schedule and downloads what is missing for series you already have.
+            Adds an admin-only Auto-Sync tab.
+          </p>
+
+          <label class="checkbox">
+            <input type="checkbox" id="autosyncNewOnly" data-setting="autosync_new_only" />
+            <span data-i18n="settings.autosync_new_only">Auto-Sync: only the new episodes</span>
+          </label>
+          <p class="hint" data-i18n="settings.autosync_new_only_hint">
+            Queue only the episodes that just came out instead of filling in every episode of the series you are missing.
+            Use this if you leave gaps on purpose.
+          </p>
+
+          <h3 data-i18n="settings.autosync_schedule">Auto-Sync Schedule</h3>
+          <div class="control-row">
+            <label class="field">
+              <span class="field-label" data-i18n="settings.autosync_mode">When it runs</span>
+              <select id="autosyncMode">
+                <option value="interval" data-i18n="settings.autosync_mode_interval">Every so often</option>
+                <option value="cron" data-i18n="settings.autosync_mode_cron">At fixed times</option>
+              </select>
+            </label>
+          </div>
+
+          <div id="autosyncIntervalRow">
+            <div class="control-row">
+              <label class="field field-compact">
+                <span class="field-label" data-i18n="settings.autosync_every">Run every</span>
+                <div class="interval-input">
+                  <input type="number" id="autosyncIntervalValue" min="1" step="1" />
+                  <select id="autosyncIntervalUnit">
+                    <option value="m" data-i18n="settings.unit_minutes">minutes</option>
+                    <option value="h" data-i18n="settings.unit_hours">hours</option>
+                  </select>
+                </div>
+              </label>
+            </div>
+            <p class="hint" data-i18n="settings.autosync_interval_hint">
+              Counted from the last run. Five minutes is the shortest it will take.
+            </p>
+          </div>
+
+          <div id="autosyncCronRow" hidden>
+            <div class="day-picker" id="autosyncDays"></div>
+            <div class="inline-form">
+              <input type="text" id="autosyncTimes" placeholder="22:00"
+                data-i18n-placeholder="settings.autosync_times_placeholder" />
+            </div>
+            <p class="hint" data-i18n="settings.autosync_times_hint">
+              One or more times, separated by commas: "22:00" or "8am, 8pm". With no day ticked it runs every day.
+            </p>
+
+            <details class="advanced" id="autosyncCronDetails">
+              <summary data-i18n="settings.autosync_cron_advanced">Type it out instead</summary>
+              <div class="inline-form">
+                <input type="text" id="autosyncCron" placeholder="every monday and friday at 10pm"
+                  data-i18n-placeholder="settings.autosync_cron_placeholder" />
+              </div>
+              <p class="hint" data-i18n="settings.autosync_cron_hint">
+                A cron expression ("0 22 * * 1,5"), or plain language ("every monday and friday at 10pm").
+                Several lines separated by ";" all run.
+              </p>
+            </details>
+          </div>
+
+          <div class="action-row">
+            <button class="btn btn-primary" id="saveAutosyncScheduleBtn" data-i18n="common.save">Save</button>
+            <span class="hint schedule-summary" id="autosyncScheduleSummary"></span>
+          </div>
+        </section>
+      </section>
+
+      <section class="settings-pane" id="pane-appearance" role="tabpanel"
+        aria-labelledby="tab-appearance" tabindex="-1" hidden>
+        <section class="card">
+          <div class="card-head">
+            <h2 data-i18n="settings.language">Language</h2>
+            <span class="reset-badge" data-i18n="settings.resets">resets after restart</span>
+          </div>
+          <div class="control-row">
+            <label class="field field-compact">
+              <span class="field-label" data-i18n="settings.ui_language">Interface Language</span>
+              <select id="uiLanguage">
+                <option value="en">English</option>
+                <option value="de">Deutsch</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="settings.appearance">Appearance</h2>
+          <p class="hint" data-i18n="settings.custom_css_hint">
+            Custom CSS applied for everyone on this instance. Write your own rules, or pull in a
+            theme with a single import line. The sign-in screen is never themed.
+          </p>
+          {# The link sits outside the span, since data-i18n overwrites textContent. #}
+          <p class="hint">
+            <span data-i18n="settings.css_themes_hint">Ready made themes live in their own repositories, for example</span>
+            <a href="https://github.com/SiroxCW/aniworld-themes" target="_blank" rel="noopener noreferrer">
+              SiroxCW/aniworld-themes</a>.
+          </p>
+          <textarea id="customCss" class="code-input" rows="14" spellcheck="false"
+            autocomplete="off" autocapitalize="off"
+            placeholder="@import url('https://cdn.jsdelivr.net/gh/user/repo@main/theme.css');"></textarea>
+          <div class="notice css-warning" id="cssWarning" hidden></div>
+          <div class="action-row">
+            <button class="btn btn-primary" id="saveCssBtn" data-i18n="common.save">Save</button>
+            <button class="btn btn-secondary" id="resetCssBtn" data-i18n="settings.css_clear">Clear</button>
+            <span class="hint" id="cssSize"></span>
+          </div>
+          <p class="hint" data-i18n="settings.css_recover">
+            Broke the layout? Open /settings?nocss=1 to load this page without custom CSS.
+          </p>
+          <p class="hint" data-i18n="settings.css_import_hint">
+            An imported theme is fetched by each visitor's browser, so the host it sits on sees
+            their IP and can change the theme at any time. Only import URLs you trust.
+          </p>
+
+          <h3 data-i18n="settings.shader">Background shader</h3>
+          <p class="hint" data-i18n="settings.shader_hint">
+            A GLSL fragment shader painted behind the whole page. Write the body of main() and
+            set fragColor. Available: u_resolution, u_time, and fragColor.
+          </p>
+          <textarea id="customShader" class="code-input code-input-short" rows="10" spellcheck="false"
+            autocomplete="off" autocapitalize="off"
+            placeholder="void main() {&#10;  vec2 uv = gl_FragCoord.xy / u_resolution;&#10;  fragColor = vec4(uv.x, uv.y, abs(sin(u_time)), 1.0);&#10;}"></textarea>
+          <div class="notice css-warning" id="shaderError" hidden></div>
+          <div class="action-row">
+            <button class="btn btn-primary" id="saveShaderBtn" data-i18n="common.save">Save</button>
+            <button class="btn btn-secondary" id="clearShaderBtn" data-i18n="settings.css_clear">Clear</button>
+            <span class="hint" id="shaderStatus"></span>
+          </div>
+          <p class="hint" data-i18n="settings.shader_safety">
+            Shaders run on the GPU and cannot reach your files, cookies or network. They are
+            checked in your browser before saving, paused when the tab is hidden, and skipped
+            entirely with /settings?nocss=1.
+          </p>
+        </section>
+      </section>
+
+      {% if auth_enabled %}
+      <section class="settings-pane" id="pane-users" role="tabpanel"
+        aria-labelledby="tab-users" tabindex="-1" hidden>
+        <section class="card">
+          <h2 data-i18n="settings.users">User Management</h2>
+          {% if not force_sso %}
+          <div class="inline-form">
+            <input type="text" id="newUsername" placeholder="Username" autocomplete="off" />
+            <input type="password" id="newPassword" placeholder="Password" autocomplete="new-password" />
+            <select id="newRole">
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+            <button class="btn btn-primary" id="addUserBtn" data-i18n="common.add">Add</button>
+          </div>
+          {% endif %}
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th data-i18n="settings.user">User</th>
+                <th data-i18n="settings.role">Role</th>
+                <th data-i18n="settings.auth">Auth</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="userTableBody"></tbody>
+          </table>
+        </section>
+      </section>
+      {% endif %}
+
+      <section class="settings-pane" id="pane-api" role="tabpanel"
+        aria-labelledby="tab-api" tabindex="-1" hidden>
+        <section class="card">
+          <h2 data-i18n="settings.api_keys">API Keys</h2>
+          <p class="hint" data-i18n="settings.api_keys_hint">
+            Keys let scripts and other tools use the JSON API without logging in. Send the key as an X-API-Key header.
+            A key is only shown once, right after you create it.
+          </p>
+
+          {% if not auth_enabled %}
+          <div class="notice" data-i18n="settings.api_keys_open">
+            The web UI is running without login, so the API is already reachable by anyone who can open this page. Keys are
+            still checked when sent, but start the web UI with -wa if you want the API locked down.
+          </div>
+          {% endif %}
+
+          <div class="inline-form">
+            <input type="text" id="newKeyName" placeholder="Name (e.g. Homelab script)"
+              data-i18n-placeholder="settings.api_key_name" autocomplete="off" />
+            <select id="newKeyScope">
+              <option value="read" data-i18n="settings.scope_read">Read only</option>
+              <option value="write" selected data-i18n="settings.scope_write">Read and download</option>
+              <option value="admin" data-i18n="settings.scope_admin">Full access</option>
+            </select>
+            <select id="newKeyExpiry">
+              <option value="" data-i18n="settings.expiry_never">Never expires</option>
+              <option value="30" data-i18n="settings.expiry_30">30 days</option>
+              <option value="90" data-i18n="settings.expiry_90">90 days</option>
+              <option value="365" data-i18n="settings.expiry_365">1 year</option>
+            </select>
+            <button class="btn btn-primary" id="addKeyBtn" data-i18n="common.add">Add</button>
+          </div>
+
+          <div class="new-key" id="newKeyResult" hidden>
+            <div class="ip-label" data-i18n="settings.api_key_once">Copy this now, it is not shown again</div>
+            <div class="new-key-row">
+              <code id="newKeyValue"></code>
+              <button class="btn btn-secondary" id="copyKeyBtn" data-i18n="settings.copy">Copy</button>
+            </div>
+          </div>
+
+          <div class="api-scroll">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th data-i18n="settings.name">Name</th>
+                  <th data-i18n="settings.api_key_prefix">Key</th>
+                  <th data-i18n="settings.api_key_scope">Access</th>
+                  <th data-i18n="settings.api_key_last_used">Last used</th>
+                  <th data-i18n="settings.api_key_expires">Expires</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="apiKeysBody"></tbody>
+            </table>
+          </div>
+
+          <details class="api-docs">
+            <summary data-i18n="settings.api_docs">Endpoints and examples</summary>
+
+            <p class="hint" data-i18n="settings.api_docs_hint">
+              Every write needs a Content-Type of application/json. Read keys may call anything in the read column, write
+              keys everything up to downloads, full access keys everything.
+            </p>
+
+            <div class="api-scroll">
+            <table class="data-table api-endpoints">
+              <thead>
+                <tr>
+                  <th data-i18n="settings.api_endpoint">Endpoint</th>
+                  <th data-i18n="settings.api_needs">Needs</th>
+                  <th data-i18n="settings.api_what">What it does</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td><code>GET /api/ping</code></td><td>read</td>
+                  <td data-i18n="settings.api_ping">Check the key and see its access level</td></tr>
+                <tr><td><code>POST /api/search</code></td><td>read</td>
+                  <td data-i18n="settings.api_search">Search a site, body: keyword, site</td></tr>
+                <tr><td><code>GET /api/series?url=</code></td><td>read</td>
+                  <td data-i18n="settings.api_series">Title, poster, description and genres</td></tr>
+                <tr><td><code>GET /api/seasons?url=</code></td><td>read</td>
+                  <td data-i18n="settings.api_seasons">Seasons of a series</td></tr>
+                <tr><td><code>GET /api/episodes?url=</code></td><td>read</td>
+                  <td data-i18n="settings.api_episodes">Episodes of a season, with languages</td></tr>
+                <tr><td><code>GET /api/providers?url=</code></td><td>read</td>
+                  <td data-i18n="settings.api_providers">Hosters available per language</td></tr>
+                <tr><td><code>GET /api/queue</code></td><td>read</td>
+                  <td data-i18n="settings.api_queue">The queue with live progress</td></tr>
+                <tr><td><code>GET /api/queue?limit=&amp;offset=&amp;status=&amp;q=&amp;sort=</code></td><td>read</td>
+                  <td data-i18n="settings.api_queue_page">One page of the queue with totals and counts. Paged rows leave
+                    out <code>episodes</code>. status: queued, running, completed, failed, cancelled, active, finished.
+                    sort: smart, newest, oldest, title</td></tr>
+                <tr><td><code>GET /api/queue/counts</code></td><td>read</td>
+                  <td data-i18n="settings.api_queue_counts">How many items sit in each status</td></tr>
+                <tr><td><code>POST /api/download</code></td><td>write</td>
+                  <td data-i18n="settings.api_download">Queue episodes, see the example below</td></tr>
+                <tr><td><code>POST /api/queue/&lt;id&gt;/cancel</code></td><td>write</td>
+                  <td data-i18n="settings.api_cancel">Cancel a queued or running item</td></tr>
+                <tr><td><code>POST /api/queue/&lt;id&gt;/retry</code></td><td>write</td>
+                  <td data-i18n="settings.api_retry">Retry a failed item</td></tr>
+                <tr><td><code>DELETE /api/queue/&lt;id&gt;</code></td><td>write</td>
+                  <td data-i18n="settings.api_remove">Remove an item from the queue</td></tr>
+                <tr><td><code>DELETE /api/queue/completed</code></td><td>write</td>
+                  <td data-i18n="settings.api_clear">Clear finished items</td></tr>
+                <tr><td><code>GET /api/library/locations</code></td><td>read</td>
+                  <td data-i18n="settings.api_lib_locations">Download folders that exist</td></tr>
+                <tr><td><code>GET /api/library/titles</code></td><td>read</td>
+                  <td data-i18n="settings.api_lib_titles">Titles in one location</td></tr>
+                <tr><td><code>GET /api/library/title?folder=</code></td><td>read</td>
+                  <td data-i18n="settings.api_lib_title">Files of a single title</td></tr>
+                <tr><td><code>POST /api/library/delete</code></td><td>full</td>
+                  <td data-i18n="settings.api_lib_delete">Delete a title, season or episode</td></tr>
+                <tr><td><code>GET /api/autosync/status</code></td><td>full</td>
+                  <td data-i18n="settings.api_sync_status">Last run and its report</td></tr>
+                <tr><td><code>POST /api/autosync/run</code></td><td>full</td>
+                  <td data-i18n="settings.api_sync_run">Start a sync right now</td></tr>
+                <tr><td><code>GET /api/settings</code></td><td>full</td>
+                  <td data-i18n="settings.api_settings">Read the current settings</td></tr>
+              </tbody>
+            </table>
+            </div>
+
+            <h3 data-i18n="settings.api_example_queue">Read the queue</h3>
+            <pre class="api-example"><code>curl -H "X-API-Key: awd_yourkey" \
+    http://localhost:8080/api/queue</code></pre>
+
+            <h3 data-i18n="settings.api_example_download">Start a download</h3>
+            <pre class="api-example"><code>curl -X POST http://localhost:8080/api/download \
+    -H "X-API-Key: awd_yourkey" \
+    -H "Content-Type: application/json" \
+    -d '{
+          "title": "Naruto",
+          "series_url": "https://aniworld.to/anime/stream/naruto",
+          "language": "German Dub",
+          "provider": "VOE",
+          "episodes": [
+            "https://aniworld.to/anime/stream/naruto/staffel-1/episode-1"
+          ]
+        }'</code></pre>
+            <p class="hint" data-i18n="settings.api_example_hint">
+              The episode URLs come from /api/episodes, and /api/providers tells you which hosters carry the language you
+              want. Add "custom_path_id" to send a download to one of your custom paths.
+            </p>
+          </details>
+        </section>
+      </section>
+
+      <section class="settings-pane" id="pane-integrations" role="tabpanel"
+        aria-labelledby="tab-integrations" tabindex="-1" hidden>
+        <section class="card">
+          <h2 data-i18n="settings.discord">Discord Request Bot</h2>
+          <label class="checkbox">
+            <input type="checkbox" id="discordEnabled" />
+            <span data-i18n="settings.discord.enable">Enable Discord bot</span>
+          </label>
+          <p class="hint" data-i18n="settings.discord.enable_hint">
+            Let users request movies and series from Discord. Requests are sent to you for approval.
+          </p>
+
+          <div class="control-row">
+            <label class="field">
+              <span class="field-label" data-i18n="settings.discord.token">Bot Token</span>
+              <input type="password" id="discordToken" autocomplete="new-password" />
+            </label>
+            <label class="field">
+              <span class="field-label" data-i18n="settings.discord.owner">Owner User ID</span>
+              <input type="text" id="discordOwner" placeholder="123456789012345678" />
+            </label>
+          </div>
+
+          <div class="control-row">
+            <label class="field">
+              <span class="field-label" data-i18n="settings.discord.mode">Mode</span>
+              <select id="discordMode">
+                <option value="standard" data-i18n="settings.discord.mode_standard">Standard (approve each request)</option>
+                <option value="advanced" data-i18n="settings.discord.mode_advanced">Advanced (queue immediately)</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label" data-i18n="settings.discord.language">Bot Language</span>
+              <select id="discordLanguage">
+                <option value="en">English</option>
+                <option value="de">Deutsch</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="control-row">
+            <label class="field">
+              <span class="field-label" data-i18n="settings.discord.role">Request Role ID (optional)</span>
+              <input type="text" id="discordRole" />
+            </label>
+            <label class="field">
+              <span class="field-label" data-i18n="settings.discord.guild">Server ID (optional)</span>
+              <input type="text" id="discordGuild" />
+            </label>
+          </div>
+
+          <div class="control-row">
+            <label class="field">
+              <span class="field-label" data-i18n="settings.discord.announce">Announce Channel ID (optional)</span>
+              <input type="text" id="discordAnnounce" />
+            </label>
+          </div>
+          <p class="hint" data-i18n="settings.discord.announce_hint">
+            The requester is always DM'd when a download finishes. With an announce channel set, a "now available" message
+            is posted there too.
+          </p>
+
+          <div class="action-row">
+            <button class="btn btn-primary" id="saveDiscordBtn" data-i18n="common.save">Save</button>
+            <span id="discordStatus" class="status-pill"></span>
+          </div>
+        </section>
+      </section>
+
+      <section class="settings-pane" id="pane-administration" role="tabpanel"
+        aria-labelledby="tab-administration" tabindex="-1" hidden>
+        <section class="card">
+          <h2 data-i18n="settings.export">Export settings</h2>
+          <p class="hint" data-i18n="settings.export_hint">
+            Most settings live in memory and go back to their defaults when AniWorld Downloader restarts.
+            This hands you a .env file holding what the instance is running right now, ready to save at the
+            path above so it comes back on its own.
+          </p>
+          <p class="hint" data-i18n="settings.export_secrets">
+            Passwords and tokens are left out on purpose: the Discord bot token, the OIDC client secret and
+            any admin password stay where they are.
+          </p>
+          <div class="action-row">
+            <a class="btn btn-primary" href="{{ url_for('api.export_env') }}">
+              <i class="fa-solid fa-file-export" aria-hidden="true"></i>
+              <span data-i18n="settings.export_button">Download .env</span>
+            </a>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="settings.ip">IP Check</h2>
+          <p class="hint" data-i18n="settings.ip_hint">
+            Check this after connecting or disconnecting a VPN to confirm the outbound IP is what you expect.
+          </p>
+          <div class="ip-card">
+            <div>
+              <div class="ip-label" data-i18n="settings.public_ip">Current public IP</div>
+              <div class="ip-value" id="publicIpValue" data-i18n="settings.ip_hidden">Hidden</div>
+              <div class="ip-meta" id="publicIpMeta" data-i18n="settings.ip_meta">
+                Nothing is requested until you press reveal.
+              </div>
+            </div>
+            <button class="btn btn-secondary" id="revealIpBtn" data-i18n="settings.reveal">Reveal</button>
+          </div>
+        </section>
+      </section>
     </div>
-
-    <div id="autosyncCronRow" hidden>
-      <div class="day-picker" id="autosyncDays"></div>
-      <div class="inline-form">
-        <input type="text" id="autosyncTimes" placeholder="22:00"
-          data-i18n-placeholder="settings.autosync_times_placeholder" />
-      </div>
-      <p class="hint" data-i18n="settings.autosync_times_hint">
-        One or more times, separated by commas: "22:00" or "8am, 8pm". With no day ticked it runs every day.
-      </p>
-
-      <details class="advanced" id="autosyncCronDetails">
-        <summary data-i18n="settings.autosync_cron_advanced">Type it out instead</summary>
-        <div class="inline-form">
-          <input type="text" id="autosyncCron" placeholder="every monday and friday at 10pm"
-            data-i18n-placeholder="settings.autosync_cron_placeholder" />
-        </div>
-        <p class="hint" data-i18n="settings.autosync_cron_hint">
-          A cron expression ("0 22 * * 1,5"), or plain language ("every monday and friday at 10pm").
-          Several lines separated by ";" all run.
-        </p>
-      </details>
-    </div>
-
-    <div class="action-row">
-      <button class="btn btn-primary" id="saveAutosyncScheduleBtn" data-i18n="common.save">Save</button>
-      <span class="hint schedule-summary" id="autosyncScheduleSummary"></span>
-    </div>
-  </section>
-
-  <section class="card">
-    <div class="card-head">
-      <h2 data-i18n="settings.interface">Interface</h2>
-      <span class="reset-badge" data-i18n="settings.resets">resets after restart</span>
-    </div>
-    <div class="control-row">
-      <label class="field">
-        <span class="field-label" data-i18n="settings.ui_language">Interface Language</span>
-        <select id="uiLanguage">
-          <option value="en">English</option>
-          <option value="de">Deutsch</option>
-        </select>
-      </label>
-      <label class="field">
-        <span class="field-label" data-i18n="settings.output_format">Output Format</span>
-        <select id="outputFormat">
-          <option value="mkv">MKV</option>
-          <option value="mp4">MP4</option>
-        </select>
-      </label>
-    </div>
-    <p class="hint" data-i18n="settings.output_format_hint">
-      Container for downloaded files. MP4 is the most compatible with players and Plex.
-    </p>
-
-    <label class="checkbox">
-      <input type="checkbox" id="movieFolder" data-setting="movie_folder" />
-      <span data-i18n="settings.movie_folder">Wrap movies in their own folder</span>
-    </label>
-    <p class="hint" data-i18n="settings.movie_folder_hint">
-      When off, a movie is saved straight into the download path instead of a "Title (Year)" folder.
-    </p>
-  </section>
-
-  <section class="card">
-    <h2 data-i18n="settings.appearance">Appearance</h2>
-    <p class="hint" data-i18n="settings.custom_css_hint">
-      Custom CSS applied for everyone on this instance. Write your own rules, or pull in a
-      theme with a single import line. The sign-in screen is never themed.
-    </p>
-    {# The link sits outside the span, since data-i18n overwrites textContent. #}
-    <p class="hint">
-      <span data-i18n="settings.css_themes_hint">Ready made themes live in their own repositories, for example</span>
-      <a href="https://github.com/SiroxCW/aniworld-themes" target="_blank" rel="noopener noreferrer">
-        SiroxCW/aniworld-themes</a>.
-    </p>
-    <textarea id="customCss" class="code-input" rows="14" spellcheck="false"
-      autocomplete="off" autocapitalize="off"
-      placeholder="@import url('https://cdn.jsdelivr.net/gh/user/repo@main/theme.css');"></textarea>
-    <div class="notice css-warning" id="cssWarning" hidden></div>
-    <div class="action-row">
-      <button class="btn btn-primary" id="saveCssBtn" data-i18n="common.save">Save</button>
-      <button class="btn btn-secondary" id="resetCssBtn" data-i18n="settings.css_clear">Clear</button>
-      <span class="hint" id="cssSize"></span>
-    </div>
-    <p class="hint" data-i18n="settings.css_recover">
-      Broke the layout? Open /settings?nocss=1 to load this page without custom CSS.
-    </p>
-    <p class="hint" data-i18n="settings.css_import_hint">
-      An imported theme is fetched by each visitor's browser, so the host it sits on sees
-      their IP and can change the theme at any time. Only import URLs you trust.
-    </p>
-
-    <h3 data-i18n="settings.shader">Background shader</h3>
-    <p class="hint" data-i18n="settings.shader_hint">
-      A GLSL fragment shader painted behind the whole page. Write the body of main() and
-      set fragColor. Available: u_resolution, u_time, and fragColor.
-    </p>
-    <textarea id="customShader" class="code-input code-input-short" rows="10" spellcheck="false"
-      autocomplete="off" autocapitalize="off"
-      placeholder="void main() {&#10;  vec2 uv = gl_FragCoord.xy / u_resolution;&#10;  fragColor = vec4(uv.x, uv.y, abs(sin(u_time)), 1.0);&#10;}"></textarea>
-    <div class="notice css-warning" id="shaderError" hidden></div>
-    <div class="action-row">
-      <button class="btn btn-primary" id="saveShaderBtn" data-i18n="common.save">Save</button>
-      <button class="btn btn-secondary" id="clearShaderBtn" data-i18n="settings.css_clear">Clear</button>
-      <span class="hint" id="shaderStatus"></span>
-    </div>
-    <p class="hint" data-i18n="settings.shader_safety">
-      Shaders run on the GPU and cannot reach your files, cookies or network. They are
-      checked in your browser before saving, paused when the tab is hidden, and skipped
-      entirely with /settings?nocss=1.
-    </p>
-  </section>
-
-  <section class="card">
-    <h2 data-i18n="settings.discord">Discord Request Bot</h2>
-    <label class="checkbox">
-      <input type="checkbox" id="discordEnabled" />
-      <span data-i18n="settings.discord.enable">Enable Discord bot</span>
-    </label>
-    <p class="hint" data-i18n="settings.discord.enable_hint">
-      Let users request movies and series from Discord. Requests are sent to you for approval.
-    </p>
-
-    <div class="control-row">
-      <label class="field">
-        <span class="field-label" data-i18n="settings.discord.token">Bot Token</span>
-        <input type="password" id="discordToken" autocomplete="new-password" />
-      </label>
-      <label class="field">
-        <span class="field-label" data-i18n="settings.discord.owner">Owner User ID</span>
-        <input type="text" id="discordOwner" placeholder="123456789012345678" />
-      </label>
-    </div>
-
-    <div class="control-row">
-      <label class="field">
-        <span class="field-label" data-i18n="settings.discord.mode">Mode</span>
-        <select id="discordMode">
-          <option value="standard" data-i18n="settings.discord.mode_standard">Standard (approve each request)</option>
-          <option value="advanced" data-i18n="settings.discord.mode_advanced">Advanced (queue immediately)</option>
-        </select>
-      </label>
-      <label class="field">
-        <span class="field-label" data-i18n="settings.discord.language">Bot Language</span>
-        <select id="discordLanguage">
-          <option value="en">English</option>
-          <option value="de">Deutsch</option>
-        </select>
-      </label>
-    </div>
-
-    <div class="control-row">
-      <label class="field">
-        <span class="field-label" data-i18n="settings.discord.role">Request Role ID (optional)</span>
-        <input type="text" id="discordRole" />
-      </label>
-      <label class="field">
-        <span class="field-label" data-i18n="settings.discord.guild">Server ID (optional)</span>
-        <input type="text" id="discordGuild" />
-      </label>
-    </div>
-
-    <div class="control-row">
-      <label class="field">
-        <span class="field-label" data-i18n="settings.discord.announce">Announce Channel ID (optional)</span>
-        <input type="text" id="discordAnnounce" />
-      </label>
-    </div>
-    <p class="hint" data-i18n="settings.discord.announce_hint">
-      The requester is always DM'd when a download finishes. With an announce channel set, a "now available" message
-      is posted there too.
-    </p>
-
-    <div class="action-row">
-      <button class="btn btn-primary" id="saveDiscordBtn" data-i18n="common.save">Save</button>
-      <span id="discordStatus" class="status-pill"></span>
-    </div>
-  </section>
-
-  <section class="card">
-    <h2 data-i18n="settings.ip">IP Check</h2>
-    <p class="hint" data-i18n="settings.ip_hint">
-      Check this after connecting or disconnecting a VPN to confirm the outbound IP is what you expect.
-    </p>
-    <div class="ip-card">
-      <div>
-        <div class="ip-label" data-i18n="settings.public_ip">Current public IP</div>
-        <div class="ip-value" id="publicIpValue" data-i18n="settings.ip_hidden">Hidden</div>
-        <div class="ip-meta" id="publicIpMeta" data-i18n="settings.ip_meta">
-          Nothing is requested until you press reveal.
-        </div>
-      </div>
-      <button class="btn btn-secondary" id="revealIpBtn" data-i18n="settings.reveal">Reveal</button>
-    </div>
-  </section>
+  </div>
 </div>
 {% endblock %}
 

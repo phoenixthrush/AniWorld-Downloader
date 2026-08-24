@@ -7,21 +7,35 @@
   <div class="segmented" id="siteSwitch">
     <div class="segmented-track" id="segmentedTrack">
       <div class="segmented-thumb" id="segmentedThumb"></div>
-      <button class="segmented-btn active" data-site="aniworld">AniWorld</button>
+      {# Every site can be switched off in the settings. The first one still
+         standing is the one the page opens on, see home.js. #}
+      {% if sites.aniworld %}
+      <button class="segmented-btn" data-site="aniworld">AniWorld</button>
+      {% endif %}
+      {% if sites.sto %}
       <button class="segmented-btn" data-site="sto">SerienStream</button>
-      {% if burningseries_enabled %}
+      {% endif %}
+      {% if sites.burningseries %}
       <button class="segmented-btn" data-site="burningseries">BurningSeries</button>
       {% endif %}
+      {% if sites.megakino %}
       <button class="segmented-btn" data-site="megakino">MegaKino</button>
+      {% endif %}
+      {% if sites.cineby %}
       <button class="segmented-btn" data-site="cineby">Cineby</button>
-      {% if kinox_enabled %}
+      {% endif %}
+      {% if sites.kinox %}
       <button class="segmented-btn" data-site="kinox">Kinox</button>
       {% endif %}
+      {% if sites.filmpalast %}
       <button class="segmented-btn" data-site="filmpalast">FilmPalast</button>
-      {% if htv_enabled %}
+      {% endif %}
+      {% if sites.htv %}
       <button class="segmented-btn" data-site="htv">Hanime</button>
       {% endif %}
+      {% if sites.mangafire %}
       <button class="segmented-btn" data-site="mangafire">MangaFire</button>
+      {% endif %}
     </div>
   </div>
 
@@ -44,51 +58,67 @@
   </div>
 
   <div id="browse">
+    {% if sites.aniworld %}
     <section class="browse-section" data-row="new_animes" data-sites="aniworld">
       <h2 class="browse-heading" data-i18n="browse.new_animes">New Animes</h2>
       <div class="browse-grid"></div>
     </section>
+    {% endif %}
+    {% if sites.aniworld %}
     <section class="browse-section" data-row="popular_animes" data-sites="aniworld">
       <h2 class="browse-heading" data-i18n="browse.popular_animes">Popular Animes</h2>
       <div class="browse-grid"></div>
     </section>
+    {% endif %}
+    {% if sites.sto %}
     <section class="browse-section" data-row="new_series" data-sites="sto">
       <h2 class="browse-heading" data-i18n="browse.new_series">New Series</h2>
       <div class="browse-grid"></div>
     </section>
+    {% endif %}
+    {% if sites.sto %}
     <section class="browse-section" data-row="popular_series" data-sites="sto">
       <h2 class="browse-heading" data-i18n="browse.popular_series">Popular Series</h2>
       <div class="browse-grid"></div>
     </section>
+    {% endif %}
+    {% if sites.megakino %}
     <section class="browse-section" data-row="popular_movies" data-sites="megakino">
       <h2 class="browse-heading" data-i18n="browse.popular_movies">Popular Movies</h2>
       <div class="browse-grid"></div>
     </section>
-    {% if kinox_enabled %}
+    {% endif %}
+    {% if sites.kinox %}
     <section class="browse-section" data-row="kinox_movies" data-sites="kinox">
       <h2 class="browse-heading" data-i18n="browse.new_movies">New Movies</h2>
       <div class="browse-grid"></div>
     </section>
     {% endif %}
+    {% if sites.filmpalast %}
     <section class="browse-section" data-row="filmpalast_movies" data-sites="filmpalast">
       <h2 class="browse-heading" data-i18n="browse.new_movies">New Movies</h2>
       <div class="browse-grid"></div>
     </section>
-    {% if burningseries_enabled %}
+    {% endif %}
+    {% if sites.burningseries %}
     <section class="browse-section" data-row="burningseries_series" data-sites="burningseries">
       <h2 class="browse-heading" data-i18n="browse.recent_series">Recently Updated</h2>
       <div class="browse-grid"></div>
     </section>
     {% endif %}
+    {% if sites.cineby %}
     <section class="browse-section" data-row="cineby_movies" data-sites="cineby">
       <h2 class="browse-heading" data-i18n="browse.trending_movies">Trending Movies</h2>
       <div class="browse-grid"></div>
     </section>
+    {% endif %}
+    {% if sites.mangafire %}
     <section class="browse-section" data-row="mangafire_trending" data-sites="mangafire">
       <h2 class="browse-heading" data-i18n="browse.trending_manga">Trending Manga</h2>
       <div class="browse-grid"></div>
     </section>
-    {% if htv_enabled %}
+    {% endif %}
+    {% if sites.htv %}
     <section class="browse-section" data-row="htv_trending" data-sites="htv">
       <h2 class="browse-heading" data-i18n="browse.trending_hentai">Trending</h2>
       <div class="browse-grid"></div>

@@ -30,6 +30,59 @@
     }
   }
 
+  /* ===== Sections =====
+     One pane at a time. The sidebar drives it and the URL carries it, so a
+     reload lands back where you were, including the reload a site toggle
+     triggers. Panes stay in the DOM: the rest of this file reaches into
+     fields that live in sections nobody has opened yet. */
+  const settingsNav = el("settingsNav");
+  const navItems = Array.from(settingsNav.querySelectorAll(".settings-nav-item"));
+
+  function showSection(name, { focus = false } = {}) {
+    const known = navItems.some((item) => item.dataset.pane === name);
+    const target = known ? name : navItems[0].dataset.pane;
+
+    navItems.forEach((item) => {
+      const active = item.dataset.pane === target;
+      item.classList.toggle("active", active);
+      item.setAttribute("aria-selected", String(active));
+      // roving tabindex: one stop for the whole sidebar, arrows do the rest
+      item.tabIndex = active ? 0 : -1;
+      const pane = el(`pane-${item.dataset.pane}`);
+      if (pane) pane.hidden = !active;
+      if (active && focus) item.focus();
+    });
+
+    if (window.location.hash.slice(1) !== target) {
+      // replace, not push: the back button should leave the settings page
+      history.replaceState(null, "", `#${target}`);
+    }
+  }
+
+  settingsNav.addEventListener("click", (event) => {
+    const item = event.target.closest(".settings-nav-item");
+    if (item) showSection(item.dataset.pane);
+  });
+
+  settingsNav.addEventListener("keydown", (event) => {
+    const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[event.key];
+    let next = null;
+    if (step) {
+      const index = navItems.findIndex((item) => item.classList.contains("active"));
+      next = (index + step + navItems.length) % navItems.length;
+    } else if (event.key === "Home") {
+      next = 0;
+    } else if (event.key === "End") {
+      next = navItems.length - 1;
+    }
+    if (next === null) return;
+    event.preventDefault();
+    showSection(navItems[next].dataset.pane, { focus: true });
+  });
+
+  window.addEventListener("hashchange", () => showSection(window.location.hash.slice(1)));
+  showSection(window.location.hash.slice(1));
+
   /* ===== Load ===== */
   async function load() {
     let settings;
@@ -47,6 +100,8 @@
     document.querySelectorAll("[data-setting]").forEach((box) => {
       box.checked = Boolean(settings[box.dataset.setting]);
     });
+
+    showPathPreview(settings.path_preview);
 
     providerOrder = settings.provider_fallback_order || [];
     savedOrder = providerOrder.slice();
@@ -70,6 +125,46 @@
 
   el("saveDownloadPathBtn").addEventListener("click", () => {
     save({ download_path: el("downloadPath").value.trim() });
+  });
+
+  /* ===== Where a download lands =====
+     The path is put together on the server, by the same rules the downloader
+     follows, so this cannot drift from what actually happens. */
+  function showPathPreview(preview) {
+    if (!preview) return;
+    const box = el("pathPreview");
+    const problem = el("pathPreviewError");
+
+    // A template the downloader cannot fill in has no path to show, only a
+    // reason, and that reason is what would break the first download
+    box.hidden = Boolean(preview.error);
+    problem.hidden = !preview.error;
+    problem.textContent = preview.error || "";
+
+    el("previewEpisode").textContent = preview.episode || "";
+    el("previewMovie").textContent = preview.movie || "";
+  }
+
+  let previewPathTimer = null;
+
+  function refreshPathPreview() {
+    clearTimeout(previewPathTimer);
+    previewPathTimer = setTimeout(async () => {
+      const typed = el("downloadPath").value.trim();
+      try {
+        showPathPreview(
+          await apiFetch(`/api/settings/path-preview?download_path=${encodeURIComponent(typed)}`)
+        );
+      } catch (error) {
+        /* the box keeps the last good answer */
+      }
+    }, 250);
+  }
+
+  el("downloadPath").addEventListener("input", refreshPathPreview);
+  el("outputFormat").addEventListener("change", refreshPathPreview);
+  ["langSeparation", "movieFolder"].forEach((id) => {
+    el(id).addEventListener("change", refreshPathPreview);
   });
 
   el("uiLanguage").addEventListener("change", async () => {

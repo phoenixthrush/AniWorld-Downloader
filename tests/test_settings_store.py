@@ -54,6 +54,9 @@ def test_read_settings_never_leaks_the_discord_token(monkeypatch):
         ("enable_kinox", "ANIWORLD_ENABLE_KINOX"),
         ("enable_library", "ANIWORLD_ENABLE_LIBRARY"),
         ("enable_autosync", "ANIWORLD_ENABLE_AUTOSYNC"),
+        ("enable_aniworld", "ANIWORLD_ENABLE_ANIWORLD"),
+        ("enable_sto", "ANIWORLD_ENABLE_STO"),
+        ("enable_mangafire", "ANIWORLD_ENABLE_MANGAFIRE"),
         ("movie_folder", "ANIWORLD_MOVIE_FOLDER"),
     ],
 )
@@ -65,6 +68,94 @@ def test_every_toggle_round_trips(field, env_key):
     update_settings({field: False})
     assert os.environ[env_key] == "0"
     assert settings_store.read_settings()[field] is False
+
+
+# ---------------------------------------------------------------------------
+# Sites
+#
+# Every site can be switched off, not just the three that used to have a
+# checkbox. Three of them start off, the rest start on.
+# ---------------------------------------------------------------------------
+def test_every_site_can_be_switched_off():
+    from aniworld.web.media import SITE_KEYS
+
+    for site in SITE_KEYS:
+        update_settings({f"enable_{site}": False})
+        assert settings_store.site_enabled(site) is False, site
+        assert os.environ[f"ANIWORLD_ENABLE_{site.upper()}"] == "0"
+
+        update_settings({f"enable_{site}": True})
+        assert settings_store.site_enabled(site) is True, site
+
+
+def test_which_sites_a_fresh_install_shows():
+    """Adult content and the two sites you cannot use out of the box stay off."""
+    assert settings_store.enabled_sites() == {
+        "aniworld": True,
+        "sto": True,
+        "megakino": True,
+        "mangafire": True,
+        "htv": False,
+        "kinox": False,
+        "burningseries": False,
+        "filmpalast": True,
+        "cineby": True,
+    }
+
+
+def test_a_site_reads_back_out_of_the_settings():
+    update_settings({"enable_cineby": False})
+    settings = settings_store.read_settings()
+    assert settings["enable_cineby"] is False
+    assert settings["enable_aniworld"] is True
+
+
+def test_the_page_is_told_which_sites_exist():
+    sites = settings_store.read_settings()["available_sites"]
+    assert {site["key"] for site in sites} == set(settings_store.enabled_sites())
+    assert {"key": "kinox", "label": "Kinox", "default_on": False} in sites
+    assert {"key": "aniworld", "label": "AniWorld", "default_on": True} in sites
+
+
+def test_the_last_site_cannot_be_switched_off():
+    """The home page with no tabs at all is not a state worth reaching."""
+    from aniworld.web.media import SITE_KEYS
+
+    with pytest.raises(SettingsError, match="At least one site"):
+        update_settings({f"enable_{site}": False for site in SITE_KEYS})
+
+    assert any(settings_store.enabled_sites().values()), "nothing was written"
+
+
+def test_switching_off_all_but_one_is_fine():
+    from aniworld.web.media import SITE_KEYS
+
+    update_settings({f"enable_{site}": site == "aniworld" for site in SITE_KEYS})
+    assert settings_store.enabled_sites()["aniworld"] is True
+    assert sum(settings_store.enabled_sites().values()) == 1
+
+
+def test_an_unrelated_setting_still_saves_with_every_site_off(monkeypatch):
+    """A hand-edited .env is the user's business and must not block the page."""
+    from aniworld.web.media import SITE_KEYS
+
+    for site in SITE_KEYS:
+        monkeypatch.setenv(f"ANIWORLD_ENABLE_{site.upper()}", "0")
+
+    update_settings({"ui_language": "de"})
+    assert settings_store.ui_language() == "de"
+
+
+def test_the_old_helpers_still_answer():
+    """pages.py and the templates were built on these three."""
+    update_settings({"enable_htv": True, "enable_kinox": True})
+    assert settings_store.htv_enabled() is True
+    assert settings_store.kinox_enabled() is True
+    assert settings_store.burningseries_enabled() is False
+
+
+def test_an_unknown_site_is_never_enabled():
+    assert settings_store.site_enabled("netflix") is False
 
 
 # ---------------------------------------------------------------------------
@@ -441,3 +532,136 @@ def test_an_empty_payload_changes_nothing():
     before = settings_store.read_settings()
     assert update_settings({}) is False
     assert settings_store.read_settings() == before
+
+
+# The title a real aniworld page gives, which is what ends up in a path
+PREVIEW_TITLE = "KonoSuba God\u2019s blessing on this wonderful world!"
+
+
+# ---------------------------------------------------------------------------
+# Where a download lands
+#
+# The preview under the download path has to follow the same rules the
+# downloader does, or it is worse than showing nothing.
+# ---------------------------------------------------------------------------
+def test_the_preview_puts_the_path_and_the_template_together(monkeypatch, tmp_path):
+    """The full cleaned title and the year range, the way a real page gives them."""
+    monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", str(tmp_path))
+    preview = settings_store.preview_paths()
+    assert preview["episode"] == str(
+        tmp_path
+        / f"{PREVIEW_TITLE} (2016-2025) [imdbid-tt5370118]"
+        / "Season 01"
+        / f"{PREVIEW_TITLE} S01E003.mkv"
+    )
+
+
+def test_the_preview_is_built_by_the_downloader_itself(monkeypatch, tmp_path):
+    """The proof that the box cannot drift: same series, same path, both ways.
+
+    If the naming rules move and the preview is left behind, this fails.
+    """
+    from types import SimpleNamespace
+
+    from aniworld.models.aniworld_to.episode import AniworldEpisode
+
+    monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", str(tmp_path))
+    real = AniworldEpisode(
+        url=settings_store._PREVIEW_URL,
+        series=SimpleNamespace(
+            title_cleaned=PREVIEW_TITLE,
+            release_year="2016-2025",
+            imdb="tt5370118",
+        ),
+        season=SimpleNamespace(season_number=1),
+        episode_number=3,
+        selected_path=str(tmp_path),
+        selected_language="German Dub",
+    )
+    assert settings_store.preview_paths()["episode"] == str(real._episode_path)
+
+
+def test_a_movie_lands_where_the_movie_sites_put_it(monkeypatch, tmp_path):
+    """FilmPalast builds a movie path its own way, and this has to match it."""
+    from aniworld.models.filmpalast_to.episode import FilmPalastEpisode
+
+    monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", str(tmp_path))
+    real = FilmPalastEpisode(
+        url="https://filmpalast.to/stream/your-name", selected_path=str(tmp_path)
+    )
+    # seed what the page would have given, so nothing is fetched
+    real._FilmPalastEpisode__title_de = "Your Name"
+    real._FilmPalastEpisode__release_year = "2016"
+    assert real.title_cleaned == "Your Name", "the seeding still works"
+
+    assert settings_store.preview_paths()["movie"] == str(real._episode_path)
+
+
+def test_a_movie_does_not_use_the_template(monkeypatch, tmp_path):
+    """Movies get "Title (Year)" whatever the template says, plus its extension."""
+    monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", str(tmp_path))
+    monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "{title}/S{season}/{title}.mp4")
+    assert settings_store.preview_paths()["movie"] == str(
+        tmp_path / "Your Name (2016)" / "Your Name (2016).mp4"
+    )
+
+
+def test_a_movie_without_its_own_folder(monkeypatch, tmp_path):
+    monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", str(tmp_path))
+    update_settings({"movie_folder": False})
+    assert settings_store.preview_paths()["movie"] == str(
+        tmp_path / "Your Name (2016).mkv"
+    )
+
+
+def test_the_preview_follows_the_language_folders(monkeypatch, tmp_path):
+    monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", str(tmp_path))
+    update_settings({"lang_separation": True})
+    for path in settings_store.preview_paths().values():
+        assert str(tmp_path / "german-dub") in path
+
+
+def test_a_template_of_two_parts_has_no_season_folder(monkeypatch, tmp_path):
+    monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", str(tmp_path))
+    monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "{title}/{title} E{episode}.mkv")
+    assert settings_store.preview_paths()["episode"] == str(
+        tmp_path / PREVIEW_TITLE / f"{PREVIEW_TITLE} E003.mkv"
+    )
+
+
+def test_a_template_of_one_part_is_a_file_in_the_root(monkeypatch, tmp_path):
+    monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", str(tmp_path))
+    monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "{title} S{season}E{episode}.mkv")
+    assert settings_store.preview_paths()["episode"] == str(
+        tmp_path / f"{PREVIEW_TITLE} S01E003.mkv"
+    )
+
+
+def test_the_percent_style_placeholders_are_filled_in_too(monkeypatch, tmp_path):
+    """The downloader accepts %title%, so the preview has to as well."""
+    monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", str(tmp_path))
+    monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "%title% S%season%E%episode%.mkv")
+    assert settings_store.preview_paths()["episode"].endswith(
+        f"{PREVIEW_TITLE} S01E003.mkv"
+    )
+
+
+def test_a_placeholder_no_download_can_fill_is_reported(monkeypatch, tmp_path):
+    """The downloader raises on this too, so the preview is where you find out."""
+    monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", str(tmp_path))
+    monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "{nope}/{title}.mkv")
+
+    preview = settings_store.preview_paths()
+    assert "{nope}" in preview["error"]
+    assert "episode" not in preview
+
+
+def test_the_preview_takes_a_path_that_is_only_being_typed(tmp_path):
+    typed = str(tmp_path / "somewhere-else")
+    assert settings_store.preview_paths(typed)["episode"].startswith(typed)
+
+
+def test_the_settings_carry_a_preview_for_the_page():
+    preview = settings_store.read_settings()["path_preview"]
+    assert preview["episode"].endswith(".mkv")
+    assert preview["movie"].endswith(".mkv")

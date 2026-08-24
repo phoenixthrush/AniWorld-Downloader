@@ -67,9 +67,7 @@ def index():
         megakino_lang_labels=MEGAKINO_LANGUAGES,
         supported_providers=WORKING_PROVIDERS,
         default_language=settings_store.default_language(),
-        htv_enabled=settings_store.htv_enabled(),
-        burningseries_enabled=settings_store.burningseries_enabled(),
-        kinox_enabled=settings_store.kinox_enabled(),
+        sites=settings_store.enabled_sites(),
     )
 
 

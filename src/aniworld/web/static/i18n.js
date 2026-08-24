@@ -144,9 +144,13 @@
       "settings.default_for": "Standard für Seiten",
       "settings.default_for_hint":
         "Wähle aus, für welche Seiten dieser Pfad vorausgewählt sein soll.",
-      "settings.defaults": "Standardwerte",
+      "settings.downloads": "Downloads",
       "settings.download_path": "Downloadpfad",
       "settings.download_path_hint": "Gilt sofort für neue Downloads.",
+      "settings.preview_episode": "Episode",
+      "settings.preview_movie": "Film",
+      "settings.preview_hint":
+        "Wo ein Download landet: der Pfad von oben und die Namensvorlage aus deiner .env zusammengesetzt. Filme nutzen von der Vorlage nur die Dateiendung.",
       "settings.provider_fallback": "Anbieter-Reihenfolge",
       "settings.provider_fallback_hint":
         "Zieh einen Anbieter, um ihn zu verschieben. Der ausgewählte Anbieter wird immer zuerst versucht. Schlägt er fehl, wird diese Reihenfolge durchlaufen.",
@@ -156,14 +160,46 @@
       "settings.disable_english_sub": "English-Sub-Downloads deaktivieren",
       "settings.disable_english_sub_hint":
         "English Sub wird aus der Sprachauswahl ausgeblendet und kann nicht heruntergeladen werden.",
-      "settings.enable_htv": "Hanime-Tab aktivieren",
-      "settings.enable_htv_hint": "Zeigt den Hanime-Tab auf der Startseite.",
-      "settings.enable_burningseries": "BurningSeries-Tab aktivieren",
+      "settings.enable_htv_hint": "Erwachsenen-Animation. Standardmäßig aus.",
       "settings.enable_burningseries_hint":
-        "Standardmäßig aus: Die Seite ist geoblockiert und zusätzlich durch Google reCAPTCHA geschützt, das wir nicht für dich lösen können. Nur einschalten, wenn du sie selbst erreichst.",
-      "settings.enable_kinox": "Kinox-Tab aktivieren",
+        "Serien. Standardmäßig aus: Der Zugang hängt von deiner Region ab, und davor steht ein Google reCAPTCHA, das wir nicht für dich lösen können.",
       "settings.enable_kinox_hint":
-        "Standardmäßig aus: Kinox verlangt bei jedem einzelnen Download ein Captcha, das du jedes Mal von Hand lösen musst.",
+        "Filme und Serien. Standardmäßig aus: Ein Download verlangt fast immer ein Captcha, das du von Hand lösen musst.",
+      "settings.enable_aniworld_hint":
+        "Anime und Anime-Filme. Eine der beiden Seiten, für die diese App gebaut ist.",
+      "settings.enable_sto_hint": "Serien. Die zweite Seite, für die diese App gebaut ist.",
+      "settings.enable_megakino_hint": "Filme und Serien auf Deutsch.",
+      "settings.enable_cineby_hint":
+        "Filme und Serien. Deutsche Tonspuren sind dort nicht immer zuverlässig.",
+      "settings.enable_filmpalast_hint": "Filme auf Deutsch.",
+      "settings.enable_mangafire_hint":
+        "Manga, gespeichert als einzelne Bilder oder als ein CBZ-Archiv pro Kapitel.",
+      "settings.nav.downloads": "Downloads",
+      "settings.nav.library": "Bibliothek",
+      "settings.nav.sites": "Seiten",
+      "settings.nav.autosync": "Auto-Sync",
+      "settings.nav.appearance": "Darstellung",
+      "settings.nav.users": "Benutzer",
+      "settings.nav.api": "API",
+      "settings.nav.integrations": "Integrationen",
+      "settings.nav.administration": "Verwaltung",
+      "settings.export": "Einstellungen exportieren",
+      "settings.export_hint":
+        "Die meisten Einstellungen liegen nur im Arbeitsspeicher und fallen beim Neustart auf die Standardwerte zurück. Hier bekommst du eine .env-Datei mit dem, was gerade läuft, fertig zum Speichern unter dem oben genannten Pfad.",
+      "settings.export_secrets":
+        "Passwörter und Tokens bleiben absichtlich draußen: der Discord-Token, das OIDC-Client-Secret und Admin-Passwörter bleiben, wo sie sind.",
+      "settings.export_button": ".env herunterladen",
+      "settings.library": "Bibliothek",
+      "settings.sites": "Seiten",
+      "settings.sites_hint":
+        "Jede abgeschaltete Seite verliert ihren Tab auf der Startseite samt der Reihen, die sie dort füllt. Bereits heruntergeladene Titel bleiben unberührt.",
+      "settings.kind.anime": "Anime",
+      "settings.kind.series": "Serien",
+      "settings.kind.movies": "Filme",
+      "settings.kind.mixed": "Filme & Serien",
+      "settings.kind.manga": "Manga",
+      "settings.kind.adult": "Erwachsene",
+      "settings.autosync": "Auto-Sync",
       "settings.enable_library": "Bibliothek aktivieren",
       "settings.enable_autosync": "Auto-Sync aktivieren",
       "settings.enable_autosync_hint":
@@ -234,7 +270,7 @@
       "autosync.queued_episodes": "{count} Episoden in {language} eingereiht",
       "settings.enable_library_hint":
         "Zeigt den Bibliothek-Tab zum Durchsehen und Löschen heruntergeladener Dateien.",
-      "settings.interface": "Oberfläche",
+      "settings.language": "Sprache",
       "settings.ui_language": "Sprache der Oberfläche",
       "settings.output_format": "Ausgabeformat",
       "settings.output_format_hint":

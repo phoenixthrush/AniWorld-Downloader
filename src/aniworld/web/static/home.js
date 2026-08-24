@@ -57,7 +57,11 @@
     Japanese: { flags: ["jp"], text: "Dub", css: "badge-german-dub" }
   };
 
-  let currentSite = "aniworld";
+  // Any site can be switched off in the settings, so the page opens on the
+  // first tab that is actually there rather than on a fixed one
+  const firstSite = () => (siteButtons[0] ? siteButtons[0].dataset.site : "aniworld");
+
+  let currentSite = firstSite();
   let downloadedFolders = [];
   let customPaths = [];
 
@@ -842,6 +846,6 @@
   });
 
   loadDownloadedFolders().then(() => {
-    switchSite("aniworld");
+    switchSite(firstSite());
   });
 })();

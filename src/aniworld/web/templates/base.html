@@ -11,6 +11,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  {# Icons for the settings sidebar. Pinned to a version and checked against its
+     hash, so the CDN cannot quietly serve something else. #}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.3.1/css/all.min.css"
+    integrity="sha384-qrALq7+6jBOZIQsNnT6xGkMDru64qD6uTlDra39xrt2SoXl4pO3FX6Roz/RpR/BS"
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ app_version }}" />
   {# ?nocss=1 is the way back in when a theme hides the settings page #}
   {% if custom_css_version and request.args.get('nocss') != '1' %}
