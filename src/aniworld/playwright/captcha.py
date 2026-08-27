@@ -758,52 +758,104 @@ def _launch_browser_context(
     return _BrowserHandle(context, browser, got_lock)
 
 
+def _bezier_mouse_move(page, x0, y0, x1, y1) -> None:
+    """Move the mouse from (x0,y0) to (x1,y1) along a quadratic Bézier curve.
+
+    page.mouse.move(steps=N) does linear interpolation — a straight line.
+    Real cursor paths curve because of wrist/arm kinematics and mid-move
+    corrections.  CF records the full movement trace internally; straight
+    lines from (0,0) are a detectable signal on datacenter IPs.
+
+    Each call emits one CDP Input.dispatchMouseEvent per computed step so
+    Chrome's internal mouse-state sees a genuine curved trajectory.
+    """
+    dist = ((x1 - x0) ** 2 + (y1 - y0) ** 2) ** 0.5
+    steps = max(10, int(dist / 10))
+    # Control point: random offset from the midpoint, bounded by distance so
+    # short moves don't get absurdly wide curves.
+    bend = min(70.0, dist * 0.35)
+    cx = (x0 + x1) / 2 + _random.uniform(-bend, bend)
+    cy = (y0 + y1) / 2 + _random.uniform(-bend * 0.7, bend * 0.7)
+    for i in range(1, steps + 1):
+        t = i / steps
+        bx = (1 - t) ** 2 * x0 + 2 * (1 - t) * t * cx + t ** 2 * x1
+        by = (1 - t) ** 2 * y0 + 2 * (1 - t) * t * cy + t ** 2 * y1
+        page.mouse.move(bx, by)
+
+
 def _warm_up_mouse(page) -> None:
-    """Generate a short burst of realistic mouse movement on the main page.
+    """Generate realistic mouse-movement history on the current page.
 
     CF's server-side Turnstile scoring evaluates Chrome's internal mouse-event
-    history — not just the click itself.  When aniworld runs from a headless
-    server (Xvfb, Docker, Hetzner VPS) the mouse starts at (0,0) and there is
-    zero history before the first click.  A datacenter IP already carries a
-    higher risk score, so CF's scoring needs a believable interaction trace to
-    offset that.  This function generates ~2–4 s of idle browsing behaviour
-    (random moves + micro-scroll) before the challenge widget is clicked.
+    history — not just the click itself.  On a server (Xvfb, Docker, Hetzner
+    VPS) the mouse starts at (0,0) and has zero prior history.  A datacenter
+    IP already carries a higher risk score, so CF's scoring needs a believable
+    movement trace before the challenge widget is clicked.
+
+    Uses Bézier curves (_bezier_mouse_move) rather than the linear paths that
+    page.mouse.move(steps=N) produces — straight lines are a known bot signal.
     """
     try:
         vp = page.viewport_size or {"width": 1280, "height": 720}
         w, h = vp["width"], vp["height"]
 
-        # Start from a plausible "just loaded the page" position — upper-left
-        # quadrant near where real eyes land after a navigation.
         cx = _random.uniform(w * 0.15, w * 0.45)
         cy = _random.uniform(h * 0.15, h * 0.40)
         page.mouse.move(cx, cy, steps=_random.randint(6, 12))
 
-        waypoints = _random.randint(4, 7)
-        for _ in range(waypoints):
+        for _ in range(_random.randint(4, 7)):
             page.wait_for_timeout(_random.randint(180, 420))
             nx = _random.uniform(w * 0.08, w * 0.92)
             ny = _random.uniform(h * 0.05, h * 0.85)
-            # Vary step count to produce different speeds — fast flicks and slow
-            # deliberate moves both occur in real browsing.
-            steps = _random.randint(5, 25)
-            page.mouse.move(nx, ny, steps=steps)
+            _bezier_mouse_move(page, cx, cy, nx, ny)
             cx, cy = nx, ny
 
-        # A slight scroll gesture — real users often scroll a bit to read the page.
         page.mouse.wheel(0, _random.randint(60, 220))
         page.wait_for_timeout(_random.randint(200, 500))
         page.mouse.wheel(0, -_random.randint(30, 100))
 
-        # Drift to roughly the centre before letting the challenge widget appear.
         page.wait_for_timeout(_random.randint(150, 350))
-        page.mouse.move(
-            w / 2 + _random.uniform(-80, 80),
-            h / 2 + _random.uniform(-60, 60),
-            steps=_random.randint(8, 18),
-        )
+        tx = w / 2 + _random.uniform(-80, 80)
+        ty = h / 2 + _random.uniform(-60, 60)
+        _bezier_mouse_move(page, cx, cy, tx, ty)
     except Exception:
         pass  # never let a warm-up failure abort the solver
+
+
+def _pre_navigate_warm_up(page, challenge_url: str) -> None:
+    """Visit the site root before the challenge URL to seed CF session history.
+
+    When the browser navigates directly to a challenged page, Chrome has no
+    prior browsing context on that domain — CF's server-side scoring starts
+    cold.  Visiting the site root first (where patchright's fingerprint is
+    usually sufficient to pass the JS challenge silently) lets the browser:
+
+      - receive a cf_clearance cookie that carries over to the challenge URL
+      - accumulate domain history that makes the session look like a real user
+        who landed on the site before the specific page
+
+    For a datacenter IP this can be the difference between the token being
+    accepted and rejected: the background scoring sees a session that already
+    browsed the site, not a fresh bot that jumped straight to a video page.
+
+    Safe to fail — if the root itself challenges or errors, fall through and
+    solve the challenge on the original URL as before.
+    """
+    try:
+        from urllib.parse import urlparse
+
+        parsed = urlparse(challenge_url)
+        origin = f"{parsed.scheme}://{parsed.netloc}"
+        # Skip if the challenge URL already IS the root, to avoid a no-op
+        # navigation that still costs the round-trip time.
+        path = parsed.path.rstrip("/")
+        if not origin or not path or path == "":
+            return
+        page.goto(origin, wait_until="domcontentloaded", timeout=15_000)
+        _warm_up_mouse(page)
+        page.wait_for_timeout(_random.randint(600, 1400))
+    except Exception:
+        pass
 
 
 def _click_turnstile(page, logger=None) -> bool:
@@ -924,21 +976,16 @@ def _click_turnstile(page, logger=None) -> bool:
         x = box["x"] + inset + _random.uniform(-2, 2)
         y = box["y"] + box["height"] / 2 + _random.uniform(-2, 2)
 
-        # Approach via 1-2 intermediate waypoints so the trajectory looks like
-        # a natural cursor path arriving from wherever on the page, not a
-        # teleport from (0,0) or the previous fixed position.
+        # Approach the checkbox along a Bézier curve from a random position
+        # so the movement arriving at the click looks like a natural cursor
+        # path rather than a straight line from (0,0).
         try:
             vp = page.viewport_size or {"width": 1280, "height": 720}
             cur_x = _random.uniform(vp["width"] * 0.3, vp["width"] * 0.7)
             cur_y = _random.uniform(vp["height"] * 0.2, vp["height"] * 0.6)
-            # Midpoint offset slightly off the straight line to the target.
-            mid_x = (cur_x + x) / 2 + _random.uniform(-40, 40)
-            mid_y = (cur_y + y) / 2 + _random.uniform(-20, 20)
-            page.mouse.move(mid_x, mid_y, steps=_random.randint(8, 16))
-            page.wait_for_timeout(_random.randint(50, 130))
+            _bezier_mouse_move(page, cur_x, cur_y, x, y)
         except Exception:
             pass
-        page.mouse.move(x, y, steps=_random.randint(6, 14))
         page.wait_for_timeout(_random.randint(80, 220))
         page.mouse.down()
         page.wait_for_timeout(_random.randint(40, 100))
@@ -1674,13 +1721,12 @@ def _solve_captcha_cli(url: str):
                 context = handle.context
                 page = context.new_page()
                 _attach_debug_listeners(page, logger)
+                # Visit the site root first so the browser has domain history
+                # and may receive cf_clearance before hitting the challenge URL.
+                _pre_navigate_warm_up(page, url)
                 page.goto(url, wait_until="domcontentloaded")
                 _focus_page(page)
                 _sync_session_user_agent(page)
-                # Build up mouse-movement history before the challenge widget
-                # appears.  CF's server-side scoring considers the interaction
-                # trace recorded by Chrome internally — from a datacenter IP the
-                # risk score starts high, so prior movement signals help.
                 _warm_up_mouse(page)
 
                 timeout = _captcha_timeout(300)  # default 5 minutes
@@ -1827,6 +1873,7 @@ def _solve_captcha_interactive(url: str, queue_id: int) -> bool:
             context = _handle.context
             page = context.new_page()
             _attach_debug_listeners(page, logger)
+            _pre_navigate_warm_up(page, url)
             page.goto(url)
             _focus_page(page)
             _sync_session_user_agent(page)
@@ -2334,6 +2381,7 @@ def solve_sto_modal(
             context.on("page", _on_new_page)
 
             logger.debug(f"Opening episode page for modal solving: {start_url}")
+            _pre_navigate_warm_up(page, start_url)
             page.goto(start_url, wait_until="domcontentloaded")
             _focus_page(page)
             _sync_session_user_agent(page)
