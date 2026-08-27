@@ -758,6 +758,54 @@ def _launch_browser_context(
     return _BrowserHandle(context, browser, got_lock)
 
 
+def _warm_up_mouse(page) -> None:
+    """Generate a short burst of realistic mouse movement on the main page.
+
+    CF's server-side Turnstile scoring evaluates Chrome's internal mouse-event
+    history — not just the click itself.  When aniworld runs from a headless
+    server (Xvfb, Docker, Hetzner VPS) the mouse starts at (0,0) and there is
+    zero history before the first click.  A datacenter IP already carries a
+    higher risk score, so CF's scoring needs a believable interaction trace to
+    offset that.  This function generates ~2–4 s of idle browsing behaviour
+    (random moves + micro-scroll) before the challenge widget is clicked.
+    """
+    try:
+        vp = page.viewport_size or {"width": 1280, "height": 720}
+        w, h = vp["width"], vp["height"]
+
+        # Start from a plausible "just loaded the page" position — upper-left
+        # quadrant near where real eyes land after a navigation.
+        cx = _random.uniform(w * 0.15, w * 0.45)
+        cy = _random.uniform(h * 0.15, h * 0.40)
+        page.mouse.move(cx, cy, steps=_random.randint(6, 12))
+
+        waypoints = _random.randint(4, 7)
+        for _ in range(waypoints):
+            page.wait_for_timeout(_random.randint(180, 420))
+            nx = _random.uniform(w * 0.08, w * 0.92)
+            ny = _random.uniform(h * 0.05, h * 0.85)
+            # Vary step count to produce different speeds — fast flicks and slow
+            # deliberate moves both occur in real browsing.
+            steps = _random.randint(5, 25)
+            page.mouse.move(nx, ny, steps=steps)
+            cx, cy = nx, ny
+
+        # A slight scroll gesture — real users often scroll a bit to read the page.
+        page.mouse.wheel(0, _random.randint(60, 220))
+        page.wait_for_timeout(_random.randint(200, 500))
+        page.mouse.wheel(0, -_random.randint(30, 100))
+
+        # Drift to roughly the centre before letting the challenge widget appear.
+        page.wait_for_timeout(_random.randint(150, 350))
+        page.mouse.move(
+            w / 2 + _random.uniform(-80, 80),
+            h / 2 + _random.uniform(-60, 60),
+            steps=_random.randint(8, 18),
+        )
+    except Exception:
+        pass  # never let a warm-up failure abort the solver
+
+
 def _click_turnstile(page, logger=None) -> bool:
     """Locate the Cloudflare Turnstile iframe and click its checkbox.
 
@@ -876,7 +924,21 @@ def _click_turnstile(page, logger=None) -> bool:
         x = box["x"] + inset + _random.uniform(-2, 2)
         y = box["y"] + box["height"] / 2 + _random.uniform(-2, 2)
 
-        page.mouse.move(x, y, steps=_random.randint(8, 20))
+        # Approach via 1-2 intermediate waypoints so the trajectory looks like
+        # a natural cursor path arriving from wherever on the page, not a
+        # teleport from (0,0) or the previous fixed position.
+        try:
+            vp = page.viewport_size or {"width": 1280, "height": 720}
+            cur_x = _random.uniform(vp["width"] * 0.3, vp["width"] * 0.7)
+            cur_y = _random.uniform(vp["height"] * 0.2, vp["height"] * 0.6)
+            # Midpoint offset slightly off the straight line to the target.
+            mid_x = (cur_x + x) / 2 + _random.uniform(-40, 40)
+            mid_y = (cur_y + y) / 2 + _random.uniform(-20, 20)
+            page.mouse.move(mid_x, mid_y, steps=_random.randint(8, 16))
+            page.wait_for_timeout(_random.randint(50, 130))
+        except Exception:
+            pass
+        page.mouse.move(x, y, steps=_random.randint(6, 14))
         page.wait_for_timeout(_random.randint(80, 220))
         page.mouse.down()
         page.wait_for_timeout(_random.randint(40, 100))
@@ -1615,6 +1677,11 @@ def _solve_captcha_cli(url: str):
                 page.goto(url, wait_until="domcontentloaded")
                 _focus_page(page)
                 _sync_session_user_agent(page)
+                # Build up mouse-movement history before the challenge widget
+                # appears.  CF's server-side scoring considers the interaction
+                # trace recorded by Chrome internally — from a datacenter IP the
+                # risk score starts high, so prior movement signals help.
+                _warm_up_mouse(page)
 
                 timeout = _captcha_timeout(300)  # default 5 minutes
                 start = _time.time()
@@ -1763,6 +1830,7 @@ def _solve_captcha_interactive(url: str, queue_id: int) -> bool:
             page.goto(url)
             _focus_page(page)
             _sync_session_user_agent(page)
+            _warm_up_mouse(page)
 
             with _captcha_state_lock:
                 _captcha_state = {
@@ -2269,6 +2337,7 @@ def solve_sto_modal(
             page.goto(start_url, wait_until="domcontentloaded")
             _focus_page(page)
             _sync_session_user_agent(page)
+            _warm_up_mouse(page)
 
             # The captcha modal is triggered by clicking the provider's play
             # button on the episode page.  Derive the data-play-url value from
