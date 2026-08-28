@@ -1,5 +1,6 @@
 """Flask application factory and server entry point."""
 
+import mimetypes
 import os
 from urllib.parse import urlparse
 
@@ -14,6 +15,32 @@ from .views import ADMIN_ENDPOINTS, register_blueprints
 logger = get_logger(__name__)
 
 DEFAULT_PORT = 8080
+
+# Werkzeug types static files from the stdlib mimetypes table, which is seeded
+# from the machine: the registry on Windows, /etc/mime.types elsewhere. Plenty
+# of installs have .js mapped to text/plain there, and paired with the nosniff
+# header below that makes every browser refuse the scripts and the stylesheet.
+# The page then renders as bare HTML with every browse row showing at once and
+# no button doing anything, and nothing about it looks like a MIME problem
+# because the requests all return 200. Pin the types we serve ourselves.
+_STATIC_MIME_TYPES = (
+    (".js", "text/javascript"),
+    (".mjs", "text/javascript"),
+    (".css", "text/css"),
+    (".json", "application/json"),
+    (".svg", "image/svg+xml"),
+    (".webp", "image/webp"),
+    (".woff2", "font/woff2"),
+)
+
+
+def _register_mime_types():
+    """Override whatever the machine thinks these extensions are."""
+    for extension, mime in _STATIC_MIME_TYPES:
+        mimetypes.add_type(mime, extension)
+
+
+_register_mime_types()
 
 # Endpoints that must stay reachable without a session.
 _PUBLIC_ENDPOINTS = {
