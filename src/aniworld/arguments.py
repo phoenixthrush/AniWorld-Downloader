@@ -178,10 +178,17 @@ def parse_args():
         help="Fetch a random anime series",
     )
     discovery.add_argument(
+        "-rs",
+        "--raw-search",
+        metavar="QUERY",
+        help="Look up a query and return the results in JSON format",
+    )
+
+    discovery.add_argument(
         "-sto",
         "--use-sto-search",
         action="store_true",
-        help="Prefer serienstream.to for interactive searches.",
+        help="Prefer serienstream.to for interactive searches",
     )
 
     # =========================

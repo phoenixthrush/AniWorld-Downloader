@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from aniworld import search
+from aniworld.web import sitesearch
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -168,3 +169,34 @@ def test_every_card_has_the_fields_the_ui_needs(genre_page):
     for item in search.fetch_genre_animes("mecha")["results"]:
         assert set(item) == {"title", "url", "genre", "poster_url"}
         assert item["title"] and item["url"]
+
+
+def test_aggregate_sorts_by_relevance_across_sites(monkeypatch):
+    per_site = {
+        "sto": [{"title": "Zulu Robot", "url": "u1", "poster": ""}],
+        "burningseries": [],
+        "aniworld": [],
+        "kinox": [{"title": "Mr. Robot", "url": "u2", "poster": ""}],
+        "cineby": [{"title": "Mr. Robot Behind the Mask", "url": "u3", "poster": ""}],
+    }
+    monkeypatch.setattr(sitesearch, "search", lambda site, keyword: per_site[site])
+
+    results = sitesearch.aggregate("Mr. Robot", "series")
+
+    # Later sites must still be reachable, and the exact hit must come first.
+    assert [item["url"] for item in results] == ["u2", "u3", "u1"]
+
+
+def test_aggregate_respects_limit(monkeypatch):
+    monkeypatch.setattr(
+        sitesearch,
+        "search",
+        lambda site, keyword: [
+            {"title": f"{site} {i}", "url": f"{site}{i}", "poster": ""}
+            for i in range(10)
+        ],
+    )
+
+    results = sitesearch.aggregate("x", "series", per_site=8, limit=25)
+
+    assert len(results) == 25

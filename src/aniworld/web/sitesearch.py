@@ -10,15 +10,16 @@ import re
 from ..logger import get_logger
 from ..models.mangafire_to.series import search_series as query_mangafire
 from ..search import (
-    query as query_aniworld,
-)
-from ..search import (
+    _relevance_score,
     query_burningseries,
     query_cineby,
     query_filmpalast,
     query_kinox,
     query_megakino,
     query_s_to,
+)
+from ..search import (
+    query as query_aniworld,
 )
 
 logger = get_logger(__name__)
@@ -127,6 +128,5 @@ def aggregate(title, media_type, per_site=8, limit=25):
     for site in sites_for(media_type):
         for item in search(site, title)[:per_site]:
             combined.append({**item, "site": site})
-            if len(combined) >= limit:
-                return combined
-    return combined
+    combined.sort(key=lambda item: _relevance_score(item["title"], title))
+    return combined[:limit]

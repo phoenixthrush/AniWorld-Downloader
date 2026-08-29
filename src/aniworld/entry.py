@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import sys
@@ -55,6 +56,21 @@ def aniworld():
         logger.debug("Starting AniWorld-Downloader...")
         set_terminal_title()
         args = parse_args()
+
+        if args.raw_search:
+            from .web.sitesearch import aggregate
+
+            media_type = "series" if args.use_sto_search else "movie"
+            query = args.raw_search.strip()
+            results = [
+                {"title": r["title"], "url": r["url"], "site": r["site"]}
+                for r in aggregate(query, media_type)
+            ]
+            if args.debug:
+                print(json.dumps(results, indent=2))
+            else:
+                print(results)
+            return
 
         if os.getenv("ANIWORLD_DOWNLOAD_PATH") != "/app/Downloads":
             logger.debug("Checking dependencies...")
