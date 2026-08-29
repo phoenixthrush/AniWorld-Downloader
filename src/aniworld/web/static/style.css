@@ -41,6 +41,7 @@
   --surface-code: rgba(0, 0, 0, 0.35);
   --surface-code-inline: rgba(0, 0, 0, 0.3);
   --surface-captcha: #000;
+  --surface-video: #000;
   --overlay-bg: rgba(0, 0, 0, 0.75);
 
   /* Borders */
@@ -2434,6 +2435,14 @@ details.advanced summary:hover {
   background: var(--surface-subtle);
 }
 
+.library-ep-play {
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent);
+  font-size: 0.62rem;
+  flex-shrink: 0;
+}
+
 .library-ep-num {
   color: var(--text-muted);
   font-size: 0.75rem;
@@ -2453,6 +2462,29 @@ details.advanced summary:hover {
   color: var(--text-muted);
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
+}
+
+.library-episode[data-playable="1"] {
+  cursor: pointer;
+}
+
+/* Sits as its own row below the episode, not inside it, so the video is not
+   constrained by the 66px label indent the episode row uses for its icons. */
+.library-video-player {
+  padding: 0 14px 0 66px;
+}
+
+.library-video-player:empty {
+  padding: 0;
+}
+
+.library-video-player video {
+  display: block;
+  width: 100%;
+  max-height: 70vh;
+  margin: 8px 0 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-video);
 }
 
 /* ===== Toast ===== */
@@ -2762,6 +2794,10 @@ details.advanced summary:hover {
   }
 
   .library-episode {
+    padding-left: 46px;
+  }
+
+  .library-video-player {
     padding-left: 46px;
   }
 }

@@ -306,3 +306,54 @@ def test_the_favicon_is_served(client):
 
 def test_an_unknown_page_is_a_404(client):
     assert client.get("/nope").status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Streaming a file for the in-browser player
+# ---------------------------------------------------------------------------
+def test_a_video_file_is_streamed(client, episode_file):
+    episode_file("Naruto", 1, 1)
+    response = client.get(
+        "/api/library/file?folder=Naruto&path=Season 1/Naruto S01E001.mkv"
+    )
+    assert response.status_code == 200
+
+
+def test_streaming_needs_a_folder(client):
+    response = client.get("/api/library/file?path=x.mkv")
+    assert response.status_code == 400
+
+
+def test_streaming_needs_a_path(client):
+    response = client.get("/api/library/file?folder=Naruto")
+    assert response.status_code == 400
+
+
+def test_streaming_a_missing_file_is_a_404(client, episode_file):
+    episode_file("Naruto", 1, 1)
+    response = client.get("/api/library/file?folder=Naruto&path=Season 1/ghost.mkv")
+    assert response.status_code == 404
+
+
+def test_streaming_refuses_traversal(client, episode_file):
+    episode_file("Naruto", 1, 1)
+    response = client.get("/api/library/file?folder=Naruto&path=../../etc/passwd")
+    assert response.status_code == 404
+
+
+def test_streaming_a_non_video_file_is_refused(client, downloads):
+    (downloads / "Naruto").mkdir()
+    (downloads / "Naruto" / "poster.jpg").write_bytes(b"x")
+    response = client.get("/api/library/file?folder=Naruto&path=poster.jpg")
+    assert response.status_code == 404
+
+
+def test_the_file_route_closes_when_the_library_is_off(
+    client, episode_file, monkeypatch
+):
+    episode_file("Naruto", 1, 1)
+    monkeypatch.setenv("ANIWORLD_ENABLE_LIBRARY", "0")
+    response = client.get(
+        "/api/library/file?folder=Naruto&path=Season 1/Naruto S01E001.mkv"
+    )
+    assert response.status_code == 404

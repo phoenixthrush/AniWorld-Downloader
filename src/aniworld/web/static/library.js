@@ -26,6 +26,13 @@
     return `<div class="empty-state">${esc(text)}</div>`;
   }
 
+  function fileUrl(location, folder, relativePath) {
+    const params = new URLSearchParams(locationQuery(location));
+    params.set("folder", folder);
+    params.set("path", relativePath);
+    return `/api/library/file?${params.toString()}`;
+  }
+
   function seasonLabel(key) {
     return key === "movie"
       ? t("library.movies", "Movies")
@@ -181,15 +188,23 @@
         const count = episodes.filter((episode) => episode.is_video !== false).length;
 
         const rows = episodes
-          .map(
-            (episode) => `
-            <div class="library-episode" data-episode="${episode.episode}">
+          .map((episode) => {
+            const playable = episode.is_video !== false && episode.path;
+            const playUrl = playable ? fileUrl(location, folder, episode.path) : "";
+            const playIcon = playable
+              ? `<span class="library-ep-play" title="${t("library.play", "Play")}">&#9654;</span>`
+              : "";
+            return `
+            <div class="library-episode" data-episode="${episode.episode}"
+                 data-playable="${playable ? "1" : "0"}" data-play="${esc(playUrl)}">
+              ${playIcon}
               <span class="library-ep-num">E${String(episode.episode).padStart(3, "0")}</span>
               <span class="library-ep-file" title="${esc(episode.file)}">${esc(episode.file)}</span>
               <span class="library-ep-size">${formatSize(episode.size)}</span>
               <button class="icon-btn" data-delete="episode" title="${t("common.delete", "Delete")}">&times;</button>
-            </div>`
-          )
+            </div>
+            <div class="library-video-player"></div>`;
+          })
           .join("");
 
         return `
@@ -214,7 +229,7 @@
   const LOADERS = { location: loadTypes, title: loadTitle };
 
   tree.addEventListener("click", async (event) => {
-    if (event.target.closest("[data-delete]")) return;
+    if (event.target.closest("[data-delete]") || event.target.closest("[data-play]")) return;
 
     const row = event.target.closest("[data-toggle]");
     if (!row) return;
@@ -240,6 +255,67 @@
 
     children.classList.toggle("expanded", expanding);
     arrow.classList.toggle("expanded", expanding);
+  });
+
+  /* ===== Inline player =====
+   * Fullscreen is only requested through the standard Fullscreen API, which
+   * covers desktop browsers. Where it is unavailable (notably iOS Safari for
+   * <video>) the element is simply left to play inline with its native
+   * controls; there is no vendor-specific fallback here.
+   */
+  function attachAutoPip(video, container) {
+    video.addEventListener("fullscreenchange", () => {
+      if (document.fullscreenElement === video) return;
+      if (video.paused || video.ended) return;
+      if (!document.pictureInPictureEnabled || video.disablePictureInPicture) return;
+      if (document.pictureInPictureElement) return;
+      video.requestPictureInPicture().catch(() => {});
+    });
+
+    // Leaving PiP closes the player rather than restoring it inline: once the
+    // floating window is dismissed the row it belonged to may be long gone
+    // from view, and reopening it is one click away.
+    video.addEventListener("enterpictureinpicture", () => {
+      container.style.display = "none";
+    });
+    video.addEventListener("leavepictureinpicture", () => {
+      container.innerHTML = "";
+      container.style.display = "";
+    });
+  }
+
+  tree.addEventListener("click", (event) => {
+    const row = event.target.closest("[data-playable='1']");
+    if (!row) return;
+    if (event.target.closest("[data-delete]")) return;
+
+    const url = row.dataset.play;
+    const container = row.nextElementSibling;
+    if (!container || !container.classList.contains("library-video-player")) return;
+
+    if (container.dataset.open === "1") {
+      const openVideo = container.querySelector("video");
+      if (openVideo && document.fullscreenElement === openVideo) {
+        document.exitFullscreen().catch(() => {});
+      }
+      container.innerHTML = "";
+      container.dataset.open = "0";
+      return;
+    }
+
+    tree.querySelectorAll('.library-video-player[data-open="1"]').forEach((el) => {
+      el.innerHTML = "";
+      el.dataset.open = "0";
+    });
+
+    container.innerHTML = `<video controls autoplay src="${esc(url)}"></video>`;
+    container.dataset.open = "1";
+
+    const video = container.querySelector("video");
+    attachAutoPip(video, container);
+    if (video.requestFullscreen) {
+      video.requestFullscreen().catch(() => {});
+    }
   });
 
   /* ===== Deleting ===== */
