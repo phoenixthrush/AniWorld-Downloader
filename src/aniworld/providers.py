@@ -175,3 +175,32 @@ def resolve_provider(url: str) -> Provider:
             return provider
 
     raise ValueError(f"Unsupported URL: {url}")
+
+
+_EPISODE_ATTRS = ("url", "title", "title_de", "title_en", "episode_number")
+
+
+def _serialize_episode(episode) -> dict:
+    return {attr: getattr(episode, attr) for attr in _EPISODE_ATTRS if hasattr(episode, attr)}
+
+
+def get_info(url):
+    provider = resolve_provider(url)
+    media = provider.series_cls(url)
+
+    if provider.season_cls is None:
+        # Movie-only providers (MegaKino, FilmPalast): series_cls IS the
+        # episode/movie itself, no season/episode hierarchy to walk.
+        episodes = {"1": [_serialize_episode(media)]}
+    else:
+        episodes = {
+            str(season.season_number): [_serialize_episode(ep) for ep in season.episodes]
+            for season in media.seasons
+        }
+
+    return {
+        "name": media.title,
+        "provider": provider.name,
+        "episodes": episodes,
+        "url": url,
+    }

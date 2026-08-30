@@ -10,7 +10,7 @@ from .config import ACTION_METHODS, ANIWORLD_CONFIG_DIR, VERSION
 from .env import merge_env
 from .logger import get_logger
 from .models.common import run_each
-from .providers import resolve_provider
+from .providers import resolve_provider, get_info
 
 merge_env(
     Path(__file__).resolve().parent / ".env.example",
@@ -70,6 +70,12 @@ def aniworld():
                 print(json.dumps(results, indent=2))
             else:
                 print(results)
+            return
+        if args.raw_info:
+            if args.debug:
+                print(json.dumps(get_info(args.raw_info), indent=2))
+            else:
+                print(get_info(args.raw_info))
             return
 
         if os.getenv("ANIWORLD_DOWNLOAD_PATH") != "/app/Downloads":
