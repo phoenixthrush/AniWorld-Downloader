@@ -204,6 +204,7 @@ _MIGRATIONS = {
         "cancel_requested": "INTEGER NOT NULL DEFAULT 0",
         "force_cancelled": "INTEGER NOT NULL DEFAULT 0",
         "started_at": "TEXT",
+        "genres": "TEXT NOT NULL DEFAULT '[]'",
     },
 }
 
@@ -416,13 +417,20 @@ def add_to_queue(
     custom_path_id=None,
     source="manual",
     discord_user_id=None,
+    genres=None,
 ):
+    """genres is write-once: the worker reads it exactly once to write the
+    library's genre sidecar file, then never again. It is not returned by
+    get_queue()/get_queue_item() on purpose, so nothing in the UI can grow a
+    dependency on genres surviving in the queue - the whole point of the
+    sidecar is that the library stops needing the queue for this at all.
+    """
     with session() as conn:
         cur = conn.execute(
             "INSERT INTO download_queue "
             "(title, series_url, episodes, total_episodes, language, provider, username, "
-            " custom_path_id, source, discord_user_id) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " custom_path_id, source, discord_user_id, genres) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 title,
                 series_url,
@@ -434,6 +442,7 @@ def add_to_queue(
                 custom_path_id,
                 source,
                 discord_user_id,
+                json.dumps(genres or []),
             ),
         )
         queue_id = cur.lastrowid
@@ -599,6 +608,27 @@ def get_running():
         return _row(
             conn, "SELECT * FROM download_queue WHERE status = 'running' LIMIT 1"
         )
+
+
+def take_queued_genres(queue_id):
+    """Read a queue item's genres once and blank the column immediately.
+
+    Called by the worker right before it builds the first episode. Blanking
+    the column straight away is what keeps this from turning into a second
+    read path for the library: by the time a download finishes, the row no
+    longer carries genre data for anything else to accidentally rely on.
+    """
+    with session() as conn:
+        row = _row(conn, "SELECT genres FROM download_queue WHERE id = ?", (queue_id,))
+        conn.execute(
+            "UPDATE download_queue SET genres = '[]' WHERE id = ?", (queue_id,)
+        )
+    if not row:
+        return []
+    try:
+        return json.loads(row["genres"]) or []
+    except (TypeError, ValueError):
+        return []
 
 
 def get_next_queued():

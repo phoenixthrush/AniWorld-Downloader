@@ -10,7 +10,7 @@ import time
 
 from ..logger import get_logger
 from ..providers import resolve_provider
-from . import db, paths
+from . import db, library, paths
 from .media import mangafire_format
 
 logger = get_logger(__name__)
@@ -125,6 +125,24 @@ def _captcha_hint(provider, error):
     return None
 
 
+def _write_genre_sidecar_once(episode, genres):
+    """Best-effort: never let a genre write fail or slow down a download.
+
+    _base_folder exists on every provider except MangaFire (chapter-based,
+    no per-title folder in the same sense), so getattr with a None default
+    covers that without a provider-specific branch here.
+    """
+    if not genres:
+        return
+    folder = getattr(episode, "_base_folder", None)
+    if not folder:
+        return
+    try:
+        library.write_genre_sidecar(folder, genres)
+    except Exception:
+        logger.debug("Could not write genre sidecar for %s", folder, exc_info=True)
+
+
 def _process(item):
     from ..playwright import captcha
 
@@ -132,6 +150,8 @@ def _process(item):
     entries = json.loads(item["episodes"])
     selected_path = paths.target_path(item["language"], item.get("custom_path_id"))
     errors = []
+    genres = db.take_queued_genres(queue_id)
+    genres_written = False
 
     for index, entry in enumerate(entries):
         url, extra = _episode_request(entry)
@@ -139,6 +159,9 @@ def _process(item):
         try:
             db.update_queue_progress(queue_id, index, url)
             provider, episode = _build_episode(url, extra, item, selected_path)
+            if not genres_written:
+                _write_genre_sidecar_once(episode, genres)
+                genres_written = True
             # Tells the captcha module to stream its browser into this queue item
             captcha._local.queue_id = queue_id
             try:

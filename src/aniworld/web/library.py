@@ -5,8 +5,10 @@ directories exist, opening a location lists its folder names, and only opening
 a single title walks that one folder. Nothing ever scans the whole tree.
 """
 
+import json
 import re
 import shutil
+from pathlib import Path
 
 from ..logger import get_logger
 from . import db, paths
@@ -304,11 +306,47 @@ def _prune_empty(root):
         pass
 
 
-def list_titles_with_meta(custom_path_id=None, lang_folder=None):
-    """Titles plus which of "series"/"movies" each one belongs to.
+GENRE_SIDECAR_NAME = ".genres.json"
 
-    A title can be both (e.g. a series with a bonus film in the same
-    folder), so this is a list of categories per title, not a single value.
+
+def write_genre_sidecar(folder, genres):
+    """Write a title's genres next to its episodes, independent of the queue.
+
+    Called once by the worker when a download starts. Kept deliberately
+    dumb: a flat JSON list of strings, no schema versioning, nothing that
+    needs migrating later. An empty list is a no-op rather than writing an
+    empty file, so a provider or a manual download that never had genre data
+    just leaves nothing behind instead of a placeholder file to clean up.
+    """
+    genres = [str(g).strip() for g in (genres or []) if str(g).strip()]
+    if not genres:
+        return
+    folder = Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / GENRE_SIDECAR_NAME).write_text(
+        json.dumps(genres, ensure_ascii=False), encoding="utf-8"
+    )
+
+
+def _read_genre_sidecar(folder):
+    path = Path(folder) / GENRE_SIDECAR_NAME
+    if not path.is_file():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    if not isinstance(data, list):
+        return []
+    return [str(g) for g in data if str(g).strip()]
+
+
+def list_titles_with_meta(custom_path_id=None, lang_folder=None):
+    """Titles plus which of "series"/"movies" each one belongs to, and its
+    genres if a sidecar file was written for it.
+
+    A title can be both series and movies (e.g. a bonus film in the same
+    folder), so categories is a list, not a single value.
     """
     base = _resolve_base(custom_path_id, lang_folder)
     titles = list_titles(custom_path_id, lang_folder)
@@ -322,7 +360,8 @@ def list_titles_with_meta(custom_path_id=None, lang_folder=None):
         ]
         if not categories:
             categories = ["series"]
-        result.append({"folder": folder, "categories": categories})
+        genres = _read_genre_sidecar(target) if target else []
+        result.append({"folder": folder, "categories": categories, "genres": genres})
     return result
 
 
