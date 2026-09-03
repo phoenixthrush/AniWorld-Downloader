@@ -16,6 +16,8 @@ from .config import (
     FILMPALAST_SERIES_PATTERN,
     HANIME_TV_SERIES_PATTERN,
     KINOX_SERIES_PATTERN,
+    LANG_KEY_MAP,
+    LANG_LABELS,
     MANGA_FIRE_CHAPTER_PATTERN,
     MANGA_FIRE_SERIES_PATTERN,
     MEGAKINO_SERIES_PATTERN,
@@ -184,6 +186,52 @@ def _serialize_episode(episode) -> dict:
     return {attr: getattr(episode, attr) for attr in _EPISODE_ATTRS if hasattr(episode, attr)}
 
 
+# Keyed by enum *values*, not by the enums themselves: several site modules
+# (models/s_to/episode.py, …) declare their own Audio/Subtitles enums, so the
+# members in provider_data are not the ones config.py defines.
+_STREAM_LABELS = {
+    (audio.value, subtitles.value): LANG_LABELS[key]
+    for key, (audio, subtitles) in LANG_KEY_MAP.items()
+}
+
+
+def _serialize_streams(episode) -> dict:
+    """
+    Available streams as {"<language label>": ["VOE", "Filemoon", ...]}.
+
+    Both names are usable verbatim on the CLI: the key as --language, the
+    entries as --provider. No URLs, because neither flag accepts one
+    (--provider-url is a separate, single-episode escape hatch).
+    """
+    from .extractors import provider_functions
+
+    try:
+        data = getattr(episode, "provider_data", None) or {}
+        streams = {}
+        for (audio, subtitles), providers in data.items():
+            label = _STREAM_LABELS.get((audio.value, subtitles.value))
+            if label is None:
+                label = (
+                    f"{audio.value} Dub"
+                    if subtitles.value == "None"
+                    else f"{subtitles.value} Sub"
+                )
+            # serienstream.to lists hosters we have no extractor for (including
+            # one literally named "Provider"); offering them would only produce
+            # a download that cannot resolve.
+            named = [
+                name
+                for name in providers
+                if f"get_direct_link_from_{name.lower()}" in provider_functions
+            ]
+            if named:
+                streams[label] = sorted(named)
+    except Exception:
+        # One unreachable episode page must not sink the whole info dump.
+        return {}
+    return streams
+
+
 def get_info(url):
     provider = resolve_provider(url)
     media = provider.series_cls(url)
@@ -191,16 +239,35 @@ def get_info(url):
     if provider.season_cls is None:
         # Movie-only providers (MegaKino, FilmPalast): series_cls IS the
         # episode/movie itself, no season/episode hierarchy to walk.
-        episodes = {"1": [_serialize_episode(media)]}
+        seasons = [(None, [media])]
     else:
-        episodes = {
-            str(season.season_number): [_serialize_episode(ep) for ep in season.episodes]
-            for season in media.seasons
-        }
+        seasons = [(season.url, list(season.episodes)) for season in media.seasons]
 
-    return {
-        "name": media.title,
-        "provider": provider.name,
-        "episodes": episodes,
-        "url": url,
-    }
+    content = [url]
+    entries = []
+
+    for season_url, episodes in seasons:
+        season_entries = []
+        for episode in episodes:
+            entry = _serialize_episode(episode)
+            entry["streams"] = _serialize_streams(episode)
+            season_entries.append(entry)
+        entries.extend(season_entries)
+
+        if season_url is None:
+            content.extend(season_entries)
+        else:
+            content.append([season_url, *season_entries])
+
+    info = {"name": media.title, "provider": provider.name}
+
+    # Nearly every show offers the same streams on every episode; only repeat
+    # them per episode when they actually differ.
+    streams = [entry["streams"] for entry in entries]
+    if not streams or all(s == streams[0] for s in streams):
+        for entry in entries:
+            del entry["streams"]
+        info["streams"] = streams[0] if streams else {}
+
+    info["content"] = content
+    return info

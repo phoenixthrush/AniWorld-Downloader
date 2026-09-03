@@ -270,6 +270,9 @@ class ProviderData:
     def __getitem__(self, lang_tuple: tuple[Audio, Subtitles]):
         return self._data[lang_tuple]
 
+    def items(self):
+        return self._data.items()
+
 
 # -----------------------------------------------------------------------------
 # Episode actions (moved from models/*/episode.py)
