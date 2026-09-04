@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import sys
@@ -9,7 +10,7 @@ from .config import ACTION_METHODS, ANIWORLD_CONFIG_DIR, VERSION
 from .env import merge_env
 from .logger import get_logger
 from .models.common import run_each
-from .providers import resolve_provider
+from .providers import resolve_provider, get_info
 
 merge_env(
     Path(__file__).resolve().parent / ".env.example",
@@ -55,6 +56,27 @@ def aniworld():
         logger.debug("Starting AniWorld-Downloader...")
         set_terminal_title()
         args = parse_args()
+
+        if args.raw_search:
+            from .web.sitesearch import aggregate
+
+            media_type = "series" if args.use_sto_search else "movie"
+            query = args.raw_search.strip()
+            results = [
+                {"title": r["title"], "url": r["url"], "site": r["site"]}
+                for r in aggregate(query, media_type)
+            ]
+            if args.debug:
+                print(json.dumps(results, indent=2))
+            else:
+                print(results)
+            return
+        if args.raw_info:
+            if args.debug:
+                print(json.dumps(get_info(args.raw_info), indent=2))
+            else:
+                print(get_info(args.raw_info))
+            return
 
         if os.getenv("ANIWORLD_DOWNLOAD_PATH") != "/app/Downloads":
             logger.debug("Checking dependencies...")
