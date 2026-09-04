@@ -1,6 +1,7 @@
 <a id="readme-top"></a>
-
 # AniWorld Downloader v5
+![Aniworld Banner](https://github.com/phoenixthrush/AniWorld-Downloader/blob/models/.github/assets/aniworld-banner.png?raw=true)
+
 
 AniWorld Downloader is a cross-platform app for finding, streaming, and downloading anime, movies, series, and manga. It has a browser-based Web UI, an interactive terminal menu, and a direct CLI for scripts and headless setups.
 
