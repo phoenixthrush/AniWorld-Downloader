@@ -549,9 +549,15 @@ def _env_sections():
                     "ANIWORLD_PROVIDER_FALLBACK_ORDER",
                     ",".join(get_provider_fallback_order(WORKING_PROVIDERS)),
                 ),
-                ("ANIWORLD_LANG_SEPARATION", _one_or_zero(paths.lang_separation_enabled())),
+                (
+                    "ANIWORLD_LANG_SEPARATION",
+                    _one_or_zero(paths.lang_separation_enabled()),
+                ),
                 ("ANIWORLD_DISABLE_ENGLISH_SUB", _one_or_zero(english_sub_disabled())),
-                ("ANIWORLD_MOVIE_FOLDER", _one_or_zero(_flag("ANIWORLD_MOVIE_FOLDER", "1"))),
+                (
+                    "ANIWORLD_MOVIE_FOLDER",
+                    _one_or_zero(_flag("ANIWORLD_MOVIE_FOLDER", "1")),
+                ),
             ],
         ),
         (
@@ -596,7 +602,7 @@ def _env_value(value):
     value = "" if value is None else str(value)
     if value and value[0] in "\"'" and value[-1] == value[0]:
         return value
-    return f'"{value}"' if any(ch in value for ch in ' \t#') else value
+    return f'"{value}"' if any(ch in value for ch in " \t#") else value
 
 
 def export_env():

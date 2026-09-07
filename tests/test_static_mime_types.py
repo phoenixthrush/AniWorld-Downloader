@@ -84,6 +84,7 @@ def test_importing_the_web_app_repairs_a_broken_machine_table(tmp_path):
         text=True,
         env=env,
         timeout=120,
+        check=False,
     )
     assert finished.returncode == 0, finished.stderr
     assert finished.stdout.split() == ["text/javascript", "text/css"]
