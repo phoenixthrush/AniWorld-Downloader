@@ -80,6 +80,11 @@ VIDEO_CODEC_MAP = {
     "h264": "libx264",
     "h265": "libx265",
     "av1": "libsvtav1",
+    "h264_nvenc": "h264_nvenc",
+    "hevc_nvenc": "hevc_nvenc",
+    "h264_amf": "h264_amf",
+    "hevc_amf": "hevc_amf",
+    "av1_amf": "av1_amf",
 }
 
 ACTION_METHODS = {

@@ -33,7 +33,7 @@ services:
     #   ANIWORLD_PROVIDER: "VOE"                      # Default streaming provider
     #   ANIWORLD_PROVIDER_FALLBACK_ORDER: "VOE,Vidmoly,Vidoza,Doodstream"  # Tried in order after the selected provider fails
     #   ANIWORLD_NAMING_TEMPLATE: "{title} ({year}) [imdbid-{imdbid}]/Season {season}/{title} S{season}E{episode}.mkv"
-    #   ANIWORLD_VIDEO_CODEC: "copy"                  # Video codec: copy | h264 | h265 | av1
+    #   ANIWORLD_VIDEO_CODEC: "copy"                  # Video codec: copy | h264 | h265 | av1 | h264_nvenc | hevc_nvenc | h264_amf | hevc_amf | av1_amf
     #   ANIWORLD_LANG_SEPARATION: "0"                 # Separate downloads into language subfolders (german-dub/, english-sub/)
     #   ANIWORLD_MOVIE_FOLDER: "1"                    # 1 = wrap a movie in its own "Title (Year)" folder, 0 = save it directly
     #   ANIWORLD_DISABLE_ENGLISH_SUB: "0"             # Block English Sub downloads entirely

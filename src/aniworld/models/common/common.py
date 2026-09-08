@@ -1280,14 +1280,14 @@ def download(self):
                                         ffmpeg.input(str(audio_path)).audio,
                                         str(temp_full),
                                         vcodec=video_codec,
-                                        acodec=video_codec,
+                                        acodec="copy",
                                         **stream_metadata,
                                     )
                                 else:
                                     node = ffmpeg.input(str(video_path)).output(
                                         str(temp_full),
                                         vcodec=video_codec,
-                                        acodec=video_codec,
+                                        acodec="copy",
                                         **stream_metadata,
                                     )
                                 _run_ffmpeg_with_progress(node, label=ep_label)
@@ -1330,7 +1330,6 @@ def download(self):
 
                 if need_audio:
                     logger.debug(f"[DOWNLOADING] audio stream via {provider_name}")
-                    video_codec = get_video_codec()
                     audio_done = False
                     if select_rendition:
                         # Pull just the wanted audio rendition (e.g. the German
@@ -1348,7 +1347,7 @@ def download(self):
                                 _run_ffmpeg_with_progress(
                                     ffmpeg.input(str(audio_src)).output(
                                         str(temp_audio),
-                                        acodec=video_codec,
+                                        acodec="copy",
                                         map="0:a:0?",
                                         **{"metadata:s:a:0": f"language={audio_code}"},
                                     ),
@@ -1361,7 +1360,7 @@ def download(self):
                         _run_ffmpeg_with_progress(
                             ffmpeg.input(stream_url, **input_kwargs).output(
                                 str(temp_audio),
-                                acodec=video_codec,
+                                acodec="copy",
                                 map="0:a:0?",
                                 **{"metadata:s:a:0": f"language={audio_code}"},
                             ),
