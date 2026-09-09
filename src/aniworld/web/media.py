@@ -4,6 +4,7 @@ import os
 import re
 from urllib.parse import quote, urlparse
 
+from .. import sidecar
 from ..config import LANG_KEY_MAP, LANG_LABELS, SUPPORTED_PROVIDERS
 from ..extractors import provider_functions
 from ..logger import get_logger
@@ -195,8 +196,9 @@ def language_labels(provider_data):
 # Downloaded episode detection
 # ---------------------------------------------------------------------------
 # Matched on the filename rather than the naming template so files keep being
-# recognised after the template changes.
-EPISODE_RE = re.compile(r"S(\d{2})E(\d{2,3})", re.IGNORECASE)
+# recognised after the template changes. Lives in sidecar.py so the core
+# package and the web UI agree on what an episode file looks like.
+EPISODE_RE = sidecar.EPISODE_RE
 
 
 # clean_title strips these from a folder name, so a title still carrying them
@@ -263,22 +265,32 @@ def _title_folders(base, title):
 
 
 def downloaded_episodes(series):
-    """Set of (season, episode) numbers already on disk for a series."""
+    """Set of (season, episode) numbers already on disk for a series.
+
+    Folders are matched by name as before, plus by the series URL in their
+    `.aniworld` sidecar, which also catches a folder that was renamed. Each
+    matched folder is then read through its sidecar instead of being walked,
+    so a search no longer costs one directory walk per downloaded title.
+    """
     title = (
         getattr(series, "title_cleaned", None) or getattr(series, "title", "") or ""
     ).lower()
-    if not title:
+    bases = paths.scan_bases()
+    folders = {}
+    if title:
+        for base in bases:
+            for folder in _title_folders(base, title):
+                folders[folder] = True
+    series_url = getattr(series, "url", "") or ""
+    if series_url:
+        for folder in sidecar.find_folders(bases, series_url):
+            folders[folder] = True
+    if not folders:
         return set()
 
     found = set()
-    for base in paths.scan_bases():
-        for folder in _title_folders(base, title):
-            for file in folder.rglob("*"):
-                if not file.is_file():
-                    continue
-                match = EPISODE_RE.search(file.name)
-                if match:
-                    found.add((int(match.group(1)), int(match.group(2))))
+    for folder in folders:
+        found.update(sidecar.episodes_on_disk(folder))
     return found
 
 

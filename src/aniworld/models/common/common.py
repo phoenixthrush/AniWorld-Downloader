@@ -32,6 +32,7 @@ try:
         is_sto_host,
         logger,
     )
+    from ...sidecar import record_download as _record_sidecar_download
 except ImportError:
     from aniworld.autodeps import get_player_path, get_syncplay_path
     from aniworld.config import (
@@ -47,6 +48,7 @@ except ImportError:
         is_sto_host,
         logger,
     )
+    from aniworld.sidecar import record_download as _record_sidecar_download
 
 # Precompile regex for forbidden filename characters
 FORBIDDEN_CHARS = re.compile(r'[<>:"/\\|?*]')
@@ -706,8 +708,7 @@ def _finalize_episode(temp_path, episode_path, label="", owner=None):
 
     if target_ext == source_ext or target_ext not in ("mkv", "mp4"):
         os.replace(temp_path, episode_path)
-        if owner is not None:
-            _finalize_resolution_naming(owner)
+        _after_finalize(owner, episode_path)
         return
 
     converted = episode_path.with_suffix(f".convert.{target_ext}")
@@ -743,8 +744,21 @@ def _finalize_episode(temp_path, episode_path, label="", owner=None):
 
     os.replace(converted, episode_path)
     temp_path.unlink(missing_ok=True)
-    if owner is not None:
-        _finalize_resolution_naming(owner)
+    _after_finalize(owner, episode_path)
+
+
+def _after_finalize(owner, episode_path):
+    """Post-move bookkeeping: the resolution rename, then the sidecar.
+
+    The sidecar goes last so it sees the final filename. It is a cache next
+    to the video, never a reason for a finished download to count as failed,
+    hence record_download swallows its own errors.
+    """
+    if owner is None:
+        return
+    _finalize_resolution_naming(owner)
+    final_path = getattr(owner, "_episode_path", None) or episode_path
+    _record_sidecar_download(owner, final_path)
 
 
 def _download_direct_http(episode_path, stream_url, file_name):
