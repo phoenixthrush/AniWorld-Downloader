@@ -181,7 +181,7 @@ def _build_synthetic_payload(slug, html):
     ):
         try:
             parsed = json.loads(unescape(raw.strip()))
-        except (json.JSONDecodeError, TypeError):
+        except json.JSONDecodeError, TypeError:
             continue
         if isinstance(parsed, dict) and parsed.get("@type") == "VideoObject":
             ldjson = parsed
@@ -374,7 +374,7 @@ def get_direct_link_from_hanime_tv(api_data, refresh=False):
             continue
         try:
             height = int(source.get("height") or 0)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             height = 0
         candidates.append((height, urljoin(HANIME_BASE_URL, source_url)))
 

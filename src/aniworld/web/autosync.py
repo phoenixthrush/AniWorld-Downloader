@@ -79,7 +79,7 @@ def _utc(wall_clock):
 def _parse(value):
     try:
         parsed = datetime.fromisoformat(value) if value else None
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     if parsed is not None and parsed.tzinfo is None:
         # Hand-edited, or written by a version that stored it without one.

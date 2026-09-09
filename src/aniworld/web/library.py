@@ -231,7 +231,7 @@ def _safe_child(base, folder):
     child = base / name
     try:
         child.resolve().relative_to(base.resolve())
-    except (ValueError, OSError):
+    except ValueError, OSError:
         return None
     return child
 

@@ -68,7 +68,7 @@ def _expiry_days(raw):
         return None, None
     try:
         days = int(raw)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None, "expires_days must be a number"
     if days < 1 or days > MAX_EXPIRY_DAYS:
         return None, f"expires_days must be between 1 and {MAX_EXPIRY_DAYS}"

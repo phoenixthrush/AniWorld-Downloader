@@ -28,7 +28,7 @@ https://github.com/user-attachments/assets/d65c4a5c-827a-45d7-a904-78977fd9aef4
 
 ## Quick Start
 
-Python 3.10 or newer is required for the PyPI install.
+Python 3.11 or newer is required for the PyPI install.
 
 ```bash
 pip install -U aniworld

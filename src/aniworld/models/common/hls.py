@@ -58,7 +58,7 @@ def get_concurrency():
     raw = os.getenv("ANIWORLD_HLS_CONCURRENCY", str(DEFAULT_CONCURRENCY))
     try:
         value = int(str(raw).strip())
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return DEFAULT_CONCURRENCY
     return max(1, min(value, MAX_CONCURRENCY))
 

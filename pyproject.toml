@@ -8,7 +8,7 @@ maintainers = [
 ]
 description = "AniWorld-Downloader is a command-line tool for downloading and streaming movies and series."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 # requires version numbers from 06/2026
 dependencies = [
   "certifi",                                                                  # CA bundle for bundled runtimes
