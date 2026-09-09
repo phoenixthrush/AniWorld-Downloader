@@ -121,6 +121,21 @@
             Container for downloaded files. MP4 is the most compatible with players and Plex.
           </p>
 
+          <h3 data-i18n="settings.video_codec">Video Codec</h3>
+          <div class="control-row">
+            <label class="field field-compact">
+              <select id="videoCodec"></select>
+            </label>
+            <button class="btn btn-ghost" id="probeEncodersBtn" type="button"
+              data-i18n="settings.probe_encoders">Check hardware encoders</button>
+          </div>
+          <p class="hint" data-i18n="settings.video_codec_hint">
+            "Copy" keeps the stream as the site serves it. The others re-encode with FFmpeg; the GPU ones
+            (NVENC, AMF, Quick Sync, VideoToolbox) are many times faster than the CPU encoders. A GPU encoder
+            that does not work on this machine falls back to the CPU encoder of the same codec.
+          </p>
+          <p class="hint" id="encoderProbeResult" hidden></p>
+
           <label class="checkbox">
             <input type="checkbox" id="langSeparation" data-setting="lang_separation" />
             <span data-i18n="settings.lang_separation">Separate languages into folders</span>
@@ -159,7 +174,17 @@
             <span data-i18n="settings.enable_library">Enable Library</span>
           </label>
           <p class="hint" data-i18n="settings.enable_library_hint">
-            Shows the Library tab for browsing and deleting downloaded files.
+            Shows the Library tab for browsing, playing and deleting downloaded files.
+          </p>
+
+          <label class="checkbox">
+            <input type="checkbox" id="enableLibrarySidecars" data-setting="enable_library_sidecars" />
+            <span data-i18n="settings.enable_library_sidecars">Write .aniworld files into title folders</span>
+          </label>
+          <p class="hint" data-i18n="settings.enable_library_sidecars_hint">
+            A small KEY=VALUE file per series (site, series URL, title, year, poster, episode titles) plus cached
+            episode thumbnails in ".aniworld-thumbs/". The library and the "downloaded" badge read those instead of
+            walking every folder. Turn it off for read-only shares; watch positions stay in the database either way.
           </p>
         </section>
 
@@ -630,6 +655,12 @@
                 <tr><td><code>GET /api/library/titles</code></td><td>read</td>
                   <td data-i18n="settings.api_lib_titles">Titles in one location</td></tr>
                 <tr><td><code>GET /api/library/title?folder=</code></td><td>read</td>
+                <tr><td><code>GET /api/library/cards</code></td><td>read</td>
+                <tr><td><code>GET /api/library/continue</code></td><td>read</td>
+                <tr><td><code>GET /api/library/file?folder=&amp;path=</code></td><td>read</td>
+                <tr><td><code>GET /api/library/thumbnail?folder=&amp;path=</code></td><td>read</td>
+                <tr><td><code>POST /api/library/thumbnail</code></td><td>read and download</td>
+                <tr><td><code>POST /api/library/progress</code></td><td>read and download</td>
                   <td data-i18n="settings.api_lib_title">Files of a single title</td></tr>
                 <tr><td><code>POST /api/library/delete</code></td><td>full</td>
                   <td data-i18n="settings.api_lib_delete">Delete a title, season or episode</td></tr>

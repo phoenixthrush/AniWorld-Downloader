@@ -21,6 +21,7 @@ ADMIN_ENDPOINTS = {
     "pages.settings",
     "api.get_settings",
     "api.update_settings",
+    "api.probe_encoders",
     "api.public_ip",
     "api.preview_schedule",
     "api.export_env",

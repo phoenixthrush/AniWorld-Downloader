@@ -74,17 +74,66 @@ NAMING_TEMPLATE = os.getenv(
 # Video codec configuration
 VIDEO_CODEC = os.getenv("ANIWORLD_VIDEO_CODEC", "copy")
 
-# Simple codec mapping using ffmpeg defaults
+# Setting key -> ffmpeg encoder. The hardware entries are what #301 asked for:
+# the same H.264/HEVC/AV1 output, produced by the GPU instead of libx264 on
+# every core. VA-API is missing on purpose: its encoders need a device and an
+# hwupload filter in front of them, they are not a drop-in `-c:v`.
 VIDEO_CODEC_MAP = {
     "copy": "copy",
     "h264": "libx264",
     "h265": "libx265",
     "av1": "libsvtav1",
+    # NVIDIA NVENC
     "h264_nvenc": "h264_nvenc",
     "hevc_nvenc": "hevc_nvenc",
+    "av1_nvenc": "av1_nvenc",
+    # AMD AMF
     "h264_amf": "h264_amf",
     "hevc_amf": "hevc_amf",
     "av1_amf": "av1_amf",
+    # Intel Quick Sync
+    "h264_qsv": "h264_qsv",
+    "hevc_qsv": "hevc_qsv",
+    "av1_qsv": "av1_qsv",
+    # Apple VideoToolbox
+    "h264_videotoolbox": "h264_videotoolbox",
+    "hevc_videotoolbox": "hevc_videotoolbox",
+}
+
+# A hardware encoder that is compiled into ffmpeg can still be unusable: no
+# GPU in the box, a driver too old for the codec, a headless container. When
+# that happens the download falls back to the software encoder of the same
+# codec instead of failing three providers in a row on the same ffmpeg error.
+HARDWARE_CODEC_FALLBACK = {
+    "h264_nvenc": "h264",
+    "hevc_nvenc": "h265",
+    "av1_nvenc": "av1",
+    "h264_amf": "h264",
+    "hevc_amf": "h265",
+    "av1_amf": "av1",
+    "h264_qsv": "h264",
+    "hevc_qsv": "h265",
+    "av1_qsv": "av1",
+    "h264_videotoolbox": "h264",
+    "hevc_videotoolbox": "h265",
+}
+
+VIDEO_CODEC_LABELS = {
+    "copy": "Copy (no re-encode)",
+    "h264": "H.264 (libx264, CPU)",
+    "h265": "H.265 (libx265, CPU)",
+    "av1": "AV1 (SVT-AV1, CPU)",
+    "h264_nvenc": "H.264 NVIDIA NVENC",
+    "hevc_nvenc": "H.265 NVIDIA NVENC",
+    "av1_nvenc": "AV1 NVIDIA NVENC",
+    "h264_amf": "H.264 AMD AMF",
+    "hevc_amf": "H.265 AMD AMF",
+    "av1_amf": "AV1 AMD AMF",
+    "h264_qsv": "H.264 Intel Quick Sync",
+    "hevc_qsv": "H.265 Intel Quick Sync",
+    "av1_qsv": "AV1 Intel Quick Sync",
+    "h264_videotoolbox": "H.264 Apple VideoToolbox",
+    "hevc_videotoolbox": "H.265 Apple VideoToolbox",
 }
 
 ACTION_METHODS = {
@@ -93,16 +142,94 @@ ACTION_METHODS = {
     "Syncplay": "syncplay",
 }
 
+_encoder_checks = {}
+
+
+def _ffmpeg_binary():
+    import shutil
+
+    return shutil.which("ffmpeg")
+
+
+def encoder_works(encoder):
+    """Whether ffmpeg can actually open this encoder on this machine.
+
+    Encodes a tenth of a second of black once per process and remembers the
+    answer. Listing `-encoders` is not enough: NVENC is compiled into every
+    distro build and still fails at runtime without an NVIDIA driver. None
+    means "could not check" (no ffmpeg on PATH yet), which is treated as ok
+    so a missing probe never blocks a download.
+    """
+    if encoder in _encoder_checks:
+        return _encoder_checks[encoder]
+    binary = _ffmpeg_binary()
+    if not binary:
+        return None
+    import subprocess
+
+    command = [
+        binary,
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-f",
+        "lavfi",
+        "-i",
+        "color=c=black:s=256x256:r=25:d=0.2",
+        "-frames:v",
+        "3",
+        "-c:v",
+        encoder,
+        "-f",
+        "null",
+        "-",
+    ]
+    try:
+        result = subprocess.run(
+            command, capture_output=True, text=True, timeout=30, check=False
+        )
+        ok = result.returncode == 0
+        if not ok:
+            detail = (result.stderr or "").strip().splitlines()
+            logger.debug(
+                "Encoder %s unavailable: %s", encoder, detail[-1] if detail else "?"
+            )
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.debug("Encoder probe for %s failed: %s", encoder, exc)
+        ok = None
+    _encoder_checks[encoder] = ok
+    return ok
+
+
+def video_codec_setting():
+    """The configured codec key, read live so the settings page can change it."""
+    codec = (os.getenv("ANIWORLD_VIDEO_CODEC", VIDEO_CODEC) or "").strip().lower()
+    return codec or "copy"
+
 
 def get_video_codec():
-    """Get and validate video codec from environment variable."""
-    codec = VIDEO_CODEC
+    """The ffmpeg encoder to use, validated and probed.
+
+    An unknown key falls back to copy. A hardware key whose encoder does not
+    work here falls back to the software encoder of the same codec, with a
+    warning naming both, so the file still comes out in the format asked for.
+    """
+    codec = video_codec_setting()
     if codec not in VIDEO_CODEC_MAP:
         logger.warning(
             f"Invalid video codec '{codec}', falling back to 'copy'. Valid options: {list(VIDEO_CODEC_MAP.keys())}"
         )
         return "copy"
-    return VIDEO_CODEC_MAP[codec]
+    encoder = VIDEO_CODEC_MAP[codec]
+    fallback = HARDWARE_CODEC_FALLBACK.get(codec)
+    if fallback and encoder_works(encoder) is False:
+        logger.warning(
+            "Hardware encoder %s is not usable on this machine, encoding with %s instead",
+            encoder,
+            VIDEO_CODEC_MAP[fallback],
+        )
+        return VIDEO_CODEC_MAP[fallback]
+    return encoder
 
 
 # NIQUESTS

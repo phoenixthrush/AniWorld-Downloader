@@ -11,6 +11,7 @@ logger = get_logger(__name__)
 
 def register(bp):
     bp.add_url_rule("/settings", view_func=get_settings)
+    bp.add_url_rule("/settings/encoders", view_func=probe_encoders)
     bp.add_url_rule("/settings", view_func=update_settings, methods=["PUT"])
     bp.add_url_rule("/settings/public-ip", view_func=public_ip)
     bp.add_url_rule(
@@ -35,6 +36,11 @@ def register(bp):
 
 def get_settings():
     return jsonify(settings_store.read_settings())
+
+
+def probe_encoders():
+    """Which hardware encoders actually work here. Runs ffmpeg, so on demand only."""
+    return jsonify({"codecs": settings_store.video_codec_choices(probe=True)})
 
 
 def update_settings():

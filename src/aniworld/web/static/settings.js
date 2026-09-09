@@ -96,6 +96,7 @@
     el("downloadPath").value = settings.download_path || "";
     el("uiLanguage").value = settings.ui_language;
     el("outputFormat").value = settings.output_format;
+    renderCodecs(settings.available_video_codecs || [], settings.video_codec);
 
     document.querySelectorAll("[data-setting]").forEach((box) => {
       box.checked = Boolean(settings[box.dataset.setting]);
@@ -125,6 +126,53 @@
 
   el("saveDownloadPathBtn").addEventListener("click", () => {
     save({ download_path: el("downloadPath").value.trim() });
+  });
+
+  /* ===== Video codec (#301) =====
+     The select lists every key the setting accepts. Whether a GPU encoder
+     actually works here is only known after running ffmpeg once per encoder,
+     so that is a button, not something the page does on every load. */
+  function codecLabel(codec) {
+    let label = codec.label;
+    if (codec.available === true) label += " \u2713";
+    if (codec.available === false) {
+      label += ` (${t("settings.encoder_unavailable", "not available here, falls back to CPU")})`;
+    }
+    return label;
+  }
+
+  function renderCodecs(codecs, current) {
+    const select = el("videoCodec");
+    select.innerHTML = codecs
+      .map((codec) => `<option value="${esc(codec.key)}">${esc(codecLabel(codec))}</option>`)
+      .join("");
+    select.value = current || "copy";
+  }
+
+  el("videoCodec").addEventListener("change", async () => {
+    const ok = await save({ video_codec: el("videoCodec").value });
+    if (!ok) load();
+  });
+
+  el("probeEncodersBtn").addEventListener("click", async () => {
+    const button = el("probeEncodersBtn");
+    const result = el("encoderProbeResult");
+    button.disabled = true;
+    result.hidden = false;
+    result.textContent = t("settings.probing_encoders", "Running ffmpeg once per encoder...");
+    try {
+      const data = await apiFetch("/api/settings/encoders", { timeoutMs: 120000 });
+      const codecs = data.codecs || [];
+      renderCodecs(codecs, el("videoCodec").value);
+      const working = codecs.filter((c) => c.hardware && c.available === true).map((c) => c.label);
+      result.textContent = working.length
+        ? `${t("settings.encoders_working", "Working hardware encoders")}: ${working.join(", ")}`
+        : t("settings.encoders_none", "No hardware encoder works on this machine; the CPU encoders are used.");
+    } catch (error) {
+      result.textContent = error.message;
+    } finally {
+      button.disabled = false;
+    }
   });
 
   /* ===== Where a download lands =====

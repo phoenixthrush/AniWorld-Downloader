@@ -10,11 +10,17 @@ import os
 
 import niquests as requests
 
+from .. import sidecar
 from ..config import (
     ANIWORLD_CONFIG_DIR,
+    HARDWARE_CODEC_FALLBACK,
     LANG_LABELS,
+    VIDEO_CODEC_LABELS,
+    VIDEO_CODEC_MAP,
+    encoder_works,
     get_provider_fallback_order,
     parse_provider_order,
+    video_codec_setting,
 )
 from ..logger import get_logger
 from . import paths, schedule
@@ -68,6 +74,36 @@ def ui_language():
 
 def library_enabled():
     return _flag("ANIWORLD_ENABLE_LIBRARY", "1")
+
+
+def library_sidecars_enabled():
+    """Whether the library may write .aniworld files and thumbnails into title folders."""
+    return sidecar.writes_enabled()
+
+
+def video_codec_choices(probe=False):
+    """Every codec the setting accepts, with whether its encoder works here.
+
+    `available` is None until probed: the probe runs ffmpeg once per encoder
+    and is only worth doing when the settings page asks for it.
+    """
+    choices = []
+    for key, encoder in VIDEO_CODEC_MAP.items():
+        hardware = key in HARDWARE_CODEC_FALLBACK
+        available = None
+        if probe and hardware:
+            available = encoder_works(encoder)
+        choices.append(
+            {
+                "key": key,
+                "label": VIDEO_CODEC_LABELS.get(key, key),
+                "encoder": encoder,
+                "hardware": hardware,
+                "available": available,
+                "fallback": HARDWARE_CODEC_FALLBACK.get(key),
+            }
+        )
+    return choices
 
 
 def autosync_enabled():
@@ -370,6 +406,7 @@ def read_settings():
         "disable_english_sub": english_sub_disabled(),
         **{f"enable_{site}": state for site, state in enabled_sites().items()},
         "enable_library": library_enabled(),
+        "enable_library_sidecars": library_sidecars_enabled(),
         "enable_autosync": autosync_enabled(),
         "autosync_new_only": autosync_new_only(),
         "autosync_mode": autosync_mode(),
@@ -381,6 +418,8 @@ def read_settings():
         "movie_folder": _flag("ANIWORLD_MOVIE_FOLDER", "1"),
         "ui_language": ui_language(),
         "output_format": output_format(),
+        "video_codec": video_codec_setting(),
+        "available_video_codecs": video_codec_choices(),
         "provider_fallback_order": list(get_provider_fallback_order(WORKING_PROVIDERS)),
         "available_providers": list(WORKING_PROVIDERS),
         "available_ui_languages": list(UI_LANGUAGES),
@@ -402,6 +441,7 @@ _BOOL_SETTINGS = {
     "lang_separation": "ANIWORLD_LANG_SEPARATION",
     "disable_english_sub": "ANIWORLD_DISABLE_ENGLISH_SUB",
     "enable_library": "ANIWORLD_ENABLE_LIBRARY",
+    "enable_library_sidecars": "ANIWORLD_LIBRARY_SIDECARS",
     "enable_autosync": "ANIWORLD_ENABLE_AUTOSYNC",
     "autosync_new_only": "ANIWORLD_AUTOSYNC_NEW_ONLY",
     "movie_folder": "ANIWORLD_MOVIE_FOLDER",
@@ -500,6 +540,12 @@ def update_settings(data):
             raise SettingsError(f"Invalid output_format: {fmt}")
         updates["ANIWORLD_NAMING_TEMPLATE"] = _template_with_extension(fmt)
 
+    if "video_codec" in data:
+        codec = str(data["video_codec"]).strip().lower()
+        if codec not in VIDEO_CODEC_MAP:
+            raise SettingsError(f"Invalid video_codec: {codec}")
+        updates["ANIWORLD_VIDEO_CODEC"] = codec
+
     if "provider_fallback_order" in data:
         _collect_provider_order(data["provider_fallback_order"], updates)
 
@@ -545,6 +591,7 @@ def _env_sections():
             "Downloads",
             [
                 ("ANIWORLD_NAMING_TEMPLATE", _naming_template()),
+                ("ANIWORLD_VIDEO_CODEC", video_codec_setting()),
                 (
                     "ANIWORLD_PROVIDER_FALLBACK_ORDER",
                     ",".join(get_provider_fallback_order(WORKING_PROVIDERS)),
@@ -571,6 +618,10 @@ def _env_sections():
             "Library and Auto-Sync",
             [
                 ("ANIWORLD_ENABLE_LIBRARY", _one_or_zero(library_enabled())),
+                (
+                    "ANIWORLD_LIBRARY_SIDECARS",
+                    _one_or_zero(library_sidecars_enabled()),
+                ),
                 ("ANIWORLD_ENABLE_AUTOSYNC", _one_or_zero(autosync_enabled())),
                 ("ANIWORLD_AUTOSYNC_NEW_ONLY", _one_or_zero(autosync_new_only())),
                 ("ANIWORLD_AUTOSYNC_MODE", autosync_mode()),
