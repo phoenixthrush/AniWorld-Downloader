@@ -41,6 +41,13 @@
   --surface-code: rgba(0, 0, 0, 0.35);
   --surface-code-inline: rgba(0, 0, 0, 0.3);
   --surface-captcha: #000;
+  --surface-video: #000;
+  --surface-thumb: #0e0e15;
+  --progress-track: rgba(255, 255, 255, 0.12);
+  --scrim: rgba(0, 0, 0, 0.6);
+  --scrim-soft: rgba(0, 0, 0, 0.35);
+  --scrim-strong: rgba(0, 0, 0, 0.7);
+  --shadow-on-video: 0 1px 4px rgba(0, 0, 0, 0.8);
   --overlay-bg: rgba(0, 0, 0, 0.75);
 
   /* Borders */
@@ -2878,4 +2885,545 @@ details.advanced summary:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+
+/* ===== Library: cards, series view, player =====
+   The cards page is the poster grid from the home page, with a progress bar
+   along the bottom of each card. Opening a title swaps the grid for the
+   series view in place (no page load), and playing an episode opens the
+   player modal on top of it. */
+.container-wide {
+  max-width: 1240px;
+}
+
+.library-head {
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.library-head-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.library-head-left h1 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-back {
+  flex-shrink: 0;
+}
+
+.library-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.library-location-field select {
+  max-width: 260px;
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.segmented button {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.segmented button[aria-selected="true"] {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+
+.library-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  justify-content: center;
+}
+
+.library-cards .poster-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.library-cards .poster-card .cover {
+  position: relative;
+  height: 260px;
+  background: var(--surface-poster);
+}
+
+.library-cards .poster-card .cover img {
+  height: 100%;
+}
+
+.cover-blank {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: var(--surface-thumb);
+}
+
+.card-progress,
+.ep-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: var(--progress-track);
+}
+
+.card-progress span,
+.ep-progress span {
+  display: block;
+  height: 100%;
+  background: var(--gradient-progress);
+}
+
+.card-badges {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 3px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--scrim);
+  color: var(--text-bright);
+  backdrop-filter: blur(4px);
+}
+
+.pill-done {
+  background: var(--status-completed-bg);
+  color: var(--status-completed-text);
+}
+
+/* Continue watching: a horizontal strip of 16:9 frames */
+.library-continue {
+  margin-bottom: 26px;
+}
+
+.library-continue h2,
+.library-series h2 {
+  font-size: 1rem;
+  color: var(--text-bright);
+  margin: 0 0 12px;
+}
+
+.continue-strip {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scroll-snap-type: x proximity;
+}
+
+.continue-strip .ep-card {
+  flex: 0 0 240px;
+  scroll-snap-align: start;
+}
+
+/* Series view */
+.series-header {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 26px;
+  align-items: flex-start;
+}
+
+.series-poster {
+  flex: 0 0 180px;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface-poster);
+  border: 1px solid var(--border-soft);
+}
+
+.series-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.series-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.series-info h2 {
+  font-size: 1.45rem;
+  margin-bottom: 6px;
+}
+
+.series-line {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.series-line a {
+  color: var(--link);
+}
+
+.series-description {
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  max-width: 70ch;
+  margin-bottom: 14px;
+}
+
+.series-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.series-progress {
+  margin: 10px 0 14px;
+  max-width: 420px;
+}
+
+.series-progress .bar {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--progress-track);
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.series-progress .bar span {
+  display: block;
+  height: 100%;
+  background: var(--gradient-progress);
+}
+
+.season-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.season-tab {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: var(--radius-pill);
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.season-tab[aria-selected="true"] {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+  border-color: var(--border-hover);
+}
+
+.episode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.ep-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s var(--ease), border-color 0.2s, box-shadow 0.2s var(--ease);
+}
+
+.ep-card:hover,
+.ep-card:focus-within {
+  transform: translateY(-3px);
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-card);
+}
+
+.ep-card.is-watched .ep-thumb img {
+  opacity: 0.55;
+}
+
+.ep-thumb {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: var(--surface-thumb);
+  overflow: hidden;
+}
+
+.ep-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: opacity 0.3s;
+}
+
+.ep-thumb .ep-num {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+}
+
+.ep-thumb .ep-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+.ep-thumb .ep-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-strong);
+  font-size: 2rem;
+  opacity: 0;
+  background: var(--scrim-soft);
+  transition: opacity 0.2s;
+}
+
+.ep-card:hover .ep-play,
+.ep-card:focus-within .ep-play {
+  opacity: 1;
+}
+
+.ep-thumb .ep-pending {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.ep-info {
+  padding: 10px 12px 12px;
+}
+
+.ep-title {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-bright);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ep-sub {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin-top: 3px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ep-menu {
+  position: absolute;
+  right: 6px;
+  bottom: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.ep-card:hover .ep-menu,
+.ep-card:focus-within .ep-menu {
+  opacity: 1;
+}
+
+.ep-menu .icon-btn {
+  font-size: 0.8rem;
+  width: 26px;
+  height: 26px;
+}
+
+/* Player */
+.player-overlay .player-modal {
+  max-width: 1200px;
+  padding: 0;
+  overflow: hidden;
+  background: var(--surface-video);
+}
+
+.player-overlay .modal-close {
+  z-index: 2;
+  color: var(--text-bright);
+  text-shadow: var(--shadow-on-video);
+}
+
+.player-frame {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: var(--surface-video);
+}
+
+.player-frame video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: var(--surface-video);
+}
+
+.player-status {
+  position: absolute;
+  left: 50%;
+  bottom: 14%;
+  transform: translateX(-50%);
+  background: var(--scrim-strong);
+  color: var(--text-bright);
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  max-width: 90%;
+  text-align: center;
+  pointer-events: none;
+}
+
+.player-status.is-error {
+  bottom: auto;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  font-size: 0.9rem;
+  padding: 14px 18px;
+  border-radius: var(--radius);
+}
+
+.player-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface-modal);
+  border-top: 1px solid var(--border-soft);
+}
+
+.player-meta {
+  min-width: 0;
+}
+
+.player-title {
+  font-weight: 600;
+  color: var(--text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-sub {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.player-next-up {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--surface-strong);
+  font-size: 0.85rem;
+  color: var(--text-bright);
+}
+
+.confirm-text {
+  color: var(--text);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 820px) {
+  .series-header {
+    flex-direction: column;
+  }
+
+  .series-poster {
+    flex-basis: auto;
+    width: 140px;
+  }
+
+  .player-overlay {
+    padding: 0;
+  }
+
+  .player-overlay .player-modal {
+    border-radius: 0;
+    min-height: 100%;
+  }
+
+  .episode-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ep-card,
+  .ep-card:hover,
+  .segmented button,
+  .season-tab {
+    transition: none;
+    transform: none;
+  }
 }

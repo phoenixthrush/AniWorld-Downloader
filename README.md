@@ -68,7 +68,8 @@ Full guides and troubleshooting live in the [documentation](https://www.phoenixt
 - Combine video and audio streams into a clean MKV or MP4 file
 - Skip intros and outros with AniSkip
 - Organize downloads with custom paths and naming templates
-- Manage a library from the Web UI
+- Manage a library from the Web UI: poster cards, per-episode watch progress, and playback in the browser
+- Re-encode on the GPU (NVENC, AMF, Quick Sync, VideoToolbox) with a CPU fallback when the GPU cannot
 - Drive it from scripts through the JSON API with scoped API keys
 - Restyle the whole UI with custom CSS and a background shader
 - Protect the Web UI with local accounts or OIDC SSO
@@ -278,6 +279,90 @@ It is capped at half a megapixel, paused when the tab is hidden, frozen under `p
 - **Locked yourself out?** If a theme hides the settings page, open `/settings?nocss=1` to load it without custom CSS and clear the box.
 - **Imports are fetched by the browser.** Each visitor's browser loads the URL itself, so the host it sits on sees their IP and can change the theme whenever it likes. Only import URLs you trust.
 - Changing the theme needs an admin account when authentication is on.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Library
+
+The Library tab shows every download root as poster cards. Opening a title
+lists its seasons and episodes with a frame from each episode, the episode
+titles the downloader saw on the site, and how far you got. Click an episode to
+watch it in the browser; the position is saved every few seconds and per
+account when accounts are on, and finished episodes are ticked off. A
+"Continue watching" strip at the top picks up where you stopped. The
+original expandable tree is still there behind the *Tree* switch.
+
+### The `.aniworld` file
+
+Every title folder gets a small `.aniworld` file, shaped like a `.env`, that
+identifies the series:
+
+```ini
+ANIWORLD=1
+ORIGIN=download
+SITE=aniworld
+SERIES_URL="https://aniworld.to/anime/stream/black-torch"
+TITLE="BLACK TORCH"
+YEAR="2026-2026"
+IMDB="tt37532893"
+POSTER_URL="https://aniworld.to/public/img/cover/black-torch.jpg"
+GENRES="Action, Fantasy"
+TYPE=series
+S01E001="Die schwarze Fackel|The Black Torch"
+```
+
+The downloader writes it when an episode finishes (CLI and Web UI alike), the
+library writes one from the filenames the first time it sees a folder without
+one (`ORIGIN=scan`, no URL, no titles). The cards page and the "downloaded"
+badge on the home page read these instead of walking every folder, and a
+series is matched by its URL rather than by guessing from the folder name, so
+a renamed folder still counts. Watch positions are deliberately *not* in this
+file; they live in the database. Episode thumbnails are cached next to it in
+`.aniworld-thumbs/`. Set `ANIWORLD_LIBRARY_SIDECARS=0` to write nothing into
+media folders, for example on a read-only share; everything still works, just
+without the shortcut.
+
+Any `.env` parser reads it, so a script can identify a folder without
+touching aniworld:
+
+```python
+from dotenv import dotenv_values
+meta = dotenv_values("BLACK TORCH (2026-2026) [imdbid-tt37532893]/.aniworld")
+print(meta["SERIES_URL"], meta["S01E001"])
+```
+
+### Playback runs in the browser
+
+The server only serves the file bytes (with HTTP Range, so seeking works).
+Browsers cannot open Matroska, so `.mkv` files are demuxed in the page and
+handed to Media Source Extensions as fragmented MP4, no re-encoding involved:
+the H.264/AAC streams inside nearly every download play as they are. A codec
+the browser refuses (HEVC on most Linux and Windows Chromes, AC-3 audio) is
+decoded and re-encoded with WebCodecs on the viewer's own GPU where the
+browser supports that, which mirrors the hardware encoding of downloads on the
+server side. Thumbnails come out of the same pipeline: the page renders a
+frame from a random point in the episode and posts it back once, so nobody
+else has to decode anything.
+
+What this does not do: the server never runs ffmpeg for playback, so a browser
+without Media Source Extensions or without WebCodecs support for a given codec
+gets a plain message naming the codec instead of a stream. Safari plays the
+remuxed H.264/AAC files; on iPhone that needs iOS 17.1 or later (Managed
+Media Source). MP4 files are handed to the `<video>` element directly, so an
+MP4 with HEVC inside plays only where the browser itself decodes HEVC.
+
+### Hardware encoding
+
+`ANIWORLD_VIDEO_CODEC` accepts the CPU encoders (`h264`, `h265`, `av1`) and
+the GPU ones (`h264_nvenc`, `hevc_nvenc`, `av1_nvenc`, `h264_amf`, `hevc_amf`,
+`av1_amf`, `h264_qsv`, `hevc_qsv`, `av1_qsv`, `h264_videotoolbox`,
+`hevc_videotoolbox`). Before the first encode of a process the chosen GPU
+encoder is tried on a fraction of a second of black; if ffmpeg cannot open it
+(no GPU, old driver, a container without the device) the download uses the CPU
+encoder of the same codec and says so in the log. The settings page has a
+*Check hardware encoders* button that runs the same probe for every encoder.
+On an RTX 4060 Ti, `h264_nvenc` re-encodes 1080p at roughly 19x realtime
+against 5.7x for `libx264`.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

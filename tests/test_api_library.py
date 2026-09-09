@@ -1,5 +1,7 @@
 """Library, genre and page endpoints."""
 
+import base64
+
 import pytest
 
 from aniworld.web import db
@@ -306,3 +308,401 @@ def test_the_favicon_is_served(client):
 
 def test_an_unknown_page_is_a_404(client):
     assert client.get("/nope").status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Cards, streaming, thumbnails and progress
+# ---------------------------------------------------------------------------
+def test_cards_come_from_the_sidecar_and_write_one_on_first_visit(
+    client, episode_file, downloads
+):
+    episode_file("Naruto", 1, 1)
+    episode_file("Naruto", 1, 2)
+    cards = client.get("/api/library/cards").get_json()["cards"]
+    assert cards[0]["folder"] == "Naruto"
+    assert cards[0]["title"] == "Naruto"
+    assert cards[0]["episodes"] == 2
+    assert cards[0]["categories"] == ["series"]
+    assert cards[0]["watched"] == 0
+    assert (downloads / "Naruto" / ".aniworld").exists()
+
+
+def test_cards_use_the_title_and_poster_the_download_recorded(
+    client, episode_file, downloads
+):
+    from aniworld import sidecar
+
+    episode_file("BLACK TORCH (2026-2026) [imdbid-tt37532893]", 1, 1)
+    folder = downloads / "BLACK TORCH (2026-2026) [imdbid-tt37532893]"
+    data = sidecar.scan(folder)
+    data["poster_url"] = "https://aniworld.to/img/black-torch.jpg"
+    data["origin"] = "download"
+    sidecar.write(folder, data)
+
+    card = client.get("/api/library/cards").get_json()["cards"][0]
+    assert card["title"] == "BLACK TORCH"
+    assert card["year"] == "2026-2026"
+    assert card["cover"] == {
+        "kind": "poster",
+        "url": "https://aniworld.to/img/black-torch.jpg",
+    }
+
+
+def test_cards_do_not_write_when_sidecars_are_off(
+    client, episode_file, downloads, monkeypatch
+):
+    monkeypatch.setenv("ANIWORLD_LIBRARY_SIDECARS", "0")
+    episode_file("Naruto", 1, 1)
+    assert client.get("/api/library/cards").get_json()["cards"][0]["episodes"] == 1
+    assert not (downloads / "Naruto" / ".aniworld").exists()
+
+
+def test_a_title_lists_paths_titles_and_progress(client, episode_file, downloads):
+    from aniworld import sidecar
+
+    episode_file("Naruto", 1, 1)
+    data = sidecar.scan(downloads / "Naruto")
+    data["episodes"]["S01E001"] = {"title_de": "Anfang", "title_en": "Start"}
+    sidecar.write(downloads / "Naruto", data)
+
+    body = client.get("/api/library/title?folder=Naruto").get_json()
+    episode = body["seasons"]["1"][0]
+    assert episode["path"] == "Season 1/Naruto S01E001.mkv"
+    assert (episode["title_de"], episode["title_en"]) == ("Anfang", "Start")
+    assert episode["thumbnail"] is False
+    assert episode["progress"] is None
+    assert body["meta"]["title"] == "Naruto"
+
+
+def test_opening_a_title_reconciles_a_stale_sidecar(client, episode_file, downloads):
+    from aniworld import sidecar
+
+    episode_file("Naruto", 1, 1)
+    sidecar.load(downloads / "Naruto")
+    episode_file("Naruto", 1, 2)
+    client.get("/api/library/title?folder=Naruto")
+    assert sorted(sidecar.read(downloads / "Naruto")["episodes"]) == [
+        "S01E001",
+        "S01E002",
+    ]
+
+
+def test_the_file_endpoint_streams_with_ranges(client, episode_file):
+    path = episode_file("Naruto", 1, 1, size=4096)
+    query = f"folder=Naruto&path=Season%201/{path.name}"
+    full = client.get(f"/api/library/file?{query}")
+    assert full.status_code == 200
+    assert full.headers["Content-Type"] == "video/x-matroska"
+    assert full.headers["Accept-Ranges"] == "bytes"
+    assert len(full.data) == 4096
+
+    part = client.get(f"/api/library/file?{query}", headers={"Range": "bytes=100-199"})
+    assert part.status_code == 206
+    assert part.headers["Content-Range"] == "bytes 100-199/4096"
+    assert len(part.data) == 100
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["../../etc/passwd", "/etc/passwd", "Season 1/../../x.mkv", "Season 1/.hidden.mkv"],
+)
+def test_the_file_endpoint_refuses_to_leave_the_title(client, episode_file, path):
+    episode_file("Naruto", 1, 1)
+    assert client.get(f"/api/library/file?folder=Naruto&path={path}").status_code == 404
+
+
+def test_the_file_endpoint_serves_only_finished_videos(client, downloads):
+    folder = downloads / "Naruto" / "Season 1"
+    folder.mkdir(parents=True)
+    (folder / "Naruto S01E001.temp_full.mkv").write_bytes(b"x")
+    (folder / "notes.txt").write_bytes(b"x")
+    (downloads / "Naruto" / ".aniworld").write_text("ANIWORLD=1\n")
+    for name in (
+        "Season 1/Naruto S01E001.temp_full.mkv",
+        "Season 1/notes.txt",
+        ".aniworld",
+    ):
+        assert (
+            client.get(f"/api/library/file?folder=Naruto&path={name}").status_code
+            == 404
+        )
+
+
+def test_a_symlink_out_of_the_title_is_refused(
+    client, episode_file, downloads, tmp_path
+):
+    import os
+
+    episode_file("Naruto", 1, 1)
+    outside = tmp_path / "outside.mkv"
+    outside.write_bytes(b"secret")
+    try:
+        os.symlink(outside, downloads / "Naruto" / "Season 1" / "link.mkv")
+    except (OSError, NotImplementedError):
+        pytest.skip("no symlinks here")
+    assert (
+        client.get(
+            "/api/library/file?folder=Naruto&path=Season%201/link.mkv"
+        ).status_code
+        == 404
+    )
+
+
+_JPEG = (
+    "data:image/jpeg;base64,"
+    + base64.b64encode(b"\xff\xd8\xff\xe0" + b"\x00" * 64 + b"\xff\xd9").decode()
+)
+
+
+def test_a_thumbnail_round_trips(client, episode_file, downloads):
+    path = episode_file("Naruto", 1, 1)
+    body = {"folder": "Naruto", "path": f"Season 1/{path.name}", "image": _JPEG}
+    response = client.post("/api/library/thumbnail", json=body)
+    assert response.get_json() == {"ok": True, "stored": True}
+    assert (
+        downloads / "Naruto" / ".aniworld-thumbs" / "Season 1__Naruto S01E001.jpg"
+    ).exists()
+
+    fetched = client.get(
+        f"/api/library/thumbnail?folder=Naruto&path=Season%201/{path.name}"
+    )
+    assert fetched.status_code == 200
+    assert fetched.headers["Content-Type"] == "image/jpeg"
+    assert fetched.data.startswith(b"\xff\xd8\xff")
+
+    episode = client.get("/api/library/title?folder=Naruto").get_json()["seasons"]["1"][
+        0
+    ]
+    assert episode["thumbnail"] is True
+
+
+def test_a_missing_thumbnail_is_a_404(client, episode_file):
+    path = episode_file("Naruto", 1, 1)
+    assert (
+        client.get(
+            f"/api/library/thumbnail?folder=Naruto&path=Season%201/{path.name}"
+        ).status_code
+        == 404
+    )
+
+
+@pytest.mark.parametrize(
+    "image,reason",
+    [
+        ("data:image/png;base64,iVBORw0KGgo=", "Only JPEG"),
+        ("data:image/jpeg;base64,!!!", "base64"),
+        ("data:image/jpeg;base64,aGVsbG8=", "not a JPEG"),
+    ],
+)
+def test_bad_thumbnails_are_refused(client, episode_file, image, reason):
+    path = episode_file("Naruto", 1, 1)
+    body = {"folder": "Naruto", "path": f"Season 1/{path.name}", "image": image}
+    response = client.post("/api/library/thumbnail", json=body)
+    assert response.status_code == 400
+    assert reason in response.get_json()["error"]
+
+
+def test_an_oversized_thumbnail_is_refused(client, episode_file):
+    """The payload is built here rather than passed through parametrize.
+
+    A parameter becomes part of the test id, and every reporter writes ids
+    out: a megabyte of base64 in the parameter list turns into a
+    megabyte-long id in the terminal, the junit xml and the cache, which is
+    slow enough on a Windows console to look like a hung test run.
+    """
+    from aniworld.web import library
+
+    oversized = (
+        "data:image/jpeg;base64,"
+        + base64.b64encode(
+            b"\xff\xd8\xff" + b"\x00" * (library.THUMBNAIL_MAX_BYTES + 1024)
+        ).decode()
+    )
+    path = episode_file("Naruto", 1, 1)
+    response = client.post(
+        "/api/library/thumbnail",
+        json={"folder": "Naruto", "path": f"Season 1/{path.name}", "image": oversized},
+    )
+    assert response.status_code == 400
+    assert "too large" in response.get_json()["error"]
+
+
+def test_thumbnails_are_not_stored_when_sidecars_are_off(
+    client, episode_file, downloads, monkeypatch
+):
+    monkeypatch.setenv("ANIWORLD_LIBRARY_SIDECARS", "0")
+    path = episode_file("Naruto", 1, 1)
+    body = {"folder": "Naruto", "path": f"Season 1/{path.name}", "image": _JPEG}
+    assert (
+        client.post("/api/library/thumbnail", json=body).get_json()["stored"] is False
+    )
+    assert not (downloads / "Naruto" / ".aniworld-thumbs").exists()
+
+
+def test_progress_is_stored_and_shows_up_on_title_and_cards(client, episode_file):
+    path = episode_file("Naruto", 1, 1)
+    body = {
+        "folder": "Naruto",
+        "path": f"Season 1/{path.name}",
+        "position": 100,
+        "duration": 1400,
+    }
+    response = client.post("/api/library/progress", json=body)
+    assert response.get_json()["progress"]["watched"] is False
+
+    episode = client.get("/api/library/title?folder=Naruto").get_json()["seasons"]["1"][
+        0
+    ]
+    assert episode["progress"]["position"] == 100
+    card = client.get("/api/library/cards").get_json()["cards"][0]
+    assert card["in_progress"] == 1
+
+    body.update(position=1350)
+    assert client.post("/api/library/progress", json=body).get_json()["progress"][
+        "watched"
+    ]
+    card = client.get("/api/library/cards").get_json()["cards"][0]
+    assert (card["watched"], card["in_progress"]) == (1, 0)
+
+
+def test_progress_can_be_toggled(client, episode_file):
+    path = episode_file("Naruto", 1, 1)
+    body = {"folder": "Naruto", "path": f"Season 1/{path.name}", "watched": True}
+    assert client.post("/api/library/progress", json=body).get_json()["progress"][
+        "watched"
+    ]
+    body["watched"] = False
+    progress = client.post("/api/library/progress", json=body).get_json()["progress"]
+    assert progress == {
+        "position": 0.0,
+        "duration": 0.0,
+        "watched": False,
+        "updated_at": progress["updated_at"],
+    }
+
+
+def test_progress_for_a_file_that_does_not_exist_is_a_404(client, episode_file):
+    episode_file("Naruto", 1, 1)
+    body = {"folder": "Naruto", "path": "Season 1/nope.mkv", "position": 1}
+    assert client.post("/api/library/progress", json=body).status_code == 404
+
+
+def test_progress_is_per_account_when_auth_is_on(auth_client, episode_file):
+    from aniworld.web import db
+
+    path = episode_file("Naruto", 1, 1)
+    db.create_user("alice", "pw-alice-1", role="admin")
+    db.create_user("bob", "pw-bob-1", role="user")
+    body = {
+        "folder": "Naruto",
+        "path": f"Season 1/{path.name}",
+        "position": 50,
+        "duration": 100,
+    }
+
+    auth_client.post("/login", data={"username": "alice", "password": "pw-alice-1"})
+    auth_client.post("/api/library/progress", json=body)
+    auth_client.get("/logout")
+
+    auth_client.post("/login", data={"username": "bob", "password": "pw-bob-1"})
+    episode = auth_client.get("/api/library/title?folder=Naruto").get_json()["seasons"][
+        "1"
+    ][0]
+    assert episode["progress"] is None
+
+
+def test_continue_watching_lists_started_episodes_and_drops_deleted_files(
+    client, episode_file, downloads
+):
+    one = episode_file("Naruto", 1, 1)
+    two = episode_file("Naruto", 1, 2)
+    for path in (one, two):
+        client.post(
+            "/api/library/progress",
+            json={
+                "folder": "Naruto",
+                "path": f"Season 1/{path.name}",
+                "position": 30,
+                "duration": 100,
+            },
+        )
+    two.unlink()
+    items = client.get("/api/library/continue").get_json()["items"]
+    assert [(i["folder"], i["season"], i["episode"]) for i in items] == [
+        ("Naruto", 1, 1)
+    ]
+    assert items[0]["position"] == 30
+
+
+def test_deleting_an_episode_forgets_its_progress_thumbnail_and_title(
+    client, episode_file, downloads
+):
+    from aniworld import sidecar
+
+    path = episode_file("Naruto", 1, 1)
+    episode_file("Naruto", 1, 2)
+    relative = f"Season 1/{path.name}"
+    client.get("/api/library/cards")  # writes the sidecar
+    client.post(
+        "/api/library/thumbnail",
+        json={"folder": "Naruto", "path": relative, "image": _JPEG},
+    )
+    client.post(
+        "/api/library/progress",
+        json={"folder": "Naruto", "path": relative, "position": 5, "duration": 100},
+    )
+    client.post(
+        "/api/library/delete", json={"folder": "Naruto", "season": 1, "episode": 1}
+    )
+
+    assert not list((downloads / "Naruto" / ".aniworld-thumbs").glob("*.jpg"))
+    assert sorted(sidecar.read(downloads / "Naruto")["episodes"]) == ["S01E002"]
+    assert client.get("/api/library/continue").get_json()["items"] == []
+
+
+def test_deleting_the_last_episode_removes_the_sidecar_too(
+    client, episode_file, downloads
+):
+    episode_file("Naruto", 1, 1)
+    client.get("/api/library/cards")
+    assert (downloads / "Naruto" / ".aniworld").exists()
+    client.post(
+        "/api/library/delete", json={"folder": "Naruto", "season": 1, "episode": 1}
+    )
+    assert not (downloads / "Naruto").exists()
+
+
+def test_new_endpoints_need_the_library_to_be_on(client, episode_file, monkeypatch):
+    path = episode_file("Naruto", 1, 1)
+    monkeypatch.setenv("ANIWORLD_ENABLE_LIBRARY", "0")
+    assert client.get("/api/library/cards").status_code == 404
+    assert client.get("/api/library/continue").status_code == 404
+    assert (
+        client.get(
+            f"/api/library/file?folder=Naruto&path=Season%201/{path.name}"
+        ).status_code
+        == 404
+    )
+    assert (
+        client.post(
+            "/api/library/progress", json={"folder": "Naruto", "path": "x"}
+        ).status_code
+        == 404
+    )
+
+
+def test_a_card_without_a_poster_falls_back_to_a_cached_frame(client, episode_file):
+    path = episode_file("Naruto", 1, 1)
+    client.post(
+        "/api/library/thumbnail",
+        json={"folder": "Naruto", "path": f"Season 1/{path.name}", "image": _JPEG},
+    )
+    card = client.get("/api/library/cards").get_json()["cards"][0]
+    assert card["cover"] == {"kind": "thumb", "stem": "Season 1__Naruto S01E001"}
+    fetched = client.get(
+        f"/api/library/thumbnail?folder=Naruto&stem={card['cover']['stem']}"
+    )
+    assert fetched.status_code == 200
+    assert (
+        client.get("/api/library/thumbnail?folder=Naruto&stem=../x").status_code == 404
+    )

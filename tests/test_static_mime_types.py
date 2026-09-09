@@ -27,8 +27,28 @@ def content_type(client, path):
 
 
 def test_scripts_are_served_as_javascript(client):
-    for name in ("home.js", "i18n.js", "common.js", "settings.js"):
+    for name in (
+        "home.js",
+        "i18n.js",
+        "common.js",
+        "settings.js",
+        "library.js",
+        "webplayer.js",
+        "mkv-remux.js",
+    ):
         assert content_type(client, f"/static/{name}") in EXECUTABLE_JS
+
+
+def test_the_library_page_loads_the_player_scripts(client):
+    """A packaging mistake here is invisible until someone presses play.
+
+    The remuxer and the player are plain files under web/static, so they only
+    ship if pyproject's package-data still matches them; without them the
+    library page renders and every episode refuses to play.
+    """
+    page = client.get("/library").get_data(as_text=True)
+    for name in ("mkv-remux.js", "webplayer.js", "library.js"):
+        assert name in page
 
 
 def test_the_stylesheet_is_served_as_css(client):

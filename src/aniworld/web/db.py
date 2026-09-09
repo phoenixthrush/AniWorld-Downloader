@@ -185,6 +185,21 @@ _SCHEMA = (
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_api_key_hash ON api_keys (key_hash)",
+    """
+    CREATE TABLE IF NOT EXISTS watch_progress (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL DEFAULT '',
+        location TEXT NOT NULL DEFAULT '',
+        folder TEXT NOT NULL,
+        file TEXT NOT NULL,
+        position REAL NOT NULL DEFAULT 0,
+        duration REAL NOT NULL DEFAULT 0,
+        watched INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (username, location, folder, file)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_watch_recent ON watch_progress (username, updated_at)",
 )
 
 # Columns added after the first release. Older databases get them via ALTER.
@@ -915,3 +930,159 @@ def delete_api_key(key_id):
     with session() as conn:
         cur = conn.execute("DELETE FROM api_keys WHERE id = ?", (key_id,))
         return cur.rowcount > 0
+
+
+# ---------------------------------------------------------------------------
+# Watch progress
+#
+# Where someone stopped in an episode, per account. Lives in the database and
+# not in the folder's .aniworld sidecar on purpose: it changes every few
+# seconds while a video plays, it is personal when accounts are on, and a
+# media folder on a NAS should not be written to that often. `location` is
+# "<custom_path_id or 0>:<lang_folder or ''>", so the same title in two roots
+# keeps two positions.
+# ---------------------------------------------------------------------------
+WATCHED_AT = 0.9  # fraction of the duration after which an episode counts as seen
+
+
+def location_key(custom_path_id=None, lang_folder=None):
+    return f"{int(custom_path_id or 0)}:{lang_folder or ''}"
+
+
+def _progress_row(row):
+    return {
+        "position": float(row["position"] or 0),
+        "duration": float(row["duration"] or 0),
+        "watched": bool(row["watched"]),
+        "updated_at": row["updated_at"],
+    }
+
+
+def get_watch_progress(username, location, folder):
+    """{relative file: progress} for every episode of one title."""
+    with session() as conn:
+        rows = _rows(
+            conn,
+            "SELECT * FROM watch_progress"
+            " WHERE username = ? AND location = ? AND folder = ?",
+            (username or "", location, folder),
+        )
+    return {row["file"]: _progress_row(row) for row in rows}
+
+
+def set_watch_progress(
+    username, location, folder, file, position=None, duration=None, watched=None
+):
+    """Store a position; returns the stored row.
+
+    `watched` may be forced either way (the "mark as seen" button). Left to
+    None, it follows the position: past WATCHED_AT of the duration counts as
+    seen, and seeking back before that does not un-see it.
+    """
+    position = max(0.0, float(position or 0))
+    duration = max(0.0, float(duration or 0))
+    with session() as conn:
+        current = _row(
+            conn,
+            "SELECT * FROM watch_progress"
+            " WHERE username = ? AND location = ? AND folder = ? AND file = ?",
+            (username or "", location, folder, file),
+        )
+        if duration <= 0 and current:
+            duration = float(current["duration"] or 0)
+        if watched is None:
+            already = bool(current and current["watched"])
+            watched = already or (duration > 0 and position >= duration * WATCHED_AT)
+        if watched and position <= 0 and duration > 0:
+            position = duration
+        conn.execute(
+            """
+            INSERT INTO watch_progress
+                (username, location, folder, file, position, duration, watched, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            ON CONFLICT(username, location, folder, file) DO UPDATE SET
+                position = excluded.position,
+                duration = excluded.duration,
+                watched = excluded.watched,
+                updated_at = excluded.updated_at
+            """,
+            (username or "", location, folder, file, position, duration, int(watched)),
+        )
+        row = _row(
+            conn,
+            "SELECT * FROM watch_progress"
+            " WHERE username = ? AND location = ? AND folder = ? AND file = ?",
+            (username or "", location, folder, file),
+        )
+    return _progress_row(row)
+
+
+def watch_summary(username, location):
+    """{folder: {"watched": n, "in_progress": n, "last": iso}} for one location.
+
+    One query for the whole cards page rather than one per title.
+    """
+    with session() as conn:
+        rows = _rows(
+            conn,
+            """
+            SELECT folder,
+                   SUM(watched) AS watched,
+                   SUM(CASE WHEN watched = 0 AND position > 0 THEN 1 ELSE 0 END)
+                       AS in_progress,
+                   MAX(updated_at) AS last
+            FROM watch_progress
+            WHERE username = ? AND location = ?
+            GROUP BY folder
+            """,
+            (username or "", location),
+        )
+    return {
+        row["folder"]: {
+            "watched": int(row["watched"] or 0),
+            "in_progress": int(row["in_progress"] or 0),
+            "last": row["last"],
+        }
+        for row in rows
+    }
+
+
+def continue_watching(username, limit=12):
+    """Episodes started but not finished, newest first, across every location."""
+    with session() as conn:
+        rows = _rows(
+            conn,
+            "SELECT * FROM watch_progress"
+            " WHERE username = ? AND watched = 0 AND position > 0"
+            " ORDER BY updated_at DESC LIMIT ?",
+            (username or "", int(limit)),
+        )
+    return [
+        {
+            "location": row["location"],
+            "folder": row["folder"],
+            "file": row["file"],
+            **_progress_row(row),
+        }
+        for row in rows
+    ]
+
+
+def delete_watch_progress(location, folder, files=None):
+    """Forget positions for a deleted title (files=None) or deleted files.
+
+    Every account's rows go: the file is gone for everyone.
+    """
+    with session() as conn:
+        if files is None:
+            conn.execute(
+                "DELETE FROM watch_progress WHERE location = ? AND folder = ?",
+                (location, folder),
+            )
+            return
+        for file in files:
+            conn.execute(
+                "DELETE FROM watch_progress"
+                " WHERE location = ? AND folder = ? AND file = ?",
+                (location, folder, file),
+            )

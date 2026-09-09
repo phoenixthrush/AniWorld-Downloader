@@ -68,6 +68,13 @@
   --surface-option: #14141c; /* entries in an open dropdown */
   --surface-disabled: #1e1e2a; /* a button that cannot be pressed */
   --surface-poster: #12121a; /* behind a poster while it loads */
+  --surface-video: #000; /* the player, behind the video */
+  --surface-thumb: #0e0e15; /* an episode card before its frame is cached */
+  --progress-track: rgba(255, 255, 255, 0.12); /* the unfilled part of a watch-progress bar */
+  --scrim: rgba(0, 0, 0, 0.6); /* pills over a poster or frame */
+  --scrim-soft: rgba(0, 0, 0, 0.35); /* the play overlay on a hovered episode */
+  --scrim-strong: rgba(0, 0, 0, 0.7); /* player status messages */
+  --shadow-on-video: 0 1px 4px rgba(0, 0, 0, 0.8); /* keeps the close button readable over video */
   --surface-code: rgba(0, 0, 0, 0.35); /* code blocks, the custom CSS box */
   --surface-code-inline: rgba(0, 0, 0, 0.3); /* code inside a notice */
   --surface-captcha: #000; /* behind the captcha screenshot */
@@ -303,6 +310,8 @@
  *   .card             a settings or library panel
  *   .data-table       the users, API keys and custom paths tables
  *   .library-node     one collapsible entry in the library tree
+ *   .ep-card          one episode in the series view (thumbnail, title, progress)
+ *   .player-modal     the in-browser player
  *   .toast            the confirmation popup
  *
  * Example, a wider content column and square corners everywhere:

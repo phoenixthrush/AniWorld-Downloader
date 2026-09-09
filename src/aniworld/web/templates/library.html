@@ -3,18 +3,85 @@
 {% block title %}Library - AniWorld Downloader{% endblock %}
 
 {% block content %}
-<div class="container container-narrow">
-  <div class="page-head">
-    <h1 data-i18n="library.title">Library</h1>
-    <button class="btn btn-ghost" id="libraryRefresh" data-i18n="common.refresh">Refresh</button>
+<div class="container container-wide library-page">
+  <div class="page-head library-head">
+    <div class="library-head-left">
+      <button class="btn btn-ghost library-back" id="libraryBack" type="button" hidden>
+        <span aria-hidden="true">&larr;</span> <span data-i18n="library.back">Library</span>
+      </button>
+      <h1 data-i18n="library.title" id="libraryHeading">Library</h1>
+    </div>
+    <div class="library-controls" id="libraryControls">
+      <label class="field field-compact library-location-field" id="libraryLocationField" hidden>
+        <select id="libraryLocation" aria-label="Location"></select>
+      </label>
+      <div class="segmented" role="tablist" aria-label="View" id="libraryViewSwitch">
+        <button type="button" role="tab" data-view="cards" aria-selected="true" data-i18n="library.view_cards">Cards</button>
+        <button type="button" role="tab" data-view="tree" aria-selected="false" data-i18n="library.view_tree">Tree</button>
+      </div>
+      <button class="btn btn-ghost" id="libraryRefresh" data-i18n="common.refresh">Refresh</button>
+    </div>
   </div>
-  <p class="page-hint" data-i18n="library.hint">
-    Each folder's series/movie type is read up front; episode files still only load when you open a title.
+  <p class="page-hint" id="libraryHint" data-i18n="library.hint">
+    Each title carries a small .aniworld file with what the downloader knew about it; the cards read those, and
+    episode files only load when you open a title. Playback runs in your browser, the server only serves the file.
   </p>
-  <div id="libraryTree" class="library-tree"></div>
+
+  <section class="library-continue" id="libraryContinue" hidden>
+    <h2 data-i18n="library.continue">Continue watching</h2>
+    <div class="continue-strip" id="continueStrip"></div>
+  </section>
+
+  <div id="libraryCards" class="library-cards"></div>
+  <div id="libraryTree" class="library-tree" hidden></div>
+
+  <section id="librarySeries" class="library-series" hidden></section>
+</div>
+
+{# The player. A modal so the list underneath keeps its scroll position and
+   the next episode is one click away. Closing it saves the position. #}
+<div class="overlay player-overlay" id="playerOverlay" data-close-on-backdrop>
+  <div class="modal player-modal" role="dialog" aria-modal="true" aria-labelledby="playerTitle">
+    <button class="modal-close" data-close-modal type="button" aria-label="Close">&times;</button>
+    <div class="player-frame">
+      <video id="playerVideo" controls playsinline preload="auto"></video>
+      <div class="player-status" id="playerStatus" hidden></div>
+    </div>
+    <div class="player-bar">
+      <div class="player-meta">
+        <div class="player-title" id="playerTitle"></div>
+        <div class="player-sub" id="playerSub"></div>
+      </div>
+      <div class="player-actions">
+        <button class="btn btn-ghost" id="playerPrev" type="button" data-i18n="library.prev_episode">Previous</button>
+        <button class="btn btn-ghost" id="playerNext" type="button" data-i18n="library.next_episode">Next</button>
+      </div>
+    </div>
+    <div class="player-next-up" id="playerNextUp" hidden>
+      <span id="playerNextUpText"></span>
+      <button class="btn btn-ghost" id="playerNextUpCancel" type="button" data-i18n="common.cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+{# Themed confirm, so deleting never falls back to the browser's own dialog. #}
+<div class="overlay" id="libraryConfirm" data-close-on-backdrop>
+  <div class="modal modal-narrow confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="libraryConfirmText">
+    <div class="modal-title" data-i18n="library.confirm_heading">Delete</div>
+    <p class="confirm-text" id="libraryConfirmText"></p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" type="button" id="libraryConfirmCancel" data-i18n="common.cancel">Cancel</button>
+      <button class="btn btn-danger" type="button" id="libraryConfirmOk" data-i18n="common.delete">Delete</button>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script>
+  window.LIBRARY_ADMIN = {{ is_admin | tojson }};
+</script>
+<script src="{{ url_for('static', filename='mkv-remux.js') }}?v={{ app_version }}"></script>
+<script src="{{ url_for('static', filename='webplayer.js') }}?v={{ app_version }}"></script>
 <script src="{{ url_for('static', filename='library.js') }}?v={{ app_version }}"></script>
 {% endblock %}
