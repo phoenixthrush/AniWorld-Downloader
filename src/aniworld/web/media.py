@@ -80,7 +80,7 @@ SITE_ORDER = (
 
 # Sites nobody gets unless they ask: adult content, or a site that cannot be
 # used without work on the user's side. Every other site starts on.
-SITES_OFF_BY_DEFAULT = frozenset({"htv", "burningseries", "kinox"})
+SITES_OFF_BY_DEFAULT = frozenset({"htv", "burningseries", "kinox", "cineby"})
 
 
 def normalize_default_sites(value):

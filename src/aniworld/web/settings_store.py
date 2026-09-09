@@ -143,7 +143,7 @@ def autosync_schedule_description(language=None):
 # Sites
 #
 # Every site can be switched off, which takes its tab off the home page along
-# with the rows it fills there. Three of them start off (see media.py), the
+# with the rows it fills there. Some sites start off (see media.py), the
 # rest start on, and all of them follow the same ANIWORLD_ENABLE_<SITE> name.
 # ---------------------------------------------------------------------------
 def site_env_key(site):
