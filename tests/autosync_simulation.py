@@ -23,7 +23,7 @@ import os
 import sys
 import tempfile
 import time as _time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
@@ -38,7 +38,7 @@ class Sim:
     def __init__(self, start_local, tz="Europe/Berlin"):
         os.environ["TZ"] = tz
         _time.tzset()
-        self.now = datetime.fromisoformat(start_local).astimezone(timezone.utc)
+        self.now = datetime.fromisoformat(start_local).astimezone(UTC)
         self.state = {}
         self.runs = []
         self.naps = []

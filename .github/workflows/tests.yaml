@@ -62,9 +62,8 @@ jobs:
       - name: Install ruff
         run: pip install ruff
 
-      # skip BLE001,S110,S112 for now as those are not really issues
       - name: Check
-        run: ruff check src tests --ignore BLE001,S110,S112
+        run: ruff check src tests
 
       - name: Check formatting
         run: ruff format --check tests

@@ -6,7 +6,7 @@ import time
 import unicodedata
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from html import unescape
 from urllib.parse import unquote, urljoin, urlparse
 
@@ -58,11 +58,11 @@ def _parse_iso_datetime(value):
     if not value:
         return None
     try:
-        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(value)
     except ValueError:
         return None
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return dt
 
 

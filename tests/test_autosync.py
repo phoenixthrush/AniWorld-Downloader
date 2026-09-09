@@ -5,7 +5,7 @@ fixed list and series objects are stand-ins.
 """
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -612,7 +612,7 @@ def test_an_unknown_language_folder_falls_through_to_probing(downloads):
 # ---------------------------------------------------------------------------
 def _ran(hours_ago):
     db.set_autosync_state(
-        last_run=(datetime.now(timezone.utc) - timedelta(hours=hours_ago)).isoformat()
+        last_run=(datetime.now(UTC) - timedelta(hours=hours_ago)).isoformat()
     )
 
 
@@ -704,9 +704,7 @@ def test_switching_it_on_is_what_starts_the_clock(monkeypatch, fixed_times):
     Monday, find a fixed time long past, and queue downloads on the spot.
     """
     fixed_times("0 3 * * *")
-    monkeypatch.setattr(
-        autosync, "_anchored_at", datetime.now(timezone.utc) - timedelta(days=4)
-    )
+    monkeypatch.setattr(autosync, "_anchored_at", datetime.now(UTC) - timedelta(days=4))
     assert autosync._due() is True, "the stale anchor is what causes it"
 
     autosync._reset_anchor()
@@ -717,7 +715,7 @@ def test_switching_it_on_is_what_starts_the_clock(monkeypatch, fixed_times):
 def test_a_last_run_from_a_wrong_clock_is_ignored():
     """A box whose clock was years ahead once would otherwise never run again."""
     db.set_autosync_state(
-        last_run=(datetime.now(timezone.utc) + timedelta(days=900)).isoformat()
+        last_run=(datetime.now(UTC) + timedelta(days=900)).isoformat()
     )
     assert autosync._due() is True, "back to a fresh install, not parked in 2028"
 
@@ -725,7 +723,7 @@ def test_a_last_run_from_a_wrong_clock_is_ignored():
 def test_a_run_a_minute_ahead_is_left_alone():
     """Clocks drift, and a cycle stamps its start before it stamps anything."""
     db.set_autosync_state(
-        last_run=(datetime.now(timezone.utc) + timedelta(minutes=1)).isoformat()
+        last_run=(datetime.now(UTC) + timedelta(minutes=1)).isoformat()
     )
     assert autosync._due() is False
 

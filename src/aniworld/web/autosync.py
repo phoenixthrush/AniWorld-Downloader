@@ -18,7 +18,7 @@ the episodes the feed actually announced, for people who have gaps on purpose.
 import re
 import threading
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from ..config import LANG_CODE_MAP, LANG_KEY_MAP, LANG_LABELS
 from ..logger import get_logger
@@ -63,7 +63,7 @@ _anchored_at = None
 
 
 def _now():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _local(moment):
@@ -73,7 +73,7 @@ def _local(moment):
 
 def _utc(wall_clock):
     """Naive local wall-clock time back to UTC."""
-    return wall_clock.astimezone(timezone.utc)
+    return wall_clock.astimezone(UTC)
 
 
 def _parse(value):
@@ -84,7 +84,7 @@ def _parse(value):
     if parsed is not None and parsed.tzinfo is None:
         # Hand-edited, or written by a version that stored it without one.
         # Everything else here is UTC, and comparing the two kinds raises.
-        parsed = parsed.replace(tzinfo=timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
     return parsed
 
 

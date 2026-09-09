@@ -718,7 +718,9 @@ def _click_turnstile(page, logger=None) -> bool:
                 iframe_el = loc.element_handle()
                 if iframe_el:
                     break
-            except Exception:
+            except Exception as exc:
+                if logger:
+                    logger.debug("Turnstile iframe lookup failed: %s", exc)
                 continue
 
     if iframe_el is None:
@@ -798,7 +800,12 @@ def _is_turnstile_token_ready(page) -> bool:
             try:
                 if fr.evaluate(js):
                     return True
-            except Exception:
+            except Exception as exc:
+                from ..logger import get_logger
+
+                get_logger(__name__).debug(
+                    "Turnstile token lookup in frame failed: %s", exc
+                )
                 continue
         return False
     except Exception:
@@ -858,7 +865,9 @@ def _click_submit_button(page, logger=None) -> bool:
         try:
             button = page.locator(selector).first
             button.wait_for(state="visible", timeout=2000)
-        except Exception:
+        except Exception as exc:
+            if logger:
+                logger.debug("Submit button lookup failed: %s", exc)
             continue
 
         try:
@@ -1229,7 +1238,12 @@ def _is_challenge_token_ready(page, kind: str) -> bool:
             try:
                 if fr.evaluate(js):
                     return True
-            except Exception:
+            except Exception as exc:
+                from ..logger import get_logger
+
+                get_logger(__name__).debug(
+                    "Challenge token lookup in frame failed: %s", exc
+                )
                 continue
         return False
     except Exception:
@@ -1276,7 +1290,9 @@ def _click_challenge_checkbox(page, kind: str, logger=None) -> bool:
                 iframe_el = loc.element_handle()
                 if iframe_el:
                     break
-            except Exception:
+            except Exception as exc:
+                if logger:
+                    logger.debug("Challenge iframe lookup failed: %s", exc)
                 continue
 
     if iframe_el is None:

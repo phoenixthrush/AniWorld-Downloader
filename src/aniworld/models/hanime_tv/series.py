@@ -1,5 +1,5 @@
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from html import unescape
 
 from ...config import logger
@@ -124,11 +124,11 @@ class HanimeTVSeries:
         """Convert a unix timestamp or date string into a datetime."""
 
         if ts:
-            return datetime.fromtimestamp(ts, tz=timezone.utc)
+            return datetime.fromtimestamp(ts, tz=UTC)
 
         if fallback:
             try:
-                return datetime.fromisoformat(fallback.replace("Z", "+00:00"))
+                return datetime.fromisoformat(fallback)
             except ValueError:
                 return None
 
