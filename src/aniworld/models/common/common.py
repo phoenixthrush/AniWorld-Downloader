@@ -321,7 +321,7 @@ def _cleanup_episode_download(self):
         for suffix in (".temp_full.mkv", ".temp_audio.mkv"):
             temp_path = self._episode_path.with_suffix(suffix)
             cleanup_temp_files(temp_path.with_suffix(".hlswork"))
-    except ImportError, OSError:
+    except (ImportError, OSError):
         pass
 
 
@@ -435,7 +435,7 @@ def _parse_ffmpeg_time(time_str):
         parts = time_str.split(":")
         if len(parts) == 3:
             return float(parts[0]) * 3600 + float(parts[1]) * 60 + float(parts[2])
-    except ValueError, IndexError:
+    except (ValueError, IndexError):
         pass
     return 0.0
 
@@ -904,7 +904,7 @@ def _download_hls_stream(
     finally:
         try:
             cleanup_temp_files(temp_prefix)
-        except ImportError, NameError, UnboundLocalError:
+        except (ImportError, NameError, UnboundLocalError):
             pass
 
 

@@ -139,7 +139,7 @@ def t(config, key, **kwargs):
         return text
     try:
         return text.format(**kwargs)
-    except KeyError, IndexError:
+    except (KeyError, IndexError):
         return text
 
 

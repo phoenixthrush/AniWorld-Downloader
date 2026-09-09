@@ -543,7 +543,7 @@ def _captcha_timeout(default_seconds: int) -> int:
     try:
         v = int(raw)
         return v if v > 0 else default_seconds
-    except ValueError, TypeError:
+    except (ValueError, TypeError):
         return default_seconds
 
 

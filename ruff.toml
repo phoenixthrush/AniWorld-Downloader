@@ -1,4 +1,4 @@
-target-version = "py314"
+target-version = "py311"
 
 [lint]
 # BLE001 Do not catch blind exception: `Exception`
@@ -6,8 +6,6 @@ target-version = "py314"
 ignore = ["BLE001", "S110"]
 
 [lint.per-file-ignores]
-# Keep the Python 3.14 workaround conditional for supported Python 3.11–3.13.
-"src/aniworld/menu.py" = ["UP036"]
 # schedule.py works on naive wall-clock datetimes by design: that is what keeps
 # a cron line at 22:00 across a DST switch. Its tests build them by hand, so the
 # "always pass a timezone" rule does not apply to them.

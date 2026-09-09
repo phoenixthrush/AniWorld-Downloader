@@ -119,7 +119,7 @@ def extract_voe_source_from_html(html):
                 source = decoded.get("source")
                 if source:
                     return source
-            except ValueError, UnicodeDecodeError:
+            except (ValueError, UnicodeDecodeError):
                 continue
     except Exception:
         pass
