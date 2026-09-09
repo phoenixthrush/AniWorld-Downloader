@@ -1,0 +1,38 @@
+from aniworld.models import FilmPalastEpisode
+
+url = "https://filmpalast.to/stream/scream-7"
+
+movie = FilmPalastEpisode(url)
+
+print("=== MOVIE INFO ===")
+print("URL:", movie.url)
+print("Title DE:", movie.title_de)
+print("User Watched:", movie.user_watched)
+print("Release Year:", movie.release_year)
+print("Runtime Min:", movie.runtime_min)
+print("Genres:", movie.genres)
+print("Description:", movie.description)
+print("Image URL:", movie.image_url)
+print("Director:", movie.director)
+print("Actors:", movie.actors)
+print("IMDb Rating:", movie.imdb_rating)
+print("Provider Data:", movie.provider_data)
+print("Selected Path:", movie.selected_path)
+print("Selected Language:", movie.selected_language)
+print("Selected Provider:", movie.selected_provider)
+print("Title:", movie.title)
+print("Title Cleaned:", movie.title_cleaned)
+print("Poster URL:", movie.poster_url)
+print("Base Folder:", movie._base_folder)
+print("Folder Path:", movie._folder_path)
+print("File Name:", movie._file_name)
+print("File Extension:", movie._file_extension)
+print("Episode Path:", movie._episode_path)
+print("Is Downloaded:", movie.is_downloaded)
+print("Redirect URL:", movie.redirect_url)
+print("Provider URL:", movie.provider_url)
+print("Stream URL:", movie.stream_url)
+
+# movie.download()
+# movie.watch()
+# movie.syncplay()
