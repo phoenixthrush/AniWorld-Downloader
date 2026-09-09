@@ -6,6 +6,12 @@ series = KinoxSeries(url)
 season = series.seasons[0]
 episode = season.episodes[0]  # KinoxEpisode
 
+providers = episode.available_providers()
+if not providers:
+    raise ValueError(f"No providers available for {episode.url}")
+if episode.selected_provider not in providers:
+    episode.selected_provider = providers[0]
+
 print("=== EPISODE INFO ===")
 print("URL:", episode.url)
 print("Is Movie:", episode.is_movie)

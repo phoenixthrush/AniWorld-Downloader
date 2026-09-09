@@ -46,7 +46,7 @@ except ImportError:
     from aniworld.models.common.http import get_html, get_session
     from aniworld.models.common.provider_map import host_to_provider
 
-KINOX_DOMAIN = os.getenv("ANIWORLD_KINOX_DOMAIN", "kinox.to")
+KINOX_DOMAIN = os.getenv("ANIWORLD_KINOX_DOMAIN", "").strip() or "kinox.to"
 
 # Stable marker embedded in the error message when kinox's captcha blocks a
 # download, so the web queue can recognise it and offer a "solve on kinox"
