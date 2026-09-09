@@ -149,6 +149,10 @@ def extract_voe_source_from_html(html):
 # -----------------------------
 # Main VOE functions
 # -----------------------------
+class _VOEUnavailable(ValueError):
+    """The hoster reports a permanently missing video (404/410)."""
+
+
 def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, timeout=30):
     """Get direct VOE video URL with improved retry logic."""
     parsed_embed_url = urlparse((embeded_voe_link or "").strip())
@@ -168,6 +172,12 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
         "Upgrade-Insecure-Requests": "1",
     }
 
+    def fetch(url):
+        result = _voe_get(url, enhanced_headers, timeout)
+        if result[2] in (404, 410):
+            raise _VOEUnavailable(f"VOE video unavailable (HTTP {result[2]}): {url}")
+        return result
+
     for attempt in range(max_retries):
         try:
             # Add delay between retries
@@ -179,14 +189,12 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
                 time.sleep(wait_time)
 
             # First request to VOE (curl_cffi impersonation, niquests fallback)
-            html, _final, status = _voe_get(embeded_voe_link, enhanced_headers, timeout)
+            html, _final, status = fetch(embeded_voe_link)
 
             # Captcha on VOE page -> solve and retry this request
             if is_captcha_page(html, status):
                 solve_captcha(embeded_voe_link)
-                html, _final, status = _voe_get(
-                    embeded_voe_link, enhanced_headers, timeout
-                )
+                html, _final, status = fetch(embeded_voe_link)
 
             # Try extracting source directly from the VOE embed page first
             source = extract_voe_source_from_html(html)
@@ -205,20 +213,18 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
             if redirect_match:
                 redirect_url = redirect_match.group(1).strip()
                 try:
-                    html2, _f2, status2 = _voe_get(
-                        redirect_url, enhanced_headers, timeout
-                    )
+                    html2, _f2, status2 = fetch(redirect_url)
                     if is_captcha_page(html2, status2):
                         solve_captcha(redirect_url)
-                        html2, _f2, status2 = _voe_get(
-                            redirect_url, enhanced_headers, timeout
-                        )
+                        html2, _f2, status2 = fetch(redirect_url)
                     source = extract_voe_source_from_html(html2)
                     if source:
                         return source
                     m3u8 = M3U8_URL_PATTERN.search(html2)
                     if m3u8:
                         return m3u8.group(0)
+                except _VOEUnavailable:
+                    raise
                 except Exception as err:
                     logger.debug(f"VOE redirect fetch failed: {err}")
 
@@ -229,6 +235,8 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
 
             raise ValueError("No VOE video source found in page.")
 
+        except _VOEUnavailable:
+            raise
         except (niquests.RequestException, Exception) as err:
             if attempt == max_retries - 1:
                 raise ValueError(

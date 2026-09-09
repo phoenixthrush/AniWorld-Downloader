@@ -322,6 +322,7 @@ class SerienstreamEpisode:
                 or not parsed_provider.netloc
                 or parsed_provider.netloc == redirect_netloc
             ):
+                self.__provider_url = None
                 raise ValueError(
                     f"Failed to resolve provider URL for {self.selected_provider} "
                     f"from redirect {self.redirect_url}"

@@ -624,6 +624,14 @@ def _launch_browser_context(
     time; concurrent solves — or any failure to open it — fall back to an
     ephemeral context, so the worst case equals the previous behaviour.
     """
+    from pathlib import Path
+
+    if not Path(p.chromium.executable_path).is_file():
+        raise RuntimeError(
+            "Patchright's Chromium browser is missing. "
+            "Run 'python -m patchright install chromium', then try again."
+        )
+
     args = _stealth_launch_args(offscreen)
     ctx_kwargs = _stealth_context_kwargs()
     browser = None
@@ -2387,7 +2395,7 @@ def solve_sto_modal(
         get_logger(__name__).error(f"Fehler in solve_sto_modal: {e}", exc_info=True)
         with _captcha_state_lock:
             _captcha_state = None
-        return None
+        raise RuntimeError(f"Failed to resolve {provider_name} CAPTCHA: {e}") from e
 
     finally:
         if queue_id is not None:
