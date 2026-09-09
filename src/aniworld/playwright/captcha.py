@@ -1466,7 +1466,6 @@ def _solve_captcha_cli(url: str):
             "Bitte installieren mit: pip install patchright && patchright install chromium"
         )
 
-    from ..config import GLOBAL_SESSION
     from ..logger import get_logger
 
     logger = get_logger(__name__)
@@ -1500,11 +1499,6 @@ def _solve_captcha_cli(url: str):
                 challenge_solver = _ChallengeSolver()
 
                 while _time.time() - start < timeout:
-                    # Standard Cloudflare full-page challenge
-                    if any(c["name"] == "cf_clearance" for c in context.cookies()):
-                        solved = True
-                        break
-
                     # serienstream.to modal: form target="player-iframe" — after
                     # Weiter the VOE URL loads into that iframe. The modal HTML
                     # stays on the page, so is_captcha_page() would never
@@ -1539,12 +1533,7 @@ def _solve_captcha_cli(url: str):
                     _time.sleep(1.5)
 
                 if solved:
-                    for cookie in context.cookies():
-                        GLOBAL_SESSION.cookies.set(
-                            cookie["name"],
-                            cookie["value"],
-                            domain=cookie.get("domain", "").lstrip("."),
-                        )
+                    _export_session_cookies(context)
                     logger.info("CAPTCHA solved — cookies injected into session")
                 else:
                     logger.warning("CAPTCHA timeout after 5 minutes")
@@ -1605,7 +1594,6 @@ def _solve_captcha_interactive(url: str, queue_id: int) -> bool:
             "Bitte installieren mit: pip install patchright && patchright install chromium"
         )
 
-    from ..config import GLOBAL_SESSION
     from ..logger import get_logger
 
     logger = get_logger(__name__)
@@ -1667,11 +1655,6 @@ def _solve_captcha_interactive(url: str, queue_id: int) -> bool:
                     except Exception:
                         pass
 
-                # Check for cf_clearance cookie (classic Cloudflare challenge)
-                if any(c["name"] == "cf_clearance" for c in context.cookies()):
-                    solved = True
-                    break
-
                 # serienstream.to modal: poll player-iframe for the VOE URL
                 for frame in page.frames:
                     if frame.name == "player-iframe":
@@ -1709,12 +1692,7 @@ def _solve_captcha_interactive(url: str, queue_id: int) -> bool:
                 pass
 
             if solved:
-                for cookie in context.cookies():
-                    GLOBAL_SESSION.cookies.set(
-                        cookie["name"],
-                        cookie["value"],
-                        domain=cookie.get("domain", "").lstrip("."),
-                    )
+                _export_session_cookies(context)
                 logger.info("CAPTCHA solved — cookies injected into session")
             else:
                 logger.warning("CAPTCHA timeout after 5 minutes")
@@ -1777,22 +1755,67 @@ def playwright_get_page_url(url: str) -> str:
     return GLOBAL_SESSION.get(url).url
 
 
+def _export_session_cookies(context) -> None:
+    """Preserve browser cookie scope and lifetime in the HTTP session."""
+    from http.cookiejar import Cookie
+
+    from ..config import GLOBAL_SESSION
+
+    for cookie in context.cookies():
+        domain = cookie.get("domain", "")
+        expires = cookie.get("expires", -1)
+        GLOBAL_SESSION.cookies.set_cookie(
+            Cookie(
+                version=0,
+                name=cookie["name"],
+                value=cookie["value"],
+                port=None,
+                port_specified=False,
+                domain=domain,
+                domain_specified=domain.startswith("."),
+                domain_initial_dot=domain.startswith("."),
+                path=cookie.get("path", "/"),
+                path_specified=True,
+                secure=cookie.get("secure", False),
+                expires=int(expires) if expires > 0 else None,
+                discard=expires <= 0,
+                comment=None,
+                comment_url=None,
+                rest={"HttpOnly": cookie.get("httpOnly", False)},
+            )
+        )
+
+
 def _inject_session_cookies(context, url: str) -> None:
-    """Copy GLOBAL_SESSION cookies into a patchright browser context."""
-    try:
-        from urllib.parse import urlparse
+    """Seed missing cookies without overwriting a newer persistent browser session."""
+    from urllib.parse import urlparse
 
-        from ..config import GLOBAL_SESSION
+    from ..config import GLOBAL_SESSION
 
-        base = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
-        cookies = [
-            {"name": c.name, "value": c.value, "url": base}
-            for c in GLOBAL_SESSION.cookies
-        ]
-        if cookies:
-            context.add_cookies(cookies)
-    except Exception:
-        pass
+    host = urlparse(url).hostname or ""
+    existing = {(c["name"], c["domain"], c.get("path", "/")) for c in context.cookies()}
+    cookies = []
+    for c in GLOBAL_SESSION.cookies:
+        domain = c.domain.lstrip(".")
+        if not domain or c.is_expired():
+            continue
+        if host != domain and not (c.domain_specified and host.endswith("." + domain)):
+            continue
+        browser_domain = ("." + domain) if c.domain_specified else domain
+        if (c.name, browser_domain, c.path or "/") in existing:
+            continue
+        cookie = {
+            "name": c.name,
+            "value": c.value,
+            "domain": browser_domain,
+            "path": c.path or "/",
+            "secure": c.secure,
+        }
+        if c.expires is not None:
+            cookie["expires"] = c.expires
+        cookies.append(cookie)
+    if cookies:
+        context.add_cookies(cookies)
 
 
 def playwright_get_iframe_url(url: str, timeout: int = 20) -> str:
@@ -1859,6 +1882,7 @@ def playwright_get_hanime_manifest_token(url: str, timeout: int = 15) -> str:
     logger = get_logger(__name__)
     token = None
     timeout = max(1, int(timeout))
+    challenge_timeout = _captcha_timeout(300)
 
     try:
         from ..autodeps import _ensure_xvfb
@@ -1868,50 +1892,61 @@ def playwright_get_hanime_manifest_token(url: str, timeout: int = 15) -> str:
             _handle = _launch_browser_context(
                 p, offscreen=not _env_flag("ANIWORLD_CAPTCHA_VISIBLE")
             )
-            context = _handle.context
-            _inject_session_cookies(context, url)
-            page = context.new_page()
-            _attach_debug_listeners(page, logger)
-            _sync_session_user_agent(page)
-
-            def _capture_handshake(response):
-                nonlocal token
-                if token or response.status != 200:
-                    return
-                try:
-                    token = response.header_value("x-token")
-                except Exception:
-                    token = None
-
-            page.on("response", _capture_handshake)
-            logger.debug(f"Opening Hanime page for player handshake: {url}")
             try:
-                page.goto(
-                    url,
-                    wait_until="domcontentloaded",
-                    timeout=timeout * 1000,
-                )
-            except Exception:
-                # A slow secondary resource must not discard a handshake that
-                # was already captured while the document was loading.
-                if not token:
-                    raise
+                context = _handle.context
+                _inject_session_cookies(context, url)
+                page = context.new_page()
+                _attach_debug_listeners(page, logger)
+                _sync_session_user_agent(page)
 
-            deadline = _time.monotonic() + _captcha_timeout(timeout)
-            challenge_solver = _ChallengeSolver()
-            while _time.monotonic() < deadline and not token:
-                if _is_captcha_page_dom(page):
-                    challenge_solver.ready_to_submit(page, logger)
-                page.wait_for_timeout(100)
+                def _capture_handshake(response):
+                    nonlocal token
+                    if token or response.status != 200:
+                        return
+                    from urllib.parse import urlparse
 
-            _handle.close()
+                    if urlparse(response.url).hostname != "auth.hanime.tv":
+                        return
+                    try:
+                        token = response.header_value("x-token")
+                    except Exception:
+                        token = None
+
+                page.on("response", _capture_handshake)
+                logger.debug(f"Opening Hanime page for player handshake: {url}")
+                try:
+                    page.goto(
+                        url,
+                        wait_until="domcontentloaded",
+                        timeout=timeout * 1000,
+                    )
+                except Exception:
+                    # A slow secondary resource must not discard a handshake that
+                    # was already captured while the document was loading.
+                    if not token:
+                        raise
+
+                deadline = _time.monotonic() + challenge_timeout
+                challenge_solver = _ChallengeSolver()
+                while _time.monotonic() < deadline and not token:
+                    if _is_captcha_page_dom(page) and challenge_solver.ready_to_submit(
+                        page, logger
+                    ):
+                        _click_submit_button(page, logger)
+                    page.wait_for_timeout(100)
+
+                _export_session_cookies(context)
+            finally:
+                _handle.close()
 
     except Exception as e:
         logger.exception("Failed to capture Hanime handshake")
         raise RuntimeError(f"Failed to capture Hanime handshake: {e}") from e
 
     if not token:
-        raise TimeoutError(f"Hanime player handshake timed out after {timeout}s")
+        raise TimeoutError(
+            f"Hanime player handshake timed out after {challenge_timeout}s"
+        )
     return token
 
 
@@ -2033,7 +2068,6 @@ def solve_sto_modal(
             "Bitte installieren mit: pip install patchright && patchright install chromium"
         )
 
-    from ..config import GLOBAL_SESSION
     from ..logger import get_logger
 
     logger = get_logger(__name__)
@@ -2326,12 +2360,7 @@ def solve_sto_modal(
                 _time.sleep(0.8)
 
             if final_url:
-                for cookie in context.cookies():
-                    GLOBAL_SESSION.cookies.set(
-                        cookie["name"],
-                        cookie["value"],
-                        domain=cookie.get("domain", "").lstrip("."),
-                    )
+                _export_session_cookies(context)
 
             if session_obj is not None:
                 try:

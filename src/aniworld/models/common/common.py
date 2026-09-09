@@ -836,11 +836,11 @@ def _download_hls_stream(
     try:
         logger.debug(f"[DOWNLOADING] {ep_label} via HLS stream")
         video_codec = get_video_codec()
-        from ...config import DEFAULT_USER_AGENT
+        from ...config import DEFAULT_USER_AGENT, GLOBAL_SESSION
         from .hls import HLSUnsupported, cleanup_temp_files, download_hls_parallel
 
         headers = {
-            "User-Agent": DEFAULT_USER_AGENT,
+            "User-Agent": GLOBAL_SESSION.headers.get("User-Agent", DEFAULT_USER_AGENT),
             "Referer": "https://hanime.tv/",
             "Origin": "https://hanime.tv",
         }
@@ -885,6 +885,9 @@ def _download_hls_stream(
                     "reconnect_streamed": 1,
                     "reconnect_delay_max": 30,
                     "allowed_extensions": "ALL",
+                    "headers": "".join(
+                        f"{key}: {value}\r\n" for key, value in headers.items()
+                    ),
                 },
                 headers,
                 {"metadata:s:a:0": f"language={audio_lang}"},

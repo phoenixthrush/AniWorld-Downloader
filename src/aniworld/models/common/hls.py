@@ -113,6 +113,9 @@ def _session():
     if session is None:
         session = niquests.Session()
         _thread_local.session = session
+    from ...config import GLOBAL_SESSION
+
+    session.cookies.update(GLOBAL_SESSION.cookies)
     return session
 
 
