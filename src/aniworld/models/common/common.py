@@ -1424,8 +1424,6 @@ def download(self):
                 # The user stopped this, so clean up and get out instead of
                 # logging a failure and trying the next provider.
                 _cleanup_episode_download(self)
-                if self._episode_path.exists():
-                    self._episode_path.unlink()
                 _remove_empty_dirs(
                     self._folder_path,
                     self._base_folder,
@@ -1442,8 +1440,6 @@ def download(self):
 
                     qid = getattr(_local, "queue_id", None)
                     if qid is not None and is_queue_force_cancelled(qid):
-                        if self._episode_path.exists():
-                            self._episode_path.unlink()
                         _remove_empty_dirs(
                             self._folder_path,
                             self._base_folder,
