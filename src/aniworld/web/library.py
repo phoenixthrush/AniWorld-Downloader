@@ -180,10 +180,13 @@ def read_title(folder, custom_path_id=None, lang_folder=None):
         entries = seasons.setdefault(season, [])
         if any(e["episode"] == episode and e["file"] == file.name for e in entries):
             continue
+        # Relative to the title folder, forward slashes, so the frontend can
+        # send it straight back as the `path` query param of GET .../file.
         entries.append(
             {
                 "episode": episode,
                 "file": file.name,
+                "path": file.relative_to(target).as_posix(),
                 "size": size,
                 "is_video": is_video,
             }
@@ -324,6 +327,46 @@ def list_titles_with_meta(custom_path_id=None, lang_folder=None):
             categories = ["series"]
         result.append({"folder": folder, "categories": categories})
     return result
+
+
+def _safe_relative(base, relative):
+    """Resolve a multi-segment relative path inside base, refusing escape.
+
+    Unlike _safe_child (a single folder name), this allows the "Season 01/x.mkv"
+    shape read_title() hands back, while still refusing ".." components,
+    absolute paths and anything that resolves outside base.
+    """
+    name = str(relative or "")
+    if not name or "\x00" in name or name.startswith(("/", "\\")):
+        return None
+    candidate = base / name
+    try:
+        resolved = candidate.resolve()
+        resolved.relative_to(base.resolve())
+    except (ValueError, OSError):
+        return None
+    return resolved
+
+
+def resolve_file(folder, relative_path, custom_path_id=None, lang_folder=None):
+    """Resolve one playable file inside a title's folder.
+
+    Returns (title_folder, filename) so the caller can hand both to Flask's
+    send_from_directory, which needs the directory and the name inside it
+    separately to serve range requests safely.
+    """
+    base = _resolve_base(custom_path_id, lang_folder)
+    target = _safe_child(base, folder)
+    if target is None or not target.is_dir():
+        raise LibraryError("Title not found")
+
+    file_path = _safe_relative(target, relative_path)
+    if file_path is None or not file_path.is_file():
+        raise LibraryError("File not found")
+    if file_path.suffix.lower() not in VIDEO_EXTENSIONS:
+        raise LibraryError("Not a playable file")
+
+    return target, file_path.relative_to(target).as_posix()
 
 
 def custom_path_labels():

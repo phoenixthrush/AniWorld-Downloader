@@ -71,6 +71,7 @@
   --surface-code: rgba(0, 0, 0, 0.35); /* code blocks, the custom CSS box */
   --surface-code-inline: rgba(0, 0, 0, 0.3); /* code inside a notice */
   --surface-captcha: #000; /* behind the captcha screenshot */
+  --surface-video: #000; /* behind the in-browser video player */
   --overlay-bg: rgba(0, 0, 0, 0.75); /* dimmer behind an open modal */
 
   /* ===================================================================

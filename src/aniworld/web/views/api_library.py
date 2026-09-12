@@ -1,6 +1,6 @@
 """Library endpoints. Each one loads exactly one level of the tree."""
 
-from flask import abort, jsonify, request
+from flask import abort, jsonify, request, send_from_directory
 
 from ...logger import get_logger
 from .. import library
@@ -13,6 +13,7 @@ def register(bp):
     bp.add_url_rule("/library/locations", view_func=library_locations)
     bp.add_url_rule("/library/titles", view_func=library_titles)
     bp.add_url_rule("/library/title", view_func=library_title)
+    bp.add_url_rule("/library/file", view_func=library_file)
     bp.add_url_rule("/library/delete", view_func=delete_library_item, methods=["POST"])
 
 
@@ -51,6 +52,27 @@ def library_title():
         return jsonify(library.read_title(folder, path_id, lang_folder))
     except library.LibraryError as exc:
         return jsonify({"error": str(exc)}), 400
+
+
+def library_file():
+    """Stream one episode file for the in-browser player.
+
+    send_from_directory handles conditional/range requests on its own, which
+    is what lets a <video> element seek instead of only playing from the top.
+    """
+    _guard()
+    path_id, lang_folder = _location_args()
+    folder = request.args.get("folder", "").strip()
+    relative_path = request.args.get("path", "").strip()
+    if not folder or not relative_path:
+        return jsonify({"error": "folder and path are required"}), 400
+    try:
+        directory, filename = library.resolve_file(
+            folder, relative_path, path_id, lang_folder
+        )
+    except library.LibraryError as exc:
+        return jsonify({"error": str(exc)}), 404
+    return send_from_directory(directory, filename, conditional=True)
 
 
 def delete_library_item():

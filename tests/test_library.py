@@ -391,3 +391,52 @@ def test_a_temp_episode_with_the_marker_mid_name_is_not_shown(downloads):
     (folder / "Naruto S01E001.temp_full.mkv").write_bytes(b"x")
     result = library.read_title("Naruto")
     assert result["seasons"] == {}
+
+
+# ---------------------------------------------------------------------------
+# Resolving a playable file (for the in-browser player)
+# ---------------------------------------------------------------------------
+def test_resolving_a_video_file(episode_file, downloads):
+    episode_file("Naruto", 1, 1)
+    directory, filename = library.resolve_file("Naruto", "Season 1/Naruto S01E001.mkv")
+    assert directory == downloads / "Naruto"
+    assert filename == "Season 1/Naruto S01E001.mkv"
+
+
+def test_resolving_a_missing_title_is_an_error():
+    with pytest.raises(library.LibraryError):
+        library.resolve_file("Nope", "Season 1/x.mkv")
+
+
+def test_resolving_a_missing_file_is_an_error(downloads):
+    (downloads / "Naruto").mkdir()
+    with pytest.raises(library.LibraryError):
+        library.resolve_file("Naruto", "Season 1/ghost.mkv")
+
+
+def test_resolving_a_non_video_file_is_refused(downloads):
+    (downloads / "Naruto").mkdir()
+    (downloads / "Naruto" / "poster.jpg").write_bytes(b"x")
+    with pytest.raises(library.LibraryError):
+        library.resolve_file("Naruto", "poster.jpg")
+
+
+@pytest.mark.parametrize(
+    "relative", ["../secrets.mkv", "..", "/etc/passwd", "a/../../b.mkv", ""]
+)
+def test_resolving_refuses_traversal(episode_file, relative):
+    episode_file("Naruto", 1, 1)
+    with pytest.raises(library.LibraryError):
+        library.resolve_file("Naruto", relative)
+
+
+def test_resolving_from_a_custom_path(episode_file, tmp_path):
+    other = tmp_path / "other"
+    other.mkdir()
+    path_id = db.add_custom_path("Other", str(other))
+    episode_file("Naruto", 1, 1, base=other)
+    directory, filename = library.resolve_file(
+        "Naruto", "Season 1/Naruto S01E001.mkv", custom_path_id=path_id
+    )
+    assert directory == other / "Naruto"
+    assert filename == "Season 1/Naruto S01E001.mkv"
