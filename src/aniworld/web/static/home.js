@@ -69,6 +69,7 @@
   let openToken = 0;
   let seriesUrl = "";
   let seriesTitle = "";
+  let seriesGenres = [];
   let seasons = [];
   let episodeCache = {};
   let episodeLoads = {};
@@ -424,6 +425,7 @@
     episodeCache = {};
     episodeLoads = {};
     availableProviders = null;
+    seriesGenres = [];
   }
 
   function rebuildLanguageOptions() {
@@ -514,6 +516,7 @@
       el("seriesTitle").innerHTML = `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(seriesTitle)}</a>`;
       if (series.poster_url) el("seriesPoster").src = series.poster_url;
       el("seriesGenres").textContent = (series.genres || []).join(", ");
+      seriesGenres = series.genres || [];
       el("seriesYear").textContent = series.release_year || "";
       el("seriesDesc").textContent = series.description || "";
 
@@ -814,7 +817,11 @@
       title: seriesTitle,
       series_url: seriesUrl,
       language: hanime ? "Japanese" : manga ? "MangaFire" : languageSelect.value,
-      provider: hanime ? "HanimeTV" : manga ? "MangaFire" : providerSelect.value
+      provider: hanime ? "HanimeTV" : manga ? "MangaFire" : providerSelect.value,
+      // Sent once here, written by the worker into a sidecar file next to the
+      // download, and never read back from the queue afterwards - see
+      // db.take_queued_genres() / library.write_genre_sidecar().
+      genres: (seriesGenres || []).filter((g) => !/sub|dub/i.test(g))
     };
     if (manga) body.mangafire_format = el("mangaFireFormat").value;
     if (customPathSelect.value) body.custom_path_id = Number(customPathSelect.value);

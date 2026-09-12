@@ -67,15 +67,15 @@
       .join("");
   }
 
-  function renderTitles(titles) {
-    return titles
+  function renderTitles(entries) {
+    return entries
       .map(
-        (folder) => `
-        <div class="library-node" data-folder="${esc(folder)}">
+        (entry) => `
+        <div class="library-node" data-folder="${esc(entry.folder)}">
           <div class="library-row" data-toggle="title">
             <div class="library-row-left">
               <span class="arrow">&#9654;</span>
-              <span class="library-name">${esc(folder)}</span>
+              <span class="library-name">${esc(entry.folder)}</span>
             </div>
             <div class="library-row-right">
               <span class="library-sub" data-summary></span>
@@ -88,7 +88,41 @@
       .join("");
   }
 
-  /* ===== Level 2: series / movies ===== */
+  /* Groups entries by their first genre; a title with no genre sidecar
+     lands in "Sonstiges" so it is never silently dropped from the tree. */
+  function groupByGenre(entries) {
+    const groups = new Map();
+    entries.forEach((entry) => {
+      const genre = (entry.genres && entry.genres[0]) || t("library.no_genre", "Sonstiges");
+      if (!groups.has(genre)) groups.set(genre, []);
+      groups.get(genre).push(entry);
+    });
+    return Array.from(groups.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([genre, list]) => ({ genre, entries: list }));
+  }
+
+  function renderGenreGroups(entries) {
+    return groupByGenre(entries)
+      .map(
+        (group) => `
+        <div class="library-node" data-genre-group="${esc(group.genre)}">
+          <div class="library-row" data-toggle="genre">
+            <div class="library-row-left">
+              <span class="arrow">&#9654;</span>
+              <span class="library-name">${esc(group.genre)}</span>
+            </div>
+            <div class="library-row-right">
+              <span class="library-sub">${group.entries.length}</span>
+            </div>
+          </div>
+          <div class="library-children" data-level="titles">${renderTitles(group.entries)}</div>
+        </div>`
+      )
+      .join("");
+  }
+
+  /* ===== Level 2: series / movies, each grouped by genre ===== */
   async function loadTypes(node) {
     const location = locations[Number(node.dataset.location)];
     const container = node.querySelector('[data-level="types"]');
@@ -108,17 +142,13 @@
       return;
     }
 
-    const series = titles
-      .filter((entry) => (entry.categories || []).includes("series"))
-      .map((entry) => entry.folder);
-    const movies = titles
-      .filter((entry) => (entry.categories || []).includes("movies"))
-      .map((entry) => entry.folder);
+    const series = titles.filter((entry) => (entry.categories || []).includes("series"));
+    const movies = titles.filter((entry) => (entry.categories || []).includes("movies"));
 
     const sections = [
-      { key: "series", label: t("library.series", "Series"), titles: series },
-      { key: "movies", label: t("library.movies", "Movies"), titles: movies }
-    ].filter((section) => section.titles.length);
+      { key: "series", label: t("library.series", "Series"), entries: series },
+      { key: "movies", label: t("library.movies", "Movies"), entries: movies }
+    ].filter((section) => section.entries.length);
 
     container.innerHTML = sections
       .map(
@@ -130,15 +160,14 @@
               <span class="library-name">${esc(section.label)}</span>
             </div>
             <div class="library-row-right">
-              <span class="library-sub">${section.titles.length}</span>
+              <span class="library-sub">${section.entries.length}</span>
             </div>
           </div>
-          <div class="library-children" data-level="titles">${renderTitles(section.titles)}</div>
+          <div class="library-children" data-level="genres">${renderGenreGroups(section.entries)}</div>
         </div>`
       )
       .join("");
   }
-
   /* ===== Level 3: seasons, episodes and movies of one title ===== */
   async function loadTitle(node) {
     const locationNode = node.closest("[data-location]");
@@ -224,7 +253,7 @@
     const arrow = row.querySelector(".arrow");
     const expanding = !children.classList.contains("expanded");
 
-    if (row.dataset.toggle === "type") {
+    if (row.dataset.toggle === "type" || row.dataset.toggle === "genre") {
       children.classList.toggle("expanded", expanding);
       arrow.classList.toggle("expanded", expanding);
       return;
