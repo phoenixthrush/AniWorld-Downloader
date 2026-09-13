@@ -79,30 +79,34 @@ Full guides and troubleshooting live in the [documentation](https://www.phoenixt
 
 ## Supported Sites
 
-| Site | Content | Notes |
-| --- | --- | --- |
-| AniWorld | Anime and anime movies | Main focus |
-| SerienStream | Series | Main focus |
-| MegaKino | Movies and series | Supported |
-| FilmPalast | Movies | Supported |
-| Cineby | Movies and series | Shut down; disabled by default. |
-| MangaFire | Manga | JPG and CBZ downloads |
-| Hanime | Adult animation | Disabled by default, enable it in Settings |
-| Kinox | Movies and series | Disabled by default because downloads often require a manual captcha |
-| BurningSeries | Series | Disabled by default because access depends on region and reCAPTCHA |
+Last checked: **09/26**. Statuses reflect sampled stream/image checks, not full downloads or playback.
+
+| Site | Content | Status | Notes |
+| --- | --- | --- | --- |
+| AniWorld | Anime and anime movies | Working | Main focus |
+| SerienStream | Series | Working: captcha required | Main focus |
+| MegaKino | Movies and series | Working | |
+| FilmPalast | Movies | Broken: sampled VOE links failed | |
+| Cineby | Movies and series | Unverified: stream API unavailable | Disabled by default following shutdown |
+| MangaFire | Manga | Working | JPG and CBZ downloads |
+| Hanime | Adult animation | Working | Disabled by default |
+| Kinox | Movies and series | Unverified: manual captcha required | Disabled by default |
+| BurningSeries | Series | Broken: embed resolution failed | Disabled by default |
 
 ### Stream Providers
 
 | Provider | Status | Last Checked |
 | --- | --- | --- |
-| VOE | Working | 07/26 |
-| Filemoon | Working | 07/26 |
-| Vidmoly | Untested | XX/XX |
-| Vidoza | Untested | XX/XX |
-| Doodstream | Untested | XX/XX |
-| MegaKino | Broken | 07/26 |
+| VOE | Working | 09/26 |
+| Filemoon | Working | 09/26 |
+| Vidmoly | Broken: no embed HTML returned | 09/26 |
+| Vidoza | Unverified: test link returned 404 | 09/26 |
+| Doodstream | Working | 09/26 |
+| MegaKino | Working | 09/26 |
 
-Availability depends on the selected site and episode. When a provider fails, the downloader can try the others in your configured fallback order. These are third-party services, so availability can change without warning.
+VOE previews are broken. Filemoon, Doodstream, and MegaKino previews are not implemented. Streamtape, Luluvdo, and LoadX are not implemented.
+
+Availability varies by site, episode, and region. Failed providers can fall back to others in your configured order. Live checks are available in `tests/test_providers_*.py` and run separately from pytest.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
