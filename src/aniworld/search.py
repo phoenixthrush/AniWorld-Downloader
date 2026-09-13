@@ -395,9 +395,12 @@ def fetch_new_episodes():
         season = int(season_str)
         episode = int(episode_str)
 
-        # Extract title from <strong>
+        # Extract title from <strong>, unescaped so entities like &#039;
+        # do not end up in the title and stop it matching its own folder
         title_match = re.search(r"<strong>(.*?)</strong>", inner)
-        title = title_match.group(1).strip() if title_match else ""
+        title = (
+            html_module.unescape(title_match.group(1).strip()) if title_match else ""
+        )
 
         # Extract date from elementFloatRight span or last span
         date_match = re.search(
