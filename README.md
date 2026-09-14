@@ -87,6 +87,7 @@ Last checked: **09/26**. Statuses reflect sampled stream/image checks, not full 
 | SerienStream | Series | Working: captcha required | Main focus |
 | MegaKino | Movies and series | Working | |
 | FilmPalast | Movies | Broken: sampled VOE links failed | |
+| Filmo | Movies | Working | |
 | Cineby | Movies and series | Unverified: stream API unavailable | Disabled by default following shutdown |
 | MangaFire | Manga | Working | JPG and CBZ downloads |
 | Hanime | Adult animation | Working | Disabled by default |

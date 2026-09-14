@@ -33,6 +33,7 @@ from .models import (
     CinebyEpisode,
     CinebySeason,
     CinebySeries,
+    FilmoEpisode,
     FilmPalastEpisode,
     HanimeTVEpisode,
     HanimeTVSeason,
@@ -47,6 +48,7 @@ from .models import (
     SerienstreamSeason,
     SerienstreamSeries,
 )
+from .models.filmo_to.episode import FILMO_EPISODE_PATTERN
 
 
 @dataclass(frozen=True)
@@ -85,6 +87,11 @@ PROVIDERS = [
         series_cls=MegaKinoEpisode,
         season_cls=None,
         episode_cls=MegaKinoEpisode,
+    ),
+    Provider(
+        name="Filmo",
+        episode_pattern=FILMO_EPISODE_PATTERN,
+        episode_cls=FilmoEpisode,
     ),
     Provider(
         name="FilmPalast",
