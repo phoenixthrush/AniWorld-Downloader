@@ -947,6 +947,57 @@ def query_filmpalast(keyword):
     return results
 
 
+def query_filmo(keyword):
+    """Search filmo.to and return a list of movie results with posters."""
+    base = "https://filmo.to"
+    url = f"{base}/search?q={quote_plus(keyword)}"
+    try:
+        resp = GLOBAL_SESSION.get(
+            url,
+            headers={"Accept-Encoding": "gzip, deflate", "Referer": f"{base}/"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+    except Exception as exc:
+        logger.debug(f"filmo search failed for {keyword!r}: {exc}")
+        return []
+
+    results = []
+    seen = set()
+    card_pattern = re.compile(
+        r'<a\b[^>]*href=["\']([^"\']*/movies/[\w-]+)["\'][^>]*>(.*?)</a>',
+        re.IGNORECASE | re.DOTALL,
+    )
+    for match in card_pattern.finditer(resp.text):
+        movie_url, card = match.groups()
+        movie_url = urljoin(base, movie_url)
+        if movie_url in seen:
+            continue
+
+        title_match = re.search(
+            r'class=["\'][^"\']*(?:popular-spotlight-card__title|movie-poster-grid-card__title)[^"\']*["\'][^>]*>(.*?)</',
+            card,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if not title_match:
+            continue
+        title = html_module.unescape(
+            re.sub(r"<[^>]+>", "", title_match.group(1))
+        ).strip()
+        if not title:
+            continue
+
+        poster = ""
+        image_match = re.search(r'<img\b[^>]*\bsrc=["\']([^"\']+)', card, re.IGNORECASE)
+        if image_match:
+            poster = urljoin(base, html_module.unescape(image_match.group(1)))
+
+        seen.add(movie_url)
+        results.append({"title": title, "url": movie_url, "poster_url": poster})
+
+    return results[:30]
+
+
 def query_kinox(keyword):
     """Search kinox.to and return a list of results with posters."""
     from .models.kinox.series import KINOX_DOMAIN

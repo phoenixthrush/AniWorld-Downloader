@@ -1,5 +1,8 @@
 from aniworld.models import FilmoEpisode
 
+# from aniworld.search import query_filmo
+# search_results = query_filmo("resident evil")
+# url = search_results[0]["url"]
 url = "https://filmo.to/movies/resident-evil"
 
 movie = FilmoEpisode(url)
