@@ -841,10 +841,11 @@ def _normalize_s_to_link(link: str) -> str:
 
 
 class _StoSearchParser(HTMLParser):
-    def __init__(self):
+    def __init__(self, genre_page=False):
         super().__init__()
         self.results = []
         self.next_url = None
+        self.genre_page = genre_page
         self.depth = 0
         self.link = None
         self.title = None
@@ -856,7 +857,7 @@ class _StoSearchParser(HTMLParser):
                 self.depth += 1
             elif attrs.get("data-group") == "shows":
                 self.depth = 1
-        if not self.depth:
+        if not self.depth and not self.genre_page:
             return
         if tag == "a":
             href = attrs.get("href", "")
@@ -864,7 +865,11 @@ class _StoSearchParser(HTMLParser):
                 self.next_url = href
             elif href.startswith("/serie/"):
                 self.link = _normalize_s_to_link(href)
-        elif tag == "h6" and "show-title" in attrs.get("class", "").split():
+        elif tag == "h6" and (
+            "show-title" in attrs.get("class", "").split()
+            or self.genre_page
+            and "text-truncate" in attrs.get("class", "").split()
+        ):
             self.title = []
 
     def handle_data(self, data):
@@ -882,12 +887,37 @@ class _StoSearchParser(HTMLParser):
             self.depth -= 1
 
 
-def query_s_to(keyword):
-    """Return series from every page of SerienStream's full search."""
+def query_s_to(
+    keyword="", *, genre=None, fsk=None, prod_start=None, prod_end=None, sort=None
+):
+    """Search by keyword, or browse a genre slug with optional site filters.
+
+    Genre browsing accepts fsk, prod_start/prod_end (years), and sort:
+    name_asc, name_desc, latest, release, or ratings_desc.
+    Keyword search cannot be combined with genre filters.
+    """
     from .models.s_to.http import sto_get
 
     url = "https://serienstream.to/suche"
-    params = {"term": keyword}
+    filters = {
+        key: value
+        for key, value in {
+            "fsk": fsk,
+            "prod_start": prod_start,
+            "prod_end": prod_end,
+            "sort": sort,
+        }.items()
+        if value is not None and value != ""
+    }
+    if genre:
+        if keyword:
+            raise ValueError("Use either a keyword or a genre, not both.")
+        url = f"https://serienstream.to/genre/{quote(genre, safe='')}"
+        params = filters
+    else:
+        if filters:
+            raise ValueError("SerienStream filters require a genre.")
+        params = {"term": keyword}
     results = []
     seen_links = set()
     visited = set()
@@ -895,7 +925,7 @@ def query_s_to(keyword):
         visited.add(url)
         response = sto_get(url, params=params)
         response.raise_for_status()
-        parser = _StoSearchParser()
+        parser = _StoSearchParser(genre_page=bool(genre))
         parser.feed(response.text)
         previous_count = len(results)
         for result in parser.results:
@@ -1107,8 +1137,12 @@ def query_kinox(keyword):
 _bs_index_cache = None
 
 
-def query_burningseries(keyword):
-    """Search burning-series by scanning its full series index (cached)."""
+def query_burningseries(keyword="", *, genre=None):
+    """Search the cached BurningSeries index, optionally within a genre name.
+
+    Genre names are case-insensitive and can be combined with a keyword.
+    Genre searches return all matches; plain keyword searches return up to 30.
+    """
     from .models.burningseries.series import bs_current_base, bs_get_with_fallback
 
     global _bs_index_cache
@@ -1116,8 +1150,27 @@ def query_burningseries(keyword):
         try:
             _bs_index_cache = bs_get_with_fallback("/andere-serien")
         except Exception as exc:
+            if genre:
+                raise
             logger.debug(f"burning-series index fetch failed: {exc}")
             return []
+
+    index = _bs_index_cache
+    if genre:
+        for name, entries in re.findall(
+            r'<div\s+class=["\']genre["\']>\s*<span>\s*<strong>(.*?)</strong>'
+            r"\s*</span>\s*<ul>(.*?)</ul>",
+            index,
+            re.IGNORECASE | re.DOTALL,
+        ):
+            if (
+                html_module.unescape(name).strip().casefold()
+                == genre.strip().casefold()
+            ):
+                index = entries
+                break
+        else:
+            raise ValueError(f"BurningSeries genre not available: {genre}")
 
     base = bs_current_base()
     keyword_lower = keyword.lower()
@@ -1125,7 +1178,7 @@ def query_burningseries(keyword):
     seen = set()
     for m in re.finditer(
         r'<a[^>]*href=["\']/?(serie/([^"\'/]+))["\'][^>]*>(.*?)</a>',
-        _bs_index_cache,
+        index,
         re.IGNORECASE | re.DOTALL,
     ):
         slug = m.group(2)
@@ -1139,7 +1192,7 @@ def query_burningseries(keyword):
             )
 
     results.sort(key=lambda item: _relevance_score(item["title"], keyword))
-    return results[:30]
+    return results if genre else results[:30]
 
 
 def _cineby_result(item):
