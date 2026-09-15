@@ -841,10 +841,11 @@ def _normalize_s_to_link(link: str) -> str:
 
 
 class _StoSearchParser(HTMLParser):
-    def __init__(self):
+    def __init__(self, genre_page=False):
         super().__init__()
         self.results = []
         self.next_url = None
+        self.genre_page = genre_page
         self.depth = 0
         self.link = None
         self.title = None
@@ -856,7 +857,7 @@ class _StoSearchParser(HTMLParser):
                 self.depth += 1
             elif attrs.get("data-group") == "shows":
                 self.depth = 1
-        if not self.depth:
+        if not self.depth and not self.genre_page:
             return
         if tag == "a":
             href = attrs.get("href", "")
@@ -864,7 +865,11 @@ class _StoSearchParser(HTMLParser):
                 self.next_url = href
             elif href.startswith("/serie/"):
                 self.link = _normalize_s_to_link(href)
-        elif tag == "h6" and "show-title" in attrs.get("class", "").split():
+        elif tag == "h6" and (
+            "show-title" in attrs.get("class", "").split()
+            or self.genre_page
+            and "text-truncate" in attrs.get("class", "").split()
+        ):
             self.title = []
 
     def handle_data(self, data):
@@ -882,12 +887,37 @@ class _StoSearchParser(HTMLParser):
             self.depth -= 1
 
 
-def query_s_to(keyword):
-    """Return series from every page of SerienStream's full search."""
+def query_s_to(
+    keyword="", *, genre=None, fsk=None, prod_start=None, prod_end=None, sort=None
+):
+    """Search by keyword, or browse a genre slug with optional site filters.
+
+    Genre browsing accepts fsk, prod_start/prod_end (years), and sort:
+    name_asc, name_desc, latest, release, or ratings_desc.
+    Keyword search cannot be combined with genre filters.
+    """
     from .models.s_to.http import sto_get
 
     url = "https://serienstream.to/suche"
-    params = {"term": keyword}
+    filters = {
+        key: value
+        for key, value in {
+            "fsk": fsk,
+            "prod_start": prod_start,
+            "prod_end": prod_end,
+            "sort": sort,
+        }.items()
+        if value is not None and value != ""
+    }
+    if genre:
+        if keyword:
+            raise ValueError("Use either a keyword or a genre, not both.")
+        url = f"https://serienstream.to/genre/{quote(genre, safe='')}"
+        params = filters
+    else:
+        if filters:
+            raise ValueError("SerienStream filters require a genre.")
+        params = {"term": keyword}
     results = []
     seen_links = set()
     visited = set()
@@ -895,7 +925,7 @@ def query_s_to(keyword):
         visited.add(url)
         response = sto_get(url, params=params)
         response.raise_for_status()
-        parser = _StoSearchParser()
+        parser = _StoSearchParser(genre_page=bool(genre))
         parser.feed(response.text)
         previous_count = len(results)
         for result in parser.results:
