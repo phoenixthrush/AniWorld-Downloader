@@ -5,6 +5,7 @@ from pathlib import Path
 
 try:
     from ...config import (
+        FILMPALAST_HOST_PATTERN,
         GLOBAL_SESSION,
         NAMING_TEMPLATE,
         Audio,
@@ -27,6 +28,7 @@ try:
     from ..common.provider_map import host_to_provider
 except ImportError:
     from aniworld.config import (
+        FILMPALAST_HOST_PATTERN,
         GLOBAL_SESSION,
         NAMING_TEMPLATE,
         Audio,
@@ -436,7 +438,8 @@ class FilmPalastEpisode:
 
     def __extract_genres(self):
         self.__genres = re.findall(
-            r'href="https://filmpalast.to/search/genre/.*?">(.*?)</a>', self._html
+            rf'href="(?:https?://{FILMPALAST_HOST_PATTERN}/|/)?search/genre/[^"\s]+"[^>]*>(.*?)</a>',
+            self._html,
         )
 
     def __extract_description(self):

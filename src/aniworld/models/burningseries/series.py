@@ -18,6 +18,7 @@ from urllib.parse import urlparse
 
 try:
     from ...config import (
+        BS_HOST_PATTERN,
         DEFAULT_USER_AGENT,
         Audio,
         Subtitles,
@@ -34,6 +35,7 @@ try:
     from ..common.provider_map import host_to_provider
 except ImportError:
     from aniworld.config import (
+        BS_HOST_PATTERN,
         DEFAULT_USER_AGENT,
         Audio,
         Subtitles,
@@ -532,7 +534,8 @@ class BurningSeriesSeason(_BSLanguageMixin):
             return []
         rows = []
         for m in re.finditer(
-            r'<td><a href="(serie/[^"]+?/(\d+)/([^"/]+)/[a-z]{2})"', table.group(1)
+            rf'<td><a href="(?:https?://{BS_HOST_PATTERN}/|/)?(serie/[^"]+?/(\d+)/([^"/]+)/[a-z]{{2}})"',
+            table.group(1),
         ):
             rows.append((m.group(1), int(m.group(2)), m.group(3)))
         return rows
@@ -701,7 +704,9 @@ class BurningSeriesSeries:
             numbers = set()
             # Season tabs look like <li class="sN"><a href="serie/slug/N/lang">N</a>
             for m in re.finditer(
-                r'href="/?serie/' + re.escape(self.slug) + r'/(\d+)(?:/[a-z]{2})?"',
+                rf'href="(?:https?://{BS_HOST_PATTERN}/|/)?serie/'
+                + re.escape(self.slug)
+                + r'/(\d+)(?:/[a-z]{2})?"',
                 self._html,
                 re.IGNORECASE,
             ):

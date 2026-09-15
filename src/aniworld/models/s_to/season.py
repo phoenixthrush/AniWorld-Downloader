@@ -1,7 +1,7 @@
 import re
 from urllib.parse import urljoin
 
-from ...config import SERIENSTREAM_SEASON_PATTERN, logger
+from ...config import SERIENSTREAM_SEASON_PATTERN, STO_HOST_PATTERN, logger
 from ..common import run_each
 from .http import sto_get
 
@@ -117,7 +117,7 @@ class SerienstreamSeason:
 
         # Support both absolute and relative links.
         pattern = (
-            r'<a\s+href="(?:https?://(?:serienstream|s)\.to)?/serie/.+/staffel-'
+            rf'<a\s+href="(?:https?://{STO_HOST_PATTERN})?/serie/.+/staffel-'
             + str(self.season_number)
             + r'/episode-\d+"'
         )
@@ -136,7 +136,7 @@ class SerienstreamSeason:
         from .episode import SerienstreamEpisode
 
         pattern = (
-            r'<a\s+href="(?P<href>(?:https?://(?:serienstream|s)\.to)?/serie/.+/staffel-'
+            rf'<a\s+href="(?P<href>(?:https?://{STO_HOST_PATTERN})?/serie/.+/staffel-'
             + str(self.season_number)
             + r'/episode-\d+)"'
         )

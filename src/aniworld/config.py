@@ -430,9 +430,13 @@ STO_LEGACY_DOMAINS = ["s.to"]
 
 STO_ALL_HOSTS = [*STO_DOMAINS, STO_IP, *STO_LEGACY_DOMAINS]
 
-_STO_HOST = r"(?:www\.)?(?:" + "|".join(re.escape(h) for h in STO_ALL_HOSTS) + r")"
+STO_HOST_PATTERN = (
+    r"(?:www\.)?(?:" + "|".join(re.escape(h) for h in STO_ALL_HOSTS) + r")"
+)
 
-STO_HOST_RE = re.compile(r"^(https?://)" + _STO_HOST + r"(?=[:/?#]|$)", re.IGNORECASE)
+STO_HOST_RE = re.compile(
+    r"^(https?://)" + STO_HOST_PATTERN + r"(?=[:/?#]|$)", re.IGNORECASE
+)
 
 
 def is_sto_host(url):
@@ -441,11 +445,11 @@ def is_sto_host(url):
 
 
 SERIENSTREAM_SERIES_PATTERN = re.compile(
-    rf"^https?://{_STO_HOST}/serie/[a-zA-Z0-9\-]+/?$", re.IGNORECASE
+    rf"^https?://{STO_HOST_PATTERN}/serie/[a-zA-Z0-9\-]+/?$", re.IGNORECASE
 )
 
 SERIENSTREAM_SEASON_PATTERN = re.compile(
-    rf"^https?://{_STO_HOST}/serie/"
+    rf"^https?://{STO_HOST_PATTERN}/serie/"
     r"[a-zA-Z0-9\-]+/"
     r"staffel-\d+"
     r"/?$",
@@ -453,7 +457,7 @@ SERIENSTREAM_SEASON_PATTERN = re.compile(
 )
 
 SERIENSTREAM_EPISODE_PATTERN = re.compile(
-    rf"^https?://{_STO_HOST}/serie/"
+    rf"^https?://{STO_HOST_PATTERN}/serie/"
     r"[a-zA-Z0-9\-]+/"
     r"staffel-\d+/episode-\d+"
     r"/?$",
@@ -475,8 +479,10 @@ MANGA_FIRE_CHAPTER_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+FILMPALAST_HOST_PATTERN = r"(?:www\.)?filmpalast\.[^/]+"
+
 FILMPALAST_SERIES_PATTERN = re.compile(
-    r"^https?://(?:www\.)?filmpalast\.[^/]+/stream/[^/?#]+/?$",
+    rf"^https?://{FILMPALAST_HOST_PATTERN}/stream/[^/?#]+/?$",
     re.IGNORECASE,
 )
 
@@ -500,22 +506,22 @@ CINEBY_EPISODE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-_BS_HOST = r"(?:www\.)?(?:burning-series\.(?:io|net)|burningseries\.(?:ac|cx)|bs\.cine\.to|bs\.to)"
+BS_HOST_PATTERN = r"(?:www\.)?(?:burning-series\.(?:io|net)|burningseries\.(?:ac|cx)|bs\.cine\.to|bs\.to)"
 
 BURNINGSERIES_SERIES_PATTERN = re.compile(
-    rf"^https?://{_BS_HOST}/serie/[a-zA-Z0-9\-]+(?:\?[^#]*)?/?$",
+    rf"^https?://{BS_HOST_PATTERN}/serie/[a-zA-Z0-9\-]+(?:\?[^#]*)?/?$",
     re.IGNORECASE,
 )
 
 # /serie/<slug>/<season>[/<lang>]
 BURNINGSERIES_SEASON_PATTERN = re.compile(
-    rf"^https?://{_BS_HOST}/serie/[a-zA-Z0-9\-]+/\d+(?:/[a-z]{{2}})?/?$",
+    rf"^https?://{BS_HOST_PATTERN}/serie/[a-zA-Z0-9\-]+/\d+(?:/[a-z]{{2}})?/?$",
     re.IGNORECASE,
 )
 
 # /serie/<slug>/<season>/<episode-slug>/<lang>
 BURNINGSERIES_EPISODE_PATTERN = re.compile(
-    rf"^https?://{_BS_HOST}/serie/[a-zA-Z0-9\-]+/\d+/[^/]+/[a-z]{{2}}/?$",
+    rf"^https?://{BS_HOST_PATTERN}/serie/[a-zA-Z0-9\-]+/\d+/[^/]+/[a-z]{{2}}/?$",
     re.IGNORECASE,
 )
 
