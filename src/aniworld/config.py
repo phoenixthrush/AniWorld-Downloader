@@ -85,6 +85,9 @@ VIDEO_CODEC_MAP = {
     "h264_amf": "h264_amf",
     "hevc_amf": "hevc_amf",
     "av1_amf": "av1_amf",
+    "h264_qsv": "h264_qsv",
+    "hevc_qsv": "hevc_qsv",
+    "av1_qsv": "av1_qsv",
 }
 
 ACTION_METHODS = {
