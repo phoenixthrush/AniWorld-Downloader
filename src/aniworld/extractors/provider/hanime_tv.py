@@ -8,7 +8,7 @@ import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from html import unescape
-from urllib.parse import unquote, urljoin, urlparse
+from urllib.parse import quote, unquote, urlencode, urljoin, urlparse
 
 import niquests
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -463,8 +463,30 @@ def _rank_hanime_slugs(slugs, keyword, limit=24):
     return results
 
 
-def search_hanime(keyword, limit=24):
-    """Search Hanime without a third-party API, using hanime.tv's sitemap."""
+def search_hanime(keyword="", limit=24, *, genre=None, sort=None):
+    """Search the sitemap, or fetch video cards from a genre's first page.
+
+    Genre results can be filtered by keyword and are capped by limit.
+    Pass limit=None to return all cards on the genre page.
+    sort is passed as the site's order parameter; omit it for recent uploads.
+    """
+    if sort and not genre:
+        raise ValueError("Hanime sorting requires a genre.")
+    if genre:
+        url = f"{HANIME_BASE_URL}/browse/tags/{quote(genre, safe='')}"
+        if sort:
+            url += "?" + urlencode({"order": sort})
+        results = _extract_video_cards(_request_hanime(url).text)
+        if keyword:
+            term = keyword.casefold()
+            results = [
+                result
+                for result in results
+                if term in result["name"].casefold()
+                or term in result["slug"].casefold()
+            ]
+        return results[:limit]
+
     slugs = _rank_hanime_slugs(_get_sitemap_slugs(), keyword, limit=limit)
 
     def _result(slug):
@@ -506,6 +528,19 @@ def search_hanime(keyword, limit=24):
     workers = min(12, len(slugs))
     with ThreadPoolExecutor(max_workers=workers) as pool:
         return list(pool.map(_result, slugs))
+
+
+def fetch_hanime_genres():
+    """Fetch the currently available genre tags from Hanime's homepage."""
+    page = _request_hanime(HANIME_BASE_URL).text
+    tags = re.findall(
+        r"<a\b[^>]*href=[\"']/(?:browse/)?tags/([^\"'?#]+)[\"']",
+        page,
+        re.IGNORECASE,
+    )
+    return _dedupe_preserve_order(
+        [unquote(unescape(tag)).strip().rstrip("/") for tag in tags]
+    )
 
 
 def fetch_hanime_trending(limit=24):
