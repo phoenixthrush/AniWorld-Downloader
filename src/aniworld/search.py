@@ -1137,8 +1137,12 @@ def query_kinox(keyword):
 _bs_index_cache = None
 
 
-def query_burningseries(keyword):
-    """Search burning-series by scanning its full series index (cached)."""
+def query_burningseries(keyword="", *, genre=None):
+    """Search the cached BurningSeries index, optionally within a genre name.
+
+    Genre names are case-insensitive and can be combined with a keyword.
+    Genre searches return all matches; plain keyword searches return up to 30.
+    """
     from .models.burningseries.series import bs_current_base, bs_get_with_fallback
 
     global _bs_index_cache
@@ -1146,8 +1150,27 @@ def query_burningseries(keyword):
         try:
             _bs_index_cache = bs_get_with_fallback("/andere-serien")
         except Exception as exc:
+            if genre:
+                raise
             logger.debug(f"burning-series index fetch failed: {exc}")
             return []
+
+    index = _bs_index_cache
+    if genre:
+        for name, entries in re.findall(
+            r'<div\s+class=["\']genre["\']>\s*<span>\s*<strong>(.*?)</strong>'
+            r"\s*</span>\s*<ul>(.*?)</ul>",
+            index,
+            re.IGNORECASE | re.DOTALL,
+        ):
+            if (
+                html_module.unescape(name).strip().casefold()
+                == genre.strip().casefold()
+            ):
+                index = entries
+                break
+        else:
+            raise ValueError(f"BurningSeries genre not available: {genre}")
 
     base = bs_current_base()
     keyword_lower = keyword.lower()
@@ -1155,7 +1178,7 @@ def query_burningseries(keyword):
     seen = set()
     for m in re.finditer(
         r'<a[^>]*href=["\']/?(serie/([^"\'/]+))["\'][^>]*>(.*?)</a>',
-        _bs_index_cache,
+        index,
         re.IGNORECASE | re.DOTALL,
     ):
         slug = m.group(2)
@@ -1169,7 +1192,7 @@ def query_burningseries(keyword):
             )
 
     results.sort(key=lambda item: _relevance_score(item["title"], keyword))
-    return results[:30]
+    return results if genre else results[:30]
 
 
 def _cineby_result(item):
