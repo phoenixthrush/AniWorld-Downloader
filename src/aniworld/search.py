@@ -1026,28 +1026,84 @@ def query_filmpalast(keyword):
     return results
 
 
-def query_filmo(keyword):
-    """Search filmo.to and return a list of movie results with posters."""
-    base = "https://filmo.to"
-    url = f"{base}/search?q={quote_plus(keyword)}"
-    try:
-        resp = GLOBAL_SESSION.get(
-            url,
-            headers={"Accept-Encoding": "gzip, deflate", "Referer": f"{base}/"},
-            timeout=15,
-        )
-        resp.raise_for_status()
-    except Exception as exc:
-        logger.debug(f"filmo search failed for {keyword!r}: {exc}")
-        return []
+def query_filmo(
+    keyword="",
+    *,
+    genre_id=None,
+    year=None,
+    runtime_min=None,
+    runtime_max=None,
+    country=None,
+    sort=None,
+):
+    """Search by keyword, or browse movies with optional site filters.
 
+    Browsing follows all result pages. genre_id uses Filmo's numeric IDs,
+    runtime bounds are minutes, and country uses a two-letter country code.
+    Omit filters or pass None / "" to use the site's defaults.
+    """
+    base = "https://filmo.to"
+    filters = {
+        key: value
+        for key, value in {
+            "genre_id": genre_id,
+            "year": year,
+            "runtime_min": runtime_min,
+            "runtime_max": runtime_max,
+            "country": country,
+            "sort": sort,
+        }.items()
+        if value is not None and value != ""
+    }
+    if keyword and filters:
+        raise ValueError("Use either a keyword or Filmo browse filters, not both.")
+    url = f"{base}/search?q={quote_plus(keyword)}" if keyword else f"{base}/movies"
+    params = filters if not keyword else None
+    results = []
+    seen = set()
+    visited = set()
+    while url not in visited:
+        visited.add(url)
+        try:
+            resp = GLOBAL_SESSION.get(
+                url,
+                params=params,
+                headers={"Accept-Encoding": "gzip, deflate", "Referer": f"{base}/"},
+                timeout=15,
+            )
+            resp.raise_for_status()
+        except Exception as exc:
+            if not keyword:
+                raise
+            logger.debug(f"filmo search failed for {keyword!r}: {exc}")
+            return []
+        previous_count = len(results)
+        for result in _parse_filmo_cards(resp.text, base):
+            if result["url"] not in seen:
+                seen.add(result["url"])
+                results.append(result)
+        if keyword:
+            return results[:30]
+        next_link = re.search(
+            r"<a\b(?=[^>]*\brel=[\"']next[\"'])[^>]*\bhref=[\"']([^\"']+)",
+            resp.text,
+            re.IGNORECASE,
+        )
+        if len(results) == previous_count or not next_link:
+            break
+        url = urljoin(url, html_module.unescape(next_link.group(1)))
+        params = None
+    return results
+
+
+def _parse_filmo_cards(page, base):
     results = []
     seen = set()
     card_pattern = re.compile(
         r'<a\b[^>]*href=["\']([^"\']*/movies/[\w-]+)["\'][^>]*>(.*?)</a>',
         re.IGNORECASE | re.DOTALL,
     )
-    for match in card_pattern.finditer(resp.text):
+    for match in card_pattern.finditer(page):
         movie_url, card = match.groups()
         movie_url = urljoin(base, movie_url)
         if movie_url in seen:
@@ -1074,7 +1130,7 @@ def query_filmo(keyword):
         seen.add(movie_url)
         results.append({"title": title, "url": movie_url, "poster_url": poster})
 
-    return results[:30]
+    return results
 
 
 def query_kinox(keyword):
