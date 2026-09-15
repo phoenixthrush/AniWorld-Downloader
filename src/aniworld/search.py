@@ -2,6 +2,7 @@ import html as html_module
 import os
 import random
 import re
+from html.parser import HTMLParser
 from urllib.parse import quote, quote_plus, urljoin
 
 import niquests
@@ -839,24 +840,72 @@ def _normalize_s_to_link(link: str) -> str:
     return link
 
 
+class _StoSearchParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.results = []
+        self.next_url = None
+        self.depth = 0
+        self.link = None
+        self.title = None
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "div":
+            if self.depth:
+                self.depth += 1
+            elif attrs.get("data-group") == "shows":
+                self.depth = 1
+        if not self.depth:
+            return
+        if tag == "a":
+            href = attrs.get("href", "")
+            if "next" in attrs.get("rel", "").split():
+                self.next_url = href
+            elif href.startswith("/serie/"):
+                self.link = _normalize_s_to_link(href)
+        elif tag == "h6" and "show-title" in attrs.get("class", "").split():
+            self.title = []
+
+    def handle_data(self, data):
+        if self.title is not None:
+            self.title.append(data)
+
+    def handle_endtag(self, tag):
+        if tag == "h6" and self.title is not None:
+            title = "".join(self.title).strip()
+            if self.link and title:
+                self.results.append({"title": title, "link": self.link})
+            self.link = None
+            self.title = None
+        if tag == "div" and self.depth:
+            self.depth -= 1
+
+
 def query_s_to(keyword):
-    """Search serienstream.to for the given keyword and return a list of matching series with their URLs."""
+    """Return series from every page of SerienStream's full search."""
     from .models.s_to.http import sto_get
 
-    # Use query params to ensure proper URL encoding (spaces, umlauts, etc.)
-    url = "https://serienstream.to/api/search/suggest"
-    response = sto_get(url, params={"term": keyword})
-
-    data = response.json()
-    shows = data.get("shows", []) or []
-
+    url = "https://serienstream.to/suche"
+    params = {"term": keyword}
     results = []
-    for show in shows:
-        title = show.get("name", "Unknown Title")
-        link = _normalize_s_to_link(show.get("url", "") or "")
-        if link:
-            results.append({"title": title, "link": link})
-
+    seen_links = set()
+    visited = set()
+    while url not in visited:
+        visited.add(url)
+        response = sto_get(url, params=params)
+        response.raise_for_status()
+        parser = _StoSearchParser()
+        parser.feed(response.text)
+        previous_count = len(results)
+        for result in parser.results:
+            if result["link"] not in seen_links:
+                seen_links.add(result["link"])
+                results.append(result)
+        if len(results) == previous_count or not parser.next_url:
+            break
+        url = urljoin(url, parser.next_url)
+        params = None
     return results
 
 
