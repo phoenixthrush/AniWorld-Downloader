@@ -2256,7 +2256,6 @@ def solve_sto_modal(
 
             final_url = None
             weiter_clicked = False
-            challenge_solver = _ChallengeSolver()
             start = _time.time()
 
             while _time.time() - start < _captcha_timeout(90):
@@ -2355,17 +2354,10 @@ def solve_sto_modal(
                     logger.debug(f"Provider tab URL found: {final_url}")
                     break
 
-                # ── Captcha solving ──────────────────────────────────────────
-                # Clicks every checkbox-style widget present in the modal —
-                # not just Turnstile.  VOE's "Video wird vorbereitet..." modal
-                # sometimes stacks a second widget (Google reCAPTCHA v2's
-                # "I'm not a robot" checkbox) directly underneath Turnstile;
-                # submitting while it's still unticked gets the form rejected
-                # ("Please tick this box if you want to proceed."), so Weiter
-                # is only clicked once *every* widget on the page has a token.
-                if not weiter_clicked and challenge_solver.ready_to_submit(
-                    page, logger
-                ):
+                # ── Captcha solving (übersprungen) ───────────────────────────
+                # Das Warten auf das Captcha (und das Klick-Lösen) wurde auf Wunsch
+                # deaktiviert. Es wird sofort versucht, auf "Weiter" zu klicken.
+                if not weiter_clicked:
                     try:
                         # Remove ad overlays before clicking Weiter so the
                         # submit button click isn't hijacked by the overlay.
@@ -2375,7 +2367,7 @@ def solve_sto_modal(
                         # never races ahead of the flag being set.
                         _weiter_submitted.set()
                         if _click_submit_button(page, logger):
-                            logger.warning("Submit clicked (all captcha tokens ready)")
+                            logger.warning("Submit clicked (Captcha solving skipped)")
                             weiter_clicked = True
                         page.wait_for_timeout(1200)
                     except Exception as e:
