@@ -1749,29 +1749,6 @@ def search(is_aniworld=None):
         return curses.wrapper(menu_wrapper)
 
 
-def fetch_kinoger_movies():
-    try:
-        from curl_cffi import requests as _curl
-        import re
-        headers = {
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7'
-        }
-        res = _curl.get("https://kinoger.com", headers=headers, impersonate="chrome124", timeout=10)
-        html = res.content.decode("utf-8", "ignore") if res.content else ""
-        results = []
-        for match in re.finditer(r'<div class="short-images".*?<a href="([^"]+)".*?title="([^"]+)".*?<img src="([^"]+)"', html, re.DOTALL):
-            url = match.group(1)
-            title = match.group(2)
-            poster = match.group(3)
-            if not poster.startswith("http"):
-                poster = "https://kinoger.com" + poster
-            results.append({"title": title, "url": url, "poster_url": poster})
-        return results
-    except Exception as exc:
-        logger.warning("fetch_kinoger_movies failed: %s", exc)
-        return []
-
 def fetch_moflix_movies():
     try:
         from curl_cffi import requests as _curl

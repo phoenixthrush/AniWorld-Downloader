@@ -23,8 +23,7 @@ from ...search import (
     fetch_popular_animes,
     fetch_popular_movies,
     fetch_popular_series,
-    fetch_kinoger_movies,
-    fetch_moflix_movies,
+        fetch_moflix_movies,
     random_anime,
 )
 from .. import media, sitesearch
@@ -37,7 +36,7 @@ BROWSE_TTL = 3600
 _browse_cache = {}
 
 # Sites that list one movie per page instead of seasons.
-SINGLE_PAGE_SITES = ("MegaKino", "FilmPalast", "Kinoger", "Moflix")
+SINGLE_PAGE_SITES = ("MegaKino", "FilmPalast", "Moflix")
 
 # These resolve their stream per episode, so the language is read once at the
 # season level instead of probing every episode.

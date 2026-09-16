@@ -51,8 +51,8 @@ _ABSOLUTE_BASES = {"mangafire": "https://mangafire.to"}
 
 # Sites checked for a Discord request, in priority order. Kinox and Cineby carry
 # both movies and series, so they appear in both lists.
-SERIES_SITES = ("sto", "burningseries", "aniworld", "kinox", "cineby", "kinoger", "moflix")
-MOVIE_SITES = ("megakino", "cineby", "filmpalast", "kinox", "kinoger", "moflix")
+SERIES_SITES = ("sto", "burningseries", "aniworld", "kinox", "cineby", "moflix")
+MOVIE_SITES = ("megakino", "cineby", "filmpalast", "kinox", "moflix")
 
 
 

@@ -150,13 +150,6 @@ PROVIDERS = [
         episode_cls=SerienstreamEpisode,
     ),
     Provider(
-        name="Kinoger",
-        series_pattern=KINOGER_EPISODE_PATTERN,
-        episode_pattern=KINOGER_EPISODE_PATTERN,
-        series_cls=KinogerEpisode,
-        episode_cls=KinogerEpisode,
-    ),
-    Provider(
         name="Moflix",
         series_pattern=MOFLIX_SERIES_PATTERN,
         episode_pattern=MOFLIX_SERIES_PATTERN,

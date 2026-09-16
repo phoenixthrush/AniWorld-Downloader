@@ -50,7 +50,6 @@ SITE_KEYS = (
     "burningseries",
     "filmpalast",
     "cineby",
-    "kinoger",
     "moflix",
 )
 
@@ -64,7 +63,6 @@ SITE_LABELS = {
     "burningseries": "BurningSeries",
     "filmpalast": "FilmPalast",
     "cineby": "Cineby",
-    "kinoger": "Kinoger",
     "moflix": "Moflix",
 }
 
@@ -76,7 +74,6 @@ SITE_ORDER = (
     "burningseries",
     "megakino",
     "cineby",
-    "kinoger",
     "moflix",
     "kinox",
     "filmpalast",
