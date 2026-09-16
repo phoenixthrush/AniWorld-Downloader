@@ -1,3 +1,3 @@
 from .series import MoflixEpisode, MoflixSeason
 
-__all__ = ["MoflixEpisode"]
+__all__ = ["MoflixEpisode", "MoflixSeason"]

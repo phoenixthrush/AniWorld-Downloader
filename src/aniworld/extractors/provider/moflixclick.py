@@ -8,7 +8,6 @@ from curl_cffi import requests
 
 from .filemoon import _unpack_js
 
-
 _PACKED_PLAYER = re.compile(
     r"eval\(function\(p,a,c,k,e,d\).*?\}\('(?P<p>(?:\\.|[^'\\])*)',"
     r"\s*(?P<radix>\d+),\s*\d+,\s*'(?P<keywords>(?:\\.|[^'\\])*)'"

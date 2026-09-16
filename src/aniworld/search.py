@@ -1751,8 +1751,9 @@ def search(is_aniworld=None):
 
 def fetch_moflix_movies():
     try:
-        from curl_cffi import requests as _curl
         import re
+
+        from curl_cffi import requests as _curl
         res = _curl.get("https://moflix-stream.xyz/", impersonate="chrome124", timeout=10)
         csrf_match = re.search(r'"csrf_token"\s*:\s*"([^"]+)"', res.text)
         csrf = csrf_match.group(1) if csrf_match else None
@@ -1782,8 +1783,10 @@ def fetch_moflix_movies():
 
 def query_moflix(keyword):
     try:
+        import re
+        import urllib.parse
+
         from curl_cffi import requests as _curl
-        import re, urllib.parse
         res = _curl.get("https://moflix-stream.xyz/", impersonate="chrome124", timeout=10)
         csrf_match = re.search(r'"csrf_token"\s*:\s*"([^"]+)"', res.text)
         csrf = csrf_match.group(1) if csrf_match else None

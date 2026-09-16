@@ -1,19 +1,18 @@
+import json
 import os
 import re
-import json
 import time
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urlparse
 
 try:
     from ...config import (
-        MOFLIX_SERIES_PATTERN,
         GLOBAL_SESSION,
+        MOFLIX_SERIES_PATTERN,
         NAMING_TEMPLATE,
         Audio,
         Subtitles,
         build_provider_attempt_order,
-        logger,
     )
     from ...extractors import provider_functions
     from ..common import ProviderData, check_downloaded, movie_folder_enabled
@@ -24,13 +23,12 @@ try:
     from ..common.provider_map import host_to_provider
 except ImportError:
     from aniworld.config import (
-        MOFLIX_SERIES_PATTERN,
         GLOBAL_SESSION,
+        MOFLIX_SERIES_PATTERN,
         NAMING_TEMPLATE,
         Audio,
         Subtitles,
         build_provider_attempt_order,
-        logger,
     )
     from aniworld.extractors import provider_functions
     from aniworld.models.common import (
@@ -419,7 +417,7 @@ class MoflixEpisode:
     def _title_data(self):
         data = self.__fetch_metadata().get("title", {})
         if not isinstance(data, dict):
-            raise ValueError("Moflix title data has an invalid format")
+            raise TypeError("Moflix title data has an invalid format")
         return data
 
     @property
@@ -490,8 +488,8 @@ class MoflixSeason:
         self.series = series
         if season_number is None:
             # try to parse from url
-            from urllib.parse import urlparse, parse_qs
             import re
+            from urllib.parse import parse_qs, urlparse
             qs = parse_qs(urlparse(url).query)
             if 'season' in qs:
                 self.season_number = int(qs['season'][0])
@@ -551,7 +549,7 @@ class MoflixSeason:
         episodes = data.get("episodes") or {}
         eps_data = episodes.get("data", []) if isinstance(episodes, dict) else []
         if not isinstance(eps_data, list):
-            raise ValueError("Moflix episode list has an invalid format")
+            raise TypeError("Moflix episode list has an invalid format")
 
         results = []
         for ep_data in sorted(eps_data, key=lambda x: x.get('episode_number', 1)):

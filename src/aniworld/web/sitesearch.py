@@ -10,16 +10,15 @@ import re
 from ..logger import get_logger
 from ..models.mangafire_to.series import search_series as query_mangafire
 from ..search import (
-    query_moflix,
     query as query_aniworld,
 )
 from ..search import (
-    query_moflix,
     query_burningseries,
     query_cineby,
     query_filmpalast,
     query_kinox,
     query_megakino,
+    query_moflix,
     query_s_to,
 )
 

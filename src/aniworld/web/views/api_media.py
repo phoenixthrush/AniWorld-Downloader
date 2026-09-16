@@ -18,12 +18,12 @@ from ...search import (
     fetch_genre_animes,
     fetch_genres,
     fetch_kinox_movies,
+    fetch_moflix_movies,
     fetch_new_animes,
     fetch_new_series,
     fetch_popular_animes,
     fetch_popular_movies,
     fetch_popular_series,
-        fetch_moflix_movies,
     random_anime,
 )
 from .. import media, sitesearch

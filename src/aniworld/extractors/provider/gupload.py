@@ -7,7 +7,6 @@ from urllib.parse import urlparse
 
 from curl_cffi import requests
 
-
 _KEY_PARTS = re.compile(r"var\s+_p\s*=\s*\[(?P<parts>(?:\s*'[^']+'\s*,?)+)\]")
 _CONFIG = re.compile(r"var\s+_cfg\s*=\s*_dp\('(?P<config>[^']+)'\)")
 
