@@ -13,6 +13,8 @@ from urllib.parse import quote, unquote, urlencode, urljoin, urlparse
 import niquests
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+from ...common.search import limit_results, validate_limit
+
 try:
     from ...config import DEFAULT_USER_AGENT, GLOBAL_SESSION, logger
     from ...playwright.captcha import (
@@ -458,7 +460,7 @@ def _rank_hanime_slugs(slugs, keyword, limit=24):
             continue
         seen_franchises.add(franchise_key)
         results.append(slug)
-        if len(results) >= limit:
+        if limit is not None and len(results) >= limit:
             break
     return results
 
@@ -470,6 +472,9 @@ def search_hanime(keyword="", limit=24, *, genre=None, sort=None):
     Pass limit=None to return all cards on the genre page.
     sort is passed as the site's order parameter; omit it for recent uploads.
     """
+    validate_limit(limit)
+    if limit == 0:
+        return []
     if sort and not genre:
         raise ValueError("Hanime sorting requires a genre.")
     if genre:
@@ -485,7 +490,7 @@ def search_hanime(keyword="", limit=24, *, genre=None, sort=None):
                 if term in result["name"].casefold()
                 or term in result["slug"].casefold()
             ]
-        return results[:limit]
+        return limit_results(results, limit)
 
     slugs = _rank_hanime_slugs(_get_sitemap_slugs(), keyword, limit=limit)
 

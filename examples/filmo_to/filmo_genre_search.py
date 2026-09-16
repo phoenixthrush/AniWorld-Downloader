@@ -11,19 +11,19 @@ from aniworld.search import query_filmo
 # TR, UA, AR, CL, CO, IL, ZA, TH, VN, PH, ID, MY, TW, HK, SG, AE, EG, RU.
 
 # Example 1: Horror movies, newest releases first.
-results = query_filmo(genre_id=11, sort="release_desc")
+results = query_filmo(limit=10, genre_id=11, sort="release_desc")
 print("Horror:", len(results))
 for result in results:
     print(result["title"], "-", result["url"])
 
 # Example 2: Science fiction from 2020, between 90 and 120 minutes.
-results = query_filmo(genre_id=15, year=2020, runtime_min=90, runtime_max=120)
+results = query_filmo(limit=10, genre_id=15, year=2020, runtime_min=90, runtime_max=120)
 print("Science fiction, 2020, 90-120 minutes:", len(results))
 for result in results:
     print(result["title"], "-", result["url"])
 
 # Example 3: German movies, highest ratings first, without a genre filter.
-results = query_filmo(country="DE", sort="rating_desc")
+results = query_filmo(limit=10, country="DE", sort="rating_desc")
 print("German movies, by rating:", len(results))
 for result in results:
     print(result["title"], "-", result["url"])

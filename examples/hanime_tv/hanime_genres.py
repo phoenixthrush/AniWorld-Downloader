@@ -1,5 +1,6 @@
 from aniworld.extractors.provider.hanime_tv import fetch_hanime_genres, search_hanime
 
+# limit caps the result count; None keeps the site's existing scope, 0 skips fetching.
 # Available genre tags (09/2026 as of right now):
 # 2000-year-old dragon girl, 3d, ahegao, anal, bdsm, big boobs, blow job, bondage, boob
 # job, censored, comedy, cosplay, creampie, dark skin, facial, fantasy, filmed, foot
@@ -23,7 +24,7 @@ for genre in genres:
 # name_asc / name_desc: Alphabetical A-Z / Z-A
 
 # Fetch up to 24 results from a genre's first page.
-results = search_hanime(genre="fantasy")
+results = search_hanime(limit=10, genre="fantasy")
 print("Fantasy results:", len(results))
 for result in results:
     print(result["name"], "-", "https://hanime.tv/videos/hentai/" + result["slug"])

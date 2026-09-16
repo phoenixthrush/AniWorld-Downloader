@@ -8,6 +8,13 @@ from urllib.parse import quote, quote_plus, unquote, urljoin
 
 import niquests
 
+from .common.search import (
+    limit_reached,
+    limit_results,
+    optional_filters,
+    validate_limit,
+)
+
 try:
     from .ascii import display_ascii_art
     from .config import DEFAULT_USER_AGENT, GLOBAL_SESSION, logger
@@ -23,45 +30,6 @@ MAX_PAGES = 15
 
 # A genre page lists 30 animes and pages are /genre/<slug>/<n>.
 GENRE_PAGE_SIZE = 30
-
-# Used when the genre list cannot be read off the homepage. Aniworld adds
-# genres very rarely, so a stale copy is better than showing nothing.
-GENRE_FALLBACK = (
-    ("Abenteuer", "abenteuer"),
-    ("Action", "action"),
-    ("Actiondrama", "actiondrama"),
-    ("Actionkomödie", "actionkomoedie"),
-    ("Alltagsleben", "alltagsleben"),
-    ("Alltagsdrama", "alltagsdrama"),
-    ("Boys Love", "boys-love"),
-    ("Drama", "drama"),
-    ("Ecchi", "ecchi"),
-    ("EngSub", "engsub"),
-    ("Erotik", "erotik"),
-    ("Fantasy", "fantasy"),
-    ("Fighting-Shounen", "fighting-shounen"),
-    ("Ganbatte", "ganbatte"),
-    ("Geistergeschichten", "geistergeschichten"),
-    ("Ger", "ger"),
-    ("GerSub", "gersub"),
-    ("Harem", "harem"),
-    ("Horror", "horror"),
-    ("Komödie", "komoedie"),
-    ("Krimi", "krimi"),
-    ("Liebesdrama", "liebesdrama"),
-    ("Magical Girl", "magical-girl"),
-    ("Mecha", "mecha"),
-    ("Mystery", "mystery"),
-    ("Nonsense-Komödie", "nonsense-komoedie"),
-    ("Psychodrama", "psychodrama"),
-    ("Romantische Komödie", "romantische-komoedie"),
-    ("Romanze", "romanze"),
-    ("Scifi", "scifi"),
-    ("Sport", "sport"),
-    ("Thriller", "thriller"),
-    ("Yuri", "yuri"),
-    ("Übermäßige Gewaltdarstellung", "uebermaessige-gewaltdarstellung"),
-)
 
 _homepage_cache = None
 _megakino_homepage_cache = None
@@ -168,19 +136,25 @@ def fetch_megakino_genres():
     return results
 
 
-def query_megakino(keyword="", *, genre=None):
+def query_megakino(keyword="", *, genre=None, limit=None):
     """Search by keyword, or fetch the first results page for a genre slug.
 
     Use fetch_megakino_genres() to discover current names and slugs.
     """
+    validate_limit(limit)
+    if limit == 0:
+        return []
     if genre:
         if keyword:
             raise ValueError("Use either a keyword or a genre, not both.")
         page, base = _fetch_megakino_page(f"/{quote(genre, safe='')}/")
-        return [
-            {"title": title, "url": url, "poster_url": poster}
-            for title, url, poster in _extract_megakino_cards(page, base)
-        ]
+        return limit_results(
+            [
+                {"title": title, "url": url, "poster_url": poster}
+                for title, url, poster in _extract_megakino_cards(page, base)
+            ],
+            limit,
+        )
     try:
         from .models.megakino.series import get_megakino_domain
 
@@ -240,10 +214,13 @@ def query_megakino(keyword="", *, genre=None):
     # the closest title matches surface first.
     titles_links.sort(key=lambda item: _relevance_score(item[0], keyword))
 
-    return [
-        {"title": title, "url": url, "poster_url": poster_url}
-        for title, url, poster_url in titles_links
-    ]
+    return limit_results(
+        [
+            {"title": title, "url": url, "poster_url": poster_url}
+            for title, url, poster_url in titles_links
+        ],
+        limit,
+    )
 
 
 def _extract_megakino_poster_url(inner_html, base_url):
@@ -584,7 +561,7 @@ def _extract_cover_list(html, heading):
 def fetch_genres():
     """Genre names and slugs, read off the genre list at the end of the homepage.
 
-    Returns a list of dicts, falling back to the built in list.
+    Returns the genre names and slugs currently present on the site.
     """
     html = _fetch_homepage()
     genres = []
@@ -605,16 +582,18 @@ def fetch_genres():
                     genres.append({"name": name, "slug": slug})
 
     if not genres:
-        logger.warning("Genre list missing from the homepage, using the built in one")
-        genres = [{"name": name, "slug": slug} for name, slug in GENRE_FALLBACK]
+        logger.warning("Genre list missing from the homepage")
     return genres
 
 
-def fetch_genre_animes(slug, page=1):
+def fetch_genre_animes(slug, page=1, *, limit=None):
     """Fetch one page of a genre listing.
 
     Returns {"results": [...], "has_more": bool}; request errors propagate.
     """
+    validate_limit(limit)
+    if limit == 0:
+        return {"results": [], "has_more": False}
     url = f"{HOME_URL}/genre/{quote(slug, safe='')}"
     if page > 1:
         url = f"{url}/{page}"
@@ -628,7 +607,7 @@ def fetch_genre_animes(slug, page=1):
     results = _parse_cover_items(html[start:] if start != -1 else html)
     # The pager only links to the next page while there is one
     has_more = f"/genre/{slug}/{page + 1}" in html
-    return {"results": results, "has_more": has_more}
+    return {"results": limit_results(results, limit), "has_more": has_more}
 
 
 def fetch_new_animes():
@@ -937,7 +916,14 @@ class _StoSearchParser(HTMLParser):
 
 
 def query_s_to(
-    keyword="", *, genre=None, fsk=None, prod_start=None, prod_end=None, sort=None
+    keyword="",
+    *,
+    genre=None,
+    fsk=None,
+    prod_start=None,
+    prod_end=None,
+    sort=None,
+    limit=None,
 ):
     """Search by keyword, or browse a genre slug with optional site filters.
 
@@ -945,19 +931,15 @@ def query_s_to(
     name_asc, name_desc, latest, release, or ratings_desc.
     Keyword search cannot be combined with genre filters.
     """
+    validate_limit(limit)
+    if limit == 0:
+        return []
     from .models.s_to.http import sto_get
 
     url = "https://serienstream.to/suche"
-    filters = {
-        key: value
-        for key, value in {
-            "fsk": fsk,
-            "prod_start": prod_start,
-            "prod_end": prod_end,
-            "sort": sort,
-        }.items()
-        if value is not None and value != ""
-    }
+    filters = optional_filters(
+        fsk=fsk, prod_start=prod_start, prod_end=prod_end, sort=sort
+    )
     if genre:
         if keyword:
             raise ValueError("Use either a keyword or a genre, not both.")
@@ -981,11 +963,13 @@ def query_s_to(
             if result["link"] not in seen_links:
                 seen_links.add(result["link"])
                 results.append(result)
+        if limit_reached(results, limit):
+            break
         if len(results) == previous_count or not parser.next_url:
             break
         url = urljoin(url, parser.next_url)
         params = None
-    return results
+    return limit_results(results, limit)
 
 
 def _clean_search_query(keyword):
@@ -1028,11 +1012,14 @@ def fetch_filmpalast_genres():
     return results
 
 
-def query_filmpalast(keyword="", *, genre=None):
+def query_filmpalast(keyword="", *, genre=None, limit=None):
     """Search by title, or fetch the first result page for a genre slug.
 
     Use fetch_filmpalast_genres() to discover the site's current genres.
     """
+    validate_limit(limit)
+    if limit == 0:
+        return []
     base = "https://filmpalast.to"
     if genre and keyword:
         raise ValueError("Use either a keyword or a genre, not both.")
@@ -1105,7 +1092,7 @@ def query_filmpalast(keyword="", *, genre=None):
                     "poster_url": poster,
                 }
             )
-        return results if genre else results[:30]
+        return limit_results(results if genre else results[:30], limit)
 
     results = _run(genre or keyword)
     if not results and not genre:
@@ -1124,6 +1111,7 @@ def query_filmo(
     runtime_max=None,
     country=None,
     sort=None,
+    limit=None,
 ):
     """Search by keyword, or browse movies with optional site filters.
 
@@ -1131,19 +1119,18 @@ def query_filmo(
     runtime bounds are minutes, and country uses a two-letter country code.
     Omit filters or pass None / "" to use the site's defaults.
     """
+    validate_limit(limit)
+    if limit == 0:
+        return []
     base = "https://filmo.to"
-    filters = {
-        key: value
-        for key, value in {
-            "genre_id": genre_id,
-            "year": year,
-            "runtime_min": runtime_min,
-            "runtime_max": runtime_max,
-            "country": country,
-            "sort": sort,
-        }.items()
-        if value is not None and value != ""
-    }
+    filters = optional_filters(
+        genre_id=genre_id,
+        year=year,
+        runtime_min=runtime_min,
+        runtime_max=runtime_max,
+        country=country,
+        sort=sort,
+    )
     if keyword and filters:
         raise ValueError("Use either a keyword or Filmo browse filters, not both.")
     url = f"{base}/search?q={quote_plus(keyword)}" if keyword else f"{base}/movies"
@@ -1172,17 +1159,19 @@ def query_filmo(
                 seen.add(result["url"])
                 results.append(result)
         if keyword:
-            return results[:30]
+            return limit_results(results[:30], limit)
         next_link = re.search(
             r"<a\b(?=[^>]*\brel=[\"']next[\"'])[^>]*\bhref=[\"']([^\"']+)",
             resp.text,
             re.IGNORECASE,
         )
+        if limit_reached(results, limit):
+            break
         if len(results) == previous_count or not next_link:
             break
         url = urljoin(url, html_module.unescape(next_link.group(1)))
         params = None
-    return results
+    return limit_results(results, limit)
 
 
 def _parse_filmo_cards(page, base):
@@ -1222,8 +1211,11 @@ def _parse_filmo_cards(page, base):
     return results
 
 
-def query_kinox(keyword="", *, genre=None):
+def query_kinox(keyword="", *, genre=None, limit=None):
     """Search Kinox by keyword, or fetch a genre's Top 100 in site order."""
+    validate_limit(limit)
+    if limit == 0:
+        return []
     from .models.kinox.series import KINOX_DOMAIN
 
     base = f"https://{KINOX_DOMAIN}"
@@ -1262,16 +1254,16 @@ def query_kinox(keyword="", *, genre=None):
         if params_match:
             # Genre pages load their cards via AJAX; no browser cookies are needed.
             params = json.loads(html_module.unescape(params_match.group(1)))
-            params["Length"] = 100
+            params["Length"] = min(limit, 100) if limit is not None else 100
             resp = GLOBAL_SESSION.post(
                 f"{base}/aGET/List/",
                 data={
                     "Page": 1,
-                    "Per_Page": 100,
+                    "Per_Page": params["Length"],
                     "ListMode": "cover",
                     "additional": json.dumps(params),
                     "iDisplayStart": 0,
-                    "iDisplayLength": 100,
+                    "iDisplayLength": params["Length"],
                 },
                 headers={**headers, "Referer": url},
                 timeout=15,
@@ -1336,18 +1328,21 @@ def query_kinox(keyword="", *, genre=None):
             if title and url not in seen:
                 seen.add(url)
                 results.append({"title": title, "url": url, "poster_url": ""})
-    return results[:100] if genre else results[:30]
+    return limit_results(results[:100] if genre else results[:30], limit)
 
 
 _bs_index_cache = None
 
 
-def query_burningseries(keyword="", *, genre=None):
+def query_burningseries(keyword="", *, genre=None, limit=None):
     """Search the cached BurningSeries index, optionally within a genre name.
 
     Genre names are case-insensitive and can be combined with a keyword.
     Genre searches return all matches; plain keyword searches return up to 30.
     """
+    validate_limit(limit)
+    if limit == 0:
+        return []
     from .models.burningseries.series import bs_current_base, bs_get_with_fallback
 
     global _bs_index_cache
@@ -1397,7 +1392,7 @@ def query_burningseries(keyword="", *, genre=None):
             )
 
     results.sort(key=lambda item: _relevance_score(item["title"], keyword))
-    return results if genre else results[:30]
+    return limit_results(results if genre else results[:30], limit)
 
 
 def _cineby_result(item):
