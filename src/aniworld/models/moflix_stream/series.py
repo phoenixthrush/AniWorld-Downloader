@@ -1,7 +1,7 @@
 import os
 import re
 import json
-from html import unescape
+import time
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
@@ -53,7 +53,14 @@ def _fetch_moflix(url, session_cookies=None, csrf_token=None):
             headers["X-Requested-With"] = "XMLHttpRequest"
             headers["Referer"] = "https://moflix-stream.xyz/"
             headers["Accept"] = "application/json"
-        return _curl.get(url, cookies=session_cookies, headers=headers, impersonate="chrome124", timeout=15)
+        for attempt in range(3):
+            response = _curl.get(
+                url, cookies=session_cookies, headers=headers,
+                impersonate="chrome124", timeout=15,
+            )
+            if response.status_code != 429 or attempt == 2:
+                return response
+            time.sleep(attempt + 1)
     except ImportError:
         headers = {}
         if csrf_token:
@@ -114,45 +121,44 @@ class MoflixEpisode:
     def __fetch_initial_data(self):
         if self.__csrf_token is None:
             resp = _fetch_moflix(self.url)
+            resp.raise_for_status()
             self.__session_cookies = resp.cookies
             match = re.search(r'window\.bootstrapData\s*=\s*(\{.*?\});', resp.text)
-            if match:
-                try:
-                    data = json.loads(match.group(1))
-                    self.__csrf_token = data.get("csrf_token")
-                except json.JSONDecodeError:
-                    pass
+            if not match:
+                raise ValueError("Moflix bootstrap data not found")
+            data = json.loads(match.group(1))
+            self.__csrf_token = data.get("csrf_token")
+            if not self.__csrf_token:
+                raise ValueError("Moflix CSRF token not found")
 
     def __fetch_metadata(self):
         if self.__metadata is None:
             self.__fetch_initial_data()
             api_url = f"https://moflix-stream.xyz/api/v1/titles/{self.title_id}"
             resp = _fetch_moflix(api_url, self.__session_cookies, self.__csrf_token)
-            try:
-                self.__metadata = resp.json()
-            except Exception:
-                self.__metadata = {}
+            resp.raise_for_status()
+            self.__metadata = resp.json()
+            if not isinstance(self.__metadata, dict):
+                raise ValueError("Moflix title API returned invalid data")
         return self.__metadata
 
     def __fetch_videos_data(self):
         if self.__videos_data is None:
-            self.__fetch_initial_data()
             if self.is_series:
+                self.__fetch_initial_data()
                 api_url = f"https://moflix-stream.xyz/api/v1/titles/{self.title_id}/seasons/{self.season_id}/episodes/{self.episode_id}"
-            else:
-                api_url = f"https://moflix-stream.xyz/api/v1/titles/{self.title_id}"
-                
-            resp = _fetch_moflix(api_url, self.__session_cookies, self.__csrf_token)
-            try:
+                resp = _fetch_moflix(api_url, self.__session_cookies, self.__csrf_token)
+                resp.raise_for_status()
                 data = resp.json()
-                if self.is_series:
-                    ep_data = data.get('episode', {})
-                    self.__videos_data = ep_data.get('videos', []) if isinstance(ep_data, dict) else []
-                else:
-                    title_data = data.get('title', {})
-                    self.__videos_data = title_data.get('videos', []) if isinstance(title_data, dict) else []
-            except Exception:
-                self.__videos_data = []
+                item = data.get("episode")
+            else:
+                item = self._title_data
+            if not isinstance(item, dict):
+                raise ValueError("Moflix video API returned invalid data")
+            videos = item.get("videos") or []
+            if not isinstance(videos, list):
+                raise ValueError("Moflix video list has an invalid format")
+            self.__videos_data = videos
         return self.__videos_data
 
     @property
@@ -202,27 +208,15 @@ class MoflixEpisode:
         return clean_title(self.title or "")
 
     @property
-    def poster_url(self):
-        if self.__poster_url is None:
-            self.__poster_url = self.__fetch_metadata().get("title", {}).get("poster")
-        return self.__poster_url
-
-    @property
-    def description(self):
-        if self.__description is None:
-            self.__description = self.__fetch_metadata().get("title", {}).get("description")
-        return self.__description
-
-    @property
     def release_year(self):
         if self.__release_year is None:
-            self.__release_year = self.__fetch_metadata().get("title", {}).get("year")
+            self.__release_year = self._title_data.get("year")
         return self.__release_year
 
     @property
     def runtime_min(self):
         if self.__runtime_min is None:
-            self.__runtime_min = self.__fetch_metadata().get("title", {}).get("runtime")
+            self.__runtime_min = self._title_data.get("runtime")
         return self.__runtime_min
 
     @property
@@ -261,13 +255,15 @@ class MoflixEpisode:
 
             providers = {}
             for video in videos:
+                if not isinstance(video, dict):
+                    continue
                 src = video.get("src")
-                if src:
-                    name = video.get("name", "")
-                    provider = host_to_provider(name, require_extractor=False) or name
-                    if not provider or provider == name:
-                        parsed = urlparse(src)
-                        provider = host_to_provider(parsed.netloc, require_extractor=False) or parsed.netloc
+                if not isinstance(src, str) or urlparse(src).scheme != "https":
+                    continue
+                # The API labels these "Mirror 1", "Mirror 2", etc. Their URL,
+                # not the label, determines which extractor can handle them.
+                provider = host_to_provider(urlparse(src).netloc)
+                if provider:
                     providers[provider] = src
 
             if not providers:
@@ -328,11 +324,7 @@ class MoflixEpisode:
         if self.__redirect_url is None:
             link = self.provider_link(self.selected_language, self.selected_provider)
             if link is None:
-                avail = self.available_providers()
-                if avail:
-                    link = self.provider_link(self.selected_language, avail[0])
-            if link is None:
-                raise ValueError("No valid provider link found")
+                raise ValueError(f"No Moflix link for provider {self.selected_provider}")
             self.__redirect_url = link
         return self.__redirect_url
 
@@ -352,7 +344,15 @@ class MoflixEpisode:
             raise ValueError(
                 f"The provider '{self.selected_provider}' is not yet implemented."
             )
+        if not isinstance(stream_url, str) or not stream_url:
+            raise ValueError(f"Provider {self.selected_provider} returned no stream URL")
         return stream_url
+
+    @property
+    def _separate_audio_rendition(self):
+        # Moflix HLS masters can default to English while carrying German as
+        # a separate rendition. The shared HLS downloader selects the dub.
+        return True
 
     @property
     def _movie_basename(self):
@@ -372,9 +372,7 @@ class MoflixEpisode:
     @property
     def _folder_path(self):
         if self.__folder_path is None:
-            meta = self.__fetch_metadata()
-            is_series = meta.get("is_series", False) or meta.get("type") == "series"
-            if is_series:
+            if self.is_series:
                 self.__folder_path = self._base_folder / f"Season {self.season_id}"
             else:
                 self.__folder_path = self._base_folder
@@ -383,9 +381,7 @@ class MoflixEpisode:
     @property
     def _file_name(self):
         if self.__file_name is None:
-            meta = self.__fetch_metadata()
-            is_series = meta.get("is_series", False) or meta.get("type") == "series"
-            if is_series:
+            if self.is_series:
                 self.__file_name = f"{self._movie_basename} S{self.season_id}E{self.episode_id}"
             else:
                 self.__file_name = self._movie_basename
@@ -423,7 +419,7 @@ class MoflixEpisode:
     def _title_data(self):
         data = self.__fetch_metadata().get("title", {})
         if not isinstance(data, dict):
-            return {}
+            raise ValueError("Moflix title data has an invalid format")
         return data
 
     @property
@@ -433,7 +429,8 @@ class MoflixEpisode:
 
     @property
     def seasons(self):
-        seasons_data = self.__fetch_metadata().get("seasons", {}).get("data", [])
+        seasons = self.__fetch_metadata().get("seasons") or {}
+        seasons_data = seasons.get("data", []) if isinstance(seasons, dict) else []
         if not seasons_data:
             return [MoflixSeason(self.url, self, 1, 1)]
         
@@ -530,8 +527,12 @@ class MoflixSeason:
             def provider_data(self):
                 if self._ep_model:
                     return self._ep_model.provider_data
-                from aniworld.models.moflix_stream.series import MoflixEpisode
-                return MoflixEpisode(self.url).provider_data
+                self._ep_model = MoflixEpisode(self.url)
+                # Reuse title metadata and session for the selected episode.
+                self._ep_model._MoflixEpisode__metadata = self.season.series._MoflixEpisode__metadata
+                self._ep_model._MoflixEpisode__session_cookies = self.season.series._MoflixEpisode__session_cookies
+                self._ep_model._MoflixEpisode__csrf_token = self.season.series._MoflixEpisode__csrf_token
+                return self._ep_model.provider_data
 
         if not self.series.is_series:
             # It's a movie, return a proxy wrapping the movie series
@@ -544,14 +545,13 @@ class MoflixSeason:
             )]
             
         api_url = f'https://moflix-stream.xyz/api/v1/titles/{self.series.title_id}/seasons/{self.season_number}?perPage=500'
-        # Since we are already in series.py, we don't need to import it, it's just `_fetch_moflix` globally available.
-        # But wait, MoflixSeason is defined inside series.py! So _fetch_moflix is already in scope!
         resp = _fetch_moflix(api_url, self.series._MoflixEpisode__session_cookies, self.series._MoflixEpisode__csrf_token)
-        try:
-            data = resp.json()
-            eps_data = data.get('episodes', {}).get('data', [])
-        except Exception:
-            eps_data = []
+        resp.raise_for_status()
+        data = resp.json()
+        episodes = data.get("episodes") or {}
+        eps_data = episodes.get("data", []) if isinstance(episodes, dict) else []
+        if not isinstance(eps_data, list):
+            raise ValueError("Moflix episode list has an invalid format")
 
         results = []
         for ep_data in sorted(eps_data, key=lambda x: x.get('episode_number', 1)):

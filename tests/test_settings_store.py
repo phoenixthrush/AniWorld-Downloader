@@ -100,6 +100,7 @@ def test_which_sites_a_fresh_install_shows():
         "burningseries": False,
         "filmpalast": True,
         "cineby": False,
+        "moflix": True,
     }
 
 

@@ -313,7 +313,11 @@ def _season_episodes(provider, url, series_url):
     downloaded = media.downloaded_episodes(found) if found else set()
 
     season_languages = None
-    if provider.name in SEASON_LEVEL_LANGUAGE_SITES:
+    if provider.name == "Moflix":
+        # The season endpoint has no video links. Probing every episode here
+        # quickly hits Moflix's rate limit; the chosen episode is probed below.
+        season_languages = ["German Dub"]
+    elif provider.name in SEASON_LEVEL_LANGUAGE_SITES:
         try:
             season_languages = list(getattr(season, "language_labels", []) or [])
         except Exception as exc:

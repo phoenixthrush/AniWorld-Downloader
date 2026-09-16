@@ -186,6 +186,9 @@ SUPPORTED_PROVIDERS = (
     "Vidoza",
     "Doodstream",
     "Filemoon",
+    "Gupload",
+    "MoflixClick",
+    "Vidara",
     # "LoadX",
     # "Luluvdo",
     # "Streamtape",
@@ -279,6 +282,12 @@ PROVIDER_HEADERS_D = {
     "LoadX": {"Accept": "*/*"},
     "Cineby": {"Referer": "https://www.cineby.at/"},
     "Filemoon": {"User-Agent": DEFAULT_USER_AGENT, "Referer": "https://filemoon.to"},
+    "Gupload": {"Referer": "https://gupload.xyz/", "Accept-Encoding": "identity"},
+    "MoflixClick": {
+        "Referer": "https://moflix-stream.click/",
+        "Accept-Encoding": "identity",
+    },
+    "Vidara": {"Referer": "https://vidara.to/"},
     "Luluvdo": {
         "User-Agent": LULUVDO_USER_AGENT,
         "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
@@ -307,6 +316,12 @@ PROVIDER_HEADERS_W = {
     "LoadX": {"Accept": "*/*"},
     "Cineby": {"Referer": "https://www.cineby.at/"},
     "Filemoon": {"User-Agent": DEFAULT_USER_AGENT, "Referer": "https://filemoon.to"},
+    "Gupload": {"Referer": "https://gupload.xyz/", "Accept-Encoding": "identity"},
+    "MoflixClick": {
+        "Referer": "https://moflix-stream.click/",
+        "Accept-Encoding": "identity",
+    },
+    "Vidara": {"Referer": "https://vidara.to/"},
     "Luluvdo": {
         "User-Agent": LULUVDO_USER_AGENT,
         "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",

@@ -93,6 +93,7 @@ Last checked: **09/26**. Statuses reflect sampled stream/image checks, not full 
 | Hanime | Adult animation | Working | Disabled by default |
 | Kinox | Movies and series | Unverified: manual captcha required | Disabled by default |
 | BurningSeries | Series | Broken: embed resolution failed | Disabled by default |
+| Moflix | Movies and series | Working: sampled mirrors | Gupload, MoflixClick, and Vidara where offered |
 
 ### Stream Providers
 
@@ -104,6 +105,9 @@ Last checked: **09/26**. Statuses reflect sampled stream/image checks, not full 
 | Vidoza | Unverified: test link returned 404 | 09/26 |
 | Doodstream | Working | 09/26 |
 | MegaKino | Working | 09/26 |
+| Gupload | Working: sampled Moflix movie and episode | 09/26 |
+| MoflixClick | Working: sampled movie and episode; some individual links fail | 09/26 |
+| Vidara | Working: sampled Moflix episode | 09/26 |
 
 VOE previews are broken. Filemoon, Doodstream, and MegaKino previews are not implemented. Streamtape, Luluvdo, and LoadX are not implemented.
 
