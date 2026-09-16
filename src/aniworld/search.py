@@ -1,4 +1,5 @@
 import html as html_module
+import json
 import os
 import random
 import re
@@ -1169,26 +1170,68 @@ def _parse_filmo_cards(page, base):
     return results
 
 
-def query_kinox(keyword):
-    """Search kinox.to and return a list of results with posters."""
+def query_kinox(keyword="", *, genre=None):
+    """Search Kinox by keyword, or fetch a genre's Top 100 in site order."""
     from .models.kinox.series import KINOX_DOMAIN
 
     base = f"https://{KINOX_DOMAIN}"
-    url = f"{base}/Search.html?q={quote_plus(keyword)}"
+    if genre and keyword:
+        raise ValueError("Use either a keyword or a genre, not both.")
+    url = (
+        f"{base}/Genre/{quote(genre, safe='')}/Popular"
+        if genre
+        else f"{base}/Search.html?q={quote_plus(keyword)}"
+    )
+    headers = {
+        "User-Agent": DEFAULT_USER_AGENT,
+        "Accept-Encoding": "gzip, deflate",
+        "Referer": f"{base}/",
+    }
     try:
         resp = GLOBAL_SESSION.get(
             url,
-            headers={"Accept-Encoding": "gzip, deflate", "Referer": f"{base}/"},
+            headers=headers,
             timeout=15,
         )
         resp.raise_for_status()
     except Exception as exc:
+        if genre:
+            raise
         logger.debug(f"kinox search failed for {keyword!r}: {exc}")
         return []
 
+    page = resp.text
+    if genre:
+        params_match = re.search(
+            r"<input\b(?=[^>]*\bid=[\"']ListParams[\"'])[^>]*\bvalue=[\"']([^\"']*)",
+            page,
+            re.IGNORECASE,
+        )
+        if params_match:
+            # Genre pages load their cards via AJAX; no browser cookies are needed.
+            params = json.loads(html_module.unescape(params_match.group(1)))
+            params["Length"] = 100
+            resp = GLOBAL_SESSION.post(
+                f"{base}/aGET/List/",
+                data={
+                    "Page": 1,
+                    "Per_Page": 100,
+                    "ListMode": "cover",
+                    "additional": json.dumps(params),
+                    "iDisplayStart": 0,
+                    "iDisplayLength": 100,
+                },
+                headers={**headers, "Referer": url},
+                timeout=15,
+            )
+            resp.raise_for_status()
+            page = resp.json().get("Content")
+            if not isinstance(page, str):
+                raise RuntimeError("Kinox did not return a movie list.")
+
     results = []
     seen = set()
-    for block in resp.text.split('class="Opt leftOpt Headlne"')[1:]:
+    for block in page.split('class="Opt leftOpt Headlne"')[1:]:
         href = re.search(r'href="([^"]+)"', block, re.IGNORECASE)
         title_m = re.search(r'title="([^"]+)"', block, re.IGNORECASE) or re.search(
             r"<h1>(.*?)</h1>", block, re.DOTALL | re.IGNORECASE
@@ -1223,7 +1266,25 @@ def query_kinox(keyword):
                 "poster_url": poster,
             }
         )
-    return results[:30]
+    if genre and not results:
+        for cell in re.findall(
+            r'<td\b[^>]*class=["\'][^"\']*\bTitle\b[^"\']*["\'][^>]*>(.*?)</td>',
+            page,
+            re.IGNORECASE | re.DOTALL,
+        ):
+            match = re.search(
+                r'<a\b[^>]*href=["\']([^"\']*/Stream/[^"\']+)["\'][^>]*>(.*?)</a>',
+                cell,
+                re.IGNORECASE | re.DOTALL,
+            )
+            if not match:
+                continue
+            url = urljoin(base, html_module.unescape(match.group(1)))
+            title = html_module.unescape(re.sub(r"<[^>]+>", "", match.group(2))).strip()
+            if title and url not in seen:
+                seen.add(url)
+                results.append({"title": title, "url": url, "poster_url": ""})
+    return results[:100] if genre else results[:30]
 
 
 _bs_index_cache = None
