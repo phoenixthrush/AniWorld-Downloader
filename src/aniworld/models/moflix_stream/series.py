@@ -516,7 +516,33 @@ class MoflixSeason:
     def episodes(self):
         # Ensure session is initialized
         self.series._MoflixEpisode__fetch_initial_data()
-        
+
+        class MoflixEpProxy:
+            def __init__(self, url, season_obj, episode_number, title_en, ep_model=None):
+                self.season = season_obj
+                self.episode_number = episode_number
+                self.url = url
+                self.title_de = ''
+                self.title_en = title_en
+                self._ep_model = ep_model
+
+            @property
+            def provider_data(self):
+                if self._ep_model:
+                    return self._ep_model.provider_data
+                from aniworld.models.moflix_stream.series import MoflixEpisode
+                return MoflixEpisode(self.url).provider_data
+
+        if not self.series.is_series:
+            # It's a movie, return a proxy wrapping the movie series
+            return [MoflixEpProxy(
+                url=self.series.url,
+                season_obj=self,
+                episode_number=1,
+                title_en=self.series.title,
+                ep_model=self.series
+            )]
+            
         api_url = f'https://moflix-stream.xyz/api/v1/titles/{self.series.title_id}/seasons/{self.season_number}?perPage=500'
         # Since we are already in series.py, we don't need to import it, it's just `_fetch_moflix` globally available.
         # But wait, MoflixSeason is defined inside series.py! So _fetch_moflix is already in scope!
@@ -527,20 +553,13 @@ class MoflixSeason:
         except Exception:
             eps_data = []
 
-        class MoflixEpProxy:
-            def __init__(self, ep_data, season_obj):
-                self.season = season_obj
-                self.episode_number = ep_data.get('episode_number', 1)
-                self.url = f'https://moflix-stream.xyz/titles/{season_obj.series.title_id}/season/{season_obj.season_number}/episodes/{self.episode_number}'
-                self.title_de = ''
-                self.title_en = ep_data.get('name', '')
-                self._ep_data = ep_data
-
-            @property
-            def provider_data(self):
-                # Lazy load via MoflixEpisode
-                ep_model = MoflixEpisode(self.url)
-                return ep_model.provider_data
-
-        return [MoflixEpProxy(ep, self) for ep in sorted(eps_data, key=lambda x: x.get('episode_number', 1))]
-
+        results = []
+        for ep_data in sorted(eps_data, key=lambda x: x.get('episode_number', 1)):
+            ep_url = f'https://moflix-stream.xyz/titles/{self.series.title_id}/season/{self.season_number}/episodes/{ep_data.get("episode_number", 1)}'
+            results.append(MoflixEpProxy(
+                url=ep_url,
+                season_obj=self,
+                episode_number=ep_data.get('episode_number', 1),
+                title_en=ep_data.get('name', '')
+            ))
+        return results
