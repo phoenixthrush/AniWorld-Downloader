@@ -3,7 +3,7 @@ import os
 import random
 import re
 from html.parser import HTMLParser
-from urllib.parse import quote, quote_plus, urljoin
+from urllib.parse import quote, quote_plus, unquote, urljoin
 
 import niquests
 
@@ -560,18 +560,14 @@ def fetch_genres():
 def fetch_genre_animes(slug, page=1):
     """Fetch one page of a genre listing.
 
-    Returns {"results": [...], "has_more": bool} or None on error.
+    Returns {"results": [...], "has_more": bool}; request errors propagate.
     """
-    url = f"{HOME_URL}/genre/{quote(slug)}"
+    url = f"{HOME_URL}/genre/{quote(slug, safe='')}"
     if page > 1:
         url = f"{url}/{page}"
 
-    try:
-        response = GLOBAL_SESSION.get(url)
-        response.raise_for_status()
-    except Exception as e:
-        logger.error(f"Failed to fetch genre '{slug}' page {page}: {e}")
-        return None
+    response = GLOBAL_SESSION.get(url)
+    response.raise_for_status()
 
     html = response.text
     # Everything before the list is navigation, cut it off so only cards match
@@ -947,12 +943,50 @@ def _clean_search_query(keyword):
     return cleaned or keyword
 
 
-def query_filmpalast(keyword):
-    """Search filmpalast.to and return a list of movie results with posters."""
+def fetch_filmpalast_genres():
+    """Fetch current genre names and URL slugs from FilmPalast's sidebar."""
+    from .config import FILMPALAST_HOST_PATTERN
+
+    response = GLOBAL_SESSION.get(
+        "https://filmpalast.to/",
+        headers={"Accept-Encoding": "gzip, deflate"},
+        timeout=15,
+    )
+    response.raise_for_status()
+    section = re.search(
+        r"<section\b[^>]*\bid=[\"']genre[\"'][^>]*>(.*?)</section>",
+        response.text,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if not section:
+        return []
+    results = []
+    seen = set()
+    for slug, label in re.findall(
+        rf"<a\b[^>]*href=[\"'](?:https?://{FILMPALAST_HOST_PATTERN}/|/)?search/genre/([^\"'?#]+)[\"'][^>]*>(.*?)</a>",
+        section.group(1),
+        re.IGNORECASE | re.DOTALL,
+    ):
+        slug = unquote(html_module.unescape(slug)).rstrip("/")
+        name = html_module.unescape(re.sub(r"<[^>]+>", "", label)).strip()
+        if slug and name and slug not in seen:
+            seen.add(slug)
+            results.append({"name": name, "slug": slug})
+    return results
+
+
+def query_filmpalast(keyword="", *, genre=None):
+    """Search by title, or fetch the first result page for a genre slug.
+
+    Use fetch_filmpalast_genres() to discover the site's current genres.
+    """
     base = "https://filmpalast.to"
+    if genre and keyword:
+        raise ValueError("Use either a keyword or a genre, not both.")
 
     def _run(term):
-        url = f"{base}/search/title/{quote(term)}"
+        kind = "genre" if genre else "title"
+        url = f"{base}/search/{kind}/{quote(term, safe='')}"
         try:
             resp = GLOBAL_SESSION.get(
                 url,
@@ -961,6 +995,8 @@ def query_filmpalast(keyword):
             )
             resp.raise_for_status()
         except Exception as exc:
+            if genre:
+                raise
             logger.debug(f"filmpalast search failed for {term!r}: {exc}")
             return []
 
@@ -1016,10 +1052,10 @@ def query_filmpalast(keyword):
                     "poster_url": poster,
                 }
             )
-        return results[:30]
+        return results if genre else results[:30]
 
-    results = _run(keyword)
-    if not results:
+    results = _run(genre or keyword)
+    if not results and not genre:
         cleaned = _clean_search_query(keyword)
         if cleaned.lower() != keyword.lower():
             results = _run(cleaned)

@@ -4,6 +4,7 @@ import re
 import time
 
 from flask import Response, jsonify, request
+from niquests.exceptions import HTTPError, RequestException
 
 from ...config import DEFAULT_USER_AGENT, GLOBAL_SESSION
 from ...extractors.provider.hanime_tv import fetch_hanime_trending
@@ -479,16 +480,26 @@ def genres():
 def genre():
     """One page of a genre listing, 30 animes per page."""
     slug = (request.args.get("slug") or "").strip()
-    known = {item["slug"] for item in _cached("genres", fetch_genres) or ()}
-    if slug not in known:
-        return jsonify({"error": "Unknown genre"}), 404
+    if not slug or any(char in slug for char in "/\\") or slug in {".", ".."}:
+        return jsonify({"error": "Invalid genre slug"}), 400
 
     try:
         page = max(1, int(request.args.get("page", 1)))
     except ValueError:
         return jsonify({"error": "page must be a number"}), 400
 
-    data = _cached(f"genre:{slug}:{page}", lambda: fetch_genre_animes(slug, page))
+    try:
+        data = _cached(
+            f"genre:{slug}:{page}",
+            lambda: fetch_genre_animes(slug, page),
+            raise_errors=True,
+        )
+    except HTTPError as exc:
+        if exc.response is not None and exc.response.status_code == 404:
+            return jsonify({"error": f"Genre not available: {slug}"}), 404
+        return jsonify({"error": f"Failed to fetch genre {slug}"}), 502
+    except RequestException:
+        return jsonify({"error": f"Failed to fetch genre {slug}"}), 502
     if data is None:
         return jsonify({"error": f"Failed to fetch genre {slug}"}), 500
 
@@ -586,7 +597,7 @@ _BROWSE_ROWS = (
 )
 
 
-def _cached(key, fetch):
+def _cached(key, fetch, *, raise_errors=False):
     now = time.time()
     entry = _browse_cache.get(key)
     if entry and now - entry[0] < BROWSE_TTL:
@@ -594,6 +605,8 @@ def _cached(key, fetch):
     try:
         results = fetch()
     except Exception as exc:
+        if raise_errors:
+            raise
         logger.warning("Browse fetch '%s' failed: %s", key, exc)
         return None
     if results is not None:

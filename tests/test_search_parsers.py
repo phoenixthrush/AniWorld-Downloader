@@ -144,7 +144,8 @@ def test_a_failed_fetch_returns_nothing(monkeypatch):
         raise RuntimeError("503")
 
     monkeypatch.setattr(search.GLOBAL_SESSION, "get", explode)
-    assert search.fetch_genre_animes("mecha") is None
+    with pytest.raises(RuntimeError, match="503"):
+        search.fetch_genre_animes("mecha")
 
 
 def test_a_page_without_cards_is_empty_not_an_error(monkeypatch):

@@ -155,12 +155,28 @@ def test_a_later_page_is_requested(client, genres):
     assert client.get("/api/genre?slug=mecha&page=2").get_json()["page"] == 2
 
 
-@pytest.mark.parametrize("slug", ["", "nope", "../../etc/passwd", "action/../mecha"])
-def test_an_unknown_genre_is_a_404(client, genres, slug):
-    """The slug goes into a URL, so only known ones are allowed through."""
-    response = client.get(f"/api/genre?slug={slug}")
+@pytest.mark.parametrize("slug", ["", "../../etc/passwd", "action/../mecha"])
+def test_invalid_genre_path_is_rejected(client, genres, slug):
+    assert client.get(f"/api/genre?slug={slug}").status_code == 400
+
+
+def test_genre_missing_from_discovery_can_be_requested(client, genres):
+    genres[("new-genre", 1)] = {"results": [], "has_more": False}
+    assert client.get("/api/genre?slug=new-genre").status_code == 200
+
+
+def test_site_404_is_reported(client, monkeypatch):
+    import niquests
+
+    def fetch(slug, page=1):
+        response = niquests.Response()
+        response.status_code = 404
+        response.raise_for_status()
+
+    monkeypatch.setattr(api_media, "fetch_genre_animes", fetch)
+    response = client.get("/api/genre?slug=missing")
     assert response.status_code == 404
-    assert response.get_json()["error"] == "Unknown genre"
+    assert response.get_json()["error"] == "Genre not available: missing"
 
 
 def test_a_non_numeric_page_is_a_400(client, genres):
