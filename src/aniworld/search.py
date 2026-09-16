@@ -127,8 +127,60 @@ def _relevance_score(title: str, keyword: str) -> int:
     return 4
 
 
-def query_megakino(keyword):
-    """Search MegaKino and return a list of matching results with posters."""
+def _fetch_megakino_page(path):
+    from .models.megakino.series import get_megakino_domain
+
+    base = f"https://{get_megakino_domain()}"
+    headers = {"Accept-Encoding": "identity", "User-Agent": DEFAULT_USER_AGENT}
+    with niquests.Session() as session:
+        session.get(f"{base}/index.php?yg=token", headers=headers, timeout=15)
+        response = session.get(f"{base}{path}", headers=headers, timeout=15)
+        response.raise_for_status()
+        if "location.replace" in response.text or "yg=token" in response.text:
+            response = session.get(f"{base}{path}", headers=headers, timeout=15)
+            response.raise_for_status()
+        return response.text, base
+
+
+def fetch_megakino_genres():
+    """Fetch current genre names and slugs from MegaKino's sidebar."""
+    page, _ = _fetch_megakino_page("/")
+    section = re.search(
+        r'<div\b[^>]*class=["\']side-block__title["\'][^>]*>\s*Genres\s*</div>'
+        r"\s*<ul\b[^>]*>(.*?)</ul>",
+        page,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if not section:
+        return []
+    results = []
+    seen = set()
+    for slug, label in re.findall(
+        r'<a\b[^>]*href=["\']/([^/"\'?#]+)/?["\'][^>]*>(.*?)</a>',
+        section.group(1),
+        re.IGNORECASE | re.DOTALL,
+    ):
+        slug = unquote(html_module.unescape(slug))
+        name = html_module.unescape(re.sub(r"<[^>]+>", "", label)).strip()
+        if name and slug not in seen:
+            seen.add(slug)
+            results.append({"name": name, "slug": slug})
+    return results
+
+
+def query_megakino(keyword="", *, genre=None):
+    """Search by keyword, or fetch the first results page for a genre slug.
+
+    Use fetch_megakino_genres() to discover current names and slugs.
+    """
+    if genre:
+        if keyword:
+            raise ValueError("Use either a keyword or a genre, not both.")
+        page, base = _fetch_megakino_page(f"/{quote(genre, safe='')}/")
+        return [
+            {"title": title, "url": url, "poster_url": poster}
+            for title, url, poster in _extract_megakino_cards(page, base)
+        ]
     try:
         from .models.megakino.series import get_megakino_domain
 
