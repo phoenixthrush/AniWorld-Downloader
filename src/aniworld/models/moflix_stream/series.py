@@ -146,9 +146,11 @@ class MoflixEpisode:
             try:
                 data = resp.json()
                 if self.is_series:
-                    self.__videos_data = data.get('episode', {}).get('videos', [])
+                    ep_data = data.get('episode', {})
+                    self.__videos_data = ep_data.get('videos', []) if isinstance(ep_data, dict) else []
                 else:
-                    self.__videos_data = data.get('title', {}).get('videos', [])
+                    title_data = data.get('title', {})
+                    self.__videos_data = title_data.get('videos', []) if isinstance(title_data, dict) else []
             except Exception:
                 self.__videos_data = []
         return self.__videos_data
@@ -192,7 +194,7 @@ class MoflixEpisode:
     @property
     def title(self):
         if self.__title is None:
-            self.__title = self.__fetch_metadata().get("title", {}).get("name", "")
+            self.__title = self._title_data.get("name", "")
         return self.__title
 
     @property
@@ -226,14 +228,27 @@ class MoflixEpisode:
     @property
     def genres(self):
         if self.__genres is None:
-            genres_data = self.__fetch_metadata().get("title", {}).get("genres", [])
-            self.__genres = [g.get("name") for g in genres_data if isinstance(g, dict)]
+            self.__genres = [g.get("name") for g in self._title_data.get("genres", []) if g.get("name")]
         return self.__genres
+
+    @property
+    def description(self):
+        if self.__description is None:
+            self.__description = self._title_data.get("description", "")
+        return self.__description
+
+    @property
+    def poster_url(self):
+        if self.__poster_url is None:
+            self.__poster_url = self._title_data.get("poster", "")
+            if self.__poster_url and not self.__poster_url.startswith("http"):
+                self.__poster_url = "https://moflix-stream.xyz/" + self.__poster_url.lstrip("/")
+        return self.__poster_url
 
     @property
     def imdb_rating(self):
         if self.__imdb_rating is None:
-            self.__imdb_rating = self.__fetch_metadata().get("title", {}).get("rating")
+            self.__imdb_rating = self._title_data.get("rating", 0.0)
         return self.__imdb_rating
 
     @property
@@ -404,11 +419,17 @@ class MoflixEpisode:
         if self.__is_downloaded is None:
             self.__is_downloaded = check_downloaded(self._episode_path)
         return self.__is_downloaded
+    @property
+    def _title_data(self):
+        data = self.__fetch_metadata().get("title", {})
+        if not isinstance(data, dict):
+            return {}
+        return data
 
     @property
     def is_series(self):
-        title_data = self.__fetch_metadata().get("title", {})
-        return title_data.get("is_series", False) or title_data.get("type") == "series"
+        return self._title_data.get("is_series", False) or self._title_data.get("type") == "series"
+
 
     @property
     def seasons(self):
