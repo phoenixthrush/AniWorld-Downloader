@@ -1749,6 +1749,52 @@ def search(is_aniworld=None):
         return curses.wrapper(menu_wrapper)
 
 
+def fetch_kinoger_movies():
+    try:
+        from .config import GLOBAL_SESSION
+        import re
+        html = GLOBAL_SESSION.get("https://kinoger.com", timeout=10).text
+        results = []
+        for match in re.finditer(r'<div class="short-images".*?<a href="([^"]+)".*?title="([^"]+)".*?<img src="([^"]+)"', html, re.DOTALL):
+            url = match.group(1)
+            title = match.group(2)
+            poster = match.group(3)
+            if not poster.startswith("http"):
+                poster = "https://kinoger.com" + poster
+            results.append({"title": title, "url": url, "poster": poster})
+        return results
+    except Exception as exc:
+        logger.warning("fetch_kinoger_movies failed: %s", exc)
+        return []
+
+def fetch_moflix_movies():
+    try:
+        from curl_cffi import requests as _curl
+        import re
+        res = _curl.get("https://moflix-stream.xyz/", impersonate="chrome124", timeout=10)
+        csrf_match = re.search(r'"csrf_token"\s*:\s*"([^"]+)"', res.text)
+        csrf = csrf_match.group(1) if csrf_match else None
+        
+        headers = {}
+        if csrf:
+            headers["X-XSRF-TOKEN"] = csrf
+            headers["Accept"] = "application/json"
+        
+        api_res = _curl.get("https://moflix-stream.xyz/api/v1/titles?perPage=24&orderBy=createdAt&orderDir=desc", cookies=res.cookies, headers=headers, impersonate="chrome124", timeout=10)
+        data = api_res.json()
+        results = []
+        for item in data.get("pagination", {}).get("data", []):
+            url = f"https://moflix-stream.xyz/titles/{item.get('id')}"
+            title = item.get("name") or "Unknown"
+            poster = item.get("poster") or ""
+            if poster and not poster.startswith("http"):
+                poster = "https://moflix-stream.xyz/" + poster.lstrip("/")
+            results.append({"title": title, "url": url, "poster": poster})
+        return results
+    except Exception as exc:
+        logger.warning("fetch_moflix_movies failed: %s", exc)
+        return []
+
 if __name__ == "__main__":
     print("New series:", fetch_new_series())
     print("Popular series:", fetch_popular_series())
