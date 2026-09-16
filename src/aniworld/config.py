@@ -543,3 +543,13 @@ else:
     MPV_CONFIG_DIR = Path.home() / ".config" / "mpv"
 
 MPV_SCRIPTS_DIR = MPV_CONFIG_DIR / "scripts"
+
+KINOGER_EPISODE_PATTERN = re.compile(
+    r"^https?://(?:www\.)?kinoger\.(?:com|to|re|pw)/stream/[\w-]+\.html(?:#ep=\d+)?/?$",
+    re.IGNORECASE,
+)
+
+MOFLIX_SERIES_PATTERN = re.compile(
+    r"^https?://(?:www\.)?moflix-stream\.xyz/titles/\d+(?:/season/\d+(?:/episodes/\d+)?)?(?:\?[^#]*)?/?$",
+    re.IGNORECASE,
+)
