@@ -1766,7 +1766,7 @@ def fetch_kinoger_movies():
             poster = match.group(3)
             if not poster.startswith("http"):
                 poster = "https://kinoger.com" + poster
-            results.append({"title": title, "url": url, "poster": poster})
+            results.append({"title": title, "url": url, "poster_url": poster})
         return results
     except Exception as exc:
         logger.warning("fetch_kinoger_movies failed: %s", exc)
@@ -1796,7 +1796,7 @@ def fetch_moflix_movies():
             poster = item.get("poster") or ""
             if poster and not poster.startswith("http"):
                 poster = "https://moflix-stream.xyz/" + poster.lstrip("/")
-            results.append({"title": title, "url": url, "poster": poster})
+            results.append({"title": title, "url": url, "poster_url": poster})
         return results
     except Exception as exc:
         logger.warning("fetch_moflix_movies failed: %s", exc)
