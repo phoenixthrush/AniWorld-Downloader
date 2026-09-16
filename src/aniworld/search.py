@@ -1751,9 +1751,14 @@ def search(is_aniworld=None):
 
 def fetch_kinoger_movies():
     try:
-        from .config import GLOBAL_SESSION
+        from curl_cffi import requests as _curl
         import re
-        html = GLOBAL_SESSION.get("https://kinoger.com", timeout=10).text
+        headers = {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7'
+        }
+        res = _curl.get("https://kinoger.com", headers=headers, impersonate="chrome124", timeout=10)
+        html = res.content.decode("utf-8", "ignore") if res.content else ""
         results = []
         for match in re.finditer(r'<div class="short-images".*?<a href="([^"]+)".*?title="([^"]+)".*?<img src="([^"]+)"', html, re.DOTALL):
             url = match.group(1)
@@ -1779,6 +1784,8 @@ def fetch_moflix_movies():
         if csrf:
             headers["X-XSRF-TOKEN"] = csrf
             headers["Accept"] = "application/json"
+            headers["X-Requested-With"] = "XMLHttpRequest"
+            headers["Referer"] = "https://moflix-stream.xyz/"
         
         api_res = _curl.get("https://moflix-stream.xyz/api/v1/titles?perPage=24&orderBy=createdAt&orderDir=desc", cookies=res.cookies, headers=headers, impersonate="chrome124", timeout=10)
         data = api_res.json()

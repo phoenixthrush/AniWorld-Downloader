@@ -46,7 +46,11 @@ except ImportError:
 def _fetch_kinoger(url):
     try:
         from curl_cffi import requests as _curl
-        return _curl.get(url, impersonate="chrome124", timeout=15)
+        headers = {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7'
+        }
+        return _curl.get(url, headers=headers, impersonate="chrome124", timeout=15)
     except ImportError:
         return GLOBAL_SESSION.get(url)
 
