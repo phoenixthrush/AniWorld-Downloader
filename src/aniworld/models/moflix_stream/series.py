@@ -50,11 +50,17 @@ def _fetch_moflix(url, session_cookies=None, csrf_token=None):
         headers = {}
         if csrf_token:
             headers["X-XSRF-TOKEN"] = csrf_token
+            headers["X-Requested-With"] = "XMLHttpRequest"
+            headers["Referer"] = "https://moflix-stream.xyz/"
+            headers["Accept"] = "application/json"
         return _curl.get(url, cookies=session_cookies, headers=headers, impersonate="chrome124", timeout=15)
     except ImportError:
         headers = {}
         if csrf_token:
             headers["X-XSRF-TOKEN"] = csrf_token
+            headers["X-Requested-With"] = "XMLHttpRequest"
+            headers["Referer"] = "https://moflix-stream.xyz/"
+            headers["Accept"] = "application/json"
         return GLOBAL_SESSION.get(url, cookies=session_cookies, headers=headers)
 
 class MoflixEpisode:
@@ -182,7 +188,7 @@ class MoflixEpisode:
     @property
     def title(self):
         if self.__title is None:
-            self.__title = self.__fetch_metadata().get("title", "")
+            self.__title = self.__fetch_metadata().get("title", {}).get("name", "")
         return self.__title
 
     @property
@@ -192,48 +198,52 @@ class MoflixEpisode:
     @property
     def poster_url(self):
         if self.__poster_url is None:
-            self.__poster_url = self.__fetch_metadata().get("poster")
+            self.__poster_url = self.__fetch_metadata().get("title", {}).get("poster")
         return self.__poster_url
 
     @property
     def description(self):
         if self.__description is None:
-            self.__description = self.__fetch_metadata().get("description")
+            self.__description = self.__fetch_metadata().get("title", {}).get("description")
         return self.__description
 
     @property
     def release_year(self):
         if self.__release_year is None:
-            self.__release_year = self.__fetch_metadata().get("year")
+            self.__release_year = self.__fetch_metadata().get("title", {}).get("year")
         return self.__release_year
 
     @property
     def runtime_min(self):
         if self.__runtime_min is None:
-            self.__runtime_min = self.__fetch_metadata().get("runtime")
+            self.__runtime_min = self.__fetch_metadata().get("title", {}).get("runtime")
         return self.__runtime_min
 
     @property
     def genres(self):
         if self.__genres is None:
-            genres_data = self.__fetch_metadata().get("genres", [])
+            genres_data = self.__fetch_metadata().get("title", {}).get("genres", [])
             self.__genres = [g.get("name") for g in genres_data if isinstance(g, dict)]
         return self.__genres
 
     @property
     def imdb_rating(self):
         if self.__imdb_rating is None:
-            self.__imdb_rating = self.__fetch_metadata().get("vote_average")
+            self.__imdb_rating = self.__fetch_metadata().get("title", {}).get("rating")
         return self.__imdb_rating
 
     @property
     def provider_data(self):
         if self.__provider_data is None:
             videos = self.__fetch_videos_data()
-            if isinstance(videos, dict) and "videos" in videos:
-                videos = videos["videos"]
-            elif isinstance(videos, dict) and "data" in videos:
-                videos = videos["data"]
+            
+            if isinstance(videos, dict):
+                if "pagination" in videos:
+                    videos = videos.get("pagination", {}).get("data", [])
+                elif "videos" in videos:
+                    videos = videos["videos"]
+                elif "data" in videos:
+                    videos = videos["data"]
             
             if not isinstance(videos, list):
                 videos = []
