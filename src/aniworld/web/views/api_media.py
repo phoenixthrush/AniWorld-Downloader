@@ -36,7 +36,7 @@ BROWSE_TTL = 3600
 _browse_cache = {}
 
 # Sites that list one movie per page instead of seasons.
-SINGLE_PAGE_SITES = ("MegaKino", "FilmPalast", "Moflix")
+SINGLE_PAGE_SITES = ("MegaKino", "FilmPalast")
 
 # These resolve their stream per episode, so the language is read once at the
 # season level instead of probing every episode.

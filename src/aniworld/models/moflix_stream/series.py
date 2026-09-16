@@ -250,6 +250,14 @@ class MoflixEpisode:
 
             providers = {}
             for video in videos:
+                if self.is_series:
+                    v_season = video.get("season_num")
+                    v_episode = video.get("episode_num")
+                    if v_season is not None and str(v_season) != str(self.season_id):
+                        continue
+                    if v_episode is not None and str(v_episode) != str(self.episode_id):
+                        continue
+
                 src = video.get("src")
                 if src:
                     name = video.get("name", "")
@@ -409,6 +417,27 @@ class MoflixEpisode:
             self.__is_downloaded = check_downloaded(self._episode_path)
         return self.__is_downloaded
 
+    @property
+    def is_series(self):
+        title_data = self.__fetch_metadata().get("title", {})
+        return title_data.get("is_series", False) or title_data.get("type") == "series"
+
+    @property
+    def seasons(self):
+        seasons_data = self.__fetch_metadata().get("seasons", {}).get("data", [])
+        if not seasons_data:
+            return [MoflixSeason(self.url, self, 1, 1)]
+        
+        return [
+            MoflixSeason(
+                url=f"https://moflix-stream.xyz/titles/{self.title_id}?season={s['number']}",
+                series=self,
+                season_number=s["number"],
+                episode_count=s.get("episodes_count", 1)
+            )
+            for s in sorted(seasons_data, key=lambda x: x["number"])
+        ]
+
     def provider_link(self, language=None, provider=None):
         if provider is None:
             provider = self.selected_provider
@@ -448,3 +477,43 @@ class MoflixEpisode:
     download = episode_download
     watch = episode_watch
     syncplay = episode_syncplay
+
+class MoflixSeason:
+    def __init__(self, url, series, season_number, episode_count):
+        self.url = url
+        self.series = series
+        self.season_number = season_number
+        self.episode_count = episode_count
+
+    @property
+    def are_movies(self):
+        return not self.series.is_series
+
+    @property
+    def episodes(self):
+        api_url = f'https://moflix-stream.xyz/api/v1/titles/{self.series.title_id}/seasons/{self.season_number}?perPage=500'
+        resp = _fetch_moflix(api_url, self.series._MoflixEpisode__session_cookies, self.series._MoflixEpisode__csrf_token)
+        try:
+            data = resp.json()
+            eps_data = data.get('episodes', {}).get('data', [])
+        except Exception:
+            eps_data = []
+
+        class MoflixEpProxy:
+            def __init__(self, ep_data, season_obj):
+                self.season = season_obj
+                self.episode_number = ep_data.get('episode_number', 1)
+                self.url = f'https://moflix-stream.xyz/titles/{season_obj.series.title_id}/season/{season_obj.season_number}/episodes/{self.episode_number}'
+                self.title_de = ''
+                self.title_en = ep_data.get('name', '')
+                self._ep_data = ep_data
+
+            @property
+            def provider_data(self):
+                # Lazy load via MoflixEpisode
+                from aniworld.models.moflix_stream.series import MoflixEpisode
+                ep_model = MoflixEpisode(self.url)
+                return ep_model.provider_data
+
+        return [MoflixEpProxy(ep, self) for ep in sorted(eps_data, key=lambda x: x.get('episode_number', 1))]
+

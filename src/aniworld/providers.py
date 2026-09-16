@@ -40,7 +40,6 @@ from .models import (
     HanimeTVEpisode,
     HanimeTVSeason,
     HanimeTVSeries,
-    KinogerEpisode,
     KinoxEpisode,
     KinoxSeason,
     KinoxSeries,
@@ -48,6 +47,7 @@ from .models import (
     MangaFireToSeries,
     MegaKinoEpisode,
     MoflixEpisode,
+    MoflixSeason,
     SerienstreamEpisode,
     SerienstreamSeason,
     SerienstreamSeries,
@@ -154,6 +154,7 @@ PROVIDERS = [
         series_pattern=MOFLIX_SERIES_PATTERN,
         episode_pattern=MOFLIX_SERIES_PATTERN,
         series_cls=MoflixEpisode,
+        season_cls=MoflixSeason,
         episode_cls=MoflixEpisode,
     ),
 ]

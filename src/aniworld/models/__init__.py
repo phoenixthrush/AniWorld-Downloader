@@ -15,7 +15,7 @@ from .hanime_tv import HanimeTVEpisode, HanimeTVSeason, HanimeTVSeries
 from .kinox import KinoxEpisode, KinoxSeason, KinoxSeries
 from .mangafire_to.series import MangaFireToChapter, MangaFireToPage, MangaFireToSeries
 from .megakino import MegaKinoEpisode
-from .moflix_stream import MoflixEpisode
+from .moflix_stream import MoflixEpisode, MoflixSeason
 from .s_to import SerienstreamEpisode, SerienstreamSeason, SerienstreamSeries
 
 __all__ = [
@@ -41,6 +41,7 @@ __all__ = [
     "MangaFireToSeries",
     "MegaKinoEpisode",
     "MoflixEpisode",
+    "MoflixSeason",
     "SerienstreamEpisode",
     "SerienstreamSeason",
     "SerienstreamSeries",
