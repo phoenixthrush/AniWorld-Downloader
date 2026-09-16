@@ -497,7 +497,8 @@ class MoflixSeason:
         self.series._MoflixEpisode__fetch_initial_data()
         
         api_url = f'https://moflix-stream.xyz/api/v1/titles/{self.series.title_id}/seasons/{self.season_number}?perPage=500'
-        from src.aniworld.models.moflix_stream.series import _fetch_moflix
+        # Since we are already in series.py, we don't need to import it, it's just `_fetch_moflix` globally available.
+        # But wait, MoflixSeason is defined inside series.py! So _fetch_moflix is already in scope!
         resp = _fetch_moflix(api_url, self.series._MoflixEpisode__session_cookies, self.series._MoflixEpisode__csrf_token)
         try:
             data = resp.json()
@@ -517,7 +518,6 @@ class MoflixSeason:
             @property
             def provider_data(self):
                 # Lazy load via MoflixEpisode
-                from aniworld.models.moflix_stream.series import MoflixEpisode
                 ep_model = MoflixEpisode(self.url)
                 return ep_model.provider_data
 
