@@ -8,6 +8,8 @@
     ["sto", "SerienStream"],
     ["burningseries", "BurningSeries"],
     ["megakino", "MegaKino"],
+    ["kinoger", "Kinoger"],
+    ["moflix", "Moflix"],
     ["cineby", "Cineby"],
     ["kinox", "Kinox"],
     ["filmpalast", "FilmPalast"],

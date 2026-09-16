@@ -169,6 +169,8 @@
         "Anime und Anime-Filme. Eine der beiden Seiten, für die diese App gebaut ist.",
       "settings.enable_sto_hint": "Serien. Die zweite Seite, für die diese App gebaut ist.",
       "settings.enable_megakino_hint": "Filme und Serien auf Deutsch.",
+      "settings.enable_kinoger_hint": "Filme und Serien auf Deutsch.",
+      "settings.enable_moflix_hint": "Filme und Serien auf Deutsch.",
       "settings.enable_cineby_hint":
         "Filme und Serien. Deutsche Tonspuren sind dort nicht immer zuverlässig.",
       "settings.enable_filmpalast_hint": "Filme auf Deutsch.",

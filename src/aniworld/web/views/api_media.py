@@ -23,6 +23,8 @@ from ...search import (
     fetch_popular_animes,
     fetch_popular_movies,
     fetch_popular_series,
+    fetch_kinoger_movies,
+    fetch_moflix_movies,
     random_anime,
 )
 from .. import media, sitesearch
@@ -592,6 +594,8 @@ _BROWSE_ROWS = (
     ("/filmpalast-movies", "filmpalast_movies", fetch_filmpalast_movies),
     ("/burningseries-series", "burningseries_series", fetch_burningseries_series),
     ("/cineby-movies", "cineby_movies", fetch_cineby_movies),
+    ("/kinoger-movies", "kinoger_movies", fetch_kinoger_movies),
+    ("/moflix-movies", "moflix_movies", fetch_moflix_movies),
     ("/htv-trending", "htv_trending", _fetch_hanime_trending),
     ("/mangafire-trending", "mangafire_trending", _fetch_mangafire_trending),
 )
