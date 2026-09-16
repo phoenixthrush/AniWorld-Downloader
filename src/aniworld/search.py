@@ -1779,6 +1779,38 @@ def fetch_moflix_movies():
         logger.warning("fetch_moflix_movies failed: %s", exc)
         return []
 
+
+def query_moflix(keyword):
+    try:
+        from curl_cffi import requests as _curl
+        import re, urllib.parse
+        res = _curl.get("https://moflix-stream.xyz/", impersonate="chrome124", timeout=10)
+        csrf_match = re.search(r'"csrf_token"\s*:\s*"([^"]+)"', res.text)
+        csrf = csrf_match.group(1) if csrf_match else None
+        
+        headers = {}
+        if csrf:
+            headers["X-XSRF-TOKEN"] = csrf
+            headers["Accept"] = "application/json"
+            headers["X-Requested-With"] = "XMLHttpRequest"
+            headers["Referer"] = "https://moflix-stream.xyz/"
+            
+        enc_kw = urllib.parse.quote(keyword)
+        api_res = _curl.get(f"https://moflix-stream.xyz/api/v1/search/{enc_kw}", cookies=res.cookies, headers=headers, impersonate="chrome124", timeout=10)
+        data = api_res.json()
+        results = []
+        for item in data.get("results", []):
+            url = f"https://moflix-stream.xyz/titles/{item.get('id')}"
+            title = item.get("name") or "Unknown"
+            poster = item.get("poster") or ""
+            if poster and not poster.startswith("http"):
+                poster = "https://moflix-stream.xyz/" + poster.lstrip("/")
+            results.append({"title": title, "url": url, "poster_url": poster})
+        return results
+    except Exception as exc:
+        logger.warning("query_moflix failed for %s: %s", keyword, exc)
+        return []
+
 if __name__ == "__main__":
     print("New series:", fetch_new_series())
     print("Popular series:", fetch_popular_series())

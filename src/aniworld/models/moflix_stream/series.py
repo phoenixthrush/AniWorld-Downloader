@@ -137,14 +137,18 @@ class MoflixEpisode:
     def __fetch_videos_data(self):
         if self.__videos_data is None:
             self.__fetch_initial_data()
-            api_url = f"https://moflix-stream.xyz/api/v1/videos?titleId={self.title_id}"
-            if self.season_id:
-                api_url += f"&seasonId={self.season_id}"
-            if self.episode_id:
-                api_url += f"&episodeId={self.episode_id}"
+            if self.is_series:
+                api_url = f"https://moflix-stream.xyz/api/v1/titles/{self.title_id}/seasons/{self.season_id}/episodes/{self.episode_id}"
+            else:
+                api_url = f"https://moflix-stream.xyz/api/v1/titles/{self.title_id}"
+                
             resp = _fetch_moflix(api_url, self.__session_cookies, self.__csrf_token)
             try:
-                self.__videos_data = resp.json()
+                data = resp.json()
+                if self.is_series:
+                    self.__videos_data = data.get('episode', {}).get('videos', [])
+                else:
+                    self.__videos_data = data.get('title', {}).get('videos', [])
             except Exception:
                 self.__videos_data = []
         return self.__videos_data
@@ -237,32 +241,16 @@ class MoflixEpisode:
         if self.__provider_data is None:
             videos = self.__fetch_videos_data()
             
-            if isinstance(videos, dict):
-                if "pagination" in videos:
-                    videos = videos.get("pagination", {}).get("data", [])
-                elif "videos" in videos:
-                    videos = videos["videos"]
-                elif "data" in videos:
-                    videos = videos["data"]
-            
             if not isinstance(videos, list):
                 videos = []
 
             providers = {}
             for video in videos:
-                if self.is_series:
-                    v_season = video.get("season_num")
-                    v_episode = video.get("episode_num")
-                    if v_season is not None and str(v_season) != str(self.season_id):
-                        continue
-                    if v_episode is not None and str(v_episode) != str(self.episode_id):
-                        continue
-
                 src = video.get("src")
                 if src:
                     name = video.get("name", "")
                     provider = host_to_provider(name, require_extractor=False) or name
-                    if not provider:
+                    if not provider or provider == name:
                         parsed = urlparse(src)
                         provider = host_to_provider(parsed.netloc, require_extractor=False) or parsed.netloc
                     providers[provider] = src
@@ -479,11 +467,25 @@ class MoflixEpisode:
     syncplay = episode_syncplay
 
 class MoflixSeason:
-    def __init__(self, url, series, season_number, episode_count):
+    def __init__(self, url, series, season_number=None, episode_count=None):
         self.url = url
         self.series = series
-        self.season_number = season_number
-        self.episode_count = episode_count
+        if season_number is None:
+            # try to parse from url
+            from urllib.parse import urlparse, parse_qs
+            import re
+            qs = parse_qs(urlparse(url).query)
+            if 'season' in qs:
+                self.season_number = int(qs['season'][0])
+            else:
+                match = re.search(r'/season/(\d+)', url)
+                if match:
+                    self.season_number = int(match.group(1))
+                else:
+                    self.season_number = 1
+        else:
+            self.season_number = season_number
+        self.episode_count = episode_count if episode_count is not None else 1
 
     @property
     def are_movies(self):
@@ -491,7 +493,11 @@ class MoflixSeason:
 
     @property
     def episodes(self):
+        # Ensure session is initialized
+        self.series._MoflixEpisode__fetch_initial_data()
+        
         api_url = f'https://moflix-stream.xyz/api/v1/titles/{self.series.title_id}/seasons/{self.season_number}?perPage=500'
+        from src.aniworld.models.moflix_stream.series import _fetch_moflix
         resp = _fetch_moflix(api_url, self.series._MoflixEpisode__session_cookies, self.series._MoflixEpisode__csrf_token)
         try:
             data = resp.json()

@@ -15,12 +15,20 @@ except ImportError:
 # First match wins, so order the more specific entries first.
 _ALIASES = (
     ("voe", "VOE"),
+    ("gupload", "VOE"),
+    ("firestream", "VOE"),
+    ("moflix.upns", "VOE"),
+    ("moflix.rpmplay", "VOE"),
     ("dood", "Doodstream"),
     ("vidmoly", "Vidmoly"),
     ("vidoza", "Vidoza"),
+    ("vidara", "Vidoza"),
     ("filemoon", "Filemoon"),
+    ("moflix-stream.link", "Filemoon"),
     ("streamtape", "Streamtape"),
+    ("moflix-stream.click", "Streamtape"),
     ("luluvdo", "Luluvdo"),
+    ("vids.st", "Streamtape"),
     ("loadx", "LoadX"),
     ("gxplayer", "MegaKino"),
 )
