@@ -1178,7 +1178,11 @@ def download(self):
     for provider_index, provider_name in enumerate(provider_order):
         _set_selected_provider(self, provider_name)
 
-        for attempt in range(1, max_retries + 1):
+        # MoflixClick's extractor already checks each advertised HLS mirror.
+        # Repeating a failed full download three times can leave its queue item
+        # at 0% for minutes before trying another provider or reporting failure.
+        provider_retries = 1 if provider_name == "MoflixClick" else max_retries
+        for attempt in range(1, provider_retries + 1):
             try:
                 _reset_provider_resolution_cache(self)
                 stream_url = self.stream_url
@@ -1452,10 +1456,10 @@ def download(self):
 
                 provider_errors[provider_name] = e
                 logger.warning(
-                    f"Download attempt {attempt}/{max_retries} failed for provider "
+                    f"Download attempt {attempt}/{provider_retries} failed for provider "
                     f"{provider_name}: {e}"
                 )
-                if attempt < max_retries:
+                if attempt < provider_retries:
                     logger.debug(f"Retrying download with provider {provider_name}...")
                     continue
 

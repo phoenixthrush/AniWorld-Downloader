@@ -1800,7 +1800,14 @@ def query_moflix(keyword):
         data = api_res.json()
         results = []
         for item in data.get("results", []):
-            url = f"https://moflix-stream.xyz/titles/{item.get('id')}"
+            # The search API also returns people. Their IDs cannot be opened
+            # through /titles/ and would produce a 404 in the detail view.
+            if not isinstance(item, dict) or item.get("model_type") != "title":
+                continue
+            title_id = item.get("id")
+            if not str(title_id).isdigit():
+                continue
+            url = f"https://moflix-stream.xyz/titles/{title_id}"
             title = item.get("name") or "Unknown"
             poster = item.get("poster") or ""
             if poster and not poster.startswith("http"):

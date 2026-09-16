@@ -9,6 +9,7 @@ import pytest
 from aniworld.extractors.provider import gupload, moflixclick, vidara
 from aniworld.models.common.provider_map import host_to_provider
 from aniworld.models.moflix_stream import series as moflix
+from aniworld.search import query_moflix
 
 
 def _response(*, payload=None, text=""):
@@ -126,12 +127,60 @@ def test_moflixclick_unpacks_hls_links(monkeypatch):
         f'1 0={{"2":"{stream}"}};'
         "',3,3,'links|var|hls2'.split('|')))"
     )
-    monkeypatch.setattr(moflixclick.requests, "get", lambda *a, **k: _response(text=html))
+    def get(url, **kwargs):
+        return _response(text=html if "moflix-stream.click" in url else "#EXTM3U\n")
+
+    monkeypatch.setattr(moflixclick.requests, "get", get)
     assert (
         moflixclick.get_direct_link_from_moflixclick(
             "https://moflix-stream.click/embed/sample"
         ) == stream
     )
+
+
+def test_moflixclick_tries_the_next_reachable_playlist(monkeypatch):
+    first = "https://cdn.example/first.txt"
+    second = "https://cdn.example/second.m3u8"
+    html = (
+        "eval(function(p,a,c,k,e,d){return p}('"
+        f'1 0={{"2":"{first}","3":"{second}"}};'
+        "',4,4,'links|var|hls3|hls2'.split('|')))"
+    )
+    requested = []
+
+    def get(url, **kwargs):
+        requested.append(url)
+        if "moflix-stream.click" in url:
+            return _response(text=html)
+        if url == first:
+            raise TimeoutError("playlist timed out")
+        return _response(text="#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nvideo.m3u8")
+
+    monkeypatch.setattr(moflixclick.requests, "get", get)
+    assert moflixclick.get_direct_link_from_moflixclick(
+        "https://moflix-stream.click/embed/example"
+    ) == second
+    assert requested == ["https://moflix-stream.click/embed/example", first, second]
+
+
+def test_moflix_search_excludes_people_and_invalid_ids(monkeypatch):
+    import curl_cffi.requests
+
+    def get(url, **kwargs):
+        if url.endswith("/api/v1/search/silo"):
+            return _response(payload={"results": [
+                {"id": 42, "name": "Silo", "model_type": "title", "poster": "https://image.example/silo.jpg"},
+                {"id": 101, "name": "Silo Septiadi", "model_type": "person", "poster": None},
+                {"id": None, "name": "Broken", "model_type": "title", "poster": None},
+            ]})
+        return _response(text='{"csrf_token":"test"}')
+
+    monkeypatch.setattr(curl_cffi.requests, "get", get)
+    assert query_moflix("silo") == [{
+        "title": "Silo",
+        "url": "https://moflix-stream.xyz/titles/42",
+        "poster_url": "https://image.example/silo.jpg",
+    }]
 
 
 def test_vidara_uses_its_stream_api(monkeypatch):
