@@ -1522,6 +1522,16 @@ def fetch_filmpalast_movies():
     return results[:30]
 
 
+def fetch_filmo_movies():
+    """Fetch the newest movies from filmo.to for the browse grid."""
+    try:
+        results = query_filmo(limit=30)
+    except Exception as exc:
+        logger.debug(f"filmo browse failed: {exc}")
+        return None
+    return [{**result, "genre": ""} for result in results]
+
+
 def fetch_kinox_movies():
     """Fetch the newest cinema movies from kinox for the browse grid."""
     from .models.kinox.series import KINOX_DOMAIN

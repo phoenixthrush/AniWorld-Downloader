@@ -172,6 +172,7 @@
       "settings.enable_cineby_hint":
         "Filme und Serien. Deutsche Tonspuren sind dort nicht immer zuverlässig.",
       "settings.enable_filmpalast_hint": "Filme auf Deutsch.",
+      "settings.enable_filmo_hint": "Filme auf Deutsch und Englisch.",
       "settings.enable_mangafire_hint":
         "Manga, gespeichert als einzelne Bilder oder als ein CBZ-Archiv pro Kapitel.",
       "settings.nav.downloads": "Downloads",

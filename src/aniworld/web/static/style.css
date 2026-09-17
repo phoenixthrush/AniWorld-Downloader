@@ -131,6 +131,8 @@
   --site-burningseries-shadow: 0 2px 8px rgba(251, 146, 60, 0.35);
   --site-filmpalast-bg: linear-gradient(135deg, #84cc16, #4d7c0f);
   --site-filmpalast-shadow: 0 2px 8px rgba(132, 204, 22, 0.35);
+  --site-filmo-bg: linear-gradient(135deg, #d946ef, #a21caf);
+  --site-filmo-shadow: 0 2px 8px rgba(217, 70, 239, 0.35);
   --site-mangafire-bg: linear-gradient(135deg, #f59e0b, #b45309);
   --site-mangafire-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);
   --site-htv-bg: linear-gradient(135deg, #ff4fa3, #db2777);
@@ -702,6 +704,11 @@ body[data-site="burningseries"] {
 body[data-site="filmpalast"] {
   --active-site-bg: var(--site-all-bg, var(--site-filmpalast-bg));
   --active-site-shadow: var(--site-all-shadow, var(--site-filmpalast-shadow));
+}
+
+body[data-site="filmo"] {
+  --active-site-bg: var(--site-all-bg, var(--site-filmo-bg));
+  --active-site-shadow: var(--site-all-shadow, var(--site-filmo-shadow));
 }
 
 body[data-site="mangafire"] {

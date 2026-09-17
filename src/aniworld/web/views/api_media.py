@@ -14,6 +14,7 @@ from ...providers import resolve_provider
 from ...search import (
     fetch_burningseries_series,
     fetch_cineby_movies,
+    fetch_filmo_movies,
     fetch_filmpalast_movies,
     fetch_genre_animes,
     fetch_genres,
@@ -35,11 +36,23 @@ BROWSE_TTL = 3600
 _browse_cache = {}
 
 # Sites that list one movie per page instead of seasons.
-SINGLE_PAGE_SITES = ("MegaKino", "FilmPalast")
+SINGLE_PAGE_SITES = ("MegaKino", "FilmPalast", "Filmo")
 
 # These resolve their stream per episode, so the language is read once at the
 # season level instead of probing every episode.
 SEASON_LEVEL_LANGUAGE_SITES = ("Kinox", "BurningSeries", "Cineby")
+
+# These take the language at construction time instead of resolving it lazily,
+# and only carry dubs. Building them with the user's default would fail outright
+# for anyone who picked a sub track, so pin one the site actually has.
+PINNED_LANGUAGE_SITES = ("MegaKino", "Filmo")
+
+
+def _build_kwargs(provider):
+    """Extra constructor arguments a site needs before it can be built at all."""
+    if provider.name in PINNED_LANGUAGE_SITES:
+        return {"selected_language": "German Dub"}
+    return {}
 
 
 def register(bp):
@@ -139,7 +152,7 @@ def series():
     provider = None
     try:
         provider = resolve_provider(url)
-        found = provider.series_cls(url=url)
+        found = provider.series_cls(url=url, **_build_kwargs(provider))
         return jsonify(
             {
                 "title": found.title,
@@ -403,10 +416,7 @@ def providers():
         if provider.name == "Cineby":
             return jsonify({"providers": _cineby_providers(provider, url)})
 
-        kwargs = {"url": url}
-        if provider.name == "MegaKino":
-            kwargs["selected_language"] = "German Dub"
-        episode = provider.episode_cls(**kwargs)
+        episode = provider.episode_cls(url=url, **_build_kwargs(provider))
         return jsonify(
             {
                 "providers": media.provider_map(
@@ -590,6 +600,7 @@ _BROWSE_ROWS = (
     ("/popular-movies", "popular_movies", fetch_popular_movies),
     ("/kinox-movies", "kinox_movies", fetch_kinox_movies),
     ("/filmpalast-movies", "filmpalast_movies", fetch_filmpalast_movies),
+    ("/filmo-movies", "filmo_movies", fetch_filmo_movies),
     ("/burningseries-series", "burningseries_series", fetch_burningseries_series),
     ("/cineby-movies", "cineby_movies", fetch_cineby_movies),
     ("/htv-trending", "htv_trending", _fetch_hanime_trending),

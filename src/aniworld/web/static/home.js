@@ -45,6 +45,7 @@
     cineby: "Search Cineby...",
     kinox: "Search Kinox...",
     filmpalast: "Search FilmPalast...",
+    filmo: "Search Filmo...",
     htv: "Search Hanime...",
     mangafire: "Search MangaFire..."
   };
