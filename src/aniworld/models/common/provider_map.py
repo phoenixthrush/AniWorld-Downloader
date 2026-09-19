@@ -7,20 +7,27 @@ so the download pipeline can find the matching extractor.
 """
 
 try:
+    from ...config import SUPPORTED_PROVIDERS
     from ...extractors import provider_functions
 except ImportError:
+    from aniworld.config import SUPPORTED_PROVIDERS
     from aniworld.extractors import provider_functions
 
 # Substrings checked against the lower-cased host/provider label.
 # First match wins, so order the more specific entries first.
 _ALIASES = (
     ("voe", "VOE"),
+    ("gupload.xyz", "Gupload"),
     ("dood", "Doodstream"),
     ("vidmoly", "Vidmoly"),
     ("vidoza", "Vidoza"),
+    ("vidara.to", "Vidara"),
+    ("vidara.so", "Vidara"),
     ("filemoon", "Filemoon"),
+    ("moflix-stream.click", "MoflixClick"),
     ("streamtape", "Streamtape"),
     ("luluvdo", "Luluvdo"),
+    ("vids.st", "Streamtape"),
     ("loadx", "LoadX"),
     ("gxplayer", "MegaKino"),
 )
@@ -47,7 +54,10 @@ def host_to_provider(label, require_extractor=True):
 
     if (
         require_extractor
-        and f"get_direct_link_from_{provider.lower()}" not in provider_functions
+        and (
+            provider not in SUPPORTED_PROVIDERS
+            or f"get_direct_link_from_{provider.lower()}" not in provider_functions
+        )
     ):
         return None
 

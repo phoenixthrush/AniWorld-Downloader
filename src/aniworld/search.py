@@ -1759,6 +1759,84 @@ def search(is_aniworld=None):
         return curses.wrapper(menu_wrapper)
 
 
+def fetch_moflix_movies():
+    from curl_cffi import requests as _curl
+
+    res = _curl.get("https://moflix-stream.xyz/", impersonate="chrome124", timeout=10)
+    res.raise_for_status()
+    csrf_match = re.search(r'"csrf_token"\s*:\s*"([^"]+)"', res.text)
+    csrf = csrf_match.group(1) if csrf_match else None
+
+    headers = {}
+    if csrf:
+        headers["X-XSRF-TOKEN"] = csrf
+        headers["Accept"] = "application/json"
+        headers["X-Requested-With"] = "XMLHttpRequest"
+        headers["Referer"] = "https://moflix-stream.xyz/"
+
+    api_res = _curl.get(
+        "https://moflix-stream.xyz/api/v1/titles"
+        "?perPage=24&orderBy=createdAt&orderDir=desc",
+        cookies=res.cookies,
+        headers=headers,
+        impersonate="chrome124",
+        timeout=10,
+    )
+    api_res.raise_for_status()
+    data = api_res.json()
+    results = []
+    for item in data.get("pagination", {}).get("data", []):
+        url = f"https://moflix-stream.xyz/titles/{item.get('id')}"
+        title = item.get("name") or "Unknown"
+        poster = item.get("poster") or ""
+        if poster and not poster.startswith("http"):
+            poster = "https://moflix-stream.xyz/" + poster.lstrip("/")
+        results.append({"title": title, "url": url, "poster_url": poster})
+    return results
+
+
+def query_moflix(keyword):
+    from curl_cffi import requests as _curl
+
+    res = _curl.get("https://moflix-stream.xyz/", impersonate="chrome124", timeout=10)
+    res.raise_for_status()
+    csrf_match = re.search(r'"csrf_token"\s*:\s*"([^"]+)"', res.text)
+    csrf = csrf_match.group(1) if csrf_match else None
+
+    headers = {}
+    if csrf:
+        headers["X-XSRF-TOKEN"] = csrf
+        headers["Accept"] = "application/json"
+        headers["X-Requested-With"] = "XMLHttpRequest"
+        headers["Referer"] = "https://moflix-stream.xyz/"
+
+    api_res = _curl.get(
+        f"https://moflix-stream.xyz/api/v1/search/{quote(keyword)}",
+        cookies=res.cookies,
+        headers=headers,
+        impersonate="chrome124",
+        timeout=10,
+    )
+    api_res.raise_for_status()
+    data = api_res.json()
+    results = []
+    for item in data.get("results", []):
+        # The search API also returns people. Their IDs cannot be opened
+        # through /titles/ and would produce a 404 in the detail view.
+        if not isinstance(item, dict) or item.get("model_type") != "title":
+            continue
+        title_id = item.get("id")
+        if not str(title_id).isdigit():
+            continue
+        url = f"https://moflix-stream.xyz/titles/{title_id}"
+        title = item.get("name") or "Unknown"
+        poster = item.get("poster") or ""
+        if poster and not poster.startswith("http"):
+            poster = "https://moflix-stream.xyz/" + poster.lstrip("/")
+        results.append({"title": title, "url": url, "poster_url": poster})
+    return results
+
+
 if __name__ == "__main__":
     print("New series:", fetch_new_series())
     print("Popular series:", fetch_popular_series())

@@ -101,6 +101,7 @@ def test_which_sites_a_fresh_install_shows():
         "filmpalast": True,
         "filmo": True,
         "cineby": False,
+        "moflix": True,
     }
 
 

@@ -19,6 +19,7 @@ from ...search import (
     fetch_genre_animes,
     fetch_genres,
     fetch_kinox_movies,
+    fetch_moflix_movies,
     fetch_new_animes,
     fetch_new_series,
     fetch_popular_animes,
@@ -41,6 +42,10 @@ SINGLE_PAGE_SITES = ("MegaKino", "FilmPalast", "Filmo")
 # These resolve their stream per episode, so the language is read once at the
 # season level instead of probing every episode.
 SEASON_LEVEL_LANGUAGE_SITES = ("Kinox", "BurningSeries", "Cineby")
+
+# Sites whose season endpoint has no per-episode language information. Keeping
+# the known languages here avoids probing every episode just to build the list.
+SEASON_LANGUAGE_OVERRIDES = {"Moflix": ("German Dub",)}
 
 # These take the language at construction time instead of resolving it lazily,
 # and only carry dubs. Building them with the user's default would fail outright
@@ -324,8 +329,9 @@ def _season_episodes(provider, url, series_url):
 
     downloaded = media.downloaded_episodes(found) if found else set()
 
-    season_languages = None
-    if provider.name in SEASON_LEVEL_LANGUAGE_SITES:
+    override_languages = SEASON_LANGUAGE_OVERRIDES.get(provider.name)
+    season_languages = list(override_languages) if override_languages else None
+    if season_languages is None and provider.name in SEASON_LEVEL_LANGUAGE_SITES:
         try:
             season_languages = list(getattr(season, "language_labels", []) or [])
         except Exception as exc:
@@ -603,6 +609,7 @@ _BROWSE_ROWS = (
     ("/filmo-movies", "filmo_movies", fetch_filmo_movies),
     ("/burningseries-series", "burningseries_series", fetch_burningseries_series),
     ("/cineby-movies", "cineby_movies", fetch_cineby_movies),
+    ("/moflix-movies", "moflix_movies", fetch_moflix_movies),
     ("/htv-trending", "htv_trending", _fetch_hanime_trending),
     ("/mangafire-trending", "mangafire_trending", _fetch_mangafire_trending),
 )

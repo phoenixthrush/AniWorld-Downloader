@@ -19,6 +19,7 @@ from .config import (
     MANGA_FIRE_CHAPTER_PATTERN,
     MANGA_FIRE_SERIES_PATTERN,
     MEGAKINO_SERIES_PATTERN,
+    MOFLIX_SERIES_PATTERN,
     SERIENSTREAM_EPISODE_PATTERN,
     SERIENSTREAM_SEASON_PATTERN,
     SERIENSTREAM_SERIES_PATTERN,
@@ -44,6 +45,8 @@ from .models import (
     MangaFireToChapter,
     MangaFireToSeries,
     MegaKinoEpisode,
+    MoflixEpisode,
+    MoflixSeason,
     SerienstreamEpisode,
     SerienstreamSeason,
     SerienstreamSeries,
@@ -149,6 +152,14 @@ PROVIDERS = [
         series_cls=SerienstreamSeries,
         season_cls=SerienstreamSeason,
         episode_cls=SerienstreamEpisode,
+    ),
+    Provider(
+        name="Moflix",
+        series_pattern=MOFLIX_SERIES_PATTERN,
+        episode_pattern=MOFLIX_SERIES_PATTERN,
+        series_cls=MoflixEpisode,
+        season_cls=MoflixSeason,
+        episode_cls=MoflixEpisode,
     ),
 ]
 

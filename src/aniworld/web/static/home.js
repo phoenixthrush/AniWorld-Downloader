@@ -42,6 +42,7 @@
     sto: "Search SerienStream...",
     burningseries: "Search BurningSeries...",
     megakino: "Search MegaKino...",
+    moflix: "Search Moflix...",
     cineby: "Search Cineby...",
     kinox: "Search Kinox...",
     filmpalast: "Search FilmPalast...",
@@ -448,7 +449,7 @@
     const forLanguage = availableProviders && availableProviders[languageSelect.value];
     if (forLanguage && forLanguage.length) {
       fillProviderSelect(forLanguage);
-    } else if (currentSite !== "megakino") {
+    } else if (!["megakino", "moflix"].includes(currentSite)) {
       fillProviderSelect(window.STATIC_PROVIDERS);
     } else {
       providerSelect.innerHTML = "";
@@ -499,7 +500,7 @@
     mangaFireRow.hidden = !manga;
     if (!hanime && !manga) {
       rebuildLanguageOptions();
-      fillProviderSelect(currentSite === "megakino" ? [] : window.STATIC_PROVIDERS);
+      fillProviderSelect(["megakino", "moflix"].includes(currentSite) ? [] : window.STATIC_PROVIDERS);
     }
     loadCustomPaths();
     loadAutosyncExclusion(url);

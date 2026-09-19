@@ -30,6 +30,9 @@
       {% if sites.filmpalast %}
       <button class="segmented-btn" data-site="filmpalast">FilmPalast</button>
       {% endif %}
+      {% if sites.moflix %}
+      <button class="segmented-btn" data-site="moflix">Moflix</button>
+      {% endif %}
       {% if sites.filmo %}
       <button class="segmented-btn" data-site="filmo">Filmo</button>
       {% endif %}
@@ -118,6 +121,12 @@
     {% if sites.cineby %}
     <section class="browse-section" data-row="cineby_movies" data-sites="cineby">
       <h2 class="browse-heading" data-i18n="browse.trending_movies">Trending Movies</h2>
+      <div class="browse-grid"></div>
+    </section>
+    {% endif %}
+    {% if sites.moflix %}
+    <section class="browse-section" data-row="moflix_movies" data-sites="moflix">
+      <h2 class="browse-heading" data-i18n="browse.new_movies">New Movies</h2>
       <div class="browse-grid"></div>
     </section>
     {% endif %}
@@ -254,6 +263,7 @@
     kinox: ["German Dub", "English Dub"],
     burningseries: ["German Dub", "English Dub"],
     filmpalast: ["German Dub", "English Dub"],
+    moflix: ["German Dub"],
     filmo: ["German Dub", "English Dub"],
     // Cineby only keeps German when /api/providers reports it for the title
     cineby: ["English Dub", "German Dub"]
