@@ -639,11 +639,13 @@ def _fetch_series_homepage():
         return _series_html_content
 
     try:
-        from .models.s_to.http import sto_get
+        from .models.s_to.http import response_text, sto_get
 
         response = sto_get("https://serienstream.to/beliebte-serien")
         response.raise_for_status()
-        _series_html_content = response.text
+        _series_html_content = response_text(
+            response, "https://serienstream.to/beliebte-serien"
+        )
         return _series_html_content
     except Exception as e:
         logger.error(f"Failed to fetch serienstream.to popular series page: {e}")
@@ -934,7 +936,7 @@ def query_s_to(
     validate_limit(limit)
     if limit == 0:
         return []
-    from .models.s_to.http import sto_get
+    from .models.s_to.http import response_text, sto_get
 
     url = "https://serienstream.to/suche"
     filters = optional_filters(
@@ -957,7 +959,7 @@ def query_s_to(
         response = sto_get(url, params=params)
         response.raise_for_status()
         parser = _StoSearchParser(genre_page=bool(genre))
-        parser.feed(response.text)
+        parser.feed(response_text(response, url))
         previous_count = len(results)
         for result in parser.results:
             if result["link"] not in seen_links:
