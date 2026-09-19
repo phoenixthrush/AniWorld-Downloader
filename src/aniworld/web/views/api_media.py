@@ -14,6 +14,7 @@ from ...providers import resolve_provider
 from ...search import (
     fetch_burningseries_series,
     fetch_cineby_movies,
+    fetch_filmo_movies,
     fetch_filmpalast_movies,
     fetch_genre_animes,
     fetch_genres,
@@ -36,11 +37,27 @@ BROWSE_TTL = 3600
 _browse_cache = {}
 
 # Sites that list one movie per page instead of seasons.
-SINGLE_PAGE_SITES = ("MegaKino", "FilmPalast")
+SINGLE_PAGE_SITES = ("MegaKino", "FilmPalast", "Filmo")
 
 # These resolve their stream per episode, so the language is read once at the
 # season level instead of probing every episode.
 SEASON_LEVEL_LANGUAGE_SITES = ("Kinox", "BurningSeries", "Cineby")
+
+# Sites whose season endpoint has no per-episode language information. Keeping
+# the known languages here avoids probing every episode just to build the list.
+SEASON_LANGUAGE_OVERRIDES = {"Moflix": ("German Dub",)}
+
+# These take the language at construction time instead of resolving it lazily,
+# and only carry dubs. Building them with the user's default would fail outright
+# for anyone who picked a sub track, so pin one the site actually has.
+PINNED_LANGUAGE_SITES = ("MegaKino", "Filmo")
+
+
+def _build_kwargs(provider):
+    """Extra constructor arguments a site needs before it can be built at all."""
+    if provider.name in PINNED_LANGUAGE_SITES:
+        return {"selected_language": "German Dub"}
+    return {}
 
 
 def register(bp):
@@ -140,7 +157,7 @@ def series():
     provider = None
     try:
         provider = resolve_provider(url)
-        found = provider.series_cls(url=url)
+        found = provider.series_cls(url=url, **_build_kwargs(provider))
         return jsonify(
             {
                 "title": found.title,
@@ -312,12 +329,9 @@ def _season_episodes(provider, url, series_url):
 
     downloaded = media.downloaded_episodes(found) if found else set()
 
-    season_languages = None
-    if provider.name == "Moflix":
-        # The season endpoint has no video links. Probing every episode here
-        # quickly hits Moflix's rate limit; the chosen episode is probed below.
-        season_languages = ["German Dub"]
-    elif provider.name in SEASON_LEVEL_LANGUAGE_SITES:
+    override_languages = SEASON_LANGUAGE_OVERRIDES.get(provider.name)
+    season_languages = list(override_languages) if override_languages else None
+    if season_languages is None and provider.name in SEASON_LEVEL_LANGUAGE_SITES:
         try:
             season_languages = list(getattr(season, "language_labels", []) or [])
         except Exception as exc:
@@ -408,10 +422,7 @@ def providers():
         if provider.name == "Cineby":
             return jsonify({"providers": _cineby_providers(provider, url)})
 
-        kwargs = {"url": url}
-        if provider.name == "MegaKino":
-            kwargs["selected_language"] = "German Dub"
-        episode = provider.episode_cls(**kwargs)
+        episode = provider.episode_cls(url=url, **_build_kwargs(provider))
         return jsonify(
             {
                 "providers": media.provider_map(
@@ -595,6 +606,7 @@ _BROWSE_ROWS = (
     ("/popular-movies", "popular_movies", fetch_popular_movies),
     ("/kinox-movies", "kinox_movies", fetch_kinox_movies),
     ("/filmpalast-movies", "filmpalast_movies", fetch_filmpalast_movies),
+    ("/filmo-movies", "filmo_movies", fetch_filmo_movies),
     ("/burningseries-series", "burningseries_series", fetch_burningseries_series),
     ("/cineby-movies", "cineby_movies", fetch_cineby_movies),
     ("/moflix-movies", "moflix_movies", fetch_moflix_movies),

@@ -15,6 +15,7 @@ from ..search import (
 from ..search import (
     query_burningseries,
     query_cineby,
+    query_filmo,
     query_filmpalast,
     query_kinox,
     query_megakino,
@@ -31,6 +32,7 @@ SITE_SEARCH = {
     "megakino": query_megakino,
     "kinox": query_kinox,
     "filmpalast": query_filmpalast,
+    "filmo": query_filmo,
     "burningseries": query_burningseries,
     "cineby": query_cineby,
     "mangafire": query_mangafire,
@@ -54,8 +56,7 @@ _ABSOLUTE_BASES = {"mangafire": "https://mangafire.to"}
 # Sites checked for a Discord request, in priority order. Kinox and Cineby carry
 # both movies and series, so they appear in both lists.
 SERIES_SITES = ("sto", "burningseries", "aniworld", "kinox", "cineby", "moflix")
-MOVIE_SITES = ("megakino", "cineby", "filmpalast", "kinox", "moflix")
-
+MOVIE_SITES = ("megakino", "cineby", "filmpalast", "filmo", "kinox", "moflix")
 
 
 def sites_for(media_type):

@@ -94,6 +94,11 @@ PROVIDERS = [
     Provider(
         name="Filmo",
         episode_pattern=FILMO_EPISODE_PATTERN,
+        # A movie page is the whole title, so it stands in as its own series the
+        # way MegaKino and FilmPalast do. No series_pattern: the CLI keeps
+        # treating the URL as an episode, only the web UI asks for the series.
+        series_cls=FilmoEpisode,
+        season_cls=None,
         episode_cls=FilmoEpisode,
     ),
     Provider(

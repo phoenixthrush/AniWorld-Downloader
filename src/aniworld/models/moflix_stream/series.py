@@ -42,9 +42,11 @@ except ImportError:
     from aniworld.models.common import watch as episode_watch
     from aniworld.models.common.provider_map import host_to_provider
 
+
 def _fetch_moflix(url, session_cookies=None, csrf_token=None):
     try:
         from curl_cffi import requests as _curl
+
         headers = {}
         if csrf_token:
             headers["X-XSRF-TOKEN"] = csrf_token
@@ -53,8 +55,11 @@ def _fetch_moflix(url, session_cookies=None, csrf_token=None):
             headers["Accept"] = "application/json"
         for attempt in range(3):
             response = _curl.get(
-                url, cookies=session_cookies, headers=headers,
-                impersonate="chrome124", timeout=15,
+                url,
+                cookies=session_cookies,
+                headers=headers,
+                impersonate="chrome124",
+                timeout=15,
             )
             if response.status_code != 429 or attempt == 2:
                 return response
@@ -68,6 +73,7 @@ def _fetch_moflix(url, session_cookies=None, csrf_token=None):
             headers["Accept"] = "application/json"
         return GLOBAL_SESSION.get(url, cookies=session_cookies, headers=headers)
 
+
 class MoflixEpisode:
     def __init__(
         self,
@@ -75,11 +81,19 @@ class MoflixEpisode:
         selected_path: str | None = None,
         selected_language: str | None = None,
         selected_provider: str | None = None,
+        season=None,
+        series=None,
+        episode_number: int | None = None,
+        title_en: str = "",
     ):
         if not bool(MOFLIX_SERIES_PATTERN.match(url)):
             raise ValueError(f"Invalid Moflix episode URL: {url}")
 
         self.url = url
+        self._season = season
+        self._series = series
+        self.__episode_number = episode_number
+        self.__title_en = title_en
         self.__title = None
         self.__release_year = None
         self.__runtime_min = None
@@ -117,11 +131,20 @@ class MoflixEpisode:
         self.__videos_data = None
 
     def __fetch_initial_data(self):
+        if (
+            self.__csrf_token is None
+            and self._series is not None
+            and self._series is not self
+        ):
+            self._series.__fetch_initial_data()
+            self.__session_cookies = self._series.__session_cookies
+            self.__csrf_token = self._series.__csrf_token
+
         if self.__csrf_token is None:
             resp = _fetch_moflix(self.url)
             resp.raise_for_status()
             self.__session_cookies = resp.cookies
-            match = re.search(r'window\.bootstrapData\s*=\s*(\{.*?\});', resp.text)
+            match = re.search(r"window\.bootstrapData\s*=\s*(\{.*?\});", resp.text)
             if not match:
                 raise ValueError("Moflix bootstrap data not found")
             data = json.loads(match.group(1))
@@ -130,22 +153,32 @@ class MoflixEpisode:
                 raise ValueError("Moflix CSRF token not found")
 
     def __fetch_metadata(self):
+        if (
+            self.__metadata is None
+            and self._series is not None
+            and self._series is not self
+        ):
+            self.__metadata = self._series.__fetch_metadata()
+
         if self.__metadata is None:
-            self.__fetch_initial_data()
             api_url = f"https://moflix-stream.xyz/api/v1/titles/{self.title_id}"
-            resp = _fetch_moflix(api_url, self.__session_cookies, self.__csrf_token)
+            resp = self._api_get(api_url)
             resp.raise_for_status()
             self.__metadata = resp.json()
             if not isinstance(self.__metadata, dict):
                 raise ValueError("Moflix title API returned invalid data")
         return self.__metadata
 
+    def _api_get(self, url):
+        """Fetch an API URL with this title's authenticated browser context."""
+        self.__fetch_initial_data()
+        return _fetch_moflix(url, self.__session_cookies, self.__csrf_token)
+
     def __fetch_videos_data(self):
         if self.__videos_data is None:
             if self.is_series:
-                self.__fetch_initial_data()
                 api_url = f"https://moflix-stream.xyz/api/v1/titles/{self.title_id}/seasons/{self.season_id}/episodes/{self.episode_id}"
-                resp = _fetch_moflix(api_url, self.__session_cookies, self.__csrf_token)
+                resp = self._api_get(api_url)
                 resp.raise_for_status()
                 data = resp.json()
                 item = data.get("episode")
@@ -162,7 +195,7 @@ class MoflixEpisode:
     @property
     def title_id(self):
         if self.__title_id is None:
-            match = re.search(r'/titles/(\d+)', self.url)
+            match = re.search(r"/titles/(\d+)", self.url)
             if match:
                 self.__title_id = match.group(1)
         return self.__title_id
@@ -170,13 +203,13 @@ class MoflixEpisode:
     @property
     def season_id(self):
         if self.__season_id is None:
-            match = re.search(r'/season/(\d+)', self.url)
+            match = re.search(r"/season/(\d+)", self.url)
             if match:
                 self.__season_id = int(match.group(1))
             else:
                 qs = parse_qs(urlparse(self.url).query)
-                if 'season' in qs:
-                    self.__season_id = int(qs['season'][0])
+                if "season" in qs:
+                    self.__season_id = int(qs["season"][0])
                 else:
                     self.__season_id = 1
         return self.__season_id
@@ -184,16 +217,42 @@ class MoflixEpisode:
     @property
     def episode_id(self):
         if self.__episode_id is None:
-            match = re.search(r'/episodes/(\d+)', self.url)
+            match = re.search(r"/episodes/(\d+)", self.url)
             if match:
                 self.__episode_id = int(match.group(1))
             else:
                 qs = parse_qs(urlparse(self.url).query)
-                if 'episode' in qs:
-                    self.__episode_id = int(qs['episode'][0])
+                if "episode" in qs:
+                    self.__episode_id = int(qs["episode"][0])
                 else:
                     self.__episode_id = 1
         return self.__episode_id
+
+    @property
+    def series(self):
+        return self._series or self
+
+    @property
+    def season(self):
+        return self._season
+
+    @property
+    def season_number(self):
+        if self._season is not None:
+            return self._season.season_number
+        return self.season_id
+
+    @property
+    def episode_number(self):
+        return self.__episode_number or self.episode_id
+
+    @property
+    def title_de(self):
+        return ""
+
+    @property
+    def title_en(self):
+        return self.__title_en
 
     @property
     def title(self):
@@ -220,7 +279,11 @@ class MoflixEpisode:
     @property
     def genres(self):
         if self.__genres is None:
-            self.__genres = [g.get("name") for g in self._title_data.get("genres", []) if g.get("name")]
+            self.__genres = [
+                g.get("name")
+                for g in self._title_data.get("genres", [])
+                if g.get("name")
+            ]
         return self.__genres
 
     @property
@@ -234,7 +297,9 @@ class MoflixEpisode:
         if self.__poster_url is None:
             self.__poster_url = self._title_data.get("poster", "")
             if self.__poster_url and not self.__poster_url.startswith("http"):
-                self.__poster_url = "https://moflix-stream.xyz/" + self.__poster_url.lstrip("/")
+                self.__poster_url = (
+                    "https://moflix-stream.xyz/" + self.__poster_url.lstrip("/")
+                )
         return self.__poster_url
 
     @property
@@ -247,7 +312,7 @@ class MoflixEpisode:
     def provider_data(self):
         if self.__provider_data is None:
             videos = self.__fetch_videos_data()
-            
+
             if not isinstance(videos, list):
                 videos = []
 
@@ -267,7 +332,9 @@ class MoflixEpisode:
             if not providers:
                 self.__provider_data = None
             else:
-                self.__provider_data = ProviderData({(Audio.GERMAN, Subtitles.NONE): providers})
+                self.__provider_data = ProviderData(
+                    {(Audio.GERMAN, Subtitles.NONE): providers}
+                )
         return self.__provider_data
 
     @property
@@ -322,7 +389,9 @@ class MoflixEpisode:
         if self.__redirect_url is None:
             link = self.provider_link(self.selected_language, self.selected_provider)
             if link is None:
-                raise ValueError(f"No Moflix link for provider {self.selected_provider}")
+                raise ValueError(
+                    f"No Moflix link for provider {self.selected_provider}"
+                )
             self.__redirect_url = link
         return self.__redirect_url
 
@@ -343,7 +412,9 @@ class MoflixEpisode:
                 f"The provider '{self.selected_provider}' is not yet implemented."
             )
         if not isinstance(stream_url, str) or not stream_url:
-            raise ValueError(f"Provider {self.selected_provider} returned no stream URL")
+            raise ValueError(
+                f"Provider {self.selected_provider} returned no stream URL"
+            )
         return stream_url
 
     @property
@@ -380,7 +451,9 @@ class MoflixEpisode:
     def _file_name(self):
         if self.__file_name is None:
             if self.is_series:
-                self.__file_name = f"{self._movie_basename} S{self.season_id}E{self.episode_id}"
+                self.__file_name = (
+                    f"{self._movie_basename} S{self.season_id}E{self.episode_id}"
+                )
             else:
                 self.__file_name = self._movie_basename
         return self.__file_name
@@ -413,6 +486,7 @@ class MoflixEpisode:
         if self.__is_downloaded is None:
             self.__is_downloaded = check_downloaded(self._episode_path)
         return self.__is_downloaded
+
     @property
     def _title_data(self):
         data = self.__fetch_metadata().get("title", {})
@@ -422,8 +496,10 @@ class MoflixEpisode:
 
     @property
     def is_series(self):
-        return self._title_data.get("is_series", False) or self._title_data.get("type") == "series"
-
+        return (
+            self._title_data.get("is_series", False)
+            or self._title_data.get("type") == "series"
+        )
 
     @property
     def seasons(self):
@@ -431,13 +507,13 @@ class MoflixEpisode:
         seasons_data = seasons.get("data", []) if isinstance(seasons, dict) else []
         if not seasons_data:
             return [MoflixSeason(self.url, self, 1, 1)]
-        
+
         return [
             MoflixSeason(
                 url=f"https://moflix-stream.xyz/titles/{self.title_id}?season={s['number']}",
                 series=self,
                 season_number=s["number"],
-                episode_count=s.get("episodes_count", 1)
+                episode_count=s.get("episodes_count", 1),
             )
             for s in sorted(seasons_data, key=lambda x: x["number"])
         ]
@@ -482,19 +558,18 @@ class MoflixEpisode:
     watch = episode_watch
     syncplay = episode_syncplay
 
+
 class MoflixSeason:
-    def __init__(self, url, series, season_number=None, episode_count=None):
+    def __init__(self, url, series=None, season_number=None, episode_count=None):
         self.url = url
-        self.series = series
+        self._series = series
         if season_number is None:
             # try to parse from url
-            import re
-            from urllib.parse import parse_qs, urlparse
             qs = parse_qs(urlparse(url).query)
-            if 'season' in qs:
-                self.season_number = int(qs['season'][0])
+            if "season" in qs:
+                self.season_number = int(qs["season"][0])
             else:
-                match = re.search(r'/season/(\d+)', url)
+                match = re.search(r"/season/(\d+)", url)
                 if match:
                     self.season_number = int(match.group(1))
                 else:
@@ -502,6 +577,13 @@ class MoflixSeason:
         else:
             self.season_number = season_number
         self.episode_count = episode_count if episode_count is not None else 1
+        self.__episodes = None
+
+    @property
+    def series(self):
+        if self._series is None:
+            self._series = MoflixEpisode(self.url)
+        return self._series
 
     @property
     def are_movies(self):
@@ -509,41 +591,27 @@ class MoflixSeason:
 
     @property
     def episodes(self):
-        # Ensure session is initialized
-        self.series._MoflixEpisode__fetch_initial_data()
+        if self.__episodes is None:
+            self.__episodes = self.__build_episodes()
+        return self.__episodes
 
-        class MoflixEpProxy:
-            def __init__(self, url, season_obj, episode_number, title_en, ep_model=None):
-                self.season = season_obj
-                self.episode_number = episode_number
-                self.url = url
-                self.title_de = ''
-                self.title_en = title_en
-                self._ep_model = ep_model
-
-            @property
-            def provider_data(self):
-                if self._ep_model:
-                    return self._ep_model.provider_data
-                self._ep_model = MoflixEpisode(self.url)
-                # Reuse title metadata and session for the selected episode.
-                self._ep_model._MoflixEpisode__metadata = self.season.series._MoflixEpisode__metadata
-                self._ep_model._MoflixEpisode__session_cookies = self.season.series._MoflixEpisode__session_cookies
-                self._ep_model._MoflixEpisode__csrf_token = self.season.series._MoflixEpisode__csrf_token
-                return self._ep_model.provider_data
-
+    def __build_episodes(self):
         if not self.series.is_series:
-            # It's a movie, return a proxy wrapping the movie series
-            return [MoflixEpProxy(
-                url=self.series.url,
-                season_obj=self,
-                episode_number=1,
-                title_en=self.series.title,
-                ep_model=self.series
-            )]
-            
-        api_url = f'https://moflix-stream.xyz/api/v1/titles/{self.series.title_id}/seasons/{self.season_number}?perPage=500'
-        resp = _fetch_moflix(api_url, self.series._MoflixEpisode__session_cookies, self.series._MoflixEpisode__csrf_token)
+            return [
+                MoflixEpisode(
+                    url=self.series.url,
+                    season=self,
+                    series=self.series,
+                    episode_number=1,
+                    title_en=self.series.title,
+                )
+            ]
+
+        api_url = (
+            f"https://moflix-stream.xyz/api/v1/titles/{self.series.title_id}"
+            f"/seasons/{self.season_number}?perPage=500"
+        )
+        resp = self.series._api_get(api_url)
         resp.raise_for_status()
         data = resp.json()
         episodes = data.get("episodes") or {}
@@ -552,12 +620,19 @@ class MoflixSeason:
             raise TypeError("Moflix episode list has an invalid format")
 
         results = []
-        for ep_data in sorted(eps_data, key=lambda x: x.get('episode_number', 1)):
-            ep_url = f'https://moflix-stream.xyz/titles/{self.series.title_id}/season/{self.season_number}/episodes/{ep_data.get("episode_number", 1)}'
-            results.append(MoflixEpProxy(
-                url=ep_url,
-                season_obj=self,
-                episode_number=ep_data.get('episode_number', 1),
-                title_en=ep_data.get('name', '')
-            ))
+        for ep_data in sorted(eps_data, key=lambda x: x.get("episode_number", 1)):
+            episode_number = ep_data.get("episode_number", 1)
+            ep_url = (
+                f"https://moflix-stream.xyz/titles/{self.series.title_id}"
+                f"/season/{self.season_number}/episodes/{episode_number}"
+            )
+            results.append(
+                MoflixEpisode(
+                    url=ep_url,
+                    season=self,
+                    series=self.series,
+                    episode_number=episode_number,
+                    title_en=ep_data.get("name", ""),
+                )
+            )
         return results

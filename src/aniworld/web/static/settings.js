@@ -12,6 +12,7 @@
     ["cineby", "Cineby"],
     ["kinox", "Kinox"],
     ["filmpalast", "FilmPalast"],
+    ["filmo", "Filmo"],
     ["htv", "Hanime"],
     ["mangafire", "MangaFire"]
   ];

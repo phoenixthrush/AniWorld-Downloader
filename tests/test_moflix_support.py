@@ -9,7 +9,7 @@ import pytest
 from aniworld.extractors.provider import gupload, moflixclick, vidara
 from aniworld.models.common.provider_map import host_to_provider
 from aniworld.models.moflix_stream import series as moflix
-from aniworld.search import query_moflix
+from aniworld.search import fetch_moflix_movies, query_moflix
 
 
 def _response(*, payload=None, text=""):
@@ -87,6 +87,14 @@ def test_movie_routes_include_only_implemented_hosters(client, monkeypatch):
     ]
     assert providers == {"German Dub": ["Gupload", "MoflixClick"]}
 
+    movie = moflix.MoflixEpisode(url)
+    season = movie.seasons[0]
+    episode = season.episodes[0]
+    assert isinstance(episode, moflix.MoflixEpisode)
+    assert episode.series is movie
+    assert episode.season is season
+    assert episode.episode_number == 1
+
 
 def test_series_listing_does_not_probe_every_episode(client, monkeypatch):
     calls = _moflix_api(monkeypatch, series=True)
@@ -96,6 +104,16 @@ def test_series_listing_does_not_probe_every_episode(client, monkeypatch):
     episodes = response.get_json()["episodes"]
     assert [episode["episode_number"] for episode in episodes] == [1, 2]
     assert all(episode["available_languages"] == ["German Dub"] for episode in episodes)
+    assert not any("/episodes/" in call for call in calls)
+
+    series = moflix.MoflixEpisode(url)
+    season = series.seasons[0]
+    episode_models = season.episodes
+    assert season.episodes is episode_models
+    assert all(isinstance(episode, moflix.MoflixEpisode) for episode in episode_models)
+    assert all(episode.series is series for episode in episode_models)
+    assert all(episode.season is season for episode in episode_models)
+    assert [episode.title_en for episode in episode_models] == ["One", "Two"]
     assert not any("/episodes/" in call for call in calls)
 
     providers = client.get("/api/providers", query_string={"url": episodes[0]["url"]})
@@ -234,6 +252,20 @@ def test_moflix_search_excludes_people_and_invalid_ids(monkeypatch):
             "poster_url": "https://image.example/silo.jpg",
         }
     ]
+
+
+def test_moflix_search_and_browse_propagate_request_errors(monkeypatch):
+    import curl_cffi.requests
+
+    def fail(*args, **kwargs):
+        raise TimeoutError("moflix timed out")
+
+    monkeypatch.setattr(curl_cffi.requests, "get", fail)
+
+    with pytest.raises(TimeoutError, match="moflix timed out"):
+        query_moflix("silo")
+    with pytest.raises(TimeoutError, match="moflix timed out"):
+        fetch_moflix_movies()
 
 
 def test_vidara_uses_its_stream_api(monkeypatch):

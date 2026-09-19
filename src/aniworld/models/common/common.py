@@ -51,6 +51,9 @@ except ImportError:
 # Precompile regex for forbidden filename characters
 FORBIDDEN_CHARS = re.compile(r'[<>:"/\\|?*]')
 
+# Providers that already exhaust their own mirrors in one extractor call.
+SINGLE_ATTEMPT_PROVIDERS = frozenset({"MoflixClick"})
+
 
 def clean_title(title: str) -> str:
     """Clean a string to make it safe for use as a filename."""
@@ -1181,7 +1184,9 @@ def download(self):
         # MoflixClick's extractor already checks each advertised HLS mirror.
         # Repeating a failed full download three times can leave its queue item
         # at 0% for minutes before trying another provider or reporting failure.
-        provider_retries = 1 if provider_name == "MoflixClick" else max_retries
+        provider_retries = (
+            1 if provider_name in SINGLE_ATTEMPT_PROVIDERS else max_retries
+        )
         for attempt in range(1, provider_retries + 1):
             try:
                 _reset_provider_resolution_cache(self)

@@ -99,6 +99,7 @@ def test_which_sites_a_fresh_install_shows():
         "kinox": False,
         "burningseries": False,
         "filmpalast": True,
+        "filmo": True,
         "cineby": False,
         "moflix": True,
     }
