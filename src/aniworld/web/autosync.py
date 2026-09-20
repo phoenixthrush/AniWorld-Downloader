@@ -251,14 +251,14 @@ def find_candidates():
         }
         seen = announced.get(series_url)
         if seen:
-            seen["new_episode_urls"].append(entry["url"])
+            seen["new_episodes_with_langs"][entry["url"]] = labels
             seen["new_languages"] |= labels
         else:
             announced[series_url] = {
                 "title": title,
                 "series_url": series_url,
                 "new_languages": labels,
-                "new_episode_urls": [entry["url"]],
+                "new_episodes_with_langs": {entry["url"]: labels},
             }
 
     candidates = []
@@ -384,9 +384,41 @@ def _handle(candidate, provider_name):
     have = episodes_in_folder(candidate["folder"])
     series = resolve_provider(series_url).series_cls(url=series_url)
     if autosync_new_only():
-        missing = _announced_episodes(candidate.get("new_episode_urls") or [], have)
+        valid_urls = [
+            url for url, langs in candidate.get("new_episodes_with_langs", {}).items()
+            if language in langs
+        ]
+        missing = _announced_episodes(valid_urls, have)
     else:
         missing = _missing_episodes(series, have)
+        # Filter out episodes that are in the feed but lack the required language
+        feed_episodes = candidate.get("new_episodes_with_langs", {})
+        missing = [
+            url for url in missing
+            if url not in feed_episodes or language in feed_episodes[url]
+        ]
+    verified_missing = []
+    for url in missing:
+        try:
+            ep = resolve_provider(url).episode_cls(url=url)
+            if ep.available_providers(language):
+                verified_missing.append(url)
+            else:
+                logger.info(f"Skipping {url} because language '{language}' is not actually available on the episode page.")
+        except Exception as e:
+            logger.error(f"Failed to verify {url}: {e}")
+            verified_missing.append(url)
+            
+    # If episodes were stripped out because the language was a lie
+    if len(missing) > 0 and len(verified_missing) == 0:
+        return {
+            **report,
+            "status": "skipped",
+            "reason": f"The new episode is not actually available in {language} yet."
+        }
+        
+    missing = verified_missing
+
     if not missing:
         return {**report, "status": "up-to-date", "language": language}
 

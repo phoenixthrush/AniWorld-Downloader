@@ -411,9 +411,9 @@ def fetch_new_episodes():
 
     # Find all episode links with their surrounding context
     episode_pattern = re.compile(
-        r'<a\s+href="(/anime/stream/[^"]+/staffel-(\d+)/episode-(\d+))"[^>]*>'
+        r'<a\s+[^>]*?href="(?:https://aniworld\.to)?(/anime/stream/[^"]+/staffel-(\d+)/episode-(\d+))"[^>]*>'
         r"(.*?)</a>"
-        r'(.*?(?=<a\s+href="/anime/stream/|$))',
+        r'(.*?(?=<a\s+[^>]*?href="(?:https://aniworld\.to)?/anime/stream/|$))',
         re.DOTALL,
     )
 
@@ -440,9 +440,9 @@ def fetch_new_episodes():
         )
         date = date_match.group(1).strip() if date_match else ""
 
-        # Extract language from flag image data-src
+        # Extract language from flag image data-src or src
         context = inner + after
-        flag_match = re.search(r'data-src="[^"]*?/(\w[\w-]*)\.svg"', context)
+        flag_match = re.search(r'(?:data-src|src)="[^"]*?/(\w[\w-]*)\.svg"', context)
         language = flag_match.group(1) if flag_match else ""
 
         if url not in seen:

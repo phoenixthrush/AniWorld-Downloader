@@ -171,7 +171,7 @@ def test_every_announced_episode_is_kept(feed, downloads):
     """One row per series, but all of its new episode URLs come along."""
     (downloads / "Naruto").mkdir()
     feed([entry("Naruto", "naruto", episode=5), entry("Naruto", "naruto", episode=6)])
-    urls = autosync.find_candidates()[0]["new_episode_urls"]
+    urls = list(autosync.find_candidates()[0]["new_episodes_with_langs"].keys())
     assert [url.rsplit("-", 1)[1] for url in urls] == ["5", "6"]
 
 
@@ -260,7 +260,7 @@ def candidate(
         "lang_folder": lang_folder,
         "root_name": root_name,
         "new_languages": set(languages),
-        "new_episode_urls": new_urls or [],
+        "new_episodes_with_langs": {url: set(languages) for url in (new_urls or [])},
     }
 
 
@@ -572,12 +572,23 @@ class _FakeSeries:
         self.seasons = []
 
 
+class _FakeEpisode:
+    def __init__(self, url):
+        self.url = url
+
+    def available_providers(self, language):
+        return {"VOE": "https://voe.sx"}
+
+
 class _FakeProvider:
     def __init__(self, title):
         self._title = title
 
     def series_cls(self, url):
         return _FakeSeries(self._title)
+
+    def episode_cls(self, url):
+        return _FakeEpisode(url)
 
 
 # ---------------------------------------------------------------------------

@@ -586,7 +586,17 @@ def is_copy_queued_or_running(series_url, language, custom_path_id=None):
             "AND custom_path_id IS ? AND status IN ('queued','running')",
             (series_url, language, custom_path_id),
         ).fetchone()
-        return row["n"] > 0
+        if row["n"] > 0:
+            return True
+            
+        row_failed = conn.execute(
+            "SELECT COUNT(*) AS n FROM download_queue "
+            "WHERE series_url = ? AND language = ? "
+            "AND custom_path_id IS ? AND status IN ('error','failed') "
+            "AND completed_at > datetime('now', '-12 hours')",
+            (series_url, language, custom_path_id),
+        ).fetchone()
+        return row_failed["n"] > 0
 
 
 def get_queue_item(queue_id):
