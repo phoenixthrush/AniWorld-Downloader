@@ -384,12 +384,22 @@ def _handle(candidate, provider_name):
     have = episodes_in_folder(candidate["folder"])
     series = resolve_provider(series_url).series_cls(url=series_url)
     if autosync_new_only():
-        missing = _announced_episodes(candidate.get("new_episode_urls") or [], have)
+        missing_urls = _announced_episodes(
+            candidate.get("new_episode_urls") or [], have
+        )
     else:
-        missing = _missing_episodes(series, have)
+        missing_urls = _missing_episodes(series, have)
+
+    ep_by_url = {ep.url: ep for season in series.seasons for ep in season.episodes}
+
+    missing = []
+    for url in missing_urls:
+        ep = ep_by_url.get(url)
+        if ep is None or not getattr(ep, "languages", None) or language in ep.languages:
+            missing.append(url)
+
     if not missing:
         return {**report, "status": "up-to-date", "language": language}
-
     queue_id = db.add_to_queue(
         title=series.title or title,
         series_url=series_url,

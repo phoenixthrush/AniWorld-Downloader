@@ -290,6 +290,24 @@ class AniworldSeason:
                     span_end = tr_html.find("</span>", span_start)
                     title_en = unescape(tr_html[span_start:span_end]).strip()
 
+            languages = set()
+            if not self.are_movies:
+                edit_start = tr_html.find('class="editFunctions"')
+                if edit_start != -1:
+                    edit_end = tr_html.find("</td>", edit_start)
+                    for match in re.finditer(
+                        r'<img[^>]+src="[^"]+/([^/.]+)\.svg"',
+                        tr_html[edit_start:edit_end],
+                    ):
+                        label = {
+                            "german": "German Dub",
+                            "english": "English Dub",
+                            "japanese-german": "German Sub",
+                            "japanese-english": "English Sub",
+                        }.get(match.group(1))
+                        if label:
+                            languages.add(label)
+
             if ep_url:
                 # For movies, ep_num might be None, but we can still create the episode object
                 # The AniworldEpisode class should handle None episode_number appropriately
@@ -301,6 +319,7 @@ class AniworldSeason:
                         episode_number=ep_num,
                         title_de=title_de,
                         title_en=title_en,
+                        languages=languages,
                     )
                 )
 
