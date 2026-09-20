@@ -39,9 +39,16 @@
   {% endif %}
 
   <header class="top-bar">
-    <a href="{{ url_for('pages.index') }}" class="top-bar-brand">
-      AniWorld Downloader{% if app_version %} <span class="top-bar-version">v{{ app_version }}</span>{% endif %}
-    </a>
+    <div class="top-bar-left" style="display: flex; align-items: baseline; gap: 8px;">
+      <a href="{{ url_for('pages.index') }}" class="top-bar-brand">
+        AniWorld Downloader
+      </a>
+      {% if app_version %}
+      <a href="{{ github_url }}/releases/latest" id="appVersionLink" target="_blank" rel="noopener noreferrer" style="text-decoration: none;" title="Go to latest release">
+        <span class="top-bar-version" id="appVersionBadge" data-current-version="{{ app_version }}">v{{ app_version }}</span>
+      </a>
+      {% endif %}
+    </div>
 
     <button class="nav-toggle" id="navToggle" type="button" aria-label="Toggle navigation"
       aria-controls="mainNav" aria-expanded="false">

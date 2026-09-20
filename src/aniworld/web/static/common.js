@@ -141,3 +141,53 @@ document.addEventListener("DOMContentLoaded", () => {
     toggle.setAttribute("aria-expanded", String(open));
   });
 });
+
+/* ===== Update Checker ===== */
+async function checkUpdate() {
+  const badge = document.getElementById("appVersionBadge");
+  if (!badge) return;
+  
+  const current = badge.dataset.currentVersion;
+  if (!current) return;
+
+  const cacheKey = "aniworld_latest_release";
+  const cacheTimeKey = "aniworld_latest_release_time";
+  
+  const now = Date.now();
+  let latest = localStorage.getItem(cacheKey);
+  const lastCheck = localStorage.getItem(cacheTimeKey);
+
+  if (!latest || !lastCheck || now - parseInt(lastCheck) > 24 * 60 * 60 * 1000) {
+    try {
+      const res = await fetch("https://api.github.com/repos/phoenixthrush/AniWorld-Downloader/releases/latest");
+      if (res.ok) {
+        const data = await res.json();
+        latest = data.tag_name.replace(/^v\.?/, "");
+        localStorage.setItem(cacheKey, latest);
+      }
+    } catch (e) {
+      console.error("Failed to check for updates", e);
+    } finally {
+      // Always update the check time so we don't spam the API on failures or rate limits
+      localStorage.setItem(cacheTimeKey, now.toString());
+    }
+  }
+
+  if (latest && isNewerVersion(latest, current)) {
+    badge.innerHTML = `v${current} <span class="update-available-badge">Update Available</span>`;
+  }
+}
+
+function isNewerVersion(latest, current) {
+  const l = latest.split('.').map(Number);
+  const c = current.split('.').map(Number);
+  for(let i=0; i<Math.max(l.length, c.length); i++) {
+    const lPart = l[i] || 0;
+    const cPart = c[i] || 0;
+    if (lPart > cPart) return true;
+    if (lPart < cPart) return false;
+  }
+  return false;
+}
+
+document.addEventListener("DOMContentLoaded", checkUpdate);

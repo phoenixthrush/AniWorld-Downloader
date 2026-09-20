@@ -2886,3 +2886,13 @@ details.advanced summary:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.update-available-badge {
+  background: var(--primary, #2563eb);
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  margin-left: 6px;
+  text-transform: uppercase;
+}
