@@ -6,13 +6,20 @@ import zlib
 from os import getenv
 from pathlib import Path
 from pprint import pprint
-from urllib.parse import quote, urlparse
+from urllib.parse import urlencode, urlparse
 
+from ...common.search import (
+    limit_reached,
+    limit_results,
+    optional_filters,
+    validate_limit,
+)
 from ...config import GLOBAL_SESSION
 from ...playwright.captcha import is_captcha_page, solve_captcha
 from .vrf import sign_url
 
-SEARCH_API = "https://mangafire.to/api/titles?keyword={}&limit=20"
+SEARCH_API = "https://mangafire.to/api/titles"
+FILTER_OPTIONS_API = "https://mangafire.to/api/filter-options"
 CHAPTERS_API = "https://mangafire.to/api/titles/{}/chapters?language=en&sort=number&order=asc&page={}&limit=200"
 CHAPTER_URL = "https://mangafire.to/title/{}/chapter/{}"
 CHAPTER_API = "https://mangafire.to/api/chapters/{}"
@@ -787,11 +794,62 @@ class MangaFireToSeries:
 # -----------------------------
 
 
-def search_series(query: str) -> list:
-    """Search MangaFire series."""
-    response = _get(SEARCH_API.format(quote(query)))
-    response_data = response.json()
-    return response_data.get("items", [])
+def fetch_mangafire_genres() -> list:
+    """Fetch the current genre IDs and names from MangaFire's filter options."""
+    return _get(FILTER_OPTIONS_API, timeout=15).json()["data"]["genres"]
+
+
+def search_series(query: str = "", *, genre=None, sort=None, limit=20) -> list:
+    """Search titles, optionally filtered by a runtime genre name or ID.
+
+    sort uses the site's field:direction notation (e.g. score:desc).
+    limit=None follows all pages; limit=0 makes no requests.
+    """
+    validate_limit(limit)
+    if limit == 0:
+        return []
+    params = optional_filters(keyword=query)
+    if genre is not None and genre != "":
+        genres = fetch_mangafire_genres()
+        selected = next(
+            (
+                item
+                for item in genres
+                if str(item["id"]) == str(genre)
+                or item["name"].casefold() == str(genre).strip().casefold()
+            ),
+            None,
+        )
+        if selected is None:
+            raise ValueError(f"MangaFire genre not available: {genre}")
+        params["genres_in[]"] = selected["id"]
+    if sort:
+        field, separator, direction = sort.partition(":")
+        if not separator or not field or direction not in ("asc", "desc"):
+            raise ValueError("sort must use field:asc or field:desc.")
+        params[f"order[{field}]"] = direction
+
+    params["limit"] = min(limit, 20) if limit is not None else 20
+    results = []
+    seen = set()
+    page = 1
+    while True:
+        params["page"] = page
+        response = _get(f"{SEARCH_API}?{urlencode(params)}", timeout=15).json()
+        previous_count = len(results)
+        for item in response.get("items", []):
+            key = item.get("id")
+            if key is None:
+                key = item.get("hid") or item["url"]
+            if key not in seen:
+                seen.add(key)
+                results.append(item)
+        if limit_reached(results, limit) or len(results) == previous_count:
+            break
+        if not response.get("meta", {}).get("hasNext"):
+            break
+        page += 1
+    return limit_results(results, limit)
 
 
 # -----------------------------
