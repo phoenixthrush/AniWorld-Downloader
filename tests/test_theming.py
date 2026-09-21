@@ -232,7 +232,11 @@ def test_the_shipped_themes_do_not_recommend_a_dead_host():
 
 def test_the_readme_does_not_recommend_a_dead_host():
     readme = (REPO / "README.md").read_text()
-    theming_section = readme[readme.index("## Theming") : readme.index("## Optional")]
+    theming_section = readme[
+        readme.index("## Configuration and Integrations") : readme.index(
+            "## Contributing"
+        )
+    ]
     for host in theming.PLAIN_TEXT_HOSTS:
         # named as things to avoid is fine, offered inside an @import is not
         assert f"@import url('https://{host}" not in theming_section

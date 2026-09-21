@@ -428,9 +428,11 @@ def fetch_new_episodes():
 
         # Extract title from <strong>, unescaped so entities like &#039;
         # do not end up in the title and stop it matching its own folder
-        title_match = re.search(r"<strong>(.*?)</strong>", inner)
+        title_match = re.search(r"<strong>(.*?)</strong>", inner, re.DOTALL)
         title = (
-            html_module.unescape(title_match.group(1).strip()) if title_match else ""
+            " ".join(html_module.unescape(title_match.group(1)).split())
+            if title_match
+            else ""
         )
 
         # Extract date from elementFloatRight span or last span
