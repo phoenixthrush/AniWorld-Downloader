@@ -146,13 +146,13 @@ document.addEventListener("DOMContentLoaded", () => {
 async function checkUpdate() {
   const badge = document.getElementById("appVersionBadge");
   if (!badge) return;
-  
+
   const current = badge.dataset.currentVersion;
   if (!current) return;
 
   const cacheKey = "aniworld_latest_release";
   const cacheTimeKey = "aniworld_latest_release_time";
-  
+
   const now = Date.now();
   let latest = localStorage.getItem(cacheKey);
   const lastCheck = localStorage.getItem(cacheTimeKey);
@@ -181,7 +181,7 @@ async function checkUpdate() {
 function isNewerVersion(latest, current) {
   const l = latest.split('.').map(Number);
   const c = current.split('.').map(Number);
-  for(let i=0; i<Math.max(l.length, c.length); i++) {
+  for (let i = 0; i < Math.max(l.length, c.length); i++) {
     const lPart = l[i] || 0;
     const cPart = c[i] || 0;
     if (lPart > cPart) return true;

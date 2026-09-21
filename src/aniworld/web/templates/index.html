@@ -8,7 +8,7 @@
     <div class="segmented-track" id="segmentedTrack">
       <div class="segmented-thumb" id="segmentedThumb"></div>
       {# Every site can be switched off in the settings. The first one still
-         standing is the one the page opens on, see home.js. #}
+      standing is the one the page opens on, see home.js. #}
       {% if sites.aniworld %}
       <button class="segmented-btn" data-site="aniworld">AniWorld</button>
       {% endif %}
@@ -177,80 +177,80 @@
     </div>
 
     <div id="seriesContent" hidden>
-    <div class="series-header">
-      <img id="seriesPoster" alt="" />
-      <div class="series-meta">
-        <h2 id="seriesTitle"></h2>
-        <div class="series-genres" id="seriesGenres"></div>
-        <div class="series-year" id="seriesYear"></div>
-        <div class="series-desc" id="seriesDesc"></div>
+      <div class="series-header">
+        <img id="seriesPoster" alt="" />
+        <div class="series-meta">
+          <h2 id="seriesTitle"></h2>
+          <div class="series-genres" id="seriesGenres"></div>
+          <div class="series-year" id="seriesYear"></div>
+          <div class="series-desc" id="seriesDesc"></div>
+        </div>
       </div>
-    </div>
 
-    <div class="control-row" id="languageProviderRow">
-      <label class="field">
-        <span class="field-label" data-i18n="index.language">Language</span>
-        <select id="languageSelect">
-          {% for label in lang_labels.values() %}
-          <option value="{{ label }}" {% if label == default_language %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field">
-        <span class="field-label" data-i18n="index.provider">Provider</span>
-        <select id="providerSelect">
-          {% for provider in supported_providers %}
-          <option value="{{ provider }}">{{ provider }}</option>
-          {% endfor %}
-        </select>
-      </label>
-    </div>
+      <div class="control-row" id="languageProviderRow">
+        <label class="field">
+          <span class="field-label" data-i18n="index.language">Language</span>
+          <select id="languageSelect">
+            {% for label in lang_labels.values() %}
+            <option value="{{ label }}" {% if label==default_language %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label" data-i18n="index.provider">Provider</span>
+          <select id="providerSelect">
+            {% for provider in supported_providers %}
+            <option value="{{ provider }}">{{ provider }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
 
-    <div class="control-row" id="mangaFireRow" hidden>
-      <label class="field">
-        <span class="field-label" data-i18n="index.format">Format</span>
-        <select id="mangaFireFormat">
-          <option value="jpg">JPG (Images)</option>
-          <option value="cbz">CBZ (Archive)</option>
-        </select>
-      </label>
-    </div>
+      <div class="control-row" id="mangaFireRow" hidden>
+        <label class="field">
+          <span class="field-label" data-i18n="index.format">Format</span>
+          <select id="mangaFireFormat">
+            <option value="jpg">JPG (Images)</option>
+            <option value="cbz">CBZ (Archive)</option>
+          </select>
+        </label>
+      </div>
 
-    <div class="control-row" id="customPathRow" hidden>
-      <label class="field">
-        <span class="field-label" data-i18n="index.download_folder">Download Folder</span>
-        <select id="customPathSelect">
-          <option value="" data-i18n="index.default">Default</option>
-        </select>
-      </label>
-    </div>
+      <div class="control-row" id="customPathRow" hidden>
+        <label class="field">
+          <span class="field-label" data-i18n="index.download_folder">Download Folder</span>
+          <select id="customPathSelect">
+            <option value="" data-i18n="index.default">Default</option>
+          </select>
+        </label>
+      </div>
 
-    {% if is_admin %}
-    <div class="control-row" id="autosyncRow" hidden>
-      <label class="checkbox" style="margin-top:0">
-        <input type="checkbox" id="autosyncExclude" />
-        <span data-i18n="index.autosync_exclude">Exclude from Auto-Sync</span>
-      </label>
-    </div>
-    {% endif %}
+      {% if is_admin %}
+      <div class="control-row" id="autosyncRow" hidden>
+        <label class="checkbox" style="margin-top:0">
+          <input type="checkbox" id="autosyncExclude" />
+          <span data-i18n="index.autosync_exclude">Exclude from Auto-Sync</span>
+        </label>
+      </div>
+      {% endif %}
 
-    <div class="episodes-header">
-      <h3 data-i18n="index.episodes">Episodes</h3>
-      <label class="checkbox">
-        <input type="checkbox" id="selectAll" />
-        <span data-i18n="index.select_all">Select All</span>
-      </label>
-    </div>
+      <div class="episodes-header">
+        <h3 data-i18n="index.episodes">Episodes</h3>
+        <label class="checkbox">
+          <input type="checkbox" id="selectAll" />
+          <span data-i18n="index.select_all">Select All</span>
+        </label>
+      </div>
 
-    <div class="season-accordion" id="seasonAccordion"></div>
-    <div class="spinner" id="episodeSpinner" data-i18n="index.loading_episodes">Loading episodes...</div>
+      <div class="season-accordion" id="seasonAccordion"></div>
+      <div class="spinner" id="episodeSpinner" data-i18n="index.loading_episodes">Loading episodes...</div>
 
-    <div class="modal-actions">
-      <button class="btn btn-primary" id="downloadSelectedBtn" data-i18n="index.download_selected">
-        Download Selected
-      </button>
-      <button class="btn btn-secondary" id="downloadAllBtn" data-i18n="index.download_all">Download All</button>
-    </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="downloadSelectedBtn" data-i18n="index.download_selected">
+          Download Selected
+        </button>
+        <button class="btn btn-secondary" id="downloadAllBtn" data-i18n="index.download_all">Download All</button>
+      </div>
     </div>
   </div>
 </div>
@@ -258,15 +258,15 @@
 <script>
   window.SITE_LANGUAGES = {
     aniworld: {{ lang_labels.values() | list | tojson }},
-    sto: {{ sto_lang_labels.values() | list | tojson }},
-    megakino: {{ megakino_lang_labels.values() | list | tojson }},
-    kinox: ["German Dub", "English Dub"],
+  sto: { { sto_lang_labels.values() | list | tojson } },
+  megakino: { { megakino_lang_labels.values() | list | tojson } },
+  kinox: ["German Dub", "English Dub"],
     burningseries: ["German Dub", "English Dub"],
-    filmpalast: ["German Dub", "English Dub"],
-    moflix: ["German Dub"],
-    filmo: ["German Dub", "English Dub"],
-    // Cineby only keeps German when /api/providers reports it for the title
-    cineby: ["English Dub", "German Dub"]
+      filmpalast: ["German Dub", "English Dub"],
+        moflix: ["German Dub"],
+          filmo: ["German Dub", "English Dub"],
+            // Cineby only keeps German when /api/providers reports it for the title
+            cineby: ["English Dub", "German Dub"]
   };
   window.DEFAULT_LANGUAGE = {{ default_language | tojson }};
   window.AUTOSYNC_ENABLED = {{ (autosync_enabled and is_admin) | tojson }};

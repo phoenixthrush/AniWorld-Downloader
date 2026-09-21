@@ -406,8 +406,8 @@
 
     savedSummary = settings.autosync_schedule
       ? t("settings.autosync_runs", "Auto-Sync runs: {schedule}", {
-          schedule: settings.autosync_schedule
-        })
+        schedule: settings.autosync_schedule
+      })
       : "";
     showSummary(savedSummary, false);
   }
@@ -453,8 +453,8 @@
         const bare = (value) => String(value || "").replace(/\s+/g, "");
         const cron =
           data.cron &&
-          data.cron !== data.description &&
-          bare(data.cron) !== bare(fields.autosync_cron)
+            data.cron !== data.description &&
+            bare(data.cron) !== bare(fields.autosync_cron)
             ? ` (${data.cron})`
             : "";
 

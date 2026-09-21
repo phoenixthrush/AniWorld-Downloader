@@ -20,8 +20,8 @@
     <form method="post" class="auth-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
       <input type="text" name="username" placeholder="Username" autocomplete="username" autofocus required />
-      <input type="password" name="password" placeholder="Password (min. 8 characters)"
-        autocomplete="new-password" required />
+      <input type="password" name="password" placeholder="Password (min. 8 characters)" autocomplete="new-password"
+        required />
       <input type="password" name="confirm" placeholder="Repeat password" autocomplete="new-password" required />
       <button type="submit" class="btn btn-primary btn-block">Create account</button>
     </form>

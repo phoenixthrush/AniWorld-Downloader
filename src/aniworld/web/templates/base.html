@@ -12,10 +12,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   {# Icons for the settings sidebar. Pinned to a version and checked against its
-     hash, so the CDN cannot quietly serve something else. #}
+  hash, so the CDN cannot quietly serve something else. #}
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.3.1/css/all.min.css"
-    integrity="sha384-qrALq7+6jBOZIQsNnT6xGkMDru64qD6uTlDra39xrt2SoXl4pO3FX6Roz/RpR/BS"
-    crossorigin="anonymous" referrerpolicy="no-referrer" />
+    integrity="sha384-qrALq7+6jBOZIQsNnT6xGkMDru64qD6uTlDra39xrt2SoXl4pO3FX6Roz/RpR/BS" crossorigin="anonymous"
+    referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ app_version }}" />
   {# ?nocss=1 is the way back in when a theme hides the settings page #}
   {% if custom_css_version and request.args.get('nocss') != '1' %}
@@ -30,7 +30,7 @@
 
 <body data-page="{{ page_name }}" data-site="" data-queue="idle" data-modal="closed">
   {# Paint surfaces for themes. Empty and invisible until a theme uses them, so
-     a theme never has to hijack a pseudo-element that belongs to the app. #}
+  a theme never has to hijack a pseudo-element that belongs to the app. #}
   <div class="theme-layer" data-layer="1" aria-hidden="true"></div>
   <div class="theme-layer" data-layer="2" aria-hidden="true"></div>
   {% if custom_shader_version and request.args.get('nocss') != '1' %}
@@ -44,14 +44,16 @@
         AniWorld Downloader
       </a>
       {% if app_version %}
-      <a href="{{ github_url }}/releases/latest" id="appVersionLink" target="_blank" rel="noopener noreferrer" style="text-decoration: none;" title="Go to latest release">
-        <span class="top-bar-version" id="appVersionBadge" data-current-version="{{ app_version }}">v{{ app_version }}</span>
+      <a href="{{ github_url }}/releases/latest" id="appVersionLink" target="_blank" rel="noopener noreferrer"
+        style="text-decoration: none;" title="Go to latest release">
+        <span class="top-bar-version" id="appVersionBadge" data-current-version="{{ app_version }}">v{{ app_version
+          }}</span>
       </a>
       {% endif %}
     </div>
 
-    <button class="nav-toggle" id="navToggle" type="button" aria-label="Toggle navigation"
-      aria-controls="mainNav" aria-expanded="false">
+    <button class="nav-toggle" id="navToggle" type="button" aria-label="Toggle navigation" aria-controls="mainNav"
+      aria-expanded="false">
       <span></span><span></span><span></span>
     </button>
 

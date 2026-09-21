@@ -4,7 +4,7 @@ version = "5.0.6"
 authors = [{ name = "Phoenixthrush UwU", email = "contact@phoenixthrush.com" }]
 maintainers = [
   { name = "Phoenixthrush UwU", email = "contact@phoenixthrush.com" },
-  { name = "Sirox", email = "iloveshell@proton.me"}
+  { name = "Sirox", email = "iloveshell@proton.me" },
 ]
 description = "AniWorld-Downloader is a command-line tool for downloading and streaming movies and series."
 readme = "README.md"
@@ -37,18 +37,13 @@ license-files = ["LICENSE"]
 
 [project.optional-dependencies]
 sso = [
-  "authlib",                                                                  # >=3.10
+  "authlib", # >=3.10
 ]
 discord = [
-  "discord.py",                                                               # optional Discord request bot
+  "discord.py", # optional Discord request bot
 ]
-test = [
-  "pytest",
-]
-all = [
-  "authlib",
-  "discord.py",
-]
+test = ["pytest"]
+all = ["authlib", "discord.py"]
 
 
 [project.urls]

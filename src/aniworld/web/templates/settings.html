@@ -20,50 +20,50 @@
   <div class="settings-layout">
     <nav class="settings-nav" id="settingsNav" role="tablist" aria-orientation="vertical"
       aria-label="Settings sections">
-      <button class="settings-nav-item active" id="tab-downloads" data-pane="downloads" type="button"
-        role="tab" aria-controls="pane-downloads" aria-selected="true" tabindex="0">
+      <button class="settings-nav-item active" id="tab-downloads" data-pane="downloads" type="button" role="tab"
+        aria-controls="pane-downloads" aria-selected="true" tabindex="0">
         <i class="settings-nav-icon fa-solid fa-download" aria-hidden="true"></i>
         <span data-i18n="settings.nav.downloads">Downloads</span>
       </button>
-      <button class="settings-nav-item" id="tab-library" data-pane="library" type="button"
-        role="tab" aria-controls="pane-library" aria-selected="false" tabindex="-1">
+      <button class="settings-nav-item" id="tab-library" data-pane="library" type="button" role="tab"
+        aria-controls="pane-library" aria-selected="false" tabindex="-1">
         <i class="settings-nav-icon fa-solid fa-folder-open" aria-hidden="true"></i>
         <span data-i18n="settings.nav.library">Library</span>
       </button>
-      <button class="settings-nav-item" id="tab-sites" data-pane="sites" type="button"
-        role="tab" aria-controls="pane-sites" aria-selected="false" tabindex="-1">
+      <button class="settings-nav-item" id="tab-sites" data-pane="sites" type="button" role="tab"
+        aria-controls="pane-sites" aria-selected="false" tabindex="-1">
         <i class="settings-nav-icon fa-solid fa-globe" aria-hidden="true"></i>
         <span data-i18n="settings.nav.sites">Sites</span>
       </button>
-      <button class="settings-nav-item" id="tab-autosync" data-pane="autosync" type="button"
-        role="tab" aria-controls="pane-autosync" aria-selected="false" tabindex="-1">
+      <button class="settings-nav-item" id="tab-autosync" data-pane="autosync" type="button" role="tab"
+        aria-controls="pane-autosync" aria-selected="false" tabindex="-1">
         <i class="settings-nav-icon fa-solid fa-sync" aria-hidden="true"></i>
         <span data-i18n="settings.nav.autosync">Auto-Sync</span>
       </button>
-      <button class="settings-nav-item" id="tab-appearance" data-pane="appearance" type="button"
-        role="tab" aria-controls="pane-appearance" aria-selected="false" tabindex="-1">
+      <button class="settings-nav-item" id="tab-appearance" data-pane="appearance" type="button" role="tab"
+        aria-controls="pane-appearance" aria-selected="false" tabindex="-1">
         <i class="settings-nav-icon fa-solid fa-palette" aria-hidden="true"></i>
         <span data-i18n="settings.nav.appearance">Appearance</span>
       </button>
       {% if auth_enabled %}
-      <button class="settings-nav-item" id="tab-users" data-pane="users" type="button"
-        role="tab" aria-controls="pane-users" aria-selected="false" tabindex="-1">
+      <button class="settings-nav-item" id="tab-users" data-pane="users" type="button" role="tab"
+        aria-controls="pane-users" aria-selected="false" tabindex="-1">
         <i class="settings-nav-icon fa-solid fa-users" aria-hidden="true"></i>
         <span data-i18n="settings.nav.users">Users</span>
       </button>
       {% endif %}
-      <button class="settings-nav-item" id="tab-api" data-pane="api" type="button"
-        role="tab" aria-controls="pane-api" aria-selected="false" tabindex="-1">
+      <button class="settings-nav-item" id="tab-api" data-pane="api" type="button" role="tab" aria-controls="pane-api"
+        aria-selected="false" tabindex="-1">
         <i class="settings-nav-icon fa-solid fa-key" aria-hidden="true"></i>
         <span data-i18n="settings.nav.api">API</span>
       </button>
-      <button class="settings-nav-item" id="tab-integrations" data-pane="integrations" type="button"
-        role="tab" aria-controls="pane-integrations" aria-selected="false" tabindex="-1">
+      <button class="settings-nav-item" id="tab-integrations" data-pane="integrations" type="button" role="tab"
+        aria-controls="pane-integrations" aria-selected="false" tabindex="-1">
         <i class="settings-nav-icon fa-solid fa-plug" aria-hidden="true"></i>
         <span data-i18n="settings.nav.integrations">Integrations</span>
       </button>
-      <button class="settings-nav-item" id="tab-administration" data-pane="administration" type="button"
-        role="tab" aria-controls="pane-administration" aria-selected="false" tabindex="-1">
+      <button class="settings-nav-item" id="tab-administration" data-pane="administration" type="button" role="tab"
+        aria-controls="pane-administration" aria-selected="false" tabindex="-1">
         <i class="settings-nav-icon fa-solid fa-toolbox" aria-hidden="true"></i>
         <span data-i18n="settings.nav.administration">Administration</span>
       </button>
@@ -71,8 +71,7 @@
 
     <div class="settings-panes">
       {# Open by default: without the script this page would be blank #}
-      <section class="settings-pane" id="pane-downloads" role="tabpanel"
-        aria-labelledby="tab-downloads" tabindex="-1">
+      <section class="settings-pane" id="pane-downloads" role="tabpanel" aria-labelledby="tab-downloads" tabindex="-1">
         <section class="card">
           <div class="card-head">
             <h2 data-i18n="settings.downloads">Downloads</h2>
@@ -147,8 +146,8 @@
         </section>
       </section>
 
-      <section class="settings-pane" id="pane-library" role="tabpanel"
-        aria-labelledby="tab-library" tabindex="-1" hidden>
+      <section class="settings-pane" id="pane-library" role="tabpanel" aria-labelledby="tab-library" tabindex="-1"
+        hidden>
         <section class="card">
           <div class="card-head">
             <h2 data-i18n="settings.library">Library</h2>
@@ -190,8 +189,7 @@
         </section>
       </section>
 
-      <section class="settings-pane" id="pane-sites" role="tabpanel"
-        aria-labelledby="tab-sites" tabindex="-1" hidden>
+      <section class="settings-pane" id="pane-sites" role="tabpanel" aria-labelledby="tab-sites" tabindex="-1" hidden>
         <section class="card">
           <div class="card-head">
             <h2 data-i18n="settings.sites">Sites</h2>
@@ -213,9 +211,8 @@
                   Anime and anime movies. One of the two sites this app is built around.
                 </span>
               </span>
-              <input type="checkbox" class="site-switch" id="enableAniWorld"
-                data-setting="enable_aniworld" data-reload="1" role="switch"
-                aria-label="AniWorld" />
+              <input type="checkbox" class="site-switch" id="enableAniWorld" data-setting="enable_aniworld"
+                data-reload="1" role="switch" aria-label="AniWorld" />
             </label>
             <label class="site-row">
               <span class="site-row-text">
@@ -227,9 +224,8 @@
                   Series. The other site this app is built around.
                 </span>
               </span>
-              <input type="checkbox" class="site-switch" id="enableSerienStream"
-                data-setting="enable_sto" data-reload="1" role="switch"
-                aria-label="SerienStream" />
+              <input type="checkbox" class="site-switch" id="enableSerienStream" data-setting="enable_sto"
+                data-reload="1" role="switch" aria-label="SerienStream" />
             </label>
             <label class="site-row">
               <span class="site-row-text">
@@ -242,9 +238,8 @@
                   cannot solve for you stands in front of it.
                 </span>
               </span>
-              <input type="checkbox" class="site-switch" id="enableBurningSeries"
-                data-setting="enable_burningseries" data-reload="1" role="switch"
-                aria-label="BurningSeries" />
+              <input type="checkbox" class="site-switch" id="enableBurningSeries" data-setting="enable_burningseries"
+                data-reload="1" role="switch" aria-label="BurningSeries" />
             </label>
             <label class="site-row">
               <span class="site-row-text">
@@ -256,9 +251,8 @@
                   Movies and series, in German.
                 </span>
               </span>
-              <input type="checkbox" class="site-switch" id="enableMegaKino"
-                data-setting="enable_megakino" data-reload="1" role="switch"
-                aria-label="MegaKino" />
+              <input type="checkbox" class="site-switch" id="enableMegaKino" data-setting="enable_megakino"
+                data-reload="1" role="switch" aria-label="MegaKino" />
             </label>
             <label class="site-row">
               <span class="site-row-text">
@@ -270,9 +264,8 @@
                   Movies and series, in German.
                 </span>
               </span>
-              <input type="checkbox" class="site-switch" id="enableMoflix"
-                data-setting="enable_moflix" data-reload="1" role="switch"
-                aria-label="Moflix" />
+              <input type="checkbox" class="site-switch" id="enableMoflix" data-setting="enable_moflix" data-reload="1"
+                role="switch" aria-label="Moflix" />
             </label>
             <label class="site-row">
               <span class="site-row-text">
@@ -284,9 +277,8 @@
                   Movies and series. German tracks are not always reliable there.
                 </span>
               </span>
-              <input type="checkbox" class="site-switch" id="enableCineby"
-                data-setting="enable_cineby" data-reload="1" role="switch"
-                aria-label="Cineby" />
+              <input type="checkbox" class="site-switch" id="enableCineby" data-setting="enable_cineby" data-reload="1"
+                role="switch" aria-label="Cineby" />
             </label>
             <label class="site-row">
               <span class="site-row-text">
@@ -299,9 +291,8 @@
                   solve by hand.
                 </span>
               </span>
-              <input type="checkbox" class="site-switch" id="enableKinox"
-                data-setting="enable_kinox" data-reload="1" role="switch"
-                aria-label="Kinox" />
+              <input type="checkbox" class="site-switch" id="enableKinox" data-setting="enable_kinox" data-reload="1"
+                role="switch" aria-label="Kinox" />
             </label>
             <label class="site-row">
               <span class="site-row-text">
@@ -313,9 +304,8 @@
                   Movies, in German.
                 </span>
               </span>
-              <input type="checkbox" class="site-switch" id="enableFilmPalast"
-                data-setting="enable_filmpalast" data-reload="1" role="switch"
-                aria-label="FilmPalast" />
+              <input type="checkbox" class="site-switch" id="enableFilmPalast" data-setting="enable_filmpalast"
+                data-reload="1" role="switch" aria-label="FilmPalast" />
             </label>
             <label class="site-row">
               <span class="site-row-text">
@@ -327,9 +317,8 @@
                   Movies, in German and English.
                 </span>
               </span>
-              <input type="checkbox" class="site-switch" id="enableFilmo"
-                data-setting="enable_filmo" data-reload="1" role="switch"
-                aria-label="Filmo" />
+              <input type="checkbox" class="site-switch" id="enableFilmo" data-setting="enable_filmo" data-reload="1"
+                role="switch" aria-label="Filmo" />
             </label>
             <label class="site-row">
               <span class="site-row-text">
@@ -341,9 +330,8 @@
                   Adult animation. Off by default.
                 </span>
               </span>
-              <input type="checkbox" class="site-switch" id="enableHanime"
-                data-setting="enable_htv" data-reload="1" role="switch"
-                aria-label="Hanime" />
+              <input type="checkbox" class="site-switch" id="enableHanime" data-setting="enable_htv" data-reload="1"
+                role="switch" aria-label="Hanime" />
             </label>
             <label class="site-row">
               <span class="site-row-text">
@@ -355,16 +343,15 @@
                   Manga, saved as loose images or as one CBZ archive per chapter.
                 </span>
               </span>
-              <input type="checkbox" class="site-switch" id="enableMangaFire"
-                data-setting="enable_mangafire" data-reload="1" role="switch"
-                aria-label="MangaFire" />
+              <input type="checkbox" class="site-switch" id="enableMangaFire" data-setting="enable_mangafire"
+                data-reload="1" role="switch" aria-label="MangaFire" />
             </label>
           </div>
         </section>
       </section>
 
-      <section class="settings-pane" id="pane-autosync" role="tabpanel"
-        aria-labelledby="tab-autosync" tabindex="-1" hidden>
+      <section class="settings-pane" id="pane-autosync" role="tabpanel" aria-labelledby="tab-autosync" tabindex="-1"
+        hidden>
         <section class="card">
           <div class="card-head">
             <h2 data-i18n="settings.autosync">Auto-Sync</h2>
@@ -375,7 +362,8 @@
             <span data-i18n="settings.enable_autosync">Enable Auto-Sync</span>
           </label>
           <p class="hint" data-i18n="settings.enable_autosync_hint">
-            Checks the newest aniworld.to episodes on a schedule and downloads what is missing for series you already have.
+            Checks the newest aniworld.to episodes on a schedule and downloads what is missing for series you already
+            have.
             Adds an admin-only Auto-Sync tab.
           </p>
 
@@ -384,7 +372,8 @@
             <span data-i18n="settings.autosync_new_only">Auto-Sync: only the new episodes</span>
           </label>
           <p class="hint" data-i18n="settings.autosync_new_only_hint">
-            Queue only the episodes that just came out instead of filling in every episode of the series you are missing.
+            Queue only the episodes that just came out instead of filling in every episode of the series you are
+            missing.
             Use this if you leave gaps on purpose.
           </p>
 
@@ -447,8 +436,8 @@
         </section>
       </section>
 
-      <section class="settings-pane" id="pane-appearance" role="tabpanel"
-        aria-labelledby="tab-appearance" tabindex="-1" hidden>
+      <section class="settings-pane" id="pane-appearance" role="tabpanel" aria-labelledby="tab-appearance" tabindex="-1"
+        hidden>
         <section class="card">
           <div class="card-head">
             <h2 data-i18n="settings.language">Language</h2>
@@ -473,12 +462,13 @@
           </p>
           {# The link sits outside the span, since data-i18n overwrites textContent. #}
           <p class="hint">
-            <span data-i18n="settings.css_themes_hint">Ready made themes live in their own repositories, for example</span>
+            <span data-i18n="settings.css_themes_hint">Ready made themes live in their own repositories, for
+              example</span>
             <a href="https://github.com/SiroxCW/aniworld-themes" target="_blank" rel="noopener noreferrer">
               SiroxCW/aniworld-themes</a>.
           </p>
-          <textarea id="customCss" class="code-input" rows="14" spellcheck="false"
-            autocomplete="off" autocapitalize="off"
+          <textarea id="customCss" class="code-input" rows="14" spellcheck="false" autocomplete="off"
+            autocapitalize="off"
             placeholder="@import url('https://cdn.jsdelivr.net/gh/user/repo@main/theme.css');"></textarea>
           <div class="notice css-warning" id="cssWarning" hidden></div>
           <div class="action-row">
@@ -517,8 +507,7 @@
       </section>
 
       {% if auth_enabled %}
-      <section class="settings-pane" id="pane-users" role="tabpanel"
-        aria-labelledby="tab-users" tabindex="-1" hidden>
+      <section class="settings-pane" id="pane-users" role="tabpanel" aria-labelledby="tab-users" tabindex="-1" hidden>
         <section class="card">
           <h2 data-i18n="settings.users">User Management</h2>
           {% if not force_sso %}
@@ -548,8 +537,7 @@
       </section>
       {% endif %}
 
-      <section class="settings-pane" id="pane-api" role="tabpanel"
-        aria-labelledby="tab-api" tabindex="-1" hidden>
+      <section class="settings-pane" id="pane-api" role="tabpanel" aria-labelledby="tab-api" tabindex="-1" hidden>
         <section class="card">
           <h2 data-i18n="settings.api_keys">API Keys</h2>
           <p class="hint" data-i18n="settings.api_keys_hint">
@@ -559,7 +547,8 @@
 
           {% if not auth_enabled %}
           <div class="notice" data-i18n="settings.api_keys_open">
-            The web UI is running without login, so the API is already reachable by anyone who can open this page. Keys are
+            The web UI is running without login, so the API is already reachable by anyone who can open this page. Keys
+            are
             still checked when sent, but start the web UI with -wa if you want the API locked down.
           </div>
           {% endif %}
@@ -609,66 +598,132 @@
             <summary data-i18n="settings.api_docs">Endpoints and examples</summary>
 
             <p class="hint" data-i18n="settings.api_docs_hint">
-              Every write needs a Content-Type of application/json. Read keys may call anything in the read column, write
+              Every write needs a Content-Type of application/json. Read keys may call anything in the read column,
+              write
               keys everything up to downloads, full access keys everything.
             </p>
 
             <div class="api-scroll">
-            <table class="data-table api-endpoints">
-              <thead>
-                <tr>
-                  <th data-i18n="settings.api_endpoint">Endpoint</th>
-                  <th data-i18n="settings.api_needs">Needs</th>
-                  <th data-i18n="settings.api_what">What it does</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr><td><code>GET /api/ping</code></td><td>read</td>
-                  <td data-i18n="settings.api_ping">Check the key and see its access level</td></tr>
-                <tr><td><code>POST /api/search</code></td><td>read</td>
-                  <td data-i18n="settings.api_search">Search a site, body: keyword, site</td></tr>
-                <tr><td><code>GET /api/series?url=</code></td><td>read</td>
-                  <td data-i18n="settings.api_series">Title, poster, description and genres</td></tr>
-                <tr><td><code>GET /api/seasons?url=</code></td><td>read</td>
-                  <td data-i18n="settings.api_seasons">Seasons of a series</td></tr>
-                <tr><td><code>GET /api/episodes?url=</code></td><td>read</td>
-                  <td data-i18n="settings.api_episodes">Episodes of a season, with languages</td></tr>
-                <tr><td><code>GET /api/providers?url=</code></td><td>read</td>
-                  <td data-i18n="settings.api_providers">Hosters available per language</td></tr>
-                <tr><td><code>GET /api/queue</code></td><td>read</td>
-                  <td data-i18n="settings.api_queue">The queue with live progress</td></tr>
-                <tr><td><code>GET /api/queue?limit=&amp;offset=&amp;status=&amp;q=&amp;sort=</code></td><td>read</td>
-                  <td data-i18n="settings.api_queue_page">One page of the queue with totals and counts. Paged rows leave
-                    out <code>episodes</code>. status: queued, running, completed, failed, cancelled, active, finished.
-                    sort: smart, newest, oldest, title</td></tr>
-                <tr><td><code>GET /api/queue/counts</code></td><td>read</td>
-                  <td data-i18n="settings.api_queue_counts">How many items sit in each status</td></tr>
-                <tr><td><code>POST /api/download</code></td><td>write</td>
-                  <td data-i18n="settings.api_download">Queue episodes, see the example below</td></tr>
-                <tr><td><code>POST /api/queue/&lt;id&gt;/cancel</code></td><td>write</td>
-                  <td data-i18n="settings.api_cancel">Cancel a queued or running item</td></tr>
-                <tr><td><code>POST /api/queue/&lt;id&gt;/retry</code></td><td>write</td>
-                  <td data-i18n="settings.api_retry">Retry a failed item</td></tr>
-                <tr><td><code>DELETE /api/queue/&lt;id&gt;</code></td><td>write</td>
-                  <td data-i18n="settings.api_remove">Remove an item from the queue</td></tr>
-                <tr><td><code>DELETE /api/queue/completed</code></td><td>write</td>
-                  <td data-i18n="settings.api_clear">Clear finished items</td></tr>
-                <tr><td><code>GET /api/library/locations</code></td><td>read</td>
-                  <td data-i18n="settings.api_lib_locations">Download folders that exist</td></tr>
-                <tr><td><code>GET /api/library/titles</code></td><td>read</td>
-                  <td data-i18n="settings.api_lib_titles">Titles in one location</td></tr>
-                <tr><td><code>GET /api/library/title?folder=</code></td><td>read</td>
-                  <td data-i18n="settings.api_lib_title">Files of a single title</td></tr>
-                <tr><td><code>POST /api/library/delete</code></td><td>full</td>
-                  <td data-i18n="settings.api_lib_delete">Delete a title, season or episode</td></tr>
-                <tr><td><code>GET /api/autosync/status</code></td><td>full</td>
-                  <td data-i18n="settings.api_sync_status">Last run and its report</td></tr>
-                <tr><td><code>POST /api/autosync/run</code></td><td>full</td>
-                  <td data-i18n="settings.api_sync_run">Start a sync right now</td></tr>
-                <tr><td><code>GET /api/settings</code></td><td>full</td>
-                  <td data-i18n="settings.api_settings">Read the current settings</td></tr>
-              </tbody>
-            </table>
+              <table class="data-table api-endpoints">
+                <thead>
+                  <tr>
+                    <th data-i18n="settings.api_endpoint">Endpoint</th>
+                    <th data-i18n="settings.api_needs">Needs</th>
+                    <th data-i18n="settings.api_what">What it does</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>GET /api/ping</code></td>
+                    <td>read</td>
+                    <td data-i18n="settings.api_ping">Check the key and see its access level</td>
+                  </tr>
+                  <tr>
+                    <td><code>POST /api/search</code></td>
+                    <td>read</td>
+                    <td data-i18n="settings.api_search">Search a site, body: keyword, site</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /api/series?url=</code></td>
+                    <td>read</td>
+                    <td data-i18n="settings.api_series">Title, poster, description and genres</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /api/seasons?url=</code></td>
+                    <td>read</td>
+                    <td data-i18n="settings.api_seasons">Seasons of a series</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /api/episodes?url=</code></td>
+                    <td>read</td>
+                    <td data-i18n="settings.api_episodes">Episodes of a season, with languages</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /api/providers?url=</code></td>
+                    <td>read</td>
+                    <td data-i18n="settings.api_providers">Hosters available per language</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /api/queue</code></td>
+                    <td>read</td>
+                    <td data-i18n="settings.api_queue">The queue with live progress</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /api/queue?limit=&amp;offset=&amp;status=&amp;q=&amp;sort=</code></td>
+                    <td>read</td>
+                    <td data-i18n="settings.api_queue_page">One page of the queue with totals and counts. Paged rows
+                      leave
+                      out <code>episodes</code>. status: queued, running, completed, failed, cancelled, active,
+                      finished.
+                      sort: smart, newest, oldest, title</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /api/queue/counts</code></td>
+                    <td>read</td>
+                    <td data-i18n="settings.api_queue_counts">How many items sit in each status</td>
+                  </tr>
+                  <tr>
+                    <td><code>POST /api/download</code></td>
+                    <td>write</td>
+                    <td data-i18n="settings.api_download">Queue episodes, see the example below</td>
+                  </tr>
+                  <tr>
+                    <td><code>POST /api/queue/&lt;id&gt;/cancel</code></td>
+                    <td>write</td>
+                    <td data-i18n="settings.api_cancel">Cancel a queued or running item</td>
+                  </tr>
+                  <tr>
+                    <td><code>POST /api/queue/&lt;id&gt;/retry</code></td>
+                    <td>write</td>
+                    <td data-i18n="settings.api_retry">Retry a failed item</td>
+                  </tr>
+                  <tr>
+                    <td><code>DELETE /api/queue/&lt;id&gt;</code></td>
+                    <td>write</td>
+                    <td data-i18n="settings.api_remove">Remove an item from the queue</td>
+                  </tr>
+                  <tr>
+                    <td><code>DELETE /api/queue/completed</code></td>
+                    <td>write</td>
+                    <td data-i18n="settings.api_clear">Clear finished items</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /api/library/locations</code></td>
+                    <td>read</td>
+                    <td data-i18n="settings.api_lib_locations">Download folders that exist</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /api/library/titles</code></td>
+                    <td>read</td>
+                    <td data-i18n="settings.api_lib_titles">Titles in one location</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /api/library/title?folder=</code></td>
+                    <td>read</td>
+                    <td data-i18n="settings.api_lib_title">Files of a single title</td>
+                  </tr>
+                  <tr>
+                    <td><code>POST /api/library/delete</code></td>
+                    <td>full</td>
+                    <td data-i18n="settings.api_lib_delete">Delete a title, season or episode</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /api/autosync/status</code></td>
+                    <td>full</td>
+                    <td data-i18n="settings.api_sync_status">Last run and its report</td>
+                  </tr>
+                  <tr>
+                    <td><code>POST /api/autosync/run</code></td>
+                    <td>full</td>
+                    <td data-i18n="settings.api_sync_run">Start a sync right now</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /api/settings</code></td>
+                    <td>full</td>
+                    <td data-i18n="settings.api_settings">Read the current settings</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
 
             <h3 data-i18n="settings.api_example_queue">Read the queue</h3>
@@ -689,15 +744,16 @@
           ]
         }'</code></pre>
             <p class="hint" data-i18n="settings.api_example_hint">
-              The episode URLs come from /api/episodes, and /api/providers tells you which hosters carry the language you
+              The episode URLs come from /api/episodes, and /api/providers tells you which hosters carry the language
+              you
               want. Add "custom_path_id" to send a download to one of your custom paths.
             </p>
           </details>
         </section>
       </section>
 
-      <section class="settings-pane" id="pane-integrations" role="tabpanel"
-        aria-labelledby="tab-integrations" tabindex="-1" hidden>
+      <section class="settings-pane" id="pane-integrations" role="tabpanel" aria-labelledby="tab-integrations"
+        tabindex="-1" hidden>
         <section class="card">
           <h2 data-i18n="settings.discord">Discord Request Bot</h2>
           <label class="checkbox">
@@ -723,8 +779,10 @@
             <label class="field">
               <span class="field-label" data-i18n="settings.discord.mode">Mode</span>
               <select id="discordMode">
-                <option value="standard" data-i18n="settings.discord.mode_standard">Standard (approve each request)</option>
-                <option value="advanced" data-i18n="settings.discord.mode_advanced">Advanced (queue immediately)</option>
+                <option value="standard" data-i18n="settings.discord.mode_standard">Standard (approve each request)
+                </option>
+                <option value="advanced" data-i18n="settings.discord.mode_advanced">Advanced (queue immediately)
+                </option>
               </select>
             </label>
             <label class="field">
@@ -754,7 +812,8 @@
             </label>
           </div>
           <p class="hint" data-i18n="settings.discord.announce_hint">
-            The requester is always DM'd when a download finishes. With an announce channel set, a "now available" message
+            The requester is always DM'd when a download finishes. With an announce channel set, a "now available"
+            message
             is posted there too.
           </p>
 
@@ -765,8 +824,8 @@
         </section>
       </section>
 
-      <section class="settings-pane" id="pane-administration" role="tabpanel"
-        aria-labelledby="tab-administration" tabindex="-1" hidden>
+      <section class="settings-pane" id="pane-administration" role="tabpanel" aria-labelledby="tab-administration"
+        tabindex="-1" hidden>
         <section class="card">
           <h2 data-i18n="settings.export">Export settings</h2>
           <p class="hint" data-i18n="settings.export_hint">
