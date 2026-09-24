@@ -331,6 +331,11 @@ def _season_episodes(provider, url, series_url):
 
     override_languages = SEASON_LANGUAGE_OVERRIDES.get(provider.name)
     season_languages = list(override_languages) if override_languages else None
+    episode_languages = {}
+    fallback_languages = None
+    fallback_languages_resolved = False
+    if provider.name == "SerienStream":
+        episode_languages = dict(getattr(season, "episode_languages", {}) or {})
     if season_languages is None and provider.name in SEASON_LEVEL_LANGUAGE_SITES:
         try:
             season_languages = list(getattr(season, "language_labels", []) or [])
@@ -342,6 +347,26 @@ def _season_episodes(provider, url, series_url):
     for episode in season.episodes:
         if season_languages is not None:
             languages = season_languages
+        elif provider.name == "SerienStream":
+            row_languages = episode_languages.get(episode.episode_number)
+            if row_languages is not None:
+                languages = list(row_languages)
+            else:
+                # Alternate/older pages may omit the row flags. Probe one
+                # episode at most and reuse its labels instead of requesting
+                # every episode page in the season.
+                if not fallback_languages_resolved:
+                    try:
+                        fallback_languages = media.language_labels(
+                            episode.provider_data
+                        )
+                    except Exception as exc:
+                        logger.warning(
+                            "SerienStream language detection failed: %s", exc
+                        )
+                        fallback_languages = ["German Dub"]
+                    fallback_languages_resolved = True
+                languages = fallback_languages
         else:
             languages = media.language_labels(episode.provider_data)
         if provider.name == "HanimeTV" and not languages:

@@ -761,8 +761,18 @@
     });
   });
 
-  function loadAllSeasons() {
-    return Promise.all(seasons.map((_, index) => loadEpisodes(index)));
+  async function loadAllSeasons() {
+    // Keep enough parallelism for a responsive modal without starting one
+    // source-site request per season at the same time as a background download.
+    let nextIndex = 0;
+    async function worker() {
+      while (nextIndex < seasons.length) {
+        const index = nextIndex++;
+        await loadEpisodes(index);
+      }
+    }
+    const workerCount = Math.min(2, seasons.length);
+    await Promise.all(Array.from({ length: workerCount }, () => worker()));
   }
 
   /* ===== Download ===== */

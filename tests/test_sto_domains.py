@@ -55,3 +55,23 @@ def test_unrelated_domains_are_not_extracted():
     assert series.season_count == 0
     assert season.episodes == []
     assert season.episode_count == 0
+
+
+def test_episode_languages_are_read_from_season_rows():
+    series = SerienstreamSeries("https://serienstream.to/serie/from")
+    season = SerienstreamSeason(f"{series.url}/staffel-1", series=series)
+    season._SerienstreamSeason__html = """
+        <tr class="episode-row">
+          <td><a href="/serie/from/staffel-1/episode-1">Episode 1</a></td>
+          <td><i class="svg-flag-german"></i><i class="svg-flag-english"></i></td>
+        </tr>
+        <tr class="episode-row active">
+          <td><a href="/serie/from/staffel-1/episode-2">Episode 2</a></td>
+          <td><i class="svg-flag-german"></i></td>
+        </tr>
+    """
+
+    assert season.episode_languages == {
+        1: ("German Dub", "English Dub"),
+        2: ("German Dub",),
+    }

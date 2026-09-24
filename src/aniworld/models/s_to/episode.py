@@ -21,7 +21,7 @@ from ..common.common import (
 from ..common.common import (
     watch as episode_watch,
 )
-from .http import sto_get, sto_host
+from .http import response_text, sto_get, sto_host
 
 
 # -----------------------------
@@ -454,7 +454,7 @@ class SerienstreamEpisode:
                 raise ValueError("Episode URL is missing for HTML fetch.")
             logger.debug(f"fetching ({self.url})...")
             resp = sto_get(self.url)
-            self.__html = resp.text
+            self.__html = response_text(resp, self.url)
         return self.__html
 
     # -----------------------------

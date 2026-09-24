@@ -3,7 +3,7 @@ from urllib.parse import urljoin
 
 from ...config import SERIENSTREAM_SEASON_PATTERN, STO_HOST_PATTERN, logger
 from ..common import run_each
-from .http import sto_get
+from .http import response_text, sto_get
 
 
 class SerienstreamSeason:
@@ -42,6 +42,7 @@ class SerienstreamSeason:
         self.__season_number = None
         self.__episode_count = None
         self.__episodes = None
+        self.__episode_languages = None
 
         self.__html = None
 
@@ -89,11 +90,18 @@ class SerienstreamSeason:
         return self.__episodes
 
     @property
+    def episode_languages(self):
+        """Language badges keyed by episode number, parsed from this page."""
+        if self.__episode_languages is None:
+            self.__episode_languages = self.__extract_episode_languages()
+        return self.__episode_languages
+
+    @property
     def _html(self):
         if self.__html is None:
             logger.debug(f"fetching ({self.url})...")
             resp = sto_get(self.url)
-            self.__html = resp.text
+            self.__html = response_text(resp, self.url)
         return self.__html
 
     # -----------------------------
@@ -155,6 +163,28 @@ class SerienstreamSeason:
             )
 
         return episode_list
+
+    def __extract_episode_languages(self):
+        """Read flags from episode rows without fetching every episode page."""
+        rows = re.findall(
+            r'<tr\b(?=[^>]*class=["\'][^"\']*\bepisode-row\b)[^>]*>.*?</tr>',
+            self._html,
+            re.IGNORECASE | re.DOTALL,
+        )
+        languages = {}
+        for row in rows:
+            match = re.search(r"/episode-(\d+)", row, re.IGNORECASE)
+            if not match:
+                continue
+            labels = []
+            lowered = row.lower()
+            if "svg-flag-german" in lowered:
+                labels.append("German Dub")
+            if "svg-flag-english" in lowered:
+                labels.append("English Dub")
+            if labels:
+                languages[int(match.group(1))] = tuple(labels)
+        return languages
 
     # -----------------------------
     # PUBLIC METHODS

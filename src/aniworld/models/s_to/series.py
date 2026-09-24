@@ -4,7 +4,7 @@ from urllib.parse import urljoin, urlparse
 
 from ...config import SERIENSTREAM_SERIES_PATTERN, STO_HOST_PATTERN, logger
 from ..common import clean_title
-from .http import sto_get
+from .http import response_text, sto_get
 
 
 class SerienstreamSeries:
@@ -168,7 +168,7 @@ class SerienstreamSeries:
         if self.__html is None:
             logger.debug(f"fetching ({self.url})...")
             resp = sto_get(self.url)
-            self.__html = resp.text
+            self.__html = response_text(resp, self.url)
         return self.__html
 
     # -----------------------------
