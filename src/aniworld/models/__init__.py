@@ -12,6 +12,7 @@ from .cineby import CinebyEpisode, CinebySeason, CinebySeries
 from .filmo_to import FilmoEpisode
 from .filmpalast_to import FilmPalastEpisode
 from .hanime_tv import HanimeTVEpisode, HanimeTVSeason, HanimeTVSeries
+from .hentai_tv import HentaiTVEpisode
 from .kinox import KinoxEpisode, KinoxSeason, KinoxSeries
 from .mangafire_to.series import MangaFireToChapter, MangaFireToPage, MangaFireToSeries
 from .megakino import MegaKinoEpisode
@@ -33,6 +34,7 @@ __all__ = [
     "HanimeTVEpisode",
     "HanimeTVSeason",
     "HanimeTVSeries",
+    "HentaiTVEpisode",
     "KinoxEpisode",
     "KinoxSeason",
     "KinoxSeries",

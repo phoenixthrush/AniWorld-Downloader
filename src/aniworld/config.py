@@ -435,6 +435,11 @@ HANIME_TV_SERIES_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+HENTAI_TV_EPISODE_PATTERN = re.compile(
+    r"^https?://(?:www\.)?hentai\.tv/hentai/[A-Za-z0-9-]+/?$",
+    re.IGNORECASE,
+)
+
 # serienstream.to went down at times; serienstream.cx and 186.2.175.5 are mirrors.
 
 # Reachable hosts, in preference order. The IP is a last resort and needs a Host
