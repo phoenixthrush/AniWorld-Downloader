@@ -409,43 +409,36 @@ def fetch_new_episodes():
     block_match = re.search(r'class="newEpisodeList">(.*)', html, re.DOTALL)
     search_html = block_match.group(1) if block_match else html
 
-    # Find all episode links with their surrounding context
-    episode_pattern = re.compile(
-        r'<a\s+href="(/anime/stream/[^"]+/staffel-(\d+)/episode-(\d+))"[^>]*>'
-        r"(.*?)</a>"
-        r'(.*?(?=<a\s+href="/anime/stream/|$))',
-        re.DOTALL,
-    )
-
     seen = {}
     ordered_urls = []
 
-    for m in episode_pattern.finditer(search_html):
-        path, season_str, episode_str, inner, after = m.groups()
+    # Process each episode row individually to prevent matching flags from adjacent episodes
+    rows = re.finditer(r'<div class="col-md-12">(.*?)</div>\s*</div>\s*</div>', search_html, re.DOTALL)
+
+    for row_match in rows:
+        row_html = row_match.group(1)
+
+        # 1. Extract link, season, and episode
+        link_match = re.search(r'<a\s+[^>]*?href="(?:https://aniworld\.to)?(/anime/stream/[^"]+/staffel-(\d+)/episode-(\d+))"[^>]*>', row_html)
+        if not link_match:
+            continue
+
+        path, season_str, episode_str = link_match.groups()
         url = f"https://aniworld.to{path}"
         season = int(season_str)
         episode = int(episode_str)
 
-        # Extract title from <strong>, unescaped so entities like &#039;
-        # do not end up in the title and stop it matching its own folder
-        title_match = re.search(r"<strong>(.*?)</strong>", inner, re.DOTALL)
+        # 2. Extract title
+        title_match = re.search(r"<strong>(.*?)</strong>", row_html, re.DOTALL)
         title = (
             " ".join(html_module.unescape(title_match.group(1)).split())
             if title_match
             else ""
         )
 
-        # Extract date from elementFloatRight span or last span
-        date_match = re.search(
-            r'<span[^>]*class="[^"]*elementFloatRight[^"]*"[^>]*>(.*?)</span>',
-            inner,
-        )
+        # 3. Extract date
+        date_match = re.search(r'<span[^>]*class="[^"]*elementFloatRight[^"]*"[^>]*>(.*?)</span>', row_html)
         date = date_match.group(1).strip() if date_match else ""
-
-        # Extract language from flag image data-src
-        context = inner + after
-        flag_match = re.search(r'data-src="[^"]*?/(\w[\w-]*)\.svg"', context)
-        language = flag_match.group(1) if flag_match else ""
 
         if url not in seen:
             seen[url] = {
@@ -458,8 +451,12 @@ def fetch_new_episodes():
             }
             ordered_urls.append(url)
 
-        if language and language not in seen[url]["languages"]:
-            seen[url]["languages"].append(language)
+        # 4. Extract all language flags in this specific row block
+        flags = re.finditer(r'<img[^>]+(?:src|data-src)="[^"]*?/(\w[\w-]*)\.svg"[^>]*>', row_html)
+        for flag_match in flags:
+            lang = flag_match.group(1)
+            if lang and lang not in seen[url]["languages"]:
+                seen[url]["languages"].append(lang)
 
     return [seen[url] for url in ordered_urls]
 
