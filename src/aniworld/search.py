@@ -430,6 +430,7 @@ def fetch_new_episodes():
 
         # 2. Extract title
         title_match = re.search(r"<strong>(.*?)</strong>", row_html, re.DOTALL)
+        import html as html_module
         title = (
             " ".join(html_module.unescape(title_match.group(1)).split())
             if title_match

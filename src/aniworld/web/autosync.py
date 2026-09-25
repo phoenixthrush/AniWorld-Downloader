@@ -251,14 +251,14 @@ def find_candidates():
         }
         seen = announced.get(series_url)
         if seen:
-            seen["new_episodes_with_langs"][entry["url"]] = labels
+            seen["new_episodes_with_langs"][entry["url"]] = set(labels)
             seen["new_languages"] |= labels
         else:
             announced[series_url] = {
                 "title": title,
                 "series_url": series_url,
-                "new_languages": labels,
-                "new_episodes_with_langs": {entry["url"]: labels},
+                "new_languages": set(labels),
+                "new_episodes_with_langs": {entry["url"]: set(labels)},
             }
 
     candidates = []
