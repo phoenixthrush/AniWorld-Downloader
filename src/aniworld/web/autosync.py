@@ -385,7 +385,8 @@ def _handle(candidate, provider_name):
     series = resolve_provider(series_url).series_cls(url=series_url)
     if autosync_new_only():
         valid_urls = [
-            url for url, langs in candidate.get("new_episodes_with_langs", {}).items()
+            url
+            for url, langs in candidate.get("new_episodes_with_langs", {}).items()
             if language in langs
         ]
         missing = _announced_episodes(valid_urls, have)
@@ -394,7 +395,8 @@ def _handle(candidate, provider_name):
         # Filter out episodes that are in the feed but lack the required language
         feed_episodes = candidate.get("new_episodes_with_langs", {})
         missing = [
-            url for url in missing
+            url
+            for url in missing
             if url not in feed_episodes or language in feed_episodes[url]
         ]
 

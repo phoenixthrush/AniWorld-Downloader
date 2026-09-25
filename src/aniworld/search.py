@@ -413,13 +413,18 @@ def fetch_new_episodes():
     ordered_urls = []
 
     # Process each episode row individually to prevent matching flags from adjacent episodes
-    rows = re.finditer(r'<div class="col-md-12">(.*?)</div>\s*</div>\s*</div>', search_html, re.DOTALL)
+    rows = re.finditer(
+        r'<div class="col-md-12">(.*?)</div>\s*</div>\s*</div>', search_html, re.DOTALL
+    )
 
     for row_match in rows:
         row_html = row_match.group(1)
 
         # 1. Extract link, season, and episode
-        link_match = re.search(r'<a\s+[^>]*?href="(?:https://aniworld\.to)?(/anime/stream/[^"]+/staffel-(\d+)/episode-(\d+))"[^>]*>', row_html)
+        link_match = re.search(
+            r'<a\s+[^>]*?href="(?:https://aniworld\.to)?(/anime/stream/[^"]+/staffel-(\d+)/episode-(\d+))"[^>]*>',
+            row_html,
+        )
         if not link_match:
             continue
 
@@ -431,6 +436,7 @@ def fetch_new_episodes():
         # 2. Extract title
         title_match = re.search(r"<strong>(.*?)</strong>", row_html, re.DOTALL)
         import html as html_module
+
         title = (
             " ".join(html_module.unescape(title_match.group(1)).split())
             if title_match
@@ -438,7 +444,9 @@ def fetch_new_episodes():
         )
 
         # 3. Extract date
-        date_match = re.search(r'<span[^>]*class="[^"]*elementFloatRight[^"]*"[^>]*>(.*?)</span>', row_html)
+        date_match = re.search(
+            r'<span[^>]*class="[^"]*elementFloatRight[^"]*"[^>]*>(.*?)</span>', row_html
+        )
         date = date_match.group(1).strip() if date_match else ""
 
         if url not in seen:
@@ -453,7 +461,9 @@ def fetch_new_episodes():
             ordered_urls.append(url)
 
         # 4. Extract all language flags in this specific row block
-        flags = re.finditer(r'<img[^>]+(?:src|data-src)="[^"]*?/(\w[\w-]*)\.svg"[^>]*>', row_html)
+        flags = re.finditer(
+            r'<img[^>]+(?:src|data-src)="[^"]*?/(\w[\w-]*)\.svg"[^>]*>', row_html
+        )
         for flag_match in flags:
             lang = flag_match.group(1)
             if lang and lang not in seen[url]["languages"]:
