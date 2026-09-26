@@ -255,22 +255,26 @@
   </div>
 </div>
 
+<script id="site-config" type="application/json">
+  {{ {
+    "SITE_LANGUAGES": {
+      "aniworld": lang_labels.values() | list,
+      "sto": sto_lang_labels.values() | list,
+      "megakino": megakino_lang_labels.values() | list,
+      "kinox": ["German Dub", "English Dub"],
+      "burningseries": ["German Dub", "English Dub"],
+      "filmpalast": ["German Dub", "English Dub"],
+      "moflix": ["German Dub"],
+      "filmo": ["German Dub", "English Dub"],
+      "cineby": ["English Dub", "German Dub"]
+    },
+    "DEFAULT_LANGUAGE": default_language,
+    "AUTOSYNC_ENABLED": autosync_enabled and is_admin,
+    "STATIC_PROVIDERS": supported_providers | list
+  } | tojson }}
+</script>
 <script>
-  window.SITE_LANGUAGES = {
-    aniworld: {{ lang_labels.values() | list | tojson }},
-  sto: { { sto_lang_labels.values() | list | tojson } },
-  megakino: { { megakino_lang_labels.values() | list | tojson } },
-  kinox: ["German Dub", "English Dub"],
-    burningseries: ["German Dub", "English Dub"],
-      filmpalast: ["German Dub", "English Dub"],
-        moflix: ["German Dub"],
-          filmo: ["German Dub", "English Dub"],
-            // Cineby only keeps German when /api/providers reports it for the title
-            cineby: ["English Dub", "German Dub"]
-  };
-  window.DEFAULT_LANGUAGE = {{ default_language | tojson }};
-  window.AUTOSYNC_ENABLED = {{ (autosync_enabled and is_admin) | tojson }};
-  window.STATIC_PROVIDERS = {{ supported_providers | list | tojson }};
+  Object.assign(window, JSON.parse(document.getElementById("site-config").textContent));
 </script>
 {% endblock %}
 
