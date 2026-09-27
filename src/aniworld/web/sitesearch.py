@@ -12,13 +12,9 @@ from ..logger import get_logger
 from ..models.mangafire_to.series import fetch_mangafire_genres
 from ..models.mangafire_to.series import search_series as query_mangafire
 from ..search import (
-    query as query_aniworld,
-)
-from ..search import (
     fetch_burningseries_genres,
     fetch_filmo_genres,
     fetch_filmpalast_genres,
-    fetch_genres as fetch_aniworld_genres,
     fetch_kinox_genres,
     fetch_megakino_genres,
     fetch_s_to_genres,
@@ -30,6 +26,12 @@ from ..search import (
     query_megakino,
     query_moflix,
     query_s_to,
+)
+from ..search import (
+    fetch_genres as fetch_aniworld_genres,
+)
+from ..search import (
+    query as query_aniworld,
 )
 
 logger = get_logger(__name__)
