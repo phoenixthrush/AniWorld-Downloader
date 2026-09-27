@@ -86,3 +86,28 @@ def test_ajax_top_100_uses_runtime_genre_and_default_headers(monkeypatch):
     assert request["headers"]["User-Agent"] == search.DEFAULT_USER_AGENT
     assert request["headers"]["Referer"] == "https://kinox.to/Genre/Action/Popular"
     assert "Cookie" not in request["headers"]
+
+
+def test_genres_come_from_the_genre_menu(monkeypatch):
+    calls = []
+    monkeypatch.setattr(series, "KINOX_DOMAIN", "kinox.example")
+    menu = (
+        '<a href="/Genre/Action">Action<span>3831</span></a>'
+        '<a href="/Genre/Sci-Fi">Science Fiction<span>30</span></a>'
+        # a genre nobody filled in prints its count and nothing else
+        '<a href="/Genre/Adult"><span>1</span></a>'
+        '<a href="/Genre/Action">Duplicate</a>'
+        '<a href="/Stream/movie-1.html">Not a genre</a>'
+    )
+
+    def get(url, **kwargs):
+        calls.append(url)
+        return SimpleNamespace(text=menu, raise_for_status=lambda: None)
+
+    monkeypatch.setattr(search.GLOBAL_SESSION, "get", get)
+    assert search.fetch_kinox_genres() == [
+        {"name": "Action", "slug": "Action"},
+        {"name": "Science Fiction", "slug": "Sci-Fi"},
+        {"name": "Adult", "slug": "Adult"},
+    ]
+    assert calls == ["https://kinox.example/"]

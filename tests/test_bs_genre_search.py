@@ -73,3 +73,24 @@ def test_genre_fetch_failure_is_not_hidden(monkeypatch):
     monkeypatch.setattr(bs, "bs_get_with_fallback", fetch)
     with pytest.raises(RuntimeError, match="Site unavailable"):
         search.query_burningseries(genre="Horror")
+
+
+def test_genre_names_are_listed_off_the_index(index):
+    assert search.fetch_burningseries_genres() == [
+        {"name": "Horror", "slug": "Horror"},
+        {"name": "Science-Fiction", "slug": "Science-Fiction"},
+    ]
+
+
+def test_listing_the_genres_reuses_the_cached_index(monkeypatch):
+    calls = []
+    monkeypatch.setattr(search, "_bs_index_cache", None)
+
+    def fetch(path):
+        calls.append(path)
+        return group("Horror", "Example")
+
+    monkeypatch.setattr(bs, "bs_get_with_fallback", fetch)
+    search.fetch_burningseries_genres()
+    search.query_burningseries(genre="Horror")
+    assert calls == ["/andere-serien"]

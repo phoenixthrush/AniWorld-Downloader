@@ -12,12 +12,12 @@ from ...logger import get_logger
 from ...models.mangafire_to.series import _get as get_mangafire
 from ...providers import resolve_provider
 from ...search import (
+    GENRE_PAGE_SIZE,
     fetch_burningseries_series,
     fetch_cineby_movies,
     fetch_filmo_movies,
     fetch_filmpalast_movies,
     fetch_genre_animes,
-    fetch_genres,
     fetch_kinox_movies,
     fetch_moflix_movies,
     fetch_new_animes,
@@ -511,18 +511,45 @@ def downloaded_folders():
 # Genres
 # ---------------------------------------------------------------------------
 def genres():
-    """The aniworld genre list for the discover row."""
-    results = _cached("genres", fetch_genres)
+    """The genre list for the discover row of whichever site is open."""
+    site = (request.args.get("site") or "aniworld").strip()
+    if site not in sitesearch.GENRE_SITES:
+        return jsonify({"genres": []})
+    results = _cached(f"genres:{site}", lambda: sitesearch.genres(site))
     if not results:
-        return jsonify({"error": "Failed to fetch genres"}), 500
+        return jsonify({"error": f"Failed to fetch genres for {site}"}), 500
     return jsonify({"genres": results})
 
 
+def _genre_page(site, slug, page):
+    """One page worth of a genre listing, plus whether another one follows.
+
+    AniWorld pages its own genre listing. The other sites hand back a single
+    flat list, so ask for one title more than the page needs: that both fills
+    the page and settles whether there is anything behind it.
+    """
+    if site == "aniworld":
+        return fetch_genre_animes(slug, page)
+
+    end = page * GENRE_PAGE_SIZE
+    results, has_more = sitesearch.genre_results(site, slug, end + 1)
+    return {
+        "results": [
+            {"title": item["title"], "url": item["url"], "poster_url": item["poster"]}
+            for item in results[end - GENRE_PAGE_SIZE : end]
+        ],
+        "has_more": has_more,
+    }
+
+
 def genre():
-    """One page of a genre listing, 30 animes per page."""
+    """One page of a genre listing, 30 titles per page."""
+    site = (request.args.get("site") or "aniworld").strip()
     slug = (request.args.get("slug") or "").strip()
     if not slug or any(char in slug for char in "/\\") or slug in {".", ".."}:
         return jsonify({"error": "Invalid genre slug"}), 400
+    if site not in sitesearch.GENRE_SITES:
+        return jsonify({"error": f"No genre listing for {site}"}), 400
 
     try:
         page = max(1, int(request.args.get("page", 1)))
@@ -531,8 +558,8 @@ def genre():
 
     try:
         data = _cached(
-            f"genre:{slug}:{page}",
-            lambda: fetch_genre_animes(slug, page),
+            f"genre:{site}:{slug}:{page}",
+            lambda: _genre_page(site, slug, page),
             raise_errors=True,
         )
     except HTTPError as exc:
@@ -541,6 +568,9 @@ def genre():
         return jsonify({"error": f"Failed to fetch genre {slug}"}), 502
     except RequestException:
         return jsonify({"error": f"Failed to fetch genre {slug}"}), 502
+    except ValueError:
+        # Sites that know their genres up front reject an unknown one outright
+        return jsonify({"error": f"Genre not available: {slug}"}), 404
     if data is None:
         return jsonify({"error": f"Failed to fetch genre {slug}"}), 500
 

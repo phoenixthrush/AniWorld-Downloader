@@ -148,10 +148,16 @@ def query_megakino(keyword="", *, genre=None, limit=None):
         if keyword:
             raise ValueError("Use either a keyword or a genre, not both.")
         page, base = _fetch_megakino_page(f"/{quote(genre, safe='')}/")
+        # Every genre page opens with the same promo row of 16 cards, the
+        # genre's own listing only starts at #dle-content. Cut the row off or
+        # each genre reads as the one before it — issue #317.
+        listing = re.search(r"\bid=[\"']dle-content[\"']", page)
         return limit_results(
             [
                 {"title": title, "url": url, "poster_url": poster}
-                for title, url, poster in _extract_megakino_cards(page, base)
+                for title, url, poster in _extract_megakino_cards(
+                    page[listing.start() :] if listing else page, base
+                )
             ],
             limit,
         )
@@ -927,6 +933,42 @@ class _StoSearchParser(HTMLParser):
             self.depth -= 1
 
 
+def _unique_genres(pairs):
+    """Turn (slug, label) matches into unique {"name", "slug"} genre entries.
+
+    Every site prints its genre menu as a list of links or options, only the
+    markup around them differs, so the fetchers below share the cleanup.
+    """
+    results = []
+    seen = set()
+    for slug, label in pairs:
+        slug = unquote(html_module.unescape(slug)).strip().rstrip("/")
+        name = html_module.unescape(re.sub(r"<[^>]+>", "", label)).strip()
+        if slug and slug not in seen:
+            seen.add(slug)
+            results.append({"name": name or slug, "slug": slug})
+    return results
+
+
+def fetch_s_to_genres():
+    """Fetch current genre names and slugs from serienstream.to's homepage.
+
+    The genre pages themselves do not link to their siblings, the footer does.
+    """
+    from .models.s_to.http import response_text, sto_get
+
+    url = "https://serienstream.to/"
+    response = sto_get(url)
+    response.raise_for_status()
+    return _unique_genres(
+        re.findall(
+            r'<a\b[^>]*href=["\'][^"\']*?/genre/([^"\'/?#]+)["\'][^>]*>(.*?)</a>',
+            response_text(response, url),
+            re.IGNORECASE | re.DOTALL,
+        )
+    )
+
+
 def query_s_to(
     keyword="",
     *,
@@ -1114,6 +1156,35 @@ def query_filmpalast(keyword="", *, genre=None, limit=None):
     return results
 
 
+def fetch_filmo_genres():
+    """Fetch Filmo's current genre IDs and names from the browse filters.
+
+    The slugs are the numeric IDs query_filmo() takes as genre_id.
+    """
+    base = "https://filmo.to"
+    response = GLOBAL_SESSION.get(
+        f"{base}/movies",
+        headers={"Accept-Encoding": "gzip, deflate", "Referer": f"{base}/"},
+        timeout=15,
+    )
+    response.raise_for_status()
+    options = re.search(
+        r'<select\b[^>]*\bname=["\']genre_id["\'][^>]*>(.*?)</select>',
+        response.text,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if not options:
+        return []
+    # The "Any" option carries an empty value and is left out by the \d+ match.
+    return _unique_genres(
+        re.findall(
+            r'<option\b[^>]*\bvalue=["\'](\d+)["\'][^>]*>(.*?)</option>',
+            options.group(1),
+            re.IGNORECASE | re.DOTALL,
+        )
+    )
+
+
 def query_filmo(
     keyword="",
     *,
@@ -1221,6 +1292,32 @@ def _parse_filmo_cards(page, base):
         results.append({"title": title, "url": movie_url, "poster_url": poster})
 
     return results
+
+
+def fetch_kinox_genres():
+    """Fetch current genre slugs and names from Kinox's genre menu."""
+    from .models.kinox.series import KINOX_DOMAIN
+
+    base = f"https://{KINOX_DOMAIN}"
+    response = GLOBAL_SESSION.get(
+        f"{base}/",
+        headers={
+            "User-Agent": DEFAULT_USER_AGENT,
+            "Accept-Encoding": "gzip, deflate",
+        },
+        timeout=15,
+    )
+    response.raise_for_status()
+    return _unique_genres(
+        # Each entry ends in a span with its title count, and a few carry
+        # nothing else, so those fall back to the slug as their name.
+        (slug, re.sub(r"<span\b.*?</span>", "", label, flags=re.DOTALL))
+        for slug, label in re.findall(
+            r'<a\b[^>]*href=["\'][^"\']*?/Genre/([^"\'/?#]+)["\'][^>]*>(.*?)</a>',
+            response.text,
+            re.IGNORECASE | re.DOTALL,
+        )
+    )
 
 
 def query_kinox(keyword="", *, genre=None, limit=None):
@@ -1344,6 +1441,27 @@ def query_kinox(keyword="", *, genre=None, limit=None):
 
 
 _bs_index_cache = None
+
+
+def fetch_burningseries_genres():
+    """Genre names off the BurningSeries index, in the site's own order.
+
+    query_burningseries() takes these names as its genre, and the index they
+    come from is the same one it searches, fetched once per process.
+    """
+    global _bs_index_cache
+    if _bs_index_cache is None:
+        from .models.burningseries.series import bs_get_with_fallback
+
+        _bs_index_cache = bs_get_with_fallback("/andere-serien")
+    return _unique_genres(
+        (name, name)
+        for name in re.findall(
+            r'<div\s+class=["\']genre["\']>\s*<span>\s*<strong>(.*?)</strong>',
+            _bs_index_cache,
+            re.IGNORECASE | re.DOTALL,
+        )
+    )
 
 
 def query_burningseries(keyword="", *, genre=None, limit=None):

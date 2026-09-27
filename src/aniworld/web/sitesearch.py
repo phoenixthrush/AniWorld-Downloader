@@ -7,12 +7,21 @@ come back.
 
 import re
 
+from ..extractors.provider.hanime_tv import fetch_hanime_genres, search_hanime
 from ..logger import get_logger
+from ..models.mangafire_to.series import fetch_mangafire_genres
 from ..models.mangafire_to.series import search_series as query_mangafire
 from ..search import (
     query as query_aniworld,
 )
 from ..search import (
+    fetch_burningseries_genres,
+    fetch_filmo_genres,
+    fetch_filmpalast_genres,
+    fetch_genres as fetch_aniworld_genres,
+    fetch_kinox_genres,
+    fetch_megakino_genres,
+    fetch_s_to_genres,
     query_burningseries,
     query_cineby,
     query_filmo,
@@ -53,6 +62,9 @@ _RELATIVE_SITES = {
 
 _ABSOLUTE_BASES = {"mangafire": "https://mangafire.to"}
 
+# hanime results are identified by a slug instead of a link of any kind.
+_SLUG_URLS = {"htv": "https://hanime.tv/videos/hentai/{slug}"}
+
 # Sites checked for a Discord request, in priority order. Kinox and Cineby carry
 # both movies and series, so they appear in both lists.
 SERIES_SITES = ("sto", "burningseries", "aniworld", "kinox", "cineby", "moflix")
@@ -76,17 +88,8 @@ def _poster(item):
     return ""
 
 
-def search(site, keyword):
-    """Run one site's search and return normalised [{title, url, poster}]."""
-    query = SITE_SEARCH.get(site)
-    if not query:
-        return []
-
-    try:
-        raw = query(keyword) or []
-    except Exception as exc:
-        logger.warning("Search on %s failed for '%s': %s", site, keyword, exc)
-        return []
+def _normalise(site, raw, fallback=""):
+    """Turn one site's raw hits into [{title, url, poster}], dropping the rest."""
     if isinstance(raw, dict):
         raw = [raw]
 
@@ -99,7 +102,7 @@ def search(site, keyword):
             continue
         results.append(
             {
-                "title": _clean_title(item.get("title") or item.get("name"), keyword),
+                "title": _clean_title(item.get("title") or item.get("name"), fallback),
                 "url": url,
                 "poster": _poster(item),
             }
@@ -107,7 +110,25 @@ def search(site, keyword):
     return results
 
 
+def search(site, keyword):
+    """Run one site's search and return normalised [{title, url, poster}]."""
+    query = SITE_SEARCH.get(site)
+    if not query:
+        return []
+
+    try:
+        raw = query(keyword) or []
+    except Exception as exc:
+        logger.warning("Search on %s failed for '%s': %s", site, keyword, exc)
+        return []
+    return _normalise(site, raw, keyword)
+
+
 def _resolve_url(site, item):
+    slug_url = _SLUG_URLS.get(site)
+    if slug_url and item.get("slug"):
+        return slug_url.format(slug=item["slug"])
+
     url = item.get("url")
     if url:
         base = _ABSOLUTE_BASES.get(site)
@@ -123,6 +144,76 @@ def _resolve_url(site, item):
         return link
     # Skip season/episode links, only series pages belong in results
     return base + link if pattern.match(link) else None
+
+
+def _hanime_genres():
+    """hanime browses by plain tag names, so the label is also the slug."""
+    return [{"name": tag, "slug": tag} for tag in fetch_hanime_genres()]
+
+
+def _mangafire_genres():
+    """MangaFire filters by the numeric genre ID its own filters are built on."""
+    return [
+        {"name": item["name"], "slug": str(item["id"])}
+        for item in fetch_mangafire_genres()
+    ]
+
+
+# Every site whose genre listing the Web UI can offer. Cineby and Moflix have no
+# genre pages of their own, so they are simply absent.
+GENRE_LISTS = {
+    "aniworld": fetch_aniworld_genres,
+    "sto": fetch_s_to_genres,
+    "burningseries": fetch_burningseries_genres,
+    "megakino": fetch_megakino_genres,
+    "kinox": fetch_kinox_genres,
+    "filmpalast": fetch_filmpalast_genres,
+    "filmo": fetch_filmo_genres,
+    "htv": _hanime_genres,
+    "mangafire": _mangafire_genres,
+}
+
+GENRE_SITES = tuple(GENRE_LISTS)
+
+# AniWorld is missing here on purpose: the site pages its own genre listing, so
+# it goes through fetch_genre_animes(). Everything else returns one flat list
+# that limit cuts off, and the caller slices it into pages.
+GENRE_QUERIES = {
+    "sto": lambda genre, limit: query_s_to(genre=genre, limit=limit),
+    "burningseries": lambda genre, limit: query_burningseries(genre=genre, limit=limit),
+    "megakino": lambda genre, limit: query_megakino(genre=genre, limit=limit),
+    "kinox": lambda genre, limit: query_kinox(genre=genre, limit=limit),
+    "filmpalast": lambda genre, limit: query_filmpalast(genre=genre, limit=limit),
+    "filmo": lambda genre, limit: query_filmo(genre_id=genre, limit=limit),
+    "htv": lambda genre, limit: search_hanime(genre=genre, limit=limit),
+    "mangafire": lambda genre, limit: query_mangafire(genre=genre, limit=limit),
+}
+
+
+def genres(site):
+    """The genre chips for a site, as [{name, slug}]."""
+    fetch = GENRE_LISTS.get(site)
+    return fetch() if fetch else []
+
+
+def genre_results(site, genre, limit):
+    """Browse one site's genre, normalised like a search result.
+
+    Returns (results, has_more). The flag counts the site's own hits, before
+    normalising drops the ones the app cannot open afterwards: serienstream
+    lists the odd title under a slug no provider pattern accepts, and a single
+    one of those would otherwise read as the end of the listing.
+
+    Failures propagate on purpose: an empty genre is worth telling apart from a
+    site that would not answer, which a browse row cannot do.
+    """
+    query = GENRE_QUERIES.get(site)
+    if not query:
+        return [], False
+    raw = query(genre, limit) or []
+    if isinstance(raw, dict):
+        raw = [raw]
+    return _normalise(site, raw), len(raw) >= limit
 
 
 def aggregate(title, media_type, per_site=8, limit=25):

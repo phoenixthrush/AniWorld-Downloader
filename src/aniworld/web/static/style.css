@@ -918,6 +918,12 @@ body[data-site="htv"] {
   gap: 8px;
 }
 
+/* Stands in for the chips while a site's genre list is on its way */
+.genre-hint {
+  font-size: 0.82rem;
+  color: var(--text-faint);
+}
+
 .genre-chip {
   padding: 6px 14px;
   border: 1px solid var(--border);

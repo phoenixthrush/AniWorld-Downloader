@@ -223,25 +223,33 @@
   });
 
   /* ===== Genres =====
-     Only aniworld has genre pages. Picking one takes over the results grid so
-     the chips stay reachable and you can hop straight to the next genre. */
-  let genresLoaded = false;
+     Every site that has genre pages of its own gets the chip bar, GENRE_SITES
+     says which those are. Picking a genre takes over the results grid so the
+     chips stay reachable and you can hop straight to the next one. */
+  const genreChips = {};
   let activeGenre = null;
+  let activeGenreSite = null;
   let genrePage = 1;
   let genreItems = [];
   let genreLoading = false;
 
   function updateGenreBar() {
-    genreBar.hidden = currentSite !== "aniworld";
-    if (!genreBar.hidden) loadGenres();
+    genreList.innerHTML = "";
+    genreBar.hidden = !(window.GENRE_SITES || []).includes(currentSite);
+    if (!genreBar.hidden) loadGenres(currentSite);
   }
 
-  async function loadGenres() {
-    if (genresLoaded) return;
-    genresLoaded = true;
+  async function loadGenres(site) {
+    if (genreChips[site]) {
+      genreList.innerHTML = genreChips[site];
+      return;
+    }
+
+    genreList.innerHTML =
+      `<span class="genre-hint">${t("common.loading", "Loading...")}</span>`;
     try {
-      const data = await apiFetch("/api/genres");
-      genreList.innerHTML = (data.genres || [])
+      const data = await apiFetch(`/api/genres?site=${encodeURIComponent(site)}`);
+      genreChips[site] = (data.genres || [])
         .map(
           (genre) =>
             `<button type="button" class="genre-chip" role="listitem"
@@ -249,13 +257,20 @@
         )
         .join("");
     } catch (error) {
-      genresLoaded = false;
-      genreBar.hidden = true;
+      // the bar is a shortcut, not the only way in, so it steps aside quietly
+      if (site === currentSite) {
+        genreList.innerHTML = "";
+        genreBar.hidden = true;
+      }
+      return;
     }
+    // a slow list can land after the user already moved on to another site
+    if (site === currentSite) genreList.innerHTML = genreChips[site];
   }
 
   function resetGenre() {
     activeGenre = null;
+    activeGenreSite = null;
     genreItems = [];
     genreMore.hidden = true;
     genreList
@@ -263,9 +278,11 @@
       .forEach((chip) => chip.classList.remove("active"));
   }
 
+  // Back to the site's default view: no genre open, chips and browse rows back
   function clearGenre() {
     resetGenre();
     resultsGrid.innerHTML = "";
+    updateGenreBar();
     showBrowseRows();
   }
 
@@ -279,6 +296,7 @@
     }
     resetGenre();
     activeGenre = chip.dataset.slug;
+    activeGenreSite = currentSite;
     chip.classList.add("active");
     searchInput.value = "";
     browse.hidden = true;
@@ -291,19 +309,23 @@
   async function loadGenrePage(page) {
     if (genreLoading || !activeGenre) return;
     const slug = activeGenre;
+    const site = activeGenreSite;
     genreLoading = true;
     genreMoreBtn.disabled = true;
     if (page === 1) searchSpinner.classList.add("active");
 
     try {
       const data = await apiFetch(
-        `/api/genre?slug=${encodeURIComponent(slug)}&page=${page}`
+        `/api/genre?site=${encodeURIComponent(site)}` +
+          `&slug=${encodeURIComponent(slug)}&page=${page}`
       );
       // a slow page 1 can land after the user already picked another genre
-      if (slug !== activeGenre) return;
+      if (slug !== activeGenre || site !== activeGenreSite) return;
       genrePage = page;
       genreItems = genreItems.concat(data.results || []);
       renderCards(resultsGrid, genreItems);
+      // serienstream and burningseries list no posters, fill them in per card
+      loadMissingPosters();
       genreMore.hidden = !data.has_more;
     } catch (error) {
       showToast(`${t("browse.genre_failed", "Could not load genre")}: ${error.message}`);
@@ -318,12 +340,16 @@
   /* ===== Search ===== */
   async function doSearch() {
     const keyword = searchInput.value.trim();
+    // submitting an empty box is the way back out of a search
     if (!keyword) {
       clearGenre();
       return;
     }
 
     resetGenre();
+    // the chips discover what a site has, a hit list is not that, so they go
+    // with the browse rows and come back with them
+    genreBar.hidden = true;
     searchBtn.disabled = true;
     searchSpinner.classList.add("active");
     resultsGrid.innerHTML = "";
@@ -341,16 +367,26 @@
     }
   }
 
-  // serienstream search gives no posters, fetch them per card
+  // serienstream and burningseries give no posters, fetch them per card. One
+  // request per card is enough of a round trip to keep the answers around: a
+  // genre's "Load more" re-renders every card that is already on screen.
+  const posterCache = {};
+
   function loadMissingPosters() {
     resultsGrid.querySelectorAll(".poster-card").forEach(async (card) => {
       const image = card.querySelector("img");
       if (image.getAttribute("src")) return;
+      const url = card.dataset.url;
+      if (posterCache[url]) {
+        image.src = posterCache[url];
+        return;
+      }
       try {
-        const data = await apiFetch(
-          `/api/series?url=${encodeURIComponent(card.dataset.url)}`
-        );
-        if (data.poster_url) image.src = data.poster_url;
+        const data = await apiFetch(`/api/series?url=${encodeURIComponent(url)}`);
+        if (data.poster_url) {
+          posterCache[url] = data.poster_url;
+          image.src = data.poster_url;
+        }
       } catch (e) {
         /* a missing poster is not worth reporting */
       }

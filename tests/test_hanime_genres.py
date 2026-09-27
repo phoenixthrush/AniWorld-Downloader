@@ -22,7 +22,7 @@ def test_genres_are_fetched_and_decoded(monkeypatch):
 
     monkeypatch.setattr(hanime_tv, "_request_hanime", request)
     assert hanime_tv.fetch_hanime_genres() == ["fantasy", "new tag", "action & comedy"]
-    assert calls == ["https://hanime.tv"]
+    assert calls == ["https://hanime.tv/browse/tags"]
 
 
 def test_missing_tag_menu(monkeypatch):

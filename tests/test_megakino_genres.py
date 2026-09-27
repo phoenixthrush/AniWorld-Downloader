@@ -59,6 +59,18 @@ def test_genre_results_use_current_domain(page_session):
     assert results[0]["url"] == "https://megakino.example/films/123-example.html"
 
 
+def test_the_promo_row_above_the_listing_is_skipped(page_session):
+    """Every genre page opens with the same promo cards - issue #317."""
+    calls, pages = page_session
+    pages.append("""<a class="poster" href="/films/1-promo.html">
+        <h3 class="poster__title">Promoted Everywhere</h3></a>
+        <div class="sect__content"><div id="dle-content">
+        <a class="poster" href="/films/2-real.html">
+        <h3 class="poster__title">In The Genre</h3></a></div></div>""")
+    results = search.query_megakino(genre="horror")
+    assert [result["title"] for result in results] == ["In The Genre"]
+
+
 def test_token_redirect_is_retried(page_session):
     calls, pages = page_session
     pages.extend(["location.replace('/index.php?yg=token')", ""])

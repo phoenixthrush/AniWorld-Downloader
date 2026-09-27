@@ -35,6 +35,7 @@ HANIME_BASE_URL = "https://hanime.tv"
 HANIME_VIDEO_URL = f"{HANIME_BASE_URL}/videos/hentai/{{slug}}"
 HANIME_SITEMAP_URL = f"{HANIME_BASE_URL}/sitemap.xml"
 HANIME_TRENDING_URL = f"{HANIME_BASE_URL}/browse/trending"
+HANIME_TAGS_URL = f"{HANIME_BASE_URL}/browse/tags"
 
 _HANIME_HEADERS = {
     "User-Agent": DEFAULT_USER_AGENT,
@@ -536,8 +537,12 @@ def search_hanime(keyword="", limit=24, *, genre=None, sort=None):
 
 
 def fetch_hanime_genres():
-    """Fetch the currently available genre tags from Hanime's homepage."""
-    page = _request_hanime(HANIME_BASE_URL).text
+    """Fetch the currently available genre tags from Hanime's browse page.
+
+    The homepage only links the handful of tags it happens to promote, the
+    browse page lists them all.
+    """
+    page = _request_hanime(HANIME_TAGS_URL).text
     tags = re.findall(
         r"<a\b[^>]*href=[\"']/(?:browse/)?tags/([^\"'?#]+)[\"']",
         page,

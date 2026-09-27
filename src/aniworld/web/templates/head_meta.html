@@ -1,6 +1,7 @@
 {% set meta_title = meta_title | default('AniWorld Downloader') %}
 {% set meta_description = meta_description | default('AniWorld Downloader Web UI') %}
 {% set meta_image = url_for('static', filename='og-image.png', _external=True) ~ '?v=' ~ app_version %}
+<meta name="darkreader-lock" />
 <link rel="icon" type="image/png" sizes="512x512"
     href="{{ url_for('static', filename='favicon.png') }}?v={{ app_version }}" />
 <link rel="icon" type="image/webp" sizes="512x512"

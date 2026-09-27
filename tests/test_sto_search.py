@@ -4,7 +4,7 @@ import niquests
 import pytest
 
 from aniworld.models.s_to import http
-from aniworld.search import query_s_to
+from aniworld.search import fetch_s_to_genres, query_s_to
 
 
 def search_page(*slugs, next_url=None):
@@ -146,3 +146,18 @@ def test_optional_genre_filters(monkeypatch, value):
         == []
     )
     assert calls == [("https://serienstream.to/genre/horror", {"params": {}})]
+
+
+def test_genres_come_from_the_homepage(monkeypatch):
+    calls = mock_pages(
+        monkeypatch,
+        '<a href="/genre/abenteuer">Abenteuer</a>'
+        '<a href="/genre/science-fiction">Science Fiction</a>'
+        '<a href="/genre/abenteuer">Abenteuer</a>'
+        '<a href="/serie/some-show">Not a genre</a>',
+    )
+    assert fetch_s_to_genres() == [
+        {"name": "Abenteuer", "slug": "abenteuer"},
+        {"name": "Science Fiction", "slug": "science-fiction"},
+    ]
+    assert calls[0][0] == "https://serienstream.to/"

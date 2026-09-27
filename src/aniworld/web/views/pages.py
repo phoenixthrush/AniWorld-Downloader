@@ -13,7 +13,7 @@ from flask import (
 )
 
 from ...config import ANIWORLD_CONFIG_DIR, LANG_LABELS
-from .. import paths, settings_store, theming
+from .. import paths, settings_store, sitesearch, theming
 from ..media import WORKING_PROVIDERS
 
 bp = Blueprint("pages", __name__)
@@ -68,6 +68,7 @@ def index():
         supported_providers=WORKING_PROVIDERS,
         default_language=settings_store.default_language(),
         sites=settings_store.enabled_sites(),
+        genre_sites=sitesearch.GENRE_SITES,
     )
 
 

@@ -108,13 +108,13 @@ def test_every_library_endpoint_closes_when_the_library_is_off(client, monkeypat
 # ---------------------------------------------------------------------------
 @pytest.fixture
 def genres(monkeypatch):
-    from aniworld import search
+    from aniworld.web import sitesearch
 
     listing = [
         {"name": "Action", "slug": "action"},
         {"name": "Mecha", "slug": "mecha"},
     ]
-    monkeypatch.setattr(api_media, "fetch_genres", lambda: listing)
+    monkeypatch.setattr(sitesearch, "genres", lambda site: listing)
 
     pages = {}
 
@@ -122,7 +122,6 @@ def genres(monkeypatch):
         return pages.get((slug, page))
 
     monkeypatch.setattr(api_media, "fetch_genre_animes", fetch)
-    assert search is not None
     return pages
 
 
@@ -217,6 +216,105 @@ def test_different_pages_are_cached_separately(client, genres, monkeypatch):
     client.get("/api/genre?slug=mecha&page=1")
     client.get("/api/genre?slug=mecha&page=2")
     assert calls == [("mecha", 1), ("mecha", 2)]
+
+
+def test_a_site_without_genre_pages_offers_none(client):
+    assert client.get("/api/genres?site=cineby").get_json() == {"genres": []}
+    assert client.get("/api/genre?site=cineby&slug=action").status_code == 400
+
+
+def test_the_genre_list_is_cached_per_site(client, monkeypatch):
+    from aniworld.web import sitesearch
+
+    calls = []
+
+    def listing(site):
+        calls.append(site)
+        return [{"name": "Horror", "slug": "horror"}]
+
+    monkeypatch.setattr(sitesearch, "genres", listing)
+    client.get("/api/genres?site=kinox")
+    client.get("/api/genres?site=kinox")
+    client.get("/api/genres?site=megakino")
+    assert calls == ["kinox", "megakino"], "only the second kinox call is cached"
+
+
+@pytest.fixture
+def flat_listing(monkeypatch):
+    """Every site but aniworld hands back one list instead of pages."""
+    from aniworld.web import sitesearch
+
+    calls = []
+    titles = [
+        {"title": f"Movie {n}", "url": f"https://kinox.to/{n}.html", "poster": ""}
+        for n in range(100)
+    ]
+
+    def results(site, genre, limit):
+        calls.append((site, genre, limit))
+        page = titles[:limit]
+        return page, len(page) >= limit
+
+    monkeypatch.setattr(sitesearch, "genre_results", results)
+    return calls
+
+
+def test_a_flat_listing_is_sliced_into_pages(client, flat_listing):
+    body = client.get("/api/genre?site=kinox&slug=Horror&page=2").get_json()
+    # one title past the page, which is what settles has_more
+    assert flat_listing == [("kinox", "Horror", 61)]
+    assert [item["title"] for item in body["results"]] == [
+        f"Movie {n}" for n in range(30, 60)
+    ]
+    assert body["has_more"] is True
+
+
+def test_the_end_of_a_flat_listing_reports_no_more(client, monkeypatch):
+    from aniworld.web import sitesearch
+
+    monkeypatch.setattr(
+        sitesearch,
+        "genre_results",
+        lambda site, genre, limit: (
+            [{"title": "Nosferatu", "url": "https://x/1", "poster": "https://x/p.jpg"}],
+            False,
+        ),
+    )
+    body = client.get("/api/genre?site=megakino&slug=horror").get_json()
+    assert body["has_more"] is False
+    assert body["results"][0]["poster_url"].startswith("/api/proxy-image?url=")
+
+
+def test_a_full_page_the_site_could_not_fill_still_offers_more(client, monkeypatch):
+    """A title normalising away must not read as the end of the listing."""
+    from aniworld.web import sitesearch
+
+    monkeypatch.setattr(
+        sitesearch,
+        "genre_results",
+        lambda site, genre, limit: (
+            [
+                {"title": f"Show {n}", "url": f"https://x/{n}", "poster": ""}
+                for n in range(limit - 1)
+            ],
+            True,
+        ),
+    )
+    body = client.get("/api/genre?site=sto&slug=horror").get_json()
+    assert len(body["results"]) == 30
+    assert body["has_more"] is True
+
+
+def test_a_genre_a_site_does_not_have_is_a_404(client, monkeypatch):
+    from aniworld.web import sitesearch
+
+    def results(site, genre, limit):
+        raise ValueError(f"BurningSeries genre not available: {genre}")
+
+    monkeypatch.setattr(sitesearch, "genre_results", results)
+    response = client.get("/api/genre?site=burningseries&slug=missing")
+    assert response.status_code == 404
+    assert response.get_json()["error"] == "Genre not available: missing"
 
 
 # ---------------------------------------------------------------------------

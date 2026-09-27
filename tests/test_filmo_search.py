@@ -82,3 +82,23 @@ def test_browse_http_errors_propagate(monkeypatch):
     monkeypatch.setattr(search.GLOBAL_SESSION, "get", lambda *args, **kwargs: response)
     with pytest.raises(niquests.exceptions.HTTPError):
         search.query_filmo(genre_id=999)
+
+
+def test_genres_come_from_the_browse_filter(monkeypatch):
+    calls = mock_pages(
+        monkeypatch,
+        '<select name="sort"><option value="title_asc">Title</option></select>'
+        '<select name="genre_id"><option value="">Any</option>'
+        '<option value="1" >Action</option>'
+        '<option value="11" >Horror</option></select>',
+    )
+    assert search.fetch_filmo_genres() == [
+        {"name": "Action", "slug": "1"},
+        {"name": "Horror", "slug": "11"},
+    ]
+    assert calls[0][0] == "https://filmo.to/movies"
+
+
+def test_no_genre_filter_on_the_page_is_an_empty_list(monkeypatch):
+    mock_pages(monkeypatch, "<p>nothing to filter by</p>")
+    assert search.fetch_filmo_genres() == []
