@@ -19,7 +19,6 @@ from ..search import (
     fetch_megakino_genres,
     fetch_s_to_genres,
     query_burningseries,
-    query_cineby,
     query_filmo,
     query_filmpalast,
     query_kinox,
@@ -45,7 +44,6 @@ SITE_SEARCH = {
     "filmpalast": query_filmpalast,
     "filmo": query_filmo,
     "burningseries": query_burningseries,
-    "cineby": query_cineby,
     "mangafire": query_mangafire,
 }
 
@@ -67,10 +65,10 @@ _ABSOLUTE_BASES = {"mangafire": "https://mangafire.to"}
 # hanime results are identified by a slug instead of a link of any kind.
 _SLUG_URLS = {"htv": "https://hanime.tv/videos/hentai/{slug}"}
 
-# Sites checked for a Discord request, in priority order. Kinox and Cineby carry
-# both movies and series, so they appear in both lists.
-SERIES_SITES = ("sto", "burningseries", "aniworld", "kinox", "cineby", "moflix")
-MOVIE_SITES = ("megakino", "cineby", "filmpalast", "filmo", "kinox", "moflix")
+# Sites checked for a Discord request, in priority order. Kinox carries both
+# movies and series, so it appears in both lists.
+SERIES_SITES = ("sto", "burningseries", "aniworld", "kinox", "moflix")
+MOVIE_SITES = ("megakino", "filmpalast", "filmo", "kinox", "moflix")
 
 
 def sites_for(media_type):
@@ -161,8 +159,8 @@ def _mangafire_genres():
     ]
 
 
-# Every site whose genre listing the Web UI can offer. Cineby and Moflix have no
-# genre pages of their own, so they are simply absent.
+# Every site whose genre listing the Web UI can offer. Moflix has no genre pages
+# of its own, so it is simply absent.
 GENRE_LISTS = {
     "aniworld": fetch_aniworld_genres,
     "sto": fetch_s_to_genres,

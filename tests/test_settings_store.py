@@ -100,15 +100,14 @@ def test_which_sites_a_fresh_install_shows():
         "burningseries": False,
         "filmpalast": True,
         "filmo": True,
-        "cineby": False,
         "moflix": True,
     }
 
 
 def test_a_site_reads_back_out_of_the_settings():
-    update_settings({"enable_cineby": False})
+    update_settings({"enable_megakino": False})
     settings = settings_store.read_settings()
-    assert settings["enable_cineby"] is False
+    assert settings["enable_megakino"] is False
     assert settings["enable_aniworld"] is True
 
 

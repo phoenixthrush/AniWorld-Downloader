@@ -43,7 +43,6 @@
     burningseries: "Search BurningSeries...",
     megakino: "Search MegaKino...",
     moflix: "Search Moflix...",
-    cineby: "Search Cineby...",
     kinox: "Search Kinox...",
     filmpalast: "Search FilmPalast...",
     filmo: "Search Filmo...",

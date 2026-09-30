@@ -968,7 +968,7 @@ _HLS_MEDIA_EXTS = (".ts", ".m4s", ".mp4", ".m4a", ".m4v", ".aac", ".mp3", ".mov"
 def _fetch_hls_segment(session, seg_url, headers, hosts, timeout=90):
     """Download one HLS segment, failing over across mirror hosts.
 
-    cineby serves every segment from a rotating pool of mirror hosts that all
+    Some hosters serve segments from a rotating pool of mirror hosts that all
     return byte-identical content, so a single host's transient failure (e.g. a
     Cloudflare 522 origin timeout) no longer has to abort the whole download — we
     retry the same path on the other mirrors (two passes, short backoff) before
@@ -1006,7 +1006,7 @@ def _hls_uris(playlist, base_url):
 def _download_hls_manual(m3u8_url, headers, temp_ts, label=""):
     """Fetch an HLS media playlist's segments over plain HTTP into `temp_ts`.
 
-    Some hosters (cineby) disguise their segments with non-media extensions
+    Some hosters disguise their segments with non-media extensions
     (`.jpg`, `.css`, `.txt`) served from rotating hosts. Strict FFmpeg builds
     refuse those through the HLS demuxer even with `-allowed_extensions ALL`, so
     we bypass the demuxer entirely: download each segment ourselves (they are
@@ -1092,7 +1092,7 @@ def _download_hls_manual(m3u8_url, headers, temp_ts, label=""):
 def _hls_rendition_download(stream_url, temp_prefix, headers, audio_code, ep_label):
     """Fetch an HLS stream, selecting the ``audio_code`` audio rendition.
 
-    Used when the wanted audio (e.g. a German dub on cineby) is a *separate*
+    Used when the wanted audio is a *separate*
     ``#EXT-X-MEDIA:TYPE=AUDIO`` rendition inside a multi-audio master rather than
     the muxed default — the plain FFmpeg/manual paths would grab the default
     track instead. Returns ``(video_path, audio_path)`` (``audio_path`` is None
@@ -1198,7 +1198,7 @@ def download(self):
                     "reconnect_streamed": 1,
                     "reconnect_delay_max": 30,  # wait up to 30s for connection recovery
                 }
-                # Cineby (and some other hosters) disguise their HLS segments with
+                # Some hosters disguise their HLS segments with
                 # non-.ts extensions like .jpg; ffmpeg 7+ refuses those by default
                 # ("not in allowed_segment_extensions"), so allow every segment
                 # extension for m3u8 inputs.
@@ -1255,7 +1255,7 @@ def download(self):
 
                 full_stream_needed = need_audio and need_video
 
-                # Some providers (cineby's German dub) serve the wanted audio as
+                # Some providers serve the wanted audio as
                 # a separate HLS rendition rather than the muxed default; the
                 # episode opts into rendition-aware fetching so we pick the right
                 # track instead of the default one.

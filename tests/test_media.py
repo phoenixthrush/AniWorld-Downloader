@@ -300,7 +300,7 @@ def test_one_flag_does_not_turn_on_the_other(client, monkeypatch):
 def test_hiding_a_tab_leaves_its_neighbours_alone(client):
     """The browse rows sit in one list, so a bad {% if %} would swallow them."""
     body = client.get("/").get_data(as_text=True)
-    assert 'data-row="cineby_movies"' not in body
+    assert 'data-row="kinox_movies"' not in body
     for row in (
         "popular_movies",
         "filmpalast_movies",

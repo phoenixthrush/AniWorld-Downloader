@@ -34,7 +34,7 @@ def _moflix_api(monkeypatch, *, series=False):
         {"name": "Mirror 1", "src": "https://gupload.xyz/e/first"},
         {"name": "Mirror 2", "src": "https://moflix-stream.click/embed/second"},
         {"name": "Mirror 3", "src": "https://moflix.upns.xyz/e/not-voe"},
-        {"name": "Mirror 4", "src": "https://streamtape.com/e/unimplemented"},
+        {"name": "Mirror 4", "src": "https://unsupported.example/e/unimplemented"},
     ]
 
     def fetch(url, *args, **kwargs):
@@ -130,7 +130,8 @@ def test_mirror_names_are_not_mistaken_for_other_hosters():
     assert host_to_provider("moflix-stream.click") == "MoflixClick"
     assert host_to_provider("vidara.to") == "Vidara"
     assert host_to_provider("moflix.upns.xyz") is None
-    assert host_to_provider("streamtape.com") is None
+    assert host_to_provider("unsupported.example") is None
+    assert host_to_provider("unsupported.example", require_extractor=False) is None
 
 
 def test_moflix_fallback_uses_the_matching_extractor(monkeypatch):

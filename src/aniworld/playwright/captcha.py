@@ -5,7 +5,7 @@ PD-Codes — the hardened detection/solving logic below (ad-overlay defence,
 network ad-blocking, fingerprint hardening, multi-widget challenge solver)
 originates there and was adapted to this project (env vars renamed
 MEDIAFORGE_* -> ANIWORLD_*, DNS-routing dropped, AniWorld-Downloader-only
-helpers such as the hanime/cineby stream sniffers kept as-is).
+helpers such as the hanime stream sniffer kept as-is).
 
 Streaming sites fronted by Cloudflare (serienstream.to, aniworld.to,
 filmpalast.to, ...) occasionally serve a Turnstile challenge instead of the
@@ -21,8 +21,8 @@ context to solve it:
   - solve_sto_modal(): serienstream.to-specific flow that clicks a provider's
     play button to trigger its in-page Turnstile modal, then extracts the
     resulting player-iframe URL (e.g. voe.sx/e/...).
-  - playwright_get_iframe_url() / playwright_get_hanime_stream_url() /
-    playwright_get_cineby_stream_url(): background stream-URL sniffers for
+  - playwright_get_iframe_url() / playwright_get_hanime_stream_url():
+    background stream-URL sniffers for
     providers whose embed only exists after client-side JS runs. Not part of
     the captcha solver proper, kept here for historical reasons.
 
@@ -68,8 +68,6 @@ _KNOWN_PROVIDER_NETLOCS = {
     "voe.sx",
     "vidoza.net",
     "vidoza.to",
-    "streamtape.com",
-    "streamtape.to",
     "doodstream.com",
     "dood.to",
     "dood.watch",
@@ -78,9 +76,7 @@ _KNOWN_PROVIDER_NETLOCS = {
     "vidmoly.to",
     "vidmoly.net",
     "vidmoly.biz",
-    "luluvdo.com",
     "vidara.to",
-    "veev.to",
 }
 
 # JavaScript that removes transparent full-viewport overlay <a> elements.
@@ -1988,80 +1984,6 @@ def playwright_get_hanime_stream_url(url: str) -> str:
         "videos_manifest": _parse_hanime_manifest_token(token),
     }
     return get_direct_link_from_hanime_tv(api_data)
-
-
-def playwright_get_cineby_stream_url(url: str, timeout: int = 40) -> str:
-    """Open the vidking player embed and capture the playable HLS (m3u8) URL.
-
-    cineby embeds the vidking player (`vidking.net/embed/...`), which resolves
-    the stream client-side from an encrypted source API. `url` is the vidking
-    embed URL — a bare player page that autoplays, so a single click plus
-    `video.play()` reliably makes it request the `index.m3u8` we capture. This
-    is far more dependable than driving cineby's full SPA (Cloudflare + a finicky
-    play button).
-    """
-    try:
-        from patchright.sync_api import sync_playwright
-    except ImportError:
-        raise RuntimeError(
-            "patchright is not installed. Install it with: "
-            "pip install patchright && patchright install chromium"
-        )
-
-    from ..logger import get_logger
-
-    logger = get_logger(__name__)
-    final_url = None
-
-    try:
-        with sync_playwright() as p:
-            _handle = _launch_browser_context(p, offscreen=True)
-            context = _handle.context
-            page = context.new_page()
-
-            def _capture(response):
-                nonlocal final_url
-                u = response.url
-                if not final_url and ".m3u8" in u.split("?", 1)[0].lower():
-                    final_url = u
-
-            page.on("response", _capture)
-            logger.debug(f"Opening vidking embed for stream capture: {url}")
-            try:
-                page.goto(url, wait_until="domcontentloaded", timeout=40000)
-            except Exception:
-                pass
-            try:
-                page.wait_for_selector("video, button", timeout=15000)
-            except Exception:
-                pass
-            page.wait_for_timeout(1500)
-
-            # One click in the middle to start playback (a user gesture), then
-            # only ever call play() when paused so we never toggle it back off.
-            try:
-                page.mouse.click(640, 360)
-            except Exception:
-                pass
-            deadline = _time.time() + timeout
-            while _time.time() < deadline and not final_url:
-                try:
-                    page.evaluate(
-                        "() => { const v = document.querySelector('video');"
-                        " if (v) { v.muted = true; if (v.paused) v.play().catch(()=>{}); } }"
-                    )
-                except Exception:
-                    pass
-                page.wait_for_timeout(1200)
-
-            _handle.close()
-
-        if final_url:
-            logger.info("Captured cineby/vidking manifest URL")
-        return final_url
-    except Exception as e:
-        logger.error(f"Failed to capture cineby stream URL: {e}")
-        return None
 
 
 def solve_sto_modal(

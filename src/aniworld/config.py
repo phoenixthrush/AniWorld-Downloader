@@ -141,10 +141,6 @@ def _get_random_user_agent() -> str:
 
 DEFAULT_USER_AGENT = _get_random_user_agent()
 
-LULUVDO_USER_AGENT = (
-    "Mozilla/5.0 (Android 15; Mobile; rv:132.0) Gecko/132.0 Firefox/132.0"
-)
-
 # TODO:
 # This is so fucking annoying because using GLOBAL_SESSION anywhere in the
 # codebase ends up importing basically every module, so even a simple fetch
@@ -189,9 +185,6 @@ SUPPORTED_PROVIDERS = (
     "Gupload",
     "MoflixClick",
     "Vidara",
-    # "LoadX",
-    # "Luluvdo",
-    # "Streamtape",
 )
 
 
@@ -279,8 +272,6 @@ PROVIDER_HEADERS_D = {
         "Referer": "https://voe.sx/",
         "Origin": "https://voe.sx",
     },
-    "LoadX": {"Accept": "*/*"},
-    "Cineby": {"Referer": "https://www.cineby.at/"},
     "Filemoon": {"User-Agent": DEFAULT_USER_AGENT, "Referer": "https://filemoon.to"},
     "Gupload": {"Referer": "https://gupload.xyz/", "Accept-Encoding": "identity"},
     "MoflixClick": {
@@ -288,12 +279,6 @@ PROVIDER_HEADERS_D = {
         "Accept-Encoding": "identity",
     },
     "Vidara": {"Referer": "https://vidara.to/"},
-    "Luluvdo": {
-        "User-Agent": LULUVDO_USER_AGENT,
-        "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
-        "Origin": "https://luluvdo.com",
-        "Referer": "https://luluvdo.com/",
-    },
 }
 
 PROVIDER_HEADERS_W = {
@@ -313,8 +298,6 @@ PROVIDER_HEADERS_W = {
         "Referer": "https://voe.sx/",
         "Origin": "https://voe.sx",
     },
-    "LoadX": {"Accept": "*/*"},
-    "Cineby": {"Referer": "https://www.cineby.at/"},
     "Filemoon": {"User-Agent": DEFAULT_USER_AGENT, "Referer": "https://filemoon.to"},
     "Gupload": {"Referer": "https://gupload.xyz/", "Accept-Encoding": "identity"},
     "MoflixClick": {
@@ -322,12 +305,6 @@ PROVIDER_HEADERS_W = {
         "Accept-Encoding": "identity",
     },
     "Vidara": {"Referer": "https://vidara.to/"},
-    "Luluvdo": {
-        "User-Agent": LULUVDO_USER_AGENT,
-        "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
-        "Origin": "https://luluvdo.com",
-        "Referer": "https://luluvdo.com/",
-    },
 }
 
 
@@ -529,20 +506,6 @@ FILMPALAST_SERIES_PATTERN = re.compile(
 # The trailing (?:\?[^#]*)? lets per-episode URLs (…?s=1&e=2) resolve too.
 KINOX_SERIES_PATTERN = re.compile(
     r"^https?://(?:www\.)?kinox[\w.-]*\.[^/]+/Stream/[^/?#]+?(?:\.html)?(?:\?[^#]*)?/?$",
-    re.IGNORECASE,
-)
-
-_CINEBY_HOST = r"(?:www\.)?cineby\.(?:at|app|[a-z]{2,4})"
-
-# /movie/<id> or /tv/<id> (optionally ?s=N for a specific TV season)
-CINEBY_SERIES_PATTERN = re.compile(
-    rf"^https?://{_CINEBY_HOST}/(?:movie|tv)/\d+(?:\?[^#]*)?/?$",
-    re.IGNORECASE,
-)
-
-# /movie/<id> or /tv/<id>/<season>/<episode>
-CINEBY_EPISODE_PATTERN = re.compile(
-    rf"^https?://{_CINEBY_HOST}/(?:movie/\d+|tv/\d+/\d+/\d+)(?:\?[^#]*)?/?$",
     re.IGNORECASE,
 )
 

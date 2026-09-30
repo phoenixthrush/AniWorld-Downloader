@@ -8,7 +8,7 @@ One file per source site lives next to this one:
 
     tests/test_providers_aniworld.py       tests/test_providers_kinox.py
     tests/test_providers_serienstream.py   tests/test_providers_burningseries.py
-    tests/test_providers_megakino.py       tests/test_providers_cineby.py
+    tests/test_providers_megakino.py
     tests/test_providers_filmpalast.py     tests/test_providers_hanimetv.py
     tests/test_providers_mangafire.py
 
@@ -41,9 +41,6 @@ FALLBACK_EMBEDS = {
     "Vidmoly": "https://vidmoly.net/embed-zquo82b8dm1k.html",
     "Vidoza": "https://videzz.net/embed-xneznizpludf.html",
     "Filemoon": "https://filemoon.sx/e/8xqf0yq0y2qk",
-    "Streamtape": "https://streamtape.com/e/aXbDdYzZKQF1Ldm",
-    "Luluvdo": "https://luluvdo.com/e/9r8vqxw2m3kd",
-    "LoadX": "https://loadx.ws/e/3kd8vq2mw9rx",
 }
 
 

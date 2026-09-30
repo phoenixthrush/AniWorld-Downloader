@@ -76,7 +76,6 @@ Last checked: **09/2026**. These statuses reflect sampled stream/image checks, n
 | Hanime | Adult animation | Working | Disabled by default |
 | Kinox | Movies and series | Unverified: manual captcha required | Disabled by default |
 | BurningSeries | Series | Broken: embed resolution failed | Disabled by default |
-| Cineby | Movies and series | Unverified: stream API unavailable | Shut down; disabled by default |
 
 ### Stream Hosters
 
@@ -94,7 +93,7 @@ Sites list the titles; stream hosters provide the video links. The checks below 
 | Vidmoly | Broken: no embed HTML returned |
 | Vidoza | Unverified: Shut down? |
 
-If a hoster fails, the downloader can try others in your configured fallback order, provided the title offers them. Streamtape, Luluvdo, and LoadX are no longer implemented. VOE previews are broken; Filemoon, Doodstream, and MegaKino previews are not implemented.
+If a hoster fails, the downloader can try others in your configured fallback order, provided the title offers them. VOE previews are broken; Filemoon, Doodstream, and MegaKino previews are not implemented.
 
 ## CLI Usage
 

@@ -219,8 +219,8 @@ def test_different_pages_are_cached_separately(client, genres, monkeypatch):
 
 
 def test_a_site_without_genre_pages_offers_none(client):
-    assert client.get("/api/genres?site=cineby").get_json() == {"genres": []}
-    assert client.get("/api/genre?site=cineby&slug=action").status_code == 400
+    assert client.get("/api/genres?site=moflix").get_json() == {"genres": []}
+    assert client.get("/api/genre?site=moflix&slug=action").status_code == 400
 
 
 def test_the_genre_list_is_cached_per_site(client, monkeypatch):

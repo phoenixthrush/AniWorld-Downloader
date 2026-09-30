@@ -50,7 +50,6 @@ SITE_KEYS = (
     "burningseries",
     "filmpalast",
     "filmo",
-    "cineby",
     "moflix",
 )
 
@@ -64,7 +63,6 @@ SITE_LABELS = {
     "burningseries": "BurningSeries",
     "filmpalast": "FilmPalast",
     "filmo": "Filmo",
-    "cineby": "Cineby",
     "moflix": "Moflix",
 }
 
@@ -75,7 +73,6 @@ SITE_ORDER = (
     "sto",
     "burningseries",
     "megakino",
-    "cineby",
     "moflix",
     "kinox",
     "filmpalast",
@@ -86,7 +83,7 @@ SITE_ORDER = (
 
 # Sites nobody gets unless they ask: adult content, or a site that cannot be
 # used without work on the user's side. Every other site starts on.
-SITES_OFF_BY_DEFAULT = frozenset({"htv", "burningseries", "kinox", "cineby"})
+SITES_OFF_BY_DEFAULT = frozenset({"htv", "burningseries", "kinox"})
 
 
 def normalize_default_sites(value):

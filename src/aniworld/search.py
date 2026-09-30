@@ -1525,68 +1525,6 @@ def query_burningseries(keyword="", *, genre=None, limit=None):
     return limit_results(results if genre else results[:30], limit)
 
 
-def _cineby_result(item):
-    """Turn a TMDB search/list item into a browse/search result dict."""
-    from .models.cineby.series import (
-        TMDB_IMG,
-        cineby_movie_url,
-        cineby_tv_url,
-    )
-
-    media = item.get("media_type")
-    tmdb_id = item.get("id")
-    if not tmdb_id:
-        return None
-    if media == "tv" or (media is None and item.get("name")):
-        url = cineby_tv_url(tmdb_id)
-        title = item.get("name") or item.get("title")
-        year = (item.get("first_air_date") or "")[:4]
-    else:
-        url = cineby_movie_url(tmdb_id)
-        title = item.get("title") or item.get("name")
-        year = (item.get("release_date") or "")[:4]
-    if not title:
-        return None
-    if year:
-        title = f"{title} ({year})"
-    poster = item.get("poster_path")
-    return {
-        "title": title,
-        "url": url,
-        "poster_url": f"{TMDB_IMG}{poster}" if poster else "",
-        "genre": "",
-    }
-
-
-def query_cineby(keyword):
-    """Search cineby via its TMDB proxy (movies + TV)."""
-    from .models.cineby.series import tmdb_get
-
-    data = tmdb_get(f"/search/multi?query={quote_plus(keyword)}&page=1")
-    results = []
-    for item in data.get("results", []):
-        if item.get("media_type") == "person":
-            continue
-        r = _cineby_result(item)
-        if r:
-            results.append(r)
-    return results[:30]
-
-
-def fetch_cineby_movies():
-    """Trending movies on cineby for the browse grid."""
-    from .models.cineby.series import tmdb_get
-
-    data = tmdb_get("/trending/movie/week")
-    results = []
-    for item in data.get("results", []):
-        item.setdefault("media_type", "movie")
-        r = _cineby_result(item)
-        if r:
-            results.append(r)
-    return results[:30]
-
-
 def fetch_filmpalast_movies():
     """Fetch the newest movies from filmpalast.to for the browse grid."""
     base = "https://filmpalast.to"

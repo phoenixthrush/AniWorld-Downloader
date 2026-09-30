@@ -14,7 +14,6 @@ from ...providers import resolve_provider
 from ...search import (
     GENRE_PAGE_SIZE,
     fetch_burningseries_series,
-    fetch_cineby_movies,
     fetch_filmo_movies,
     fetch_filmpalast_movies,
     fetch_genre_animes,
@@ -41,7 +40,7 @@ SINGLE_PAGE_SITES = ("MegaKino", "FilmPalast", "Filmo")
 
 # These resolve their stream per episode, so the language is read once at the
 # season level instead of probing every episode.
-SEASON_LEVEL_LANGUAGE_SITES = ("Kinox", "BurningSeries", "Cineby")
+SEASON_LEVEL_LANGUAGE_SITES = ("Kinox", "BurningSeries")
 
 # Sites whose season endpoint has no per-episode language information. Keeping
 # the known languages here avoids probing every episode just to build the list.
@@ -444,8 +443,6 @@ def providers():
         provider = resolve_provider(url)
         if provider.name == "MangaFire":
             return jsonify({"providers": {}})
-        if provider.name == "Cineby":
-            return jsonify({"providers": _cineby_providers(provider, url)})
 
         episode = provider.episode_cls(url=url, **_build_kwargs(provider))
         return jsonify(
@@ -458,17 +455,6 @@ def providers():
     except Exception as exc:
         logger.exception("Providers fetch failed")
         return jsonify({"error": str(exc)}), 500
-
-
-def _cineby_providers(provider, url):
-    """Cineby has one implicit hoster, but German audio only for some titles."""
-    labels = ["English Dub"]
-    try:
-        episode = provider.episode_cls(url=url)
-        labels = list(episode.available_language_labels) or labels
-    except Exception as exc:
-        logger.warning("Cineby language detection failed: %s", exc)
-    return {label: ["Cineby"] for label in labels}
 
 
 # ---------------------------------------------------------------------------
@@ -663,7 +649,6 @@ _BROWSE_ROWS = (
     ("/filmpalast-movies", "filmpalast_movies", fetch_filmpalast_movies),
     ("/filmo-movies", "filmo_movies", fetch_filmo_movies),
     ("/burningseries-series", "burningseries_series", fetch_burningseries_series),
-    ("/cineby-movies", "cineby_movies", fetch_cineby_movies),
     ("/moflix-movies", "moflix_movies", fetch_moflix_movies),
     ("/htv-trending", "htv_trending", _fetch_hanime_trending),
     ("/mangafire-trending", "mangafire_trending", _fetch_mangafire_trending),
