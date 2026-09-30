@@ -91,6 +91,7 @@ def get_logger(name=__name__, level=None):
     if _global_logger is None:
         _global_logger = logging.getLogger("aniworld")
         _global_logger.handlers.clear()
+        _global_logger.propagate = False
 
         log_format = "%(asctime)s - %(levelname)s - %(func_info)s - %(message)s"
         date_format = "%Y-%m-%d %H:%M:%S"

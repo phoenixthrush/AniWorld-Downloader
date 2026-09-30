@@ -1827,31 +1827,20 @@ def search(is_aniworld=None):
         return curses.wrapper(menu_wrapper)
 
 
-def fetch_moflix_movies():
-    from curl_cffi import requests as _curl
+def _moflix_json(endpoint):
+    from .models.moflix_stream.http import BASE_URL, get_response
 
-    res = _curl.get("https://moflix-stream.xyz/", impersonate="chrome124", timeout=10)
-    res.raise_for_status()
-    csrf_match = re.search(r'"csrf_token"\s*:\s*"([^"]+)"', res.text)
+    page = get_response(BASE_URL + "/")
+    page.raise_for_status()
+    csrf_match = re.search(r'"csrf_token"\s*:\s*"([^"]+)"', page.text)
     csrf = csrf_match.group(1) if csrf_match else None
+    response = get_response(BASE_URL + endpoint, page.cookies, csrf)
+    response.raise_for_status()
+    return response.json()
 
-    headers = {}
-    if csrf:
-        headers["X-XSRF-TOKEN"] = csrf
-        headers["Accept"] = "application/json"
-        headers["X-Requested-With"] = "XMLHttpRequest"
-        headers["Referer"] = "https://moflix-stream.xyz/"
 
-    api_res = _curl.get(
-        "https://moflix-stream.xyz/api/v1/titles"
-        "?perPage=24&orderBy=createdAt&orderDir=desc",
-        cookies=res.cookies,
-        headers=headers,
-        impersonate="chrome124",
-        timeout=10,
-    )
-    api_res.raise_for_status()
-    data = api_res.json()
+def fetch_moflix_movies():
+    data = _moflix_json("/api/v1/titles?perPage=24&orderBy=createdAt&orderDir=desc")
     results = []
     for item in data.get("pagination", {}).get("data", []):
         url = f"https://moflix-stream.xyz/titles/{item.get('id')}"
@@ -1864,29 +1853,7 @@ def fetch_moflix_movies():
 
 
 def query_moflix(keyword):
-    from curl_cffi import requests as _curl
-
-    res = _curl.get("https://moflix-stream.xyz/", impersonate="chrome124", timeout=10)
-    res.raise_for_status()
-    csrf_match = re.search(r'"csrf_token"\s*:\s*"([^"]+)"', res.text)
-    csrf = csrf_match.group(1) if csrf_match else None
-
-    headers = {}
-    if csrf:
-        headers["X-XSRF-TOKEN"] = csrf
-        headers["Accept"] = "application/json"
-        headers["X-Requested-With"] = "XMLHttpRequest"
-        headers["Referer"] = "https://moflix-stream.xyz/"
-
-    api_res = _curl.get(
-        f"https://moflix-stream.xyz/api/v1/search/{quote(keyword)}",
-        cookies=res.cookies,
-        headers=headers,
-        impersonate="chrome124",
-        timeout=10,
-    )
-    api_res.raise_for_status()
-    data = api_res.json()
+    data = _moflix_json(f"/api/v1/search/{quote(keyword)}")
     results = []
     for item in data.get("results", []):
         # The search API also returns people. Their IDs cannot be opened

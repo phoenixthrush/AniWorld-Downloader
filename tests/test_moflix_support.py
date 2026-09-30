@@ -15,6 +15,7 @@ from aniworld.search import fetch_moflix_movies, query_moflix
 def _response(*, payload=None, text=""):
     return SimpleNamespace(
         status_code=200,
+        headers={},
         cookies={},
         text=text,
         json=lambda: payload,

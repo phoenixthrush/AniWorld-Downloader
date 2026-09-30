@@ -1,13 +1,11 @@
 import json
 import os
 import re
-import time
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 try:
     from ...config import (
-        GLOBAL_SESSION,
         MOFLIX_SERIES_PATTERN,
         NAMING_TEMPLATE,
         Audio,
@@ -21,9 +19,9 @@ try:
     from ..common.common import watch as episode_watch
     from ..common.extraction import resolve_stream_url
     from ..common.provider_map import host_to_provider
+    from .http import get_response as _fetch_moflix
 except ImportError:
     from aniworld.config import (
-        GLOBAL_SESSION,
         MOFLIX_SERIES_PATTERN,
         NAMING_TEMPLATE,
         Audio,
@@ -41,37 +39,7 @@ except ImportError:
     from aniworld.models.common import watch as episode_watch
     from aniworld.models.common.extraction import resolve_stream_url
     from aniworld.models.common.provider_map import host_to_provider
-
-
-def _fetch_moflix(url, session_cookies=None, csrf_token=None):
-    try:
-        from curl_cffi import requests as _curl
-
-        headers = {}
-        if csrf_token:
-            headers["X-XSRF-TOKEN"] = csrf_token
-            headers["X-Requested-With"] = "XMLHttpRequest"
-            headers["Referer"] = "https://moflix-stream.xyz/"
-            headers["Accept"] = "application/json"
-        for attempt in range(3):
-            response = _curl.get(
-                url,
-                cookies=session_cookies,
-                headers=headers,
-                impersonate="chrome124",
-                timeout=15,
-            )
-            if response.status_code != 429 or attempt == 2:
-                return response
-            time.sleep(attempt + 1)
-    except ImportError:
-        headers = {}
-        if csrf_token:
-            headers["X-XSRF-TOKEN"] = csrf_token
-            headers["X-Requested-With"] = "XMLHttpRequest"
-            headers["Referer"] = "https://moflix-stream.xyz/"
-            headers["Accept"] = "application/json"
-        return GLOBAL_SESSION.get(url, cookies=session_cookies, headers=headers)
+    from aniworld.models.moflix_stream.http import get_response as _fetch_moflix
 
 
 class MoflixEpisode:
