@@ -1,3 +1,4 @@
+from .animeidhentai import AnimeIDHentaiEpisode
 from .aniworld_to import (
     AniworldEpisode,
     AniworldSeason,
@@ -13,6 +14,7 @@ from .filmo_to import FilmoEpisode
 from .filmpalast_to import FilmPalastEpisode
 from .hanime_tv import HanimeTVEpisode, HanimeTVSeason, HanimeTVSeries
 from .hentai_tv import HentaiTVEpisode
+from .hentaihaven import HentaiHavenEpisode, HentaiHavenSeries
 from .kinox import KinoxEpisode, KinoxSeason, KinoxSeries
 from .mangafire_to.series import MangaFireToChapter, MangaFireToPage, MangaFireToSeries
 from .megakino import MegaKinoEpisode
@@ -20,6 +22,7 @@ from .moflix_stream import MoflixEpisode, MoflixSeason
 from .s_to import SerienstreamEpisode, SerienstreamSeason, SerienstreamSeries
 
 __all__ = [
+    "AnimeIDHentaiEpisode",
     "AniworldEpisode",
     "AniworldSeason",
     "AniworldSeries",
@@ -34,6 +37,8 @@ __all__ = [
     "HanimeTVEpisode",
     "HanimeTVSeason",
     "HanimeTVSeries",
+    "HentaiHavenEpisode",
+    "HentaiHavenSeries",
     "HentaiTVEpisode",
     "KinoxEpisode",
     "KinoxSeason",

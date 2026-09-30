@@ -440,6 +440,23 @@ HENTAI_TV_EPISODE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+ANIME_ID_HENTAI_EPISODE_PATTERN = re.compile(
+    r"^https?://(?:www\.)?animeidhentai\.com/"
+    r"(?:\d+/[A-Za-z0-9-]+|"
+    r"[A-Za-z0-9-]+(?:-episode-\d+|-sub-eng|-raw)[A-Za-z0-9-]*)/?$",
+    re.IGNORECASE,
+)
+
+HENTAI_HAVEN_SERIES_PATTERN = re.compile(
+    r"^https?://(?:www\.)?hentaihaven\.xxx/(?:[a-z]{2}/)?watch/[A-Za-z0-9-]+/?$",
+    re.IGNORECASE,
+)
+HENTAI_HAVEN_EPISODE_PATTERN = re.compile(
+    r"^https?://(?:www\.)?hentaihaven\.xxx/(?:[a-z]{2}/)?watch/"
+    r"[A-Za-z0-9-]+/episode-\d+/?$",
+    re.IGNORECASE,
+)
+
 # serienstream.to went down at times; serienstream.cx and 186.2.175.5 are mirrors.
 
 # Reachable hosts, in preference order. The IP is a last resort and needs a Host

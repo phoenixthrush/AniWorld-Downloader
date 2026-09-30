@@ -1967,6 +1967,102 @@ def query_moflix(keyword):
     return results
 
 
+def _query_nhplayer_site(base, keyword, limit, animeid=False):
+    from .models.hentai_tv.http import get_response
+
+    validate_limit(limit)
+    if limit == 0 or not keyword.strip():
+        return []
+    response = get_response(
+        base + "/api/search", params={"q": keyword.strip(), "limit": limit or 1000}
+    )
+    results = []
+    seen = set()
+    for item in response.json().get("videos", []):
+        slug = item.get("slug")
+        if not slug or slug in seen:
+            continue
+        seen.add(slug)
+        path = f"/{item['wpId']}/{slug}" if animeid and item.get("wpId") else f"/{slug}"
+        if not animeid:
+            path = f"/hentai/{slug}"
+        url = base + path
+        results.append(
+            {
+                "title": f"{item.get('title') or slug} Episode {item.get('ep', 1)}",
+                "url": url,
+                "link": url,
+                "poster": urljoin(base, item["cover"]) if item.get("cover") else "",
+            }
+        )
+    return limit_results(results, limit)
+
+
+def query_hentai_tv(keyword, *, limit=30):
+    """Search hentai.tv episodes; result URLs can be passed directly to the CLI."""
+    return _query_nhplayer_site("https://hentai.tv", keyword, limit)
+
+
+def query_animeidhentai(keyword, *, limit=30):
+    """Search AnimeID episodes, including the legacy numeric-ID URL form."""
+    return _query_nhplayer_site(
+        "https://animeidhentai.com", keyword, limit, animeid=True
+    )
+
+
+def query_hentaihaven(keyword, *, limit=30):
+    """Search HentaiHaven titles, excluding unrelated catalogue results."""
+    from .models.hentai_tv.http import get_response
+
+    validate_limit(limit)
+    if limit == 0 or not keyword.strip():
+        return []
+    base = "https://hentaihaven.xxx"
+    results = []
+    seen = set()
+    for page in range(1, MAX_PAGES + 1):
+        payload = get_response(
+            base + "/api/manga/",
+            params={
+                "search": keyword.strip(),
+                "live": "1",
+                "locale": "en",
+                "per_page": 24,
+                "page": page,
+                "orderby": "date",
+                "order": "desc",
+            },
+        ).json()
+        items = payload.get("data", [])
+        fresh = False
+        for item in items:
+            slug = item.get("slug")
+            if not slug or slug in seen:
+                continue
+            fresh = True
+            seen.add(slug)
+            title = html_module.unescape(item.get("title", {}).get("rendered", slug))
+            if not all(word in title.casefold() for word in keyword.casefold().split()):
+                continue
+            url = f"{base}/watch/{slug}/"
+            poster = item.get("meta", {}).get("vraven_remote_thumbnail", "")
+            results.append(
+                {
+                    "title": title,
+                    "url": url,
+                    "link": url,
+                    "poster": urljoin("https://img.hentaihaven.xxx/", poster)
+                    if poster
+                    else "",
+                }
+            )
+            if limit_reached(results, limit):
+                return results
+        if not fresh or page >= payload.get("totalPages", 1):
+            break
+    return results
+
+
 if __name__ == "__main__":
     print("New series:", fetch_new_series())
     print("Popular series:", fetch_popular_series())

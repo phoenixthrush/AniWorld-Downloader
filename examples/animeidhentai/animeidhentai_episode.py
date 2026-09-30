@@ -1,7 +1,7 @@
-from aniworld.models import HentaiTVEpisode
+from aniworld.models import AnimeIDHentaiEpisode
 
-url = "https://hentai.tv/hentai/hamehara-sore-sekuhara-desu-episode-1-p83"
-episode = HentaiTVEpisode(url)
+url = "https://animeidhentai.com/inaka-ni-wa-kore-kurai-shika-goraku-ga-nai-episode-1"
+episode = AnimeIDHentaiEpisode(url)
 
 print("=== EPISODE INFO ===")
 print("URL:", episode.url)

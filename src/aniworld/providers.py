@@ -5,6 +5,7 @@ from re import Pattern
 from urllib.parse import urlparse, urlunparse
 
 from .config import (
+    ANIME_ID_HENTAI_EPISODE_PATTERN,
     ANIWORLD_EPISODE_PATTERN,
     ANIWORLD_SEASON_PATTERN,
     ANIWORLD_SERIES_PATTERN,
@@ -15,6 +16,9 @@ from .config import (
     CINEBY_SERIES_PATTERN,
     FILMPALAST_SERIES_PATTERN,
     HANIME_TV_SERIES_PATTERN,
+    HENTAI_HAVEN_EPISODE_PATTERN,
+    HENTAI_HAVEN_SERIES_PATTERN,
+    HENTAI_TV_EPISODE_PATTERN,
     KINOX_SERIES_PATTERN,
     MANGA_FIRE_CHAPTER_PATTERN,
     MANGA_FIRE_SERIES_PATTERN,
@@ -25,6 +29,7 @@ from .config import (
     SERIENSTREAM_SERIES_PATTERN,
 )
 from .models import (
+    AnimeIDHentaiEpisode,
     AniworldEpisode,
     AniworldSeason,
     AniworldSeries,
@@ -39,6 +44,9 @@ from .models import (
     HanimeTVEpisode,
     HanimeTVSeason,
     HanimeTVSeries,
+    HentaiHavenEpisode,
+    HentaiHavenSeries,
+    HentaiTVEpisode,
     KinoxEpisode,
     KinoxSeason,
     KinoxSeries,
@@ -67,6 +75,23 @@ class Provider:
 
 
 PROVIDERS = [
+    Provider(
+        name="HentaiTV",
+        episode_pattern=HENTAI_TV_EPISODE_PATTERN,
+        episode_cls=HentaiTVEpisode,
+    ),
+    Provider(
+        name="AnimeIDHentai",
+        episode_pattern=ANIME_ID_HENTAI_EPISODE_PATTERN,
+        episode_cls=AnimeIDHentaiEpisode,
+    ),
+    Provider(
+        name="HentaiHaven",
+        series_pattern=HENTAI_HAVEN_SERIES_PATTERN,
+        episode_pattern=HENTAI_HAVEN_EPISODE_PATTERN,
+        series_cls=HentaiHavenSeries,
+        episode_cls=HentaiHavenEpisode,
+    ),
     Provider(
         name="AniWorld",
         series_pattern=ANIWORLD_SERIES_PATTERN,

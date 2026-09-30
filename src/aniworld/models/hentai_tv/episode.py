@@ -8,7 +8,6 @@ from urllib.parse import urljoin
 from niquests.exceptions import HTTPError
 
 from ...config import (
-    DEFAULT_USER_AGENT,
     GLOBAL_SESSION,
     HENTAI_TV_EPISODE_PATTERN,
     NAMING_TEMPLATE,
@@ -19,12 +18,17 @@ from ..common import ProviderData, check_downloaded, clean_title
 from ..common.common import _download_direct_http
 from ..common.common import syncplay as episode_syncplay
 from ..common.common import watch as episode_watch
+from .http import get_response
+from .page import page_objects, walk_objects
 from .player import resolve_stream_url
 
 
 class HentaiTVEpisode:
     """A standalone hentai.tv episode with lazy metadata and player resolution."""
 
+    site_name = "hentai.tv"
+    provider_name = "HentaiTV"
+    url_pattern = HENTAI_TV_EPISODE_PATTERN
     is_movie = False
     season_number = 1
 
@@ -32,20 +36,20 @@ class HentaiTVEpisode:
         self, url, selected_path=None, selected_language=None, selected_provider=None
     ):
         if not self._is_valid_url(url):
-            raise ValueError(f"Invalid hentai.tv URL: {url}")
+            raise ValueError(f"Invalid {self.site_name} URL: {url}")
         self.url = url
         self.__selected_path_param = selected_path
-        # Hentai.tv has no language selection, so English Sub is hardcoded.
+        # The shared nhplayer model defaults to the English-subtitled stream.
         self.__selected_language = selected_language or "English Sub"
-        self.__selected_provider = selected_provider or "HentaiTV"
+        self.__selected_provider = selected_provider or self.provider_name
         self.__html = None
         self.__player_html = None
         self.__metadata = None
         self.__stream_url = None
 
-    @staticmethod
-    def _is_valid_url(url):
-        return isinstance(url, str) and bool(HENTAI_TV_EPISODE_PATTERN.fullmatch(url))
+    @classmethod
+    def _is_valid_url(cls, url):
+        return isinstance(url, str) and bool(cls.url_pattern.fullmatch(url))
 
     @staticmethod
     def _slug_from_url(url):
@@ -54,15 +58,7 @@ class HentaiTVEpisode:
     @property
     def _html(self):
         if self.__html is None:
-            response = GLOBAL_SESSION.get(
-                self.url,
-                headers={
-                    "User-Agent": DEFAULT_USER_AGENT,
-                    "Accept-Encoding": "gzip, deflate",
-                },
-                timeout=20,
-            )
-            response.raise_for_status()
+            response = get_response(self.url)
             self.__html = response.text
         return self.__html
 
@@ -80,8 +76,32 @@ class HentaiTVEpisode:
                     value = json.loads(unescape(raw.strip()))
                 except (json.JSONDecodeError, TypeError):
                     continue
-                if isinstance(value, dict):
-                    self.__metadata = value
+                video = next(
+                    (
+                        item
+                        for item in walk_objects(value)
+                        if item.get("@type") == "VideoObject"
+                    ),
+                    None,
+                )
+                if video:
+                    self.__metadata = video
+                    break
+            slug = self._slug_from_url(self.url)
+            for item in page_objects(self._html):
+                if item.get("slug") == slug and "embedUrl" in item:
+                    self.__metadata.update(
+                        {
+                            "name": item.get("title", ""),
+                            "description": item.get("description", ""),
+                            "thumbnailUrl": item.get("cover", ""),
+                            "uploadDate": item.get("releasedAt", ""),
+                            "embedUrl": item.get("embedUrl", ""),
+                            "genre": item.get("tags", []),
+                            "episode": item.get("ep"),
+                            "seriesTitle": item.get("title", ""),
+                        }
+                    )
                     break
             if not self.__metadata:
                 match = re.search(
@@ -117,7 +137,12 @@ class HentaiTVEpisode:
     @property
     def title_en(self):
         title = self._metadata.get("name") or self._meta("og:title")
-        title = re.sub(r"^Watch\s+|\s+Online at Hentai\.tv.*$", "", title or "")
+        title = re.sub(
+            r"^Watch\s+|\s+Online at Hentai\.tv.*$|\s+-\s+Animeidhentai.*$",
+            "",
+            title or "",
+            flags=re.IGNORECASE,
+        )
         return (
             unescape(title.strip())
             or self._slug_from_url(self.url).replace("-", " ").title()
@@ -141,16 +166,22 @@ class HentaiTVEpisode:
 
     @property
     def episode_number(self):
+        if self._metadata.get("episode") is not None:
+            return int(self._metadata["episode"])
         match = re.search(
-            r"(?:episode|ep)[- ]?(\d+)$", self._slug_from_url(self.url), re.IGNORECASE
+            r"(?:episode|ep)[- ]?(\d+)(?:-sub-eng|-raw|-p\d+)?$",
+            self._slug_from_url(self.url),
+            re.IGNORECASE,
         )
         return int(match.group(1)) if match else 1
 
     @property
     def series_title(self):
+        if self._metadata.get("seriesTitle"):
+            return self._metadata["seriesTitle"]
         return (
             re.sub(
-                r"(?:-episode|-ep)-?\d+$",
+                r"(?:-episode|-ep)-?\d+(?:-sub-eng|-raw|-p\d+)?$",
                 "",
                 self._slug_from_url(self.url),
                 flags=re.IGNORECASE,
@@ -226,6 +257,10 @@ class HentaiTVEpisode:
             self.__stream_url = resolve_stream_url(self._player_url)
         return self.__stream_url
 
+    def _clear_page_cache(self):
+        self.__html = None
+        self.__metadata = None
+
     def refresh_stream_url(self):
         self.__stream_url = None
         self.__player_html = None
@@ -236,10 +271,14 @@ class HentaiTVEpisode:
         provider = provider or self.selected_provider
         if language not in ("English Sub", (Audio.JAPANESE, Subtitles.ENGLISH)):
             return None
-        return self.url if provider == "HentaiTV" else None
+        return self.url if provider == self.provider_name else None
 
     def available_providers(self, language=None):
-        return ("HentaiTV",) if self.provider_link(language, "HentaiTV") else ()
+        return (
+            (self.provider_name,)
+            if self.provider_link(language, self.provider_name)
+            else ()
+        )
 
     def provider_attempt_order(self):
         return self.available_providers()
@@ -247,7 +286,7 @@ class HentaiTVEpisode:
     @property
     def provider_data(self):
         return ProviderData(
-            {(Audio.JAPANESE, Subtitles.ENGLISH): {"HentaiTV": self.url}}
+            {(Audio.JAPANESE, Subtitles.ENGLISH): {self.provider_name: self.url}}
         )
 
     @property
@@ -333,7 +372,9 @@ class HentaiTVEpisode:
 
     def download(self):
         if not self.provider_link():
-            raise ValueError("hentai.tv only provides HentaiTV / English Sub")
+            raise ValueError(
+                f"{self.site_name} only provides {self.provider_name} / English Sub"
+            )
         self._folder_path.mkdir(parents=True, exist_ok=True)
         if not self.is_downloaded["exists"]:
             try:
