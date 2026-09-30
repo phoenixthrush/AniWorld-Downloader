@@ -41,7 +41,9 @@ jobs:
           pip install -e ".[test]"
 
       - name: Run tests
-        run: pytest -q --junitxml=results.xml
+        # conftest blocks network access, including native curl and browsers,
+        # and excludes the manual live-provider checks from collection.
+        run: python -m pytest -q --junitxml=results.xml
 
       - name: Publish the summary
         if: always()

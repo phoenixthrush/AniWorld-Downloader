@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 from curl_cffi import requests
 
-from .filemoon import _unpack_js
+from ..common import unpack_js
 
 _PACKED_PLAYER = re.compile(
     r"eval\(function\(p,a,c,k,e,d\).*?\}\('(?P<p>(?:\\.|[^'\\])*)',"
@@ -28,10 +28,9 @@ def get_direct_link_from_moflixclick(embed_url):
     if match is None:
         raise ValueError("MoflixClick player data not found")
 
-    unpacked = _unpack_js(
+    unpacked = unpack_js(
         match.group("p").replace("\\'", "'"),
         int(match.group("radix")),
-        0,
         match.group("keywords").split("|"),
     )
     links_match = _LINKS.search(unpacked)

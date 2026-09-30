@@ -1,4 +1,3 @@
-import base64
 import json
 import logging
 import re
@@ -10,8 +9,10 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 try:
     from ...config import DEFAULT_USER_AGENT, GLOBAL_SESSION, PROVIDER_HEADERS_D
+    from ..common import decode_base64url, unpack_js
 except ImportError:
     from aniworld.config import DEFAULT_USER_AGENT, GLOBAL_SESSION, PROVIDER_HEADERS_D
+    from aniworld.extractors.common import decode_base64url, unpack_js
 
 logger = logging.getLogger(__name__)
 
@@ -33,15 +34,6 @@ FILE_URL_PATTERN = re.compile(r"file\s*:\s*['\"](?P<url>https?://[^'\"]+)['\"]")
 # -----------------------------
 # Helper functions
 # -----------------------------
-def _base64url_decode(s):
-    """Base64url decode (RFC 4648 section 5)."""
-    s = s.replace("-", "+").replace("_", "/")
-    pad = 4 - len(s) % 4
-    if pad != 4:
-        s += "=" * pad
-    return base64.b64decode(s)
-
-
 def _extract_file_code(url):
     """Extract the file code from a Filemoon/Byse URL.
 
@@ -60,8 +52,8 @@ def _decrypt_payload(playback, key, iv_prop, payload_prop):
     if not iv_str or not payload_str:
         return None
 
-    iv = _base64url_decode(iv_str)
-    ciphertext = _base64url_decode(payload_str)
+    iv = decode_base64url(iv_str)
+    ciphertext = decode_base64url(payload_str)
 
     # AES-GCM: last 16 bytes are the auth tag
     tag_size = 16
@@ -87,7 +79,7 @@ def _decrypt_playback_data(playback):
     for part in key_parts:
         if not part:
             continue
-        decoded = _base64url_decode(part)
+        decoded = decode_base64url(part)
         if len(decoded) == 16:
             key_bytes += decoded
 
@@ -164,45 +156,6 @@ def _try_byse_api(embed_url, file_code, headers):
     return None
 
 
-def _decode_base_n(token, radix):
-    """Convert a string from base-N to a decimal integer (up to base 62)."""
-    if radix <= 10:
-        try:
-            return int(token)
-        except ValueError:
-            return -1
-
-    result = 0
-    for c in token:
-        if "0" <= c <= "9":
-            digit = ord(c) - ord("0")
-        elif "a" <= c <= "z":
-            digit = ord(c) - ord("a") + 10
-        elif "A" <= c <= "Z":
-            digit = ord(c) - ord("A") + 36
-        else:
-            return -1
-
-        if digit >= radix:
-            return -1
-        result = result * radix + digit
-
-    return result
-
-
-def _unpack_js(packed, radix, count, keywords):
-    """Unpack Dean Edwards' packed JavaScript (legacy Filemoon)."""
-
-    def replacer(match):
-        token = match.group(1)
-        index = _decode_base_n(token, radix)
-        if 0 <= index < len(keywords) and keywords[index]:
-            return keywords[index]
-        return token
-
-    return re.sub(r"\b(\w+)\b", replacer, packed)
-
-
 def _extract_url_from_string(text):
     """Extract a video URL from text content."""
     if not text:
@@ -235,7 +188,7 @@ def _try_extract_from_html(html):
         radix = int(match.group("a"))
         keywords = match.group("k").split("|")
 
-        unpacked = _unpack_js(packed, radix, 0, keywords)
+        unpacked = unpack_js(packed, radix, keywords)
         if unpacked:
             url = _extract_url_from_string(unpacked)
             if url:

@@ -29,6 +29,7 @@ try:
     from ..common.common import (
         watch as episode_watch,
     )
+    from ..common.extraction import resolve_stream_url
 except ImportError:
     from aniworld.config import (
         GLOBAL_SESSION,
@@ -55,6 +56,7 @@ except ImportError:
     from aniworld.models.common import (
         watch as episode_watch,
     )
+    from aniworld.models.common.extraction import resolve_stream_url
 
 MEGAKINO_DOMAIN_SOURCE = "https://raw.githubusercontent.com/Yezun-hikari/new-domain-check/refs/heads/main/monitors/megakino/domain.txt"
 
@@ -1061,16 +1063,7 @@ class MegaKinoEpisode:
 
     @property
     def stream_url(self):
-        try:
-            stream_url = provider_functions[
-                f"get_direct_link_from_{self.selected_provider.lower()}"
-            ](self.provider_url)
-        except KeyError:
-            raise ValueError(
-                f"The provider '{self.selected_provider}' is not yet implemented."
-            )
-
-        return stream_url
+        return resolve_stream_url(self)
 
     @property
     def _base_folder(self):

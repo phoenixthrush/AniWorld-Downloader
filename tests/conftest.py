@@ -7,15 +7,50 @@ these tests reach the network, providers are never called for real.
 
 import os
 import shutil
+import socket
 import tempfile
 from pathlib import Path
+
+import pytest
+from curl_cffi import AsyncCurl, Curl
+from patchright.async_api import BrowserType as AsyncBrowserType
+from patchright.sync_api import BrowserType
 
 # Has to happen before aniworld is imported: config.py reads this at import
 # time to decide where .env, the database and the flask secret live.
 _SANDBOX = Path(tempfile.mkdtemp(prefix="aniworld-tests-"))
 os.environ["ANIWORLD_INSTALL_FOLDER"] = str(_SANDBOX / "config")
 
-import pytest
+
+def blocked_network(*args, **kwargs):
+    raise RuntimeError(
+        "a test tried to open a network connection, stub the fetch instead"
+    )
+
+
+def block_network(monkeypatch):
+    monkeypatch.setattr(socket.socket, "connect", blocked_network)
+    monkeypatch.setattr(socket.socket, "connect_ex", blocked_network)
+    monkeypatch.setattr(socket.socket, "sendto", blocked_network)
+    monkeypatch.setattr(socket, "create_connection", blocked_network)
+    monkeypatch.setattr(socket, "getaddrinfo", blocked_network)
+    monkeypatch.setattr(socket, "gethostbyname", blocked_network)
+    # libcurl and Chromium open connections outside Python's socket module.
+    monkeypatch.setattr(Curl, "perform", blocked_network)
+    monkeypatch.setattr(AsyncCurl, "add_handle", blocked_network)
+    for browser_type in (BrowserType, AsyncBrowserType):
+        monkeypatch.setattr(browser_type, "launch", blocked_network)
+        monkeypatch.setattr(browser_type, "launch_persistent_context", blocked_network)
+        monkeypatch.setattr(browser_type, "connect", blocked_network)
+        monkeypatch.setattr(browser_type, "connect_over_cdp", blocked_network)
+
+
+# Also guard application imports and test collection, before fixtures run.
+_NETWORK_GUARD = pytest.MonkeyPatch()
+block_network(_NETWORK_GUARD)
+
+# These scripts are manual checks against live providers, never CI tests.
+collect_ignore_glob = ["test_providers_*.py"]
 
 from aniworld.web import app as web_app
 from aniworld.web import db
@@ -26,6 +61,7 @@ _OWNED_PREFIXES = ("ANIWORLD_", "MANGAFIRE_")
 
 
 def pytest_sessionfinish(session, exitstatus):
+    _NETWORK_GUARD.undo()
     shutil.rmtree(_SANDBOX, ignore_errors=True)
 
 
@@ -36,16 +72,7 @@ def no_network(monkeypatch):
     A test that forgets to stub a fetch would otherwise pass quietly against
     the live site and start failing the day that site changes.
     """
-    import socket
-
-    def blocked(*args, **kwargs):
-        raise RuntimeError(
-            "a test tried to open a network connection, stub the fetch instead"
-        )
-
-    monkeypatch.setattr(socket.socket, "connect", blocked)
-    monkeypatch.setattr(socket.socket, "connect_ex", blocked)
-    monkeypatch.setattr(socket, "create_connection", blocked)
+    block_network(monkeypatch)
 
 
 @pytest.fixture(autouse=True)

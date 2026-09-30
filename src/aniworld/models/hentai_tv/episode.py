@@ -14,12 +14,13 @@ from ...config import (
     Audio,
     Subtitles,
 )
+from ...extractors.common import extract_video_metadata
 from ..common import ProviderData, check_downloaded, clean_title
 from ..common.common import _download_direct_http
 from ..common.common import syncplay as episode_syncplay
 from ..common.common import watch as episode_watch
 from .http import get_response
-from .page import page_objects, walk_objects
+from .page import page_objects
 from .player import resolve_stream_url
 
 
@@ -65,28 +66,7 @@ class HentaiTVEpisode:
     @property
     def _metadata(self):
         if self.__metadata is None:
-            self.__metadata = {}
-            scripts = re.findall(
-                r"<script\b[^>]*type=[\"']application/ld\+json[\"'][^>]*>(.*?)</script>",
-                self._html,
-                re.IGNORECASE | re.DOTALL,
-            )
-            for raw in scripts:
-                try:
-                    value = json.loads(unescape(raw.strip()))
-                except (json.JSONDecodeError, TypeError):
-                    continue
-                video = next(
-                    (
-                        item
-                        for item in walk_objects(value)
-                        if item.get("@type") == "VideoObject"
-                    ),
-                    None,
-                )
-                if video:
-                    self.__metadata = video
-                    break
+            self.__metadata = extract_video_metadata(self._html)
             slug = self._slug_from_url(self.url)
             for item in page_objects(self._html):
                 if item.get("slug") == slug and "embedUrl" in item:

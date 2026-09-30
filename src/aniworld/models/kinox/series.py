@@ -19,12 +19,12 @@ try:
         Subtitles,
         build_provider_attempt_order,
     )
-    from ...extractors import provider_functions
     from ..common import check_downloaded, movie_folder_enabled, run_each
     from ..common.common import clean_title
     from ..common.common import download as episode_download
     from ..common.common import syncplay as episode_syncplay
     from ..common.common import watch as episode_watch
+    from ..common.extraction import resolve_stream_url
     from ..common.http import get_html, get_session
     from ..common.provider_map import host_to_provider
 except ImportError:
@@ -33,7 +33,6 @@ except ImportError:
         Subtitles,
         build_provider_attempt_order,
     )
-    from aniworld.extractors import provider_functions
     from aniworld.models.common import (
         check_downloaded,
         movie_folder_enabled,
@@ -43,6 +42,7 @@ except ImportError:
     from aniworld.models.common.common import download as episode_download
     from aniworld.models.common.common import syncplay as episode_syncplay
     from aniworld.models.common.common import watch as episode_watch
+    from aniworld.models.common.extraction import resolve_stream_url
     from aniworld.models.common.http import get_html, get_session
     from aniworld.models.common.provider_map import host_to_provider
 
@@ -390,14 +390,7 @@ class KinoxEpisode(_KinoxLanguageMixin):
 
     @property
     def stream_url(self):
-        try:
-            return provider_functions[
-                f"get_direct_link_from_{self.selected_provider.lower()}"
-            ](self.provider_url)
-        except KeyError:
-            raise ValueError(
-                f"The provider '{self.selected_provider}' is not yet implemented."
-            )
+        return resolve_stream_url(self)
 
     # ---- filesystem ---------------------------------------------------------
     @property

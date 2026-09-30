@@ -3,15 +3,7 @@
 import json
 import re
 
-
-def walk_objects(value):
-    if isinstance(value, dict):
-        yield value
-        for child in value.values():
-            yield from walk_objects(child)
-    elif isinstance(value, list):
-        for child in value:
-            yield from walk_objects(child)
+from ...extractors.common import walk_objects
 
 
 def page_objects(html):

@@ -11,8 +11,9 @@ media id, verify the 4-byte ``mvm1`` magic header, and read the rest as UTF-8
 JSON (``{"sources": [{quality, url}], "subtitles": [...]}``).
 """
 
-import base64
 import json
+
+from ...extractors.common import decode_base64url
 
 _MASK = 0xFFFFFFFF
 _GOLDEN = 2654435769  # 0x9E3779B9
@@ -109,18 +110,12 @@ def _keystream(seed, media_id, length):
     return out
 
 
-def _b64url_decode(text):
-    text = text.strip().replace("-", "+").replace("_", "/")
-    text += "=" * (-len(text) % 4)
-    return base64.b64decode(text)
-
-
 def decrypt_sources(encrypted, seed, media_id):
     """Decrypt an ``enc=2`` payload into its parsed JSON dict.
 
     Raises ValueError if the magic header doesn't match (wrong seed / tampered).
     """
-    data = bytearray(_b64url_decode(encrypted))
+    data = bytearray(decode_base64url(encrypted.strip()))
     ks = _keystream(seed, int(media_id), len(data))
     for i in range(len(data)):
         data[i] ^= ks[i]

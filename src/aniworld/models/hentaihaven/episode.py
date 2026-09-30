@@ -2,6 +2,7 @@ from functools import cached_property
 from urllib.parse import urlparse
 
 from ...config import HENTAI_HAVEN_EPISODE_PATTERN
+from ...extractors.common import extract_video_metadata
 from ..common.common import download as episode_download
 from ..hentai_tv.episode import HentaiTVEpisode
 from ..hentai_tv.page import page_objects
@@ -40,26 +41,7 @@ class HentaiHavenEpisode(HentaiTVEpisode):
 
     @property
     def release_date(self):
-        # The JSON-LD VideoObject carries the episode's publication date.
-        import json
-        import re
-        from html import unescape
-
-        from ..hentai_tv.page import walk_objects
-
-        for script in re.findall(
-            r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
-            self._html,
-            re.DOTALL,
-        ):
-            try:
-                objects = walk_objects(json.loads(unescape(script)))
-                for item in objects:
-                    if item.get("@type") == "VideoObject":
-                        return item.get("uploadDate", "")
-            except ValueError:
-                continue
-        return ""
+        return extract_video_metadata(self._html).get("uploadDate", "")
 
     @property
     def provider_url(self):

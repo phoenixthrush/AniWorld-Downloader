@@ -1,4 +1,3 @@
-import base64
 import json
 import re
 import threading
@@ -22,8 +21,10 @@ try:
         playwright_get_hanime_manifest_token,
         solve_captcha,
     )
+    from ..common import decode_base64url, extract_video_metadata
 except ImportError:
     from aniworld.config import DEFAULT_USER_AGENT, GLOBAL_SESSION, logger
+    from aniworld.extractors.common import decode_base64url, extract_video_metadata
     from aniworld.playwright.captcha import (
         is_captcha_page,
         playwright_get_hanime_manifest_token,
@@ -176,19 +177,7 @@ def _build_synthetic_payload(slug, html):
     title_text = _meta_content(html, "og:title")
     title_match = re.match(r"^Watch\s+(.+?)\s+Hentai Video", title_text, re.IGNORECASE)
 
-    ldjson = {}
-    for raw in re.findall(
-        r"<script\b[^>]*type=[\"']application/ld\+json[\"'][^>]*>(.*?)</script>",
-        html,
-        re.IGNORECASE | re.DOTALL,
-    ):
-        try:
-            parsed = json.loads(unescape(raw.strip()))
-        except (json.JSONDecodeError, TypeError):
-            continue
-        if isinstance(parsed, dict) and parsed.get("@type") == "VideoObject":
-            ldjson = parsed
-            break
+    ldjson = extract_video_metadata(html)
 
     video_title = (
         ldjson.get("name")
@@ -312,21 +301,15 @@ def fetch_hanime_api_data(slug):
     return _build_synthetic_payload(slug, _request_hanime(page_url).text)
 
 
-def _decode_urlsafe_base64(value):
-    if isinstance(value, str):
-        value = value.encode("ascii")
-    return base64.urlsafe_b64decode(value + b"=" * (-len(value) % 4))
-
-
 def _parse_hanime_manifest_token(token):
     """Decrypt the official handshake token returned by auth.hanime.tv."""
     try:
-        envelope = json.loads(_decode_urlsafe_base64(token))
-        ciphertext_and_tag = _decode_urlsafe_base64(
-            envelope["data"]
-        ) + _decode_urlsafe_base64(envelope["tag"])
+        envelope = json.loads(decode_base64url(token))
+        ciphertext_and_tag = decode_base64url(envelope["data"]) + decode_base64url(
+            envelope["tag"]
+        )
         plaintext = AESGCM(_HANIME_AES_KEY).decrypt(
-            _decode_urlsafe_base64(envelope["iv"]),
+            decode_base64url(envelope["iv"]),
             ciphertext_and_tag,
             _HANIME_AES_HEADER,
         )

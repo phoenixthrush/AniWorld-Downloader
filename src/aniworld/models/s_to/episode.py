@@ -10,7 +10,6 @@ from ...config import (
     build_provider_attempt_order,
     logger,
 )
-from ...extractors import provider_functions
 from ..common import check_downloaded
 from ..common.common import (
     download as episode_download,
@@ -21,6 +20,7 @@ from ..common.common import (
 from ..common.common import (
     watch as episode_watch,
 )
+from ..common.extraction import resolve_stream_url
 from .http import response_text, sto_get, sto_host
 
 
@@ -331,16 +331,7 @@ class SerienstreamEpisode:
 
     @property
     def stream_url(self):
-        try:
-            stream_url = provider_functions[
-                f"get_direct_link_from_{self.selected_provider.lower()}"
-            ](self.provider_url)
-        except KeyError:
-            raise ValueError(
-                f"The provider '{self.selected_provider}' is not yet implemented."
-            )
-
-        return stream_url
+        return resolve_stream_url(self)
 
     # TODO: add this into a common base class
     @property

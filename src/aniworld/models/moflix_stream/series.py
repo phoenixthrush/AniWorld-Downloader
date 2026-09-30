@@ -14,12 +14,12 @@ try:
         Subtitles,
         build_provider_attempt_order,
     )
-    from ...extractors import provider_functions
     from ..common import ProviderData, check_downloaded, movie_folder_enabled
     from ..common.common import clean_title
     from ..common.common import download as episode_download
     from ..common.common import syncplay as episode_syncplay
     from ..common.common import watch as episode_watch
+    from ..common.extraction import resolve_stream_url
     from ..common.provider_map import host_to_provider
 except ImportError:
     from aniworld.config import (
@@ -30,7 +30,6 @@ except ImportError:
         Subtitles,
         build_provider_attempt_order,
     )
-    from aniworld.extractors import provider_functions
     from aniworld.models.common import (
         ProviderData,
         check_downloaded,
@@ -40,6 +39,7 @@ except ImportError:
     from aniworld.models.common import download as episode_download
     from aniworld.models.common import syncplay as episode_syncplay
     from aniworld.models.common import watch as episode_watch
+    from aniworld.models.common.extraction import resolve_stream_url
     from aniworld.models.common.provider_map import host_to_provider
 
 
@@ -403,19 +403,7 @@ class MoflixEpisode:
 
     @property
     def stream_url(self):
-        try:
-            stream_url = provider_functions[
-                f"get_direct_link_from_{self.selected_provider.lower()}"
-            ](self.provider_url)
-        except KeyError:
-            raise ValueError(
-                f"The provider '{self.selected_provider}' is not yet implemented."
-            )
-        if not isinstance(stream_url, str) or not stream_url:
-            raise ValueError(
-                f"Provider {self.selected_provider} returned no stream URL"
-            )
-        return stream_url
+        return resolve_stream_url(self)
 
     @property
     def _separate_audio_rendition(self):

@@ -315,11 +315,19 @@ def test_http_fallback_preserves_request_options(monkeypatch):
     assert calls[0][1]["params"] == {"q": "example"}
 
 
+@pytest.mark.parametrize("system", ["Windows", "Linux", "Darwin"])
 def test_haven_download_uses_shared_hls_pipeline_and_skips_existing(
-    monkeypatch, tmp_path
+    monkeypatch, tmp_path, system
 ):
     from aniworld.models.common import common
 
+    monkeypatch.setattr(common, "platform", SimpleNamespace(system=lambda: system))
+    dependencies = []
+    monkeypatch.setattr(
+        common.DependencyManager,
+        "fetch_binary",
+        lambda self, name: dependencies.append(name),
+    )
     source = "https://media.example/playlist.m3u8"
     data = {
         "videoId": 42,
@@ -356,6 +364,7 @@ def test_haven_download_uses_shared_hls_pipeline_and_skips_existing(
     assert episode._episode_path.is_file()
     episode.download()
     assert calls == [source]
+    assert dependencies == (["ffmpeg", "ffmpeg"] if system == "Windows" else [])
 
 
 @pytest.mark.parametrize(

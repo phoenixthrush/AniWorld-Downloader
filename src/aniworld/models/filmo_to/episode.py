@@ -7,12 +7,12 @@ from pathlib import Path
 from urllib.parse import quote, urljoin, urlparse
 
 from ...config import Audio, Subtitles, build_provider_attempt_order
-from ...extractors import provider_functions
 from ..common import ProviderData, check_downloaded, movie_folder_enabled
 from ..common.common import clean_title
 from ..common.common import download as episode_download
 from ..common.common import syncplay as episode_syncplay
 from ..common.common import watch as episode_watch
+from ..common.extraction import resolve_stream_url
 from ..common.http import CaptchaRequired, get_session, is_captcha_page
 from ..common.provider_map import host_to_provider
 
@@ -280,15 +280,7 @@ class FilmoEpisode:
 
     @property
     def stream_url(self):
-        extractor = provider_functions.get(
-            f"get_direct_link_from_{self.selected_provider.lower()}"
-        )
-        if extractor is None:
-            raise ValueError(f"Unsupported Filmo provider: {self.selected_provider}")
-        result = extractor(self.provider_url)
-        if not result:
-            raise ValueError("Filmo provider returned no stream URL")
-        return result
+        return resolve_stream_url(self)
 
     @property
     def _file_name(self):
