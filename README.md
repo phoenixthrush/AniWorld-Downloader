@@ -58,6 +58,8 @@ Prefer another installation method? Use [Docker](#docker) or download a standalo
 
 The Web UI also supports local accounts, optional OIDC SSO, custom CSS, and background shaders. A JSON API and optional Discord request bot let you connect it to other tools. Features and language availability vary by site.
 
+For CAPTCHA browser visibility, manual solving, timeouts, and debug logs, see [CAPTCHA configuration](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/configuration#captcha-solving).
+
 ## Supported Sites
 
 AniWorld and SerienStream are the main focus of the project.
@@ -67,7 +69,7 @@ Last checked: **09/2026**. These statuses reflect sampled stream/image checks, n
 | Site | Content | Status | Notes |
 | --- | --- | --- | --- |
 | AniWorld | Anime and anime movies | Working | |
-| SerienStream | Series | Working: captcha required | |
+| SerienStream | Series | CAPTCHA verification required | |
 | MegaKino | Movies and series | Working | |
 | Filmo | Movies | Working | |
 | Moflix | Movies and series | Working | |

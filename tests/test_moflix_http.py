@@ -109,3 +109,28 @@ def test_browser_response_and_cleanup(monkeypatch, outcome):
         assert page.evaluate.call_args.args[1] == URL
         assert page.evaluate.call_args.kwargs["isolated_context"] is False
     handle.close.assert_called_once()
+
+
+def test_browser_timeout_override_is_used(monkeypatch):
+    from contextlib import contextmanager
+
+    from aniworld.playwright import captcha
+
+    page = Mock()
+    closed = Mock()
+
+    @contextmanager
+    def browser(url):
+        try:
+            yield Mock(), page
+        finally:
+            closed()
+
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_TIMEOUT", "5")
+    monkeypatch.setattr(captcha, "_browser", browser)
+    monkeypatch.setattr(captcha, "_is_captcha_page_dom", lambda page: True)
+    monkeypatch.setattr(http.time, "monotonic", Mock(side_effect=[0, 6]))
+    with pytest.raises(RuntimeError, match="blocked by Cloudflare"):
+        http._browser_get(URL)
+    page.wait_for_timeout.assert_not_called()
+    closed.assert_called_once()

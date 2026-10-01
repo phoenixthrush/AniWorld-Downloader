@@ -1,6 +1,8 @@
 """Browser-assisted CAPTCHA solving and provider URL capture."""
 
+import os
 import queue
+import random
 import threading
 import time
 from contextlib import contextmanager
@@ -21,6 +23,7 @@ _captcha_state_lock = threading.Lock()
 _captcha_state = None
 _on_captcha_start = None
 _on_captcha_end = None
+
 
 _CHALLENGE_HOSTS = ("challenges.cloudflare.com", "hcaptcha.com", "recaptcha.net")
 _PROVIDER_HOSTS = (
@@ -65,6 +68,15 @@ _WIDGETS_JS = """() => {
     }
     return widgets;
 }"""
+
+
+def _captcha_timeout(default):
+    """Use a positive timeout override, otherwise keep the flow's default."""
+    try:
+        seconds = int(os.getenv("ANIWORLD_CAPTCHA_TIMEOUT", ""))
+    except ValueError:
+        return default
+    return seconds if seconds > 0 else default
 
 
 def is_captcha_page(html: str, status_code: int = 200) -> bool:
@@ -118,7 +130,7 @@ def _widgets(frame):
 def _is_captcha_page_dom(page) -> bool:
     """Wait for the challenge to disappear, even with existing clearance cookies."""
     try:
-        if page.evaluate("""() => /just a moment|attention required|checking your browser/i
+        if page.evaluate("""() => /just a moment|attention required|checking your browser|verifizierung/i
             .test(document.title) || Boolean(document.querySelector(
                 '#challenge-running, #cf-challenge-running, #challenge-form'))"""):
             return True
@@ -132,9 +144,10 @@ class _ChallengeSolver:
     """Click checkbox widgets and leave image challenges available to the user."""
 
     def __init__(self):
-        self.clicked = set()
+        self.clicked = {}
 
     def ready_to_submit(self, page) -> bool:
+        manual = os.getenv("ANIWORLD_CAPTCHA_MANUAL", "0").strip() == "1"
         widgets = []
         for frame in page.frames:
             try:
@@ -144,9 +157,13 @@ class _ChallengeSolver:
                     kind = widget["kind"]
                     key = (frame, kind)
                     if widget["ready"]:
-                        self.clicked.discard(key)
+                        self.clicked.pop(key, None)
                         continue
-                    if key in self.clicked:
+                    last_click = self.clicked.get(key)
+                    if manual or (
+                        last_click is not None
+                        and (kind != "turnstile" or time.monotonic() - last_click < 5)
+                    ):
                         continue
                     clicked = False
                     if kind == "altcha":
@@ -199,11 +216,14 @@ class _ChallengeSolver:
                                 and box["width"] >= 100
                             ):
                                 page.mouse.click(
-                                    box["x"] + 28, box["y"] + box["height"] / 2
+                                    box["x"] + 28 + random.randint(-3, 3),
+                                    box["y"]
+                                    + box["height"] / 2
+                                    + random.randint(-3, 3),
                                 )
                                 clicked = True
                     if clicked:
-                        self.clicked.add(key)
+                        self.clicked[key] = time.monotonic()
             except Error as exc:
                 logger.debug("CAPTCHA widget changed during inspection: %s", exc)
                 return False
@@ -220,18 +240,21 @@ class _BrowserHandle:
 
 
 def _launch_browser_context(runtime, offscreen=False):
-    """Use a fresh headed Chromium context with a fixed screenshot size."""
+    """Use a fresh headed Chromium context with the browser's native viewport."""
     if not Path(runtime.chromium.executable_path).is_file():
         raise RuntimeError(
             "Patchright's Chromium browser is missing. "
             "Run 'python -m patchright install chromium', then try again."
         )
-    args = ["--window-size=1280,720", "--disable-dev-shm-usage"]
+    visible = os.getenv("ANIWORLD_CAPTCHA_VISIBLE", "auto").strip().lower()
+    if visible in ("0", "1"):
+        offscreen = visible == "0"
+    args = ["--disable-dev-shm-usage"]
     if offscreen:
         args.append("--window-position=-32000,-32000")
     browser = runtime.chromium.launch(headless=False, args=args)
     try:
-        context = browser.new_context(viewport={"width": 1280, "height": 720})
+        context = browser.new_context(no_viewport=True)
     except Exception:
         browser.close()
         raise
@@ -242,6 +265,37 @@ def _sync_session_user_agent(page):
     from ..config import GLOBAL_SESSION
 
     GLOBAL_SESSION.headers["User-Agent"] = page.evaluate("navigator.userAgent")
+
+
+def _attach_debug_listeners(page):
+    """Log browser errors when CAPTCHA debugging is enabled."""
+    if os.getenv("ANIWORLD_CAPTCHA_DEBUG_LOG", "0").strip() != "1":
+        return
+
+    def console(event):
+        if event["type"] in ("warning", "error"):
+            message = " ".join(
+                str(arg.get("value", arg.get("description", "")))
+                for arg in event["args"]
+            )
+            logger.warning("CAPTCHA browser %s: %s", event["type"], message)
+
+    def page_error(event):
+        details = event["exceptionDetails"]
+        message = details.get("exception", {}).get("description") or details["text"]
+        logger.warning("CAPTCHA page error: %s", message)
+
+    # Patchright normally leaves Runtime events disabled.
+    debug = page.context.new_cdp_session(page)
+    debug.on("Runtime.consoleAPICalled", console)
+    debug.on("Runtime.exceptionThrown", page_error)
+    debug.send("Runtime.enable")
+    page.on(
+        "requestfailed",
+        lambda request: logger.warning(
+            "CAPTCHA request failed: %s (%s)", request.url, request.failure
+        ),
+    )
 
 
 @contextmanager
@@ -256,6 +310,7 @@ def _browser(url, offscreen=True):
         try:
             _inject_session_cookies(handle.context, url)
             page = handle.context.new_page()
+            _attach_debug_listeners(page)
             _sync_session_user_agent(page)
             yield handle.context, page
         finally:
@@ -445,20 +500,23 @@ def _click_submit_button(page):
 
 
 def _solve(url, prepare=None, timeout=300):
+    timeout = _captcha_timeout(timeout)
     with (
         _solving(url) as session,
         _browser(url, offscreen=session is not None) as (context, page),
     ):
         page.goto(url, wait_until="domcontentloaded", timeout=30000)
         submitted = False
+        challenge_submitted = False
+        clicking_widget = False
         existing_frames = set()
 
         def close_popup(tab):
-            if not submitted:
+            if not submitted or clicking_widget:
                 tab.close()
 
+        context.on("page", close_popup)
         if prepare:
-            context.on("page", close_popup)
             prepare(page)
         deadline = time.monotonic() + timeout
         solver = _ChallengeSolver()
@@ -474,12 +532,19 @@ def _solve(url, prepare=None, timeout=300):
                     session.result_url = result
                 return result
             try:
-                if not submitted and (prepare or solver.ready_to_submit(page)):
+                ready = False
+                if not challenge_submitted and (not prepare or submitted):
+                    clicking_widget = True
+                    ready = solver.ready_to_submit(page)
+                if (prepare and not submitted) or ready:
+                    clicking_widget = False
                     existing_frames = {frame.url for frame in page.frames}
                     # A popup may open synchronously inside the click handler.
                     submitted = True
                     try:
                         submitted = _click_submit_button(page)
+                        if ready:
+                            challenge_submitted = submitted
                     except Error:
                         submitted = False
                         raise
@@ -496,7 +561,7 @@ def solve_captcha(url: str):
 
 
 def solve_sto_modal(episode_url, provider_name, language_label, redirect_url=None):
-    """Open the selected S.to player and click Weiter without solving its widgets."""
+    """Try S.to's Weiter first, then solve widgets if the player stays blocked."""
 
     def prepare(page):
         clicked = page.evaluate(
@@ -548,6 +613,7 @@ def playwright_get_iframe_url(url: str, timeout: int = 20) -> str:
 def playwright_get_hanime_manifest_token(url: str, timeout: int = 15) -> str:
     """Capture the token returned by Hanime's player authentication request."""
     token = None
+    challenge_timeout = _captcha_timeout(300)
     with (
         _solving(url) as session,
         _browser(url, offscreen=session is not None) as (context, page),
@@ -569,7 +635,7 @@ def playwright_get_hanime_manifest_token(url: str, timeout: int = 15) -> str:
         except Error:
             if not token:
                 raise
-        deadline = time.monotonic() + 300
+        deadline = time.monotonic() + challenge_timeout
         solver = _ChallengeSolver()
         while not token and time.monotonic() < deadline:
             if session:
@@ -578,6 +644,8 @@ def playwright_get_hanime_manifest_token(url: str, timeout: int = 15) -> str:
                 _click_submit_button(page)
             page.wait_for_timeout(500)
         if not token:
-            raise TimeoutError("Hanime player handshake timed out after 300s")
+            raise TimeoutError(
+                f"Hanime player handshake timed out after {challenge_timeout}s"
+            )
         _export_session_cookies(context)
     return token

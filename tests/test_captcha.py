@@ -1,7 +1,7 @@
 """CAPTCHA interactions, URL capture and cleanup without live provider traffic."""
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock, Mock, call
 
 import pytest
 from patchright.sync_api import Error
@@ -76,7 +76,11 @@ def test_navigation_during_detection_keeps_waiting():
         ("recaptcha", "https://www.google.com/recaptcha/api2/anchor"),
     ],
 )
-def test_stacked_widgets_wait_for_every_token_and_do_not_repeat_clicks(kind, source):
+def test_stacked_widgets_wait_for_every_token_and_do_not_repeat_clicks(
+    kind, source, monkeypatch
+):
+    offset = Mock(side_effect=[-3, 3])
+    monkeypatch.setattr(captcha.random, "randint", offset)
     page = Mock()
     owner = Mock()
     child = Mock(url=source)
@@ -96,7 +100,8 @@ def test_stacked_widgets_wait_for_every_token_and_do_not_repeat_clicks(kind, sou
     solver = captcha._ChallengeSolver()
     assert not solver.ready_to_submit(page)
     assert not solver.ready_to_submit(page)
-    page.mouse.click.assert_called_once_with(128, 235)
+    page.mouse.click.assert_called_once_with(125, 238)
+    assert offset.call_args_list == [call(-3, 3), call(-3, 3)]
     owner.evaluate.return_value = [
         {"kind": kind, "ready": True},
         {"kind": "altcha", "ready": True},
@@ -121,6 +126,30 @@ def test_image_challenge_is_left_for_user():
     page.frames = [owner]
     assert not captcha._ChallengeSolver().ready_to_submit(page)
     page.mouse.click.assert_not_called()
+
+
+def test_widget_click_retries_after_interception(monkeypatch):
+    clock = SimpleNamespace(now=100)
+    monkeypatch.setattr(captcha.time, "monotonic", lambda: clock.now)
+    child = Mock(url="https://challenges.cloudflare.com/widget")
+    child.is_detached.return_value = False
+    child.frame_element.return_value.bounding_box.return_value = {
+        "x": 0,
+        "y": 0,
+        "width": 300,
+        "height": 70,
+    }
+    frame = Mock(child_frames=[child])
+    frame.evaluate.return_value = [{"kind": "turnstile", "ready": False}]
+    page = Mock(frames=[frame])
+    solver = captcha._ChallengeSolver()
+    assert not solver.ready_to_submit(page)
+    clock.now += 1
+    assert not solver.ready_to_submit(page)
+    page.mouse.click.assert_called_once()
+    clock.now += 4
+    assert not solver.ready_to_submit(page)
+    assert page.mouse.click.call_count == 2
 
 
 def test_detached_widget_cannot_make_other_solved_widgets_ready():
@@ -179,10 +208,12 @@ def test_interactive_solve_delivers_clicks_and_always_cleans_up(
 
 
 @pytest.mark.parametrize("destination", ["iframe", "popup"])
+@pytest.mark.parametrize("manual", ["0", "1"])
 def test_sto_clicks_continue_without_touching_widgets(
-    browser, monkeypatch, destination
+    browser, monkeypatch, destination, manual
 ):
     handle, page = browser
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_MANUAL", manual)
     frame = Mock(url="about:blank")
     frame.name = "player-iframe"
     page.frames = [frame]
@@ -220,6 +251,186 @@ def test_sto_clicks_continue_without_touching_widgets(
     ad.close.assert_called_once()
     solver.ready_to_submit.assert_not_called()
     button.evaluate.assert_called_once()
+    handle.close.assert_called_once()
+
+
+@pytest.mark.parametrize("manual", ["0", "1"])
+def test_sto_solves_required_widgets_after_initial_submission(
+    browser, monkeypatch, manual
+):
+    handle, page = browser
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_MANUAL", manual)
+    page.evaluate.return_value = True
+    solver = Mock()
+    ad = Mock(url="https://ads.example/")
+
+    def wait_for_widgets(page):
+        if solver.ready_to_submit.call_count == 1:
+            handle.context.on.call_args.args[1](ad)
+            return False
+        return True
+
+    solver.ready_to_submit.side_effect = wait_for_widgets
+    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda: solver)
+    submissions = []
+
+    def submit(page):
+        submissions.append(page.url)
+        if len(submissions) == 2:
+            page.url = PLAYER
+        return True
+
+    monkeypatch.setattr(captcha, "_click_submit_button", submit)
+    assert captcha.solve_sto_modal(SOURCE, "VOE", "Deutsch") == PLAYER
+    assert len(submissions) == 2
+    assert solver.ready_to_submit.call_count == 2
+    ad.close.assert_called_once()
+    handle.close.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "visible,offscreen,hidden",
+    [
+        ("auto", False, False),
+        ("auto", True, True),
+        ("1", True, False),
+        ("0", False, True),
+        ("invalid", True, True),
+        (" AUTO ", False, False),
+    ],
+)
+def test_window_visibility_keeps_chromium_headed(
+    tmp_path, monkeypatch, visible, offscreen, hidden
+):
+    executable = tmp_path / "chromium"
+    executable.touch()
+    runtime = Mock()
+    runtime.chromium.executable_path = str(executable)
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_VISIBLE", visible)
+    handle = captcha._launch_browser_context(runtime, offscreen=offscreen)
+    options = runtime.chromium.launch.call_args.kwargs
+    assert options["headless"] is False
+    assert ("--window-position=-32000,-32000" in options["args"]) == hidden
+    assert not any(arg.startswith("--window-size") for arg in options["args"])
+    runtime.chromium.launch.return_value.new_context.assert_called_once_with(
+        no_viewport=True
+    )
+    handle.close()
+    runtime.chromium.launch.return_value.close.assert_called_once()
+
+
+def test_manual_mode_waits_for_user_tokens_without_interacting(monkeypatch):
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_MANUAL", "1")
+    owner = Mock(child_frames=[])
+    kinds = ["turnstile", "hcaptcha", "recaptcha", "checkbox", "altcha"]
+    owner.evaluate.side_effect = [
+        [{"kind": kind, "ready": False} for kind in kinds],
+        [{"kind": kind, "ready": True} for kind in kinds],
+    ]
+    page = Mock(frames=[owner])
+    solver = captcha._ChallengeSolver()
+    assert not solver.ready_to_submit(page)
+    assert solver.ready_to_submit(page)
+    page.mouse.click.assert_not_called()
+    owner.get_by_role.assert_not_called()
+    assert owner.evaluate.call_count == 2
+
+
+@pytest.mark.parametrize(
+    "configured,waits", [("2", 4), ("invalid", 2), ("0", 2), ("-1", 2), ("", 2)]
+)
+def test_solve_timeout_override_and_invalid_fallback(
+    browser, monkeypatch, configured, waits
+):
+    handle, page = browser
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_TIMEOUT", configured)
+    monkeypatch.setattr(captcha, "_is_captcha_page_dom", lambda page: True)
+    solver = Mock()
+    solver.ready_to_submit.return_value = False
+    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda: solver)
+    assert captcha._solve(SOURCE, timeout=1) is None
+    assert page.wait_for_timeout.call_count == waits
+    handle.close.assert_called_once()
+
+
+def test_hanime_timeout_uses_override_and_releases_browser(browser, monkeypatch):
+    handle, page = browser
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_TIMEOUT", "1")
+    monkeypatch.setattr(captcha, "_is_captcha_page_dom", lambda page: False)
+    with pytest.raises(TimeoutError, match="after 1s"):
+        captcha.playwright_get_hanime_manifest_token(SOURCE)
+    assert page.wait_for_timeout.call_count == 2
+    assert captcha.get_captcha_status() is None
+    handle.close.assert_called_once()
+
+
+@pytest.mark.parametrize("enabled", ["0", "1"])
+def test_debug_logs_browser_errors_and_ignores_ordinary_console_messages(
+    monkeypatch, enabled
+):
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_DEBUG_LOG", enabled)
+    log = Mock()
+    monkeypatch.setattr(captcha, "logger", log)
+    page = Mock()
+    captcha._attach_debug_listeners(page)
+    if enabled == "0":
+        page.on.assert_not_called()
+        page.context.new_cdp_session.assert_not_called()
+        return
+    debug = page.context.new_cdp_session.return_value
+    debug.send.assert_called_once_with("Runtime.enable")
+    callbacks = {call.args[0]: call.args[1] for call in debug.on.call_args_list}
+    for kind in ("log", "debug", "info"):
+        callbacks["Runtime.consoleAPICalled"](
+            {"type": kind, "args": [{"value": "ordinary message"}]}
+        )
+    log.warning.assert_not_called()
+    for kind in ("error", "warning"):
+        callbacks["Runtime.consoleAPICalled"](
+            {"type": kind, "args": [{"value": "browser message"}]}
+        )
+        log.warning.assert_called_with(
+            "CAPTCHA browser %s: %s", kind, "browser message"
+        )
+    callbacks["Runtime.exceptionThrown"](
+        {
+            "exceptionDetails": {
+                "text": "Uncaught",
+                "exception": {"description": "script failed"},
+            }
+        }
+    )
+    log.warning.assert_called_with("CAPTCHA page error: %s", "script failed")
+    callbacks["Runtime.exceptionThrown"](
+        {"exceptionDetails": {"text": "Uncaught error"}}
+    )
+    log.warning.assert_called_with("CAPTCHA page error: %s", "Uncaught error")
+    callbacks = {call.args[0]: call.args[1] for call in page.on.call_args_list}
+    callbacks["requestfailed"](SimpleNamespace(url=SOURCE, failure="net::ERR_FAILED"))
+    log.warning.assert_called_with(
+        "CAPTCHA request failed: %s (%s)", SOURCE, "net::ERR_FAILED"
+    )
+
+
+def test_debug_listener_setup_does_not_break_hanime_token_capture(browser, monkeypatch):
+    handle, page = browser
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_DEBUG_LOG", "1")
+
+    def navigate(*args, **kwargs):
+        callbacks = {call.args[0]: call.args[1] for call in page.on.call_args_list}
+        page.context.new_cdp_session.return_value.send.assert_called_once_with(
+            "Runtime.enable"
+        )
+        callbacks["response"](
+            SimpleNamespace(
+                status=200,
+                url="https://auth.hanime.tv/",
+                header_value=lambda name: "token",
+            )
+        )
+
+    page.goto.side_effect = navigate
+    assert captcha.playwright_get_hanime_manifest_token(SOURCE) == "token"
     handle.close.assert_called_once()
 
 

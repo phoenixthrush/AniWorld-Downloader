@@ -88,6 +88,12 @@ services:
     #   ANIWORLD_DISCORD_LANGUAGE: "en"               # Bot language: en | de
     #   ANIWORLD_DISCORD_ANNOUNCE_CHANNEL_ID: ""      # Post "now available" here when a requested download finishes
 
+    # --- CAPTCHA browser (optional overrides) ---
+    #   ANIWORLD_CAPTCHA_VISIBLE: "auto"              # auto, 1 = visible, 0 = off-screen
+    #   ANIWORLD_CAPTCHA_TIMEOUT: ""                  # Positive seconds; empty keeps each flow's default
+    #   ANIWORLD_CAPTCHA_MANUAL: "0"                  # 1 = click widgets yourself through the queue viewer
+    #   ANIWORLD_CAPTCHA_DEBUG_LOG: "0"               # 1 = log browser errors and failed requests
+
     restart: unless-stopped
 
 volumes:

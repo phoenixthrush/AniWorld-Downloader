@@ -36,6 +36,7 @@ def get_response(url, session_cookies=None, csrf_token=None):
 def _browser_get(url):
     from ...playwright.captcha import (
         _browser,
+        _captcha_timeout,
         _ChallengeSolver,
         _export_session_cookies,
         _is_captcha_page_dom,
@@ -45,7 +46,7 @@ def _browser_get(url):
         # Direct navigation to an API URL can redirect to the login page.
         page.goto(BASE_URL + "/", wait_until="load", timeout=30000)
         solver = _ChallengeSolver()
-        deadline = time.monotonic() + 30
+        deadline = time.monotonic() + _captcha_timeout(30)
         while _is_captcha_page_dom(page):
             if time.monotonic() >= deadline:
                 raise RuntimeError("Moflix homepage is blocked by Cloudflare")
