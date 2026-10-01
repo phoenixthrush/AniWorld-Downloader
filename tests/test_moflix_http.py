@@ -85,6 +85,7 @@ def test_browser_response_and_cleanup(monkeypatch, outcome):
     monkeypatch.setattr(sync_api, "sync_playwright", runtime)
     monkeypatch.setattr(autodeps, "_ensure_xvfb", Mock())
     monkeypatch.setattr(captcha, "_launch_browser_context", lambda *a, **k: handle)
+    monkeypatch.setattr(captcha, "_sync_session_user_agent", Mock())
     monkeypatch.setattr(captcha, "_inject_session_cookies", Mock())
     monkeypatch.setattr(captcha, "_export_session_cookies", Mock())
     monkeypatch.setattr(

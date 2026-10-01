@@ -88,16 +88,6 @@ services:
     #   ANIWORLD_DISCORD_LANGUAGE: "en"               # Bot language: en | de
     #   ANIWORLD_DISCORD_ANNOUNCE_CHANNEL_ID: ""      # Post "now available" here when a requested download finishes
 
-    # --- Captcha solving (uncomment the environment block to tune) ---
-    # Kinox asks for a captcha on every download and serienstream.to sometimes
-    # does. The container already ships Chromium and Xvfb for this; these only
-    # matter if solving misbehaves. The full list is in src/aniworld/.env.example.
-    #   ANIWORLD_CAPTCHA_MANUAL: "0"                  # 1 = never auto-click, only your click in the Web UI counts
-    #   ANIWORLD_CAPTCHA_TIMEOUT: ""                  # Seconds to wait for a solve, empty uses the built-in default
-    #   ANIWORLD_CAPTCHA_DEBUG_LOG: "1"               # Log the captcha browser's console and network errors
-    #   ANIWORLD_NO_ADBLOCK: "0"                      # 1 = disable the ad-blocker, try this if a captcha page won't load
-    #   ANIWORLD_SPOOF_WEBGL: "0"                     # 1 = mask SwiftShader on GPU-less servers
-
     restart: unless-stopped
 
 volumes:
