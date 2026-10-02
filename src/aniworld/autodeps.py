@@ -409,9 +409,10 @@ class DependencyManager:
 # -----------------------------
 # Player paths
 # -----------------------------
-def get_player_path() -> Path:
+def get_player_path(*, use_iina=None) -> Path:
     manager = DependencyManager()
-    use_iina = os.getenv("ANIWORLD_USE_IINA") == "1"
+    if use_iina is None:
+        use_iina = os.getenv("ANIWORLD_USE_IINA") == "1"
     # TODO: check if aniskip is selected in future for IINA to fallback to mpv for functionality if issue #200 is fixed
 
     if PLATFORM == "Darwin" and use_iina:

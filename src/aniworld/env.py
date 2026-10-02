@@ -57,6 +57,12 @@ def merge_env(example_path: Path, env_path: Path):
             if m:
                 existing_values[m.group(1).strip()] = m.group(2).strip()
 
+    # Preserve existing MangaFire preferences when upgrading the setting name.
+    if "MANGAFIRE_FORMAT" in existing_values:
+        existing_values.setdefault(
+            "ANIWORLD_MANGAFIRE_FORMAT", existing_values["MANGAFIRE_FORMAT"]
+        )
+
     merged_lines = []
     for line in example_lines:
         m = ENV_LINE_RE.match(line)

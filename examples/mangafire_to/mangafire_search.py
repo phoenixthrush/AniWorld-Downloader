@@ -1,6 +1,6 @@
 from urllib.parse import urljoin
 
-from aniworld.models.mangafire_to.series import fetch_mangafire_genres, search_series
+from aniworld.search import fetch_mangafire_genres, query_mangafire
 
 # Available genres (09/2026 as of right now; fetched at runtime, not an allowlist):
 # Action, Adult, Adventure, Avant Garde, Boys Love, Comedy, Crime, Demons, Drama,
@@ -19,17 +19,17 @@ for genre in genres:
     print(genre["name"], "-", genre["id"])
 
 # Example 1: Genre name, highest rated first.
-results = search_series(genre="Action", sort="score:desc", limit=10)
+results = query_mangafire(genre="Action", sort="score:desc", limit=10)
 for result in results:
     print(result["title"], "-", urljoin("https://mangafire.to", result["url"]))
 
 # Example 2: Keyword within a genre.
-results = search_series("dragon", genre="Fantasy", limit=10)
+results = query_mangafire("dragon", genre="Fantasy", limit=10)
 for result in results:
     print(result["title"], "-", urljoin("https://mangafire.to", result["url"]))
 
 # Example 3: Use an ID discovered at runtime, alphabetically.
 if genres:
-    results = search_series(genre=genres[0]["id"], sort="title:asc", limit=10)
+    results = query_mangafire(genre=genres[0]["id"], sort="title:asc", limit=10)
     for result in results:
         print(result["title"], "-", urljoin("https://mangafire.to", result["url"]))

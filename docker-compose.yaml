@@ -57,7 +57,7 @@ services:
     #   ANIWORLD_AUTOSYNC_MODE: "interval"            # When Auto-Sync runs: interval (every so often) | cron (fixed times)
     #   ANIWORLD_AUTOSYNC_INTERVAL: "24h"             # Interval mode: 24h | 6h | 90m | 1h30m (a bare number means hours)
     #   ANIWORLD_AUTOSYNC_CRON: "0 3 * * *"           # Cron mode, local time. Plain language works too ("every monday, friday at 10pm")
-    #   MANGAFIRE_FORMAT: "jpg"                       # MangaFire output: jpg (images) | cbz (archive)
+    #   ANIWORLD_MANGAFIRE_FORMAT: "jpg"               # MangaFire output: jpg (images) | cbz (archive)
     #   ANIWORLD_KINOX_DOMAIN: ""                     # Override the Kinox domain if the default one is unreachable
 
     # --- Authentication (uncomment the environment block to enable) ---

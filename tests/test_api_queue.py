@@ -136,7 +136,7 @@ def test_mangafire_chapters_carry_the_output_format(client):
 
 
 def test_mangafire_falls_back_to_the_configured_format(client, monkeypatch):
-    monkeypatch.setenv("MANGAFIRE_FORMAT", "png")
+    monkeypatch.setenv("ANIWORLD_MANGAFIRE_FORMAT", "png")
     queue_id = client.post(
         "/api/download",
         json={"episodes": [{"url": "https://x/chapter/1"}], "provider": "MangaFire"},

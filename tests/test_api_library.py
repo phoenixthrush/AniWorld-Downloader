@@ -218,9 +218,30 @@ def test_different_pages_are_cached_separately(client, genres, monkeypatch):
     assert calls == [("mecha", 1), ("mecha", 2)]
 
 
-def test_a_site_without_genre_pages_offers_none(client):
-    assert client.get("/api/genres?site=moflix").get_json() == {"genres": []}
-    assert client.get("/api/genre?site=moflix&slug=action").status_code == 400
+def test_an_unknown_site_offers_no_genres(client):
+    assert client.get("/api/genres?site=unknown").get_json() == {"genres": []}
+    assert client.get("/api/genre?site=unknown&slug=action").status_code == 400
+
+
+def test_moflix_uses_the_same_genre_endpoints(client, monkeypatch):
+    from aniworld import search
+
+    monkeypatch.setattr(
+        search,
+        "_moflix_json",
+        lambda endpoint: {
+            "genres": ["Action"],
+            "titles": [{"id": 42, "name": "Example", "poster": ""}],
+        },
+    )
+    assert client.get("/api/genres?site=moflix").get_json() == {
+        "genres": [{"name": "Action", "slug": "Action"}]
+    }
+    response = client.get("/api/genre?site=moflix&slug=Action")
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["results"][0]["url"] == "https://moflix-stream.xyz/titles/42"
+    assert body["has_more"] is False
 
 
 def test_the_genre_list_is_cached_per_site(client, monkeypatch):

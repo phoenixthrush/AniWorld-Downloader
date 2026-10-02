@@ -207,7 +207,7 @@ def test_the_mangafire_format_defaults_to_jpg():
 
 
 def test_the_mangafire_format_can_be_changed(monkeypatch):
-    monkeypatch.setenv("MANGAFIRE_FORMAT", "pdf")
+    monkeypatch.setenv("ANIWORLD_MANGAFIRE_FORMAT", "pdf")
     assert media.mangafire_format() == "pdf"
 
 

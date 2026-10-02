@@ -7,24 +7,39 @@ from aniworld.extractors.provider import hanime_tv
 
 QUERIES = [
     (search.fetch_genre_animes, {"slug": "action"}),
+    (search.query_aniworld, {"genre": "action"}),
     (search.query_s_to, {"genre": "action"}),
     (search.query_burningseries, {"genre": "Action"}),
     (search.query_kinox, {"genre": "Action"}),
-    (hanime_tv.search_hanime, {"genre": "fantasy"}),
-    (search.query_filmo, {"genre_id": 1}),
+    (search.query_hanime, {"genre": "fantasy"}),
+    (search.query_filmo, {"genre": 1}),
     (search.query_filmpalast, {"genre": "Action"}),
     (search.query_megakino, {"genre": "action"}),
 ]
 
 
-@pytest.mark.parametrize("query,kwargs", QUERIES)
+@pytest.mark.parametrize(
+    "query,kwargs",
+    QUERIES
+    + [
+        (search.query_moflix, {"genre": "Action"}),
+        (search.query_mangafire, {"genre": "Action"}),
+    ],
+)
 @pytest.mark.parametrize("limit", [-1, 1.5, "10", True])
 def test_invalid_limits_fail_before_fetch(query, kwargs, limit):
     with pytest.raises(ValueError, match="limit must be"):
         query(**kwargs, limit=limit)
 
 
-@pytest.mark.parametrize("query,kwargs", QUERIES)
+@pytest.mark.parametrize(
+    "query,kwargs",
+    QUERIES
+    + [
+        (search.query_moflix, {"genre": "Action"}),
+        (search.query_mangafire, {"genre": "Action"}),
+    ],
+)
 def test_zero_limit_skips_fetch(query, kwargs):
     result = query(**kwargs, limit=0)
     assert (result["results"] if isinstance(result, dict) else result) == []

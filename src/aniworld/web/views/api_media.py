@@ -104,10 +104,10 @@ def search():
 
 def _search_hanime(keyword):
     """hanime groups sequels under one slug family, show one card per franchise."""
-    from ...extractors.provider.hanime_tv import search_hanime
+    from ...search import query_hanime
 
     try:
-        hits = search_hanime(keyword) or []
+        hits = query_hanime(keyword) or []
     except Exception as exc:
         logger.warning("HTV search failed: %s", exc)
         return []

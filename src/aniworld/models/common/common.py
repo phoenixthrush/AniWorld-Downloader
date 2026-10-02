@@ -1576,10 +1576,6 @@ def syncplay(self):
 
     print(f"[Syncplaying] {self._file_name}")
 
-    # TODO: implement IINA support for syncplay (Syncplay may not detect IINA binary reliably)
-    # Force mpv for now (get_player_path() reads this env var)
-    os.environ["ANIWORLD_USE_IINA"] = "0"
-
     stream_url, provider_name = _resolve_stream_url_with_fallback(self, "Syncplay")
 
     syncplay_host = os.getenv("ANIWORLD_SYNCPLAY_HOST") or "syncplay.pl:8998"
@@ -1598,8 +1594,6 @@ def syncplay(self):
     file_name = self._file_name.replace(" ", "_")
 
     if syncplay_password:
-        # Log what we're using to derive the room (helps debugging)
-        logger.debug(f"{room}-{file_name}-{syncplay_password}")
         room += (
             "-"
             + hashlib.sha256(f"-{file_name}-{syncplay_password}".encode()).hexdigest()
@@ -1623,7 +1617,7 @@ def syncplay(self):
         "--name",
         syncplay_username,
         "--player-path",
-        str(get_player_path()),
+        str(get_player_path(use_iina=False)),
         stream_url,
         # "/Users/phoenixthrush/Downloads/Caramelldansen.webm",
     ]
