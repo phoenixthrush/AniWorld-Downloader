@@ -5,6 +5,7 @@ import os
 import re
 from pathlib import Path
 
+import pytest
 from dotenv import dotenv_values
 
 from aniworld.env import merge_env
@@ -13,13 +14,21 @@ from aniworld.web.media import SITE_KEYS
 SOURCE = Path(__file__).resolve().parents[1] / "src" / "aniworld"
 
 
-def test_template_covers_application_settings():
+@pytest.mark.parametrize("default_encoding", ["utf-8", "cp1252"])
+def test_template_covers_application_settings(monkeypatch, default_encoding):
+    read_text = Path.read_text
+
+    def read_with_default(path, *args, **kwargs):
+        kwargs.setdefault("encoding", default_encoding)
+        return read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", read_with_default)
     settings = set(dotenv_values(SOURCE / ".env.example"))
     used = {f"ANIWORLD_ENABLE_{site.upper()}" for site in SITE_KEYS}
     for path in SOURCE.rglob("*.py"):
         used.update(
             node.value
-            for node in ast.walk(ast.parse(path.read_text()))
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
             if isinstance(node, ast.Constant)
             and isinstance(node.value, str)
             and re.fullmatch(r"ANIWORLD_[A-Z0-9_]+", node.value)
