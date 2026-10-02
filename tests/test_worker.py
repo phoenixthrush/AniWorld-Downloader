@@ -77,7 +77,7 @@ def test_a_dict_entry_keeps_its_extras():
 
 
 def test_a_missing_format_falls_back_to_the_setting(monkeypatch):
-    monkeypatch.setenv("MANGAFIRE_FORMAT", "png")
+    monkeypatch.setenv("ANIWORLD_MANGAFIRE_FORMAT", "png")
     _, extra = worker._episode_request({"url": "https://x/ep1"})
     assert extra["_format"] == "png"
 

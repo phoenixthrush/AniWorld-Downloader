@@ -256,7 +256,8 @@ class MangaFireToChapter:
     ):
         """Set up the chapter."""
         self.mangafire_format = (
-            format.strip().lower() or getenv("MANGAFIRE_FORMAT", "jpg").strip().lower()
+            format.strip().lower()
+            or getenv("ANIWORLD_MANGAFIRE_FORMAT", "jpg").strip().lower()
         )
         self._series = series
         self.chapter_url = url

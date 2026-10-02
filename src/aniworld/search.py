@@ -626,6 +626,39 @@ def fetch_genre_animes(slug, page=1, *, limit=None):
     return {"results": limit_results(results, limit), "has_more": has_more}
 
 
+def fetch_aniworld_genres():
+    """Return AniWorld's current genre names and slugs."""
+    return fetch_genres()
+
+
+def query_aniworld(keyword="", *, genre=None, limit=None):
+    """Search AniWorld titles, or follow its genre pages up to a result limit."""
+    validate_limit(limit)
+    if limit == 0:
+        return []
+    if genre not in (None, ""):
+        if keyword.strip():
+            raise ValueError("Use either a keyword or an AniWorld genre, not both.")
+        results = []
+        page = 1
+        while True:
+            data = fetch_genre_animes(genre, page=page)
+            results.extend(data["results"])
+            if (
+                limit_reached(results, limit)
+                or not data["has_more"]
+                or not data["results"]
+            ):
+                return limit_results(results, limit)
+            page += 1
+    if not keyword.strip():
+        return []
+    results = query(keyword) or []
+    if isinstance(results, dict):
+        results = [results]
+    return limit_results(results, limit)
+
+
 def fetch_new_animes():
     """Fetch the 'Neue Animes' section from the homepage.
 
@@ -1188,6 +1221,7 @@ def fetch_filmo_genres():
 def query_filmo(
     keyword="",
     *,
+    genre=None,
     genre_id=None,
     year=None,
     runtime_min=None,
@@ -1198,13 +1232,17 @@ def query_filmo(
 ):
     """Search by keyword, or browse movies with optional site filters.
 
-    Browsing follows all result pages. genre_id uses Filmo's numeric IDs,
+    Browsing follows all result pages. genre (or genre_id) uses Filmo's numeric IDs,
     runtime bounds are minutes, and country uses a two-letter country code.
     Omit filters or pass None / "" to use the site's defaults.
     """
     validate_limit(limit)
     if limit == 0:
         return []
+    if genre not in (None, ""):
+        if genre_id not in (None, "") and str(genre_id) != str(genre):
+            raise ValueError("genre and genre_id must identify the same Filmo genre.")
+        genre_id = genre
     base = "https://filmo.to"
     filters = optional_filters(
         genre_id=genre_id,
@@ -1852,13 +1890,42 @@ def fetch_moflix_movies():
     return results
 
 
-def query_moflix(keyword):
-    data = _moflix_json(f"/api/v1/search/{quote(keyword)}")
+def fetch_moflix_genres():
+    """Discover genres from Moflix's public recommendation API."""
+    data = _moflix_json(
+        "/api/v1/moflix/recommendations?route=genre&mediaType=all&limit=1"
+    )
+    return [{"name": name, "slug": name} for name in data.get("genres", [])]
+
+
+def query_moflix(keyword="", *, genre=None, limit=None):
+    """Search titles, or browse a genre within the API's result scope."""
+    validate_limit(limit)
+    if limit == 0:
+        return []
+    if genre not in (None, ""):
+        if keyword.strip():
+            raise ValueError("Use either a keyword or a Moflix genre, not both.")
+        endpoint = (
+            "/api/v1/moflix/recommendations?route=genre&mediaType=all&genres="
+            + quote(str(genre), safe="")
+        )
+        if limit is not None:
+            endpoint += f"&limit={limit}"
+        data = _moflix_json(endpoint)
+        items = data.get("titles", [])
+    else:
+        if not keyword.strip():
+            return []
+        data = _moflix_json(f"/api/v1/search/{quote(keyword, safe='')}")
+        items = data.get("results", [])
     results = []
-    for item in data.get("results", []):
+    for item in items:
         # The search API also returns people. Their IDs cannot be opened
         # through /titles/ and would produce a 404 in the detail view.
-        if not isinstance(item, dict) or item.get("model_type") != "title":
+        if not isinstance(item, dict):
+            continue
+        if genre in (None, "") and item.get("model_type") != "title":
             continue
         title_id = item.get("id")
         if not str(title_id).isdigit():
@@ -1869,7 +1936,35 @@ def query_moflix(keyword):
         if poster and not poster.startswith("http"):
             poster = "https://moflix-stream.xyz/" + poster.lstrip("/")
         results.append({"title": title, "url": url, "poster_url": poster})
-    return results
+    return limit_results(results, limit)
+
+
+def query_hanime(keyword="", *, genre=None, sort=None, limit=24):
+    """Search Hanime videos or browse one genre page."""
+    from .extractors.provider.hanime_tv import search_hanime
+
+    return search_hanime(keyword, limit=limit, genre=genre, sort=sort)
+
+
+def fetch_hanime_genres():
+    """Return Hanime's current genres as name/slug entries."""
+    from .extractors.provider.hanime_tv import fetch_hanime_genres as fetch
+
+    return [{"name": tag, "slug": tag} for tag in fetch()]
+
+
+def query_mangafire(keyword="", *, genre=None, sort=None, limit=20):
+    """Search MangaFire titles with optional genre and sorting filters."""
+    from .models.mangafire_to.series import search_series
+
+    return search_series(keyword, genre=genre, sort=sort, limit=limit)
+
+
+def fetch_mangafire_genres():
+    """Return MangaFire's current genres as name/slug entries, keeping IDs."""
+    from .models.mangafire_to.series import fetch_mangafire_genres as fetch
+
+    return [{**item, "slug": str(item["id"])} for item in fetch()]
 
 
 def _query_nhplayer_site(base, keyword, limit, animeid=False):

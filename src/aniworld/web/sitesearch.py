@@ -7,30 +7,28 @@ come back.
 
 import re
 
-from ..extractors.provider.hanime_tv import fetch_hanime_genres, search_hanime
 from ..logger import get_logger
-from ..models.mangafire_to.series import fetch_mangafire_genres
-from ..models.mangafire_to.series import search_series as query_mangafire
 from ..search import (
+    fetch_aniworld_genres,
     fetch_burningseries_genres,
     fetch_filmo_genres,
     fetch_filmpalast_genres,
+    fetch_hanime_genres,
     fetch_kinox_genres,
+    fetch_mangafire_genres,
     fetch_megakino_genres,
+    fetch_moflix_genres,
     fetch_s_to_genres,
+    query_aniworld,
     query_burningseries,
     query_filmo,
     query_filmpalast,
+    query_hanime,
     query_kinox,
+    query_mangafire,
     query_megakino,
     query_moflix,
     query_s_to,
-)
-from ..search import (
-    fetch_genres as fetch_aniworld_genres,
-)
-from ..search import (
-    query as query_aniworld,
 )
 
 logger = get_logger(__name__)
@@ -45,6 +43,7 @@ SITE_SEARCH = {
     "filmo": query_filmo,
     "burningseries": query_burningseries,
     "mangafire": query_mangafire,
+    "htv": query_hanime,
 }
 
 # aniworld/serienstream return relative `/.../<slug>` links, everything else
@@ -146,21 +145,7 @@ def _resolve_url(site, item):
     return base + link if pattern.match(link) else None
 
 
-def _hanime_genres():
-    """hanime browses by plain tag names, so the label is also the slug."""
-    return [{"name": tag, "slug": tag} for tag in fetch_hanime_genres()]
-
-
-def _mangafire_genres():
-    """MangaFire filters by the numeric genre ID its own filters are built on."""
-    return [
-        {"name": item["name"], "slug": str(item["id"])}
-        for item in fetch_mangafire_genres()
-    ]
-
-
-# Every site whose genre listing the Web UI can offer. Moflix has no genre pages
-# of its own, so it is simply absent.
+# Every site whose genre listing the Web UI can offer.
 GENRE_LISTS = {
     "aniworld": fetch_aniworld_genres,
     "sto": fetch_s_to_genres,
@@ -169,8 +154,9 @@ GENRE_LISTS = {
     "kinox": fetch_kinox_genres,
     "filmpalast": fetch_filmpalast_genres,
     "filmo": fetch_filmo_genres,
-    "htv": _hanime_genres,
-    "mangafire": _mangafire_genres,
+    "htv": fetch_hanime_genres,
+    "mangafire": fetch_mangafire_genres,
+    "moflix": fetch_moflix_genres,
 }
 
 GENRE_SITES = tuple(GENRE_LISTS)
@@ -184,9 +170,10 @@ GENRE_QUERIES = {
     "megakino": lambda genre, limit: query_megakino(genre=genre, limit=limit),
     "kinox": lambda genre, limit: query_kinox(genre=genre, limit=limit),
     "filmpalast": lambda genre, limit: query_filmpalast(genre=genre, limit=limit),
-    "filmo": lambda genre, limit: query_filmo(genre_id=genre, limit=limit),
-    "htv": lambda genre, limit: search_hanime(genre=genre, limit=limit),
+    "filmo": lambda genre, limit: query_filmo(genre=genre, limit=limit),
+    "htv": lambda genre, limit: query_hanime(genre=genre, limit=limit),
     "mangafire": lambda genre, limit: query_mangafire(genre=genre, limit=limit),
+    "moflix": lambda genre, limit: query_moflix(genre=genre, limit=limit),
 }
 
 

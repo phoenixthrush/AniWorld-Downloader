@@ -300,4 +300,4 @@ def downloaded_folder_names():
 
 
 def mangafire_format():
-    return os.environ.get("MANGAFIRE_FORMAT", "jpg")
+    return os.environ.get("ANIWORLD_MANGAFIRE_FORMAT", "jpg")

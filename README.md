@@ -58,24 +58,31 @@ Prefer another installation method? Use [Docker](#docker) or download a standalo
 
 The Web UI also supports local accounts, optional OIDC SSO, custom CSS, and background shaders. A JSON API and optional Discord request bot let you connect it to other tools. Features and language availability vary by site.
 
+For CAPTCHA browser visibility, manual solving, timeouts, and debug logs, see [CAPTCHA configuration](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/configuration#captcha-solving).
+
 ## Supported Sites
 
 AniWorld and SerienStream are the main focus of the project.
 
-Last checked: **09/2026**. These statuses reflect sampled stream/image checks, not complete downloads or playback tests. Availability can vary by title, region, and stream hoster.
+All registered source backends are listed below. Availability notes use sampled stream/image checks from **09/2026**, not complete downloads or playback tests. Availability can vary by title, region, and stream hoster.
 
 | Site | Content | Status | Notes |
 | --- | --- | --- | --- |
 | AniWorld | Anime and anime movies | Working | |
-| SerienStream | Series | Working: captcha required | |
+| SerienStream | Series | CAPTCHA verification required | |
 | MegaKino | Movies and series | Working | |
 | Filmo | Movies | Working | |
 | Moflix | Movies and series | Working | |
 | MangaFire | Manga | Working | JPG and CBZ downloads |
 | FilmPalast | Movies | Working | |
 | Hanime | Adult animation | Working | Disabled by default |
+| HentaiTV | Adult animation | Implemented; live availability unverified | CLI/Python only |
+| AnimeIDHentai | Adult animation | Implemented; live availability unverified | CLI/Python only |
+| HentaiHaven | Adult animation | Implemented; live availability unverified | CLI/Python only |
 | Kinox | Movies and series | Unverified: manual captcha required | Disabled by default |
 | BurningSeries | Series | Broken: embed resolution failed | Disabled by default |
+
+"Disabled by default" refers to Web UI visibility; direct CLI URLs remain accepted. Hanime (`hanime.tv`) has an optional Web UI tab, enabled with `ANIWORLD_ENABLE_HTV=1`. HentaiTV (`hentai.tv`), AnimeIDHentai (`animeidhentai.com`), and HentaiHaven (`hentaihaven.xxx`) support direct CLI URLs and Python use. See [adult-site usage](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/usage#adult-site-backends) for examples.
 
 ### Stream Hosters
 
@@ -93,7 +100,7 @@ Sites list the titles; stream hosters provide the video links. The checks below 
 | Vidmoly | Broken: no embed HTML returned |
 | Vidoza | Unverified: Shut down? |
 
-If a hoster fails, the downloader can try others in your configured fallback order, provided the title offers them. VOE previews are broken; Filemoon, Doodstream, and MegaKino previews are not implemented.
+If a hoster fails, the downloader can try others in your configured fallback order, provided the title offers them in the selected language. It does not automatically switch languages. VOE previews are broken; Filemoon, Doodstream, and MegaKino previews are not implemented.
 
 ## CLI Usage
 
@@ -166,7 +173,7 @@ Keys have read, read-and-download, or full-access permissions. They cannot manag
 
 **Appearance:** use **Settings → Appearance** for custom CSS and background shaders. The [`themes/`](themes) directory contains a light theme and a documented CSS template. To recover from a theme that hides controls, open `/settings?nocss=1`.
 
-**Python:** the [`examples/`](examples) directory demonstrates site models, metadata, downloads, and genre queries. Backend capabilities can differ from what is exposed in the Web UI.
+**Python:** all public site models are available from `aniworld` or `aniworld.models`. Search and genre functions share `aniworld.search`; see [Genre Search](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/genre-search) for supported filters and site limits. The [`examples/`](examples) directory demonstrates models, metadata, downloads, and genre queries.
 
 ## Contributing
 

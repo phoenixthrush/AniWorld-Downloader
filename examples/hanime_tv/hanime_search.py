@@ -1,4 +1,4 @@
-from aniworld.extractors.provider.hanime_tv import fetch_hanime_genres, search_hanime
+from aniworld.search import fetch_hanime_genres, query_hanime
 
 # limit caps the result count; None keeps the site's existing scope, 0 skips fetching.
 # Available genre tags (09/2026 as of right now):
@@ -13,7 +13,7 @@ from aniworld.extractors.provider.hanime_tv import fetch_hanime_genres, search_h
 genres = fetch_hanime_genres()
 print("Available genres:", len(genres))
 for genre in genres:
-    print(genre)
+    print(genre["name"], "-", genre["slug"])
 
 # Sort options (09/2026):
 # None / "": Recent Upload (default)
@@ -24,13 +24,13 @@ for genre in genres:
 # name_asc / name_desc: Alphabetical A-Z / Z-A
 
 # Fetch up to 24 results from a genre's first page.
-results = search_hanime(limit=10, genre="fantasy")
+results = query_hanime(limit=10, genre="fantasy")
 print("Fantasy results:", len(results))
 for result in results:
     print(result["name"], "-", "https://hanime.tv/videos/hentai/" + result["slug"])
 
 # Fetch all cards on the first page without a result limit.
-results = search_hanime(genre="comedy", limit=None, sort="views_desc")
+results = query_hanime(genre="comedy", limit=None, sort="views_desc")
 print("Comedy results, most views:", len(results))
 for result in results:
     print(result["name"], "-", "https://hanime.tv/videos/hentai/" + result["slug"])

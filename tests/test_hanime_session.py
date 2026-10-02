@@ -94,11 +94,11 @@ def handshake(monkeypatch, session):
 
     browser = Mock()
     browser.context.cookies.return_value = []
+    browser.context.pages = []
     page = browser.context.new_page.return_value
     monkeypatch.setattr(sync_api, "sync_playwright", MagicMock())
     monkeypatch.setattr(autodeps, "_ensure_xvfb", lambda: None)
     monkeypatch.setattr(captcha, "_launch_browser_context", lambda *a, **kw: browser)
-    monkeypatch.setattr(captcha, "_attach_debug_listeners", Mock())
     monkeypatch.setattr(captcha, "_sync_session_user_agent", Mock())
     return browser, page
 
@@ -149,9 +149,7 @@ def test_existing_clearance_does_not_finish_active_challenge(handshake, monkeypa
     solver.ready_to_submit.return_value = False
     monkeypatch.setattr(captcha, "_is_captcha_page_dom", dom)
     monkeypatch.setattr(captcha, "_ChallengeSolver", lambda: solver)
-    monkeypatch.setattr(captcha, "_focus_page", Mock())
-    monkeypatch.setattr(captcha._time, "sleep", Mock())
-    assert captcha._solve_captcha_cli(page.url) == page.url
+    assert captcha.solve_captcha(page.url) == page.url
     assert dom.call_count == 2
     solver.ready_to_submit.assert_called_once()
 
