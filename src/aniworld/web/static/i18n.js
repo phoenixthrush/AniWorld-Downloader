@@ -160,6 +160,9 @@
       "settings.disable_english_sub": "English-Sub-Downloads deaktivieren",
       "settings.disable_english_sub_hint":
         "English Sub wird aus der Sprachauswahl ausgeblendet und kann nicht heruntergeladen werden.",
+      "settings.show_all_languages": "Immer alle Sprachen anbieten",
+      "settings.show_all_languages_hint":
+        "Die Sprachauswahl zeigt normalerweise nur, was die erste Folge eines Titels hat. Schalte das ein, wenn eine spätere Folge eine Sprache dazubekommt. Folgen ohne die gewählte Sprache schlagen beim Download fehl.",
       "settings.enable_htv_hint": "Erwachsenen-Animation. Standardmäßig aus.",
       "settings.enable_hentaitv_hint":
         "Erwachsenen-Animation mit englischen Untertiteln. Standardmäßig aus.",

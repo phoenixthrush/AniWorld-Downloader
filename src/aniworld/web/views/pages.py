@@ -67,6 +67,8 @@ def index():
         megakino_lang_labels=MEGAKINO_LANGUAGES,
         supported_providers=WORKING_PROVIDERS,
         default_language=settings_store.default_language(),
+        show_all_languages=settings_store.show_all_languages(),
+        english_sub_disabled=settings_store.english_sub_disabled(),
         sites=settings_store.enabled_sites(),
         genre_sites=sitesearch.GENRE_SITES,
     )

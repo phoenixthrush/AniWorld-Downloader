@@ -481,7 +481,9 @@
   }
 
   function rebuildLanguageOptions() {
-    const languages = window.SITE_LANGUAGES[currentSite] || window.SITE_LANGUAGES.aniworld;
+    const languages = (
+      window.SITE_LANGUAGES[currentSite] || window.SITE_LANGUAGES.aniworld
+    ).filter((language) => !(window.ENGLISH_SUB_DISABLED && language === "English Sub"));
     languageSelect.innerHTML = languages
       .map((language) => `<option value="${esc(language)}">${esc(language)}</option>`)
       .join("");
@@ -508,9 +510,10 @@
     }
   }
 
-  // Hide language options the title does not actually offer
+  // Hide language options the title does not actually offer. The probe only
+  // sees the first episode, so this can be switched off in the settings.
   function restrictLanguages() {
-    if (!availableProviders) return;
+    if (!availableProviders || window.SHOW_ALL_LANGUAGES) return;
     const offered = Object.keys(availableProviders);
     if (!offered.length) return;
 

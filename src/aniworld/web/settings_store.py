@@ -179,6 +179,15 @@ def english_sub_disabled():
     return _flag("ANIWORLD_DISABLE_ENGLISH_SUB")
 
 
+def show_all_languages():
+    """Offer every language in the download dialog, not only the probed ones.
+
+    The probe only looks at the first episode, so a language a later episode
+    adds would otherwise never become selectable.
+    """
+    return _flag("ANIWORLD_SHOW_ALL_LANGUAGES")
+
+
 def default_language():
     language = os.environ.get("ANIWORLD_LANGUAGE", "German Dub")
     return language if language in LANG_LABELS.values() else "German Dub"
@@ -368,6 +377,7 @@ def read_settings():
         "download_path": str(paths.default_download_path()),
         "lang_separation": paths.lang_separation_enabled(),
         "disable_english_sub": english_sub_disabled(),
+        "show_all_languages": show_all_languages(),
         **{f"enable_{site}": state for site, state in enabled_sites().items()},
         "enable_library": library_enabled(),
         "enable_autosync": autosync_enabled(),
@@ -401,6 +411,7 @@ def read_settings():
 _BOOL_SETTINGS = {
     "lang_separation": "ANIWORLD_LANG_SEPARATION",
     "disable_english_sub": "ANIWORLD_DISABLE_ENGLISH_SUB",
+    "show_all_languages": "ANIWORLD_SHOW_ALL_LANGUAGES",
     "enable_library": "ANIWORLD_ENABLE_LIBRARY",
     "enable_autosync": "ANIWORLD_ENABLE_AUTOSYNC",
     "autosync_new_only": "ANIWORLD_AUTOSYNC_NEW_ONLY",
@@ -554,6 +565,7 @@ def _env_sections():
                     _one_or_zero(paths.lang_separation_enabled()),
                 ),
                 ("ANIWORLD_DISABLE_ENGLISH_SUB", _one_or_zero(english_sub_disabled())),
+                ("ANIWORLD_SHOW_ALL_LANGUAGES", _one_or_zero(show_all_languages())),
                 (
                     "ANIWORLD_MOVIE_FOLDER",
                     _one_or_zero(_flag("ANIWORLD_MOVIE_FOLDER", "1")),
