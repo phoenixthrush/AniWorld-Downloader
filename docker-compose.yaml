@@ -47,6 +47,8 @@ services:
     # --- Features (uncomment the environment block to customise) ---
     #   ANIWORLD_ENABLE_LIBRARY: "1"                  # Library tab: browse and delete downloaded files
     #   ANIWORLD_ENABLE_HTV: "0"                      # Show the Hanime tab (adult content)
+    #   ANIWORLD_ENABLE_HENTAITV: "0"                 # Show the HentaiTV tab (adult content)
+    #   ANIWORLD_ENABLE_HENTAIHAVEN: "0"              # Show the HentaiHaven tab (adult content)
     #   ANIWORLD_ENABLE_ANIWORLD: "1"                 # Every site has a toggle: ANIWORLD | STO | MEGAKINO |
     #   ANIWORLD_ENABLE_STO: "1"                      # FILMPALAST | MANGAFIRE | HTV | KINOX | BURNINGSERIES.
     #   ANIWORLD_ENABLE_MEGAKINO: "1"                 # Off means no tab and no rows. At least one has to stay on.

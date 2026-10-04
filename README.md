@@ -82,7 +82,7 @@ All registered source backends are listed below. Availability notes use sampled 
 | Kinox | Movies and series | Unverified: manual captcha required | Disabled by default |
 | BurningSeries | Series | Broken: embed resolution failed | Disabled by default |
 
-"Disabled by default" refers to Web UI visibility; direct CLI URLs remain accepted. Hanime (`hanime.tv`) has an optional Web UI tab, enabled with `ANIWORLD_ENABLE_HTV=1`. HentaiTV (`hentai.tv`), AnimeIDHentai (`animeidhentai.com`), and HentaiHaven (`hentaihaven.xxx`) support direct CLI URLs and Python use. See [adult-site usage](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/usage#adult-site-backends) for examples.
+"Disabled by default" refers to Web UI visibility; direct CLI URLs remain accepted. Hanime (`hanime.tv`), HentaiTV (`hentai.tv`) and HentaiHaven (`hentaihaven.xxx`) have optional Web UI tabs, enabled with `ANIWORLD_ENABLE_HTV=1`, `ANIWORLD_ENABLE_HENTAITV=1` and `ANIWORLD_ENABLE_HENTAIHAVEN=1`. AnimeIDHentai (`animeidhentai.com`) supports direct CLI URLs and Python use. See [adult-site usage](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/usage#adult-site-backends) for examples.
 
 ### Stream Hosters
 

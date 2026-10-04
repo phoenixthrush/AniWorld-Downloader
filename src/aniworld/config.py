@@ -428,9 +428,11 @@ HENTAI_HAVEN_SERIES_PATTERN = re.compile(
     r"^https?://(?:www\.)?hentaihaven\.xxx/(?:[a-z]{2}/)?watch/[A-Za-z0-9-]+/?$",
     re.IGNORECASE,
 )
+
+# Some titles call their only video "season-1" rather than "episode-1"
 HENTAI_HAVEN_EPISODE_PATTERN = re.compile(
     r"^https?://(?:www\.)?hentaihaven\.xxx/(?:[a-z]{2}/)?watch/"
-    r"[A-Za-z0-9-]+/episode-\d+/?$",
+    r"[A-Za-z0-9-]+/(?:episode|season)-\d+/?$",
     re.IGNORECASE,
 )
 

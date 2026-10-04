@@ -96,6 +96,8 @@ def test_which_sites_a_fresh_install_shows():
         "megakino": True,
         "mangafire": True,
         "htv": False,
+        "hentaitv": False,
+        "hentaihaven": False,
         "kinox": False,
         "burningseries": False,
         "filmpalast": True,

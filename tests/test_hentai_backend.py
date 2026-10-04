@@ -1,6 +1,7 @@
 """Offline regression checks for site parsing, search and CLI dispatch."""
 
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -56,6 +57,11 @@ def flight(value, split=False):
         (HAVEN, HentaiHavenEpisode, "HentaiHaven"),
         (
             "https://hentaihaven.xxx/de/watch/example/episode-2/",
+            HentaiHavenEpisode,
+            "HentaiHaven",
+        ),
+        (
+            "https://hentaihaven.xxx/watch/example/season-1/",
             HentaiHavenEpisode,
             "HentaiHaven",
         ),
@@ -140,6 +146,19 @@ def test_flight_parser_skips_non_json_records():
     )
 
 
+def test_flight_parser_reads_records_after_a_text_record():
+    """A text record ends by length, the next record can follow on its line."""
+    text = '{"@type":"WebPage"}\nmore'
+    stream = (
+        f"2a:T{len(text.encode()):x},{text}"
+        '2b:["$","div",null,{"videoId":1,"indexableSource":"https://a/m.m3u8"}]\n'
+    )
+    html = "<script>self.__next_f.push(" + json.dumps([1, stream]) + ")</script>"
+    assert {"videoId": 1, "indexableSource": "https://a/m.m3u8"} in list(
+        page_objects(html)
+    )
+
+
 def test_haven_extracts_hls_and_metadata(monkeypatch):
     data = {
         "videoId": 42,
@@ -171,6 +190,39 @@ def test_haven_missing_or_invalid_media(monkeypatch, data):
         assert HentaiHavenEpisode(HAVEN).stream_url
 
 
+def test_haven_asks_the_stream_api_when_the_page_has_no_source(monkeypatch):
+    from aniworld.models.hentaihaven import episode as haven_module
+
+    data = {
+        "videoId": 42,
+        "slug": "Example-2",
+        "permalink": "https://cms.hentaihaven.xxx/watch/example/",
+        "title": "Example — Season 1",
+        "indexableSource": "$undefined",
+    }
+    monkeypatch.setattr(
+        episode_module, "get_response", lambda *a, **k: response(flight(data))
+    )
+    posted = []
+
+    def post(url, **kwargs):
+        posted.append((url, kwargs["json"]))
+        source = {"src": "https://media.example/master.m3u8?hash=x"}
+        return response(payload={"status": True, "data": {"sources": [source]}})
+
+    monkeypatch.setattr(haven_module, "post_response", post)
+    episode = HentaiHavenEpisode("https://hentaihaven.xxx/watch/example/season-1/")
+    assert episode.stream_url == "https://media.example/master.m3u8?hash=x"
+    assert posted == [
+        (
+            haven_module.STREAM_API,
+            {"slug": "Example-2", "permalink": data["permalink"], "poster": ""},
+        )
+    ]
+    assert episode.series_title == "Example"
+    assert episode.episode_number == 1
+
+
 def test_haven_series_excludes_recommendations_and_sorts(monkeypatch):
     from aniworld.models.hentaihaven import series as module
 
@@ -182,6 +234,7 @@ def test_haven_series_excludes_recommendations_and_sorts(monkeypatch):
             "/watch/example/episode-1/",
             "/watch/other/episode-3/",
             "/watch/example/episode-2/",
+            "/watch/other/season-1/",
         ]
     )
     monkeypatch.setattr(module, "get_response", lambda *a, **k: response(html))
@@ -315,11 +368,23 @@ def test_http_fallback_preserves_request_options(monkeypatch):
     assert calls[0][1]["params"] == {"q": "example"}
 
 
+MASTER_WITH_SUBTITLES = """#EXTM3U
+#EXT-X-MEDIA:URI="snd/a.m3u8",TYPE=AUDIO,GROUP-ID="audio",LANGUAGE="en",DEFAULT=YES
+#EXT-X-MEDIA:URI="s/de.vtt",TYPE=SUBTITLES,GROUP-ID="subs",LANGUAGE="de",NAME="German"
+#EXT-X-MEDIA:URI="s/en.vtt",TYPE=SUBTITLES,GROUP-ID="subs",LANGUAGE="en",NAME="English"
+#EXT-X-STREAM-INF:BANDWIDTH=2000000,AUDIO="audio",SUBTITLES="subs"
+v.m3u8
+"""
+
+
 @pytest.mark.parametrize("system", ["Windows", "Linux", "Darwin"])
 def test_haven_download_uses_shared_hls_pipeline_and_skips_existing(
     monkeypatch, tmp_path, system
 ):
+    import ffmpeg
+
     from aniworld.models.common import common
+    from aniworld.models.hentaihaven import episode as haven_module
 
     monkeypatch.setattr(common, "platform", SimpleNamespace(system=lambda: system))
     dependencies = []
@@ -338,6 +403,15 @@ def test_haven_download_uses_shared_hls_pipeline_and_skips_existing(
     monkeypatch.setattr(
         episode_module, "get_response", lambda *a, **k: response(flight(data))
     )
+    fetched = []
+
+    def get_response(url, **kwargs):
+        fetched.append(url)
+        if url == source:
+            return response(MASTER_WITH_SUBTITLES)
+        return SimpleNamespace(content=b"WEBVTT\n", raise_for_status=lambda: None)
+
+    monkeypatch.setattr(haven_module, "get_response", get_response)
     monkeypatch.setattr(
         common,
         "check_downloaded",
@@ -348,23 +422,95 @@ def test_haven_download_uses_shared_hls_pipeline_and_skips_existing(
     )
     calls = []
 
-    def download(stream, temp, options, headers, metadata, codec, label, audio):
-        assert temp.parent.is_dir()
-        assert options["allowed_extensions"] == "ALL"
-        calls.append(stream)
-        temp.touch()
+    def rendition(stream, temp_prefix, headers, audio, label):
+        calls.append((stream, audio))
+        video = temp_prefix.with_suffix(".hls_video.mp4")
+        audio_path = temp_prefix.with_suffix(".hls_audio.mp4")
+        video.touch()
+        audio_path.touch()
+        return video, audio_path
+
+    def run_ffmpeg(node, label=""):
+        # Stand in for FFmpeg by creating whatever file the command writes
+        Path(ffmpeg.compile(node)[-1]).touch()
+
+    muxes = []
+
+    def mux(node, label=""):
+        args = ffmpeg.compile(node)
+        muxes.append(args)
+        Path(args[-1]).write_text("muxed")
 
     def finalize(temp, target, label, owner):
         temp.replace(target)
 
-    monkeypatch.setattr(common, "_download_full_stream", download)
+    monkeypatch.setattr(common, "_hls_rendition_download", rendition)
+    monkeypatch.setattr(common, "_run_ffmpeg_with_progress", run_ffmpeg)
     monkeypatch.setattr(common, "_finalize_episode", finalize)
+    monkeypatch.setattr(haven_module, "_run_ffmpeg_with_progress", mux)
     episode = HentaiHavenEpisode(HAVEN, selected_path=tmp_path)
     episode.download()
-    assert episode._episode_path.is_file()
+    assert episode._episode_path.read_text() == "muxed"
     episode.download()
-    assert calls == [source]
+    assert calls == [(source, "jpn")]
+    assert fetched == [source, "https://media.example/s/en.vtt"]
+    assert len(muxes) == 1
+    assert "language=eng" in muxes[0]
+    assert sorted(path.name for path in episode._folder_path.iterdir()) == [
+        episode._episode_path.name
+    ]
     assert dependencies == (["ffmpeg", "ffmpeg"] if system == "Windows" else [])
+
+
+def test_haven_download_keeps_video_when_subtitles_fail(monkeypatch, tmp_path):
+    from aniworld.models.hentaihaven import episode as haven_module
+
+    data = {"videoId": 42, "indexableSource": "https://media.example/m"}
+    monkeypatch.setattr(
+        episode_module, "get_response", lambda *a, **k: response(flight(data))
+    )
+    episode = HentaiHavenEpisode(HAVEN, selected_path=tmp_path)
+
+    def download(self):
+        self._folder_path.mkdir(parents=True)
+        self._episode_path.write_text("video")
+
+    def broken(url, **kwargs):
+        raise RuntimeError("subtitle host down")
+
+    monkeypatch.setattr(haven_module, "episode_download", download)
+    monkeypatch.setattr(haven_module, "get_response", broken)
+    episode.download()
+    assert episode._episode_path.read_text() == "video"
+
+
+def test_haven_without_subtitle_track_downloads_as_is(monkeypatch):
+    from aniworld.models.hentaihaven import episode as haven_module
+
+    monkeypatch.setattr(HentaiHavenEpisode, "stream_url", "https://media.example/m")
+    monkeypatch.setattr(
+        haven_module,
+        "get_response",
+        lambda url, **k: response("#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nv.m3u8\n"),
+    )
+    assert HentaiHavenEpisode(HAVEN).subtitle_url is None
+
+
+def test_manual_hls_fetch_leaves_fmp4_playlists_alone(monkeypatch, tmp_path):
+    """Concatenating fMP4 segments without their init segment is unplayable."""
+    from aniworld.models.common import common
+
+    playlist = '#EXTM3U\n#EXT-X-MAP:URI="i.mp4"\n#EXTINF:2,\nhb1.jpg\n#EXT-X-ENDLIST\n'
+
+    class Session:
+        def get(self, url, **kwargs):
+            return SimpleNamespace(text=playlist, raise_for_status=lambda: None)
+
+    monkeypatch.setattr(common.niquests, "Session", Session)
+    target = tmp_path / "out.seg.ts"
+    with pytest.raises(common._HLSManualUnsupported):
+        common._download_hls_manual("https://media.example/v.m3u8", {}, target)
+    assert not target.exists()
 
 
 @pytest.mark.parametrize(

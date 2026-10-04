@@ -189,7 +189,7 @@ def series():
 
 def _hentaihaven_series_url(url):
     """A HentaiHaven episode link points back at its title page."""
-    return re.sub(r"/episode-\d+/?$", "/", url)
+    return re.sub(r"/(?:episode|season)-\d+/?$", "/", url)
 
 
 def _series_model(provider, url):
@@ -428,6 +428,15 @@ def _season_episodes(provider, url, series_url):
     return results
 
 
+def _self_hosted_title(provider, episode):
+    if provider.name == "HentaiTV":
+        return episode.title
+    # A HentaiHaven title would cost one request per episode, its URL says
+    # enough. A few titles name their only video "season-1".
+    kind = "Season" if "/season-" in episode.url else "Episode"
+    return f"{kind} {episode.episode_number}"
+
+
 def _self_hosted_episodes(provider, url):
     """hentai.tv pages hold one episode, a HentaiHaven title lists several."""
     if provider.name == "HentaiTV":
@@ -445,10 +454,7 @@ def _self_hosted_episodes(provider, url):
             "url": episode.url,
             "episode_number": episode.episode_number,
             "title_de": "",
-            # A HentaiHaven title would cost one request per episode
-            "title_en": episode.title
-            if provider.name == "HentaiTV"
-            else f"Episode {episode.episode_number}",
+            "title_en": _self_hosted_title(provider, episode),
             "downloaded": (episode.season_number, episode.episode_number) in downloaded,
             "available_languages": [language],
             "page_count": 0,

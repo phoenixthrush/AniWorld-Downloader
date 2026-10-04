@@ -1038,6 +1038,10 @@ def _download_hls_manual(m3u8_url, headers, temp_ts, label=""):
 
     if "#EXT-X-KEY" in playlist:
         raise _HLSManualUnsupported("encrypted playlist")
+    # fMP4 segments are unreadable without their init segment, which plain
+    # concatenation would leave out
+    if "#EXT-X-MAP" in playlist:
+        raise _HLSManualUnsupported("fMP4 playlist with an init segment")
 
     segments = _hls_uris(playlist, m3u8_url)
     if not segments:
