@@ -3,6 +3,7 @@
 Only wired up when the web UI is started with --web-auth / --web-sso.
 """
 
+import math
 import os
 import re
 import secrets
@@ -13,6 +14,7 @@ from flask import (
     Blueprint,
     current_app,
     jsonify,
+    make_response,
     redirect,
     render_template,
     request,
@@ -244,13 +246,29 @@ def login():
 
     error = None
     if request.method == "POST" and not force_sso:
-        user = db.verify_user(
-            (request.form.get("username") or "").strip(),
-            request.form.get("password") or "",
-        )
+        throttle = current_app.extensions["login_throttle"]
+        username = (request.form.get("username") or "").strip()
+        ip = request.remote_addr
+
+        wait = throttle.retry_after(ip, username)
+        if wait:
+            minutes = max(1, math.ceil(wait / 60))
+            error = f"Too many failed attempts. Try again in {minutes} minute(s)."
+            response = make_response(
+                render_template("login.html", **_login_view_context(error)), 429
+            )
+            response.headers["Retry-After"] = str(math.ceil(wait))
+            return response
+
+        user = db.verify_user(username, request.form.get("password") or "")
         if user:
+            throttle.record_success(username)
             _sign_in(user)
             return redirect(url_for("pages.index"))
+
+        logger.warning("Failed login: user=%r ip=%s", username, ip)
+        if throttle.record_failure(ip, username):
+            logger.warning("Login locked out: user=%r ip=%s", username, ip)
         error = "Invalid username or password."
 
     return render_template("login.html", **_login_view_context(error))

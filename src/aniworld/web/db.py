@@ -1,8 +1,10 @@
 """SQLite storage for the web UI: users, download queue and custom paths."""
 
+import functools
 import json
 import os
 import random
+import secrets
 import sqlite3
 import time
 
@@ -259,6 +261,11 @@ def create_user(username, password, role="user"):
         return cur.lastrowid
 
 
+@functools.cache
+def _dummy_password_hash():
+    return generate_password_hash(secrets.token_hex(16))
+
+
 def verify_user(username, password):
     with session() as conn:
         user = _row(
@@ -266,7 +273,11 @@ def verify_user(username, password):
             "SELECT * FROM users WHERE username = ? AND auth_method = 'local'",
             (username,),
         )
-    if not user or not check_password_hash(user["password_hash"], password):
+    if not user:
+        # Hash anyway so the response time does not reveal which usernames exist
+        check_password_hash(_dummy_password_hash(), password)
+        return None
+    if not check_password_hash(user["password_hash"], password):
         return None
     return {"id": user["id"], "username": user["username"], "role": user["role"]}
 

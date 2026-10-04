@@ -74,6 +74,7 @@ services:
     #   ANIWORLD_OIDC_ADMIN_USER: ""                  # SSO username auto-promoted to admin
     #   ANIWORLD_OIDC_ADMIN_SUBJECT: ""               # OIDC subject claim for auto-admin (preferred over username)
     #   ANIWORLD_WEB_BASE_URL: "https://aniworld.example.com"  # External URL for redirects
+    #   ANIWORLD_WEB_TRUSTED_PROXY: "172.18.0.2"      # Reverse proxy IP, lets it pass the real client IP ("*" only if the port is not published)
 
     # --- Discord request bot (uncomment the environment block to enable) ---
     # Unlike the settings above, the bot's fields are written through to the .env

@@ -81,6 +81,7 @@ def _setup_auth(app, base_url, sso_enabled, force_sso):
         init_oidc,
         refresh_session_role,
     )
+    from .throttle import LoginThrottle
 
     app.secret_key = get_or_create_secret_key()
     app.config.update(
@@ -89,6 +90,8 @@ def _setup_auth(app, base_url, sso_enabled, force_sso):
         SESSION_COOKIE_SECURE=base_url.startswith("https"),
         PERMANENT_SESSION_LIFETIME=86400,
     )
+
+    app.extensions["login_throttle"] = LoginThrottle()
 
     csrf = CSRFProtect()
     app.register_blueprint(auth_bp)
@@ -245,6 +248,24 @@ def _wire_captcha_hooks():
     captcha._on_captcha_end = db.clear_captcha_url
 
 
+def _proxy_options():
+    """Let waitress take the client IP from a reverse proxy we trust.
+
+    Only connections coming from ANIWORLD_WEB_TRUSTED_PROXY may set
+    X-Forwarded-For, the header is stripped from everyone else so a client
+    cannot fake its address (the login throttle counts per IP).
+    """
+    trusted_proxy = os.getenv("ANIWORLD_WEB_TRUSTED_PROXY", "").strip()
+    if not trusted_proxy:
+        return {}
+    return {
+        "trusted_proxy": trusted_proxy,
+        "trusted_proxy_count": 1,
+        "trusted_proxy_headers": {"x-forwarded-for", "x-forwarded-proto"},
+        "clear_untrusted_proxy_headers": True,
+    }
+
+
 def start_web_ui(
     host="127.0.0.1",
     port=DEFAULT_PORT,
@@ -282,4 +303,4 @@ def start_web_ui(
     else:
         from waitress import serve
 
-        serve(app, host=host, port=port)
+        serve(app, host=host, port=port, **_proxy_options())
