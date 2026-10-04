@@ -13,6 +13,8 @@
     ["filmpalast", "FilmPalast"],
     ["filmo", "Filmo"],
     ["htv", "Hanime"],
+    ["hentaitv", "HentaiTV"],
+    ["hentaihaven", "HentaiHaven"],
     ["mangafire", "MangaFire"]
   ];
 

@@ -161,6 +161,10 @@
       "settings.disable_english_sub_hint":
         "English Sub wird aus der Sprachauswahl ausgeblendet und kann nicht heruntergeladen werden.",
       "settings.enable_htv_hint": "Erwachsenen-Animation. Standardmäßig aus.",
+      "settings.enable_hentaitv_hint":
+        "Erwachsenen-Animation mit englischen Untertiteln. Standardmäßig aus.",
+      "settings.enable_hentaihaven_hint":
+        "Erwachsenen-Animation mit englischen Untertiteln. Standardmäßig aus.",
       "settings.enable_burningseries_hint":
         "Serien. Standardmäßig aus: Der Zugang hängt von deiner Region ab, und davor steht ein Google reCAPTCHA, das wir nicht für dich lösen können.",
       "settings.enable_kinox_hint":

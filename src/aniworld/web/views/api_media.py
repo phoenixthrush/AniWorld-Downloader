@@ -2,6 +2,7 @@
 
 import re
 import time
+from types import SimpleNamespace
 
 from flask import Response, jsonify, request
 from niquests.exceptions import HTTPError, RequestException
@@ -9,6 +10,7 @@ from niquests.exceptions import HTTPError, RequestException
 from ...config import DEFAULT_USER_AGENT, GLOBAL_SESSION
 from ...extractors.provider.hanime_tv import fetch_hanime_trending
 from ...logger import get_logger
+from ...models.common import clean_title
 from ...models.mangafire_to.series import _get as get_mangafire
 from ...providers import resolve_provider
 from ...search import (
@@ -156,7 +158,7 @@ def series():
     provider = None
     try:
         provider = resolve_provider(url)
-        found = provider.series_cls(url=url, **_build_kwargs(provider))
+        found = _series_model(provider, url)
         return jsonify(
             {
                 "title": found.title,
@@ -185,6 +187,29 @@ def series():
         return jsonify({"error": str(exc)}), 500
 
 
+def _hentaihaven_series_url(url):
+    """A HentaiHaven episode link points back at its title page."""
+    return re.sub(r"/episode-\d+/?$", "/", url)
+
+
+def _series_model(provider, url):
+    """Whatever the series endpoint reads the title, poster and details from."""
+    if provider.name == "HentaiTV":
+        # hentai.tv has no title pages, every search hit is a single episode
+        return provider.episode_cls(url=url)
+    if provider.name == "HentaiHaven":
+        # The title page only links its episodes, the details sit on each one
+        first = provider.series_cls(url=_hentaihaven_series_url(url)).episodes[0]
+        return SimpleNamespace(
+            title=first.series_title,
+            poster_url=first.poster_url,
+            description=first.description,
+            genres=first.genres,
+            release_year=first.release_year,
+        )
+    return provider.series_cls(url=url, **_build_kwargs(provider))
+
+
 def seasons():
     url = _requested_url()
     if not url:
@@ -195,6 +220,21 @@ def seasons():
         provider = resolve_provider(url)
         if provider.name in SINGLE_PAGE_SITES:
             return jsonify({"seasons": _single_page_seasons(provider, url)})
+        if provider.name in media.SELF_HOSTED_LANGUAGES:
+            # Neither site has seasons. HentaiHaven's count fills in once the
+            # episodes load, counting them here would fetch the page twice.
+            return jsonify(
+                {
+                    "seasons": [
+                        {
+                            "url": url,
+                            "season_number": 1,
+                            "episode_count": 1 if provider.name == "HentaiTV" else None,
+                            "are_movies": False,
+                        }
+                    ]
+                }
+            )
 
         found = provider.series_cls(url=url)
         # burning-series has no per-season count on the series page, reading it
@@ -256,6 +296,8 @@ def episodes():
             return jsonify({"episodes": _single_page_episodes(provider, url)})
         if provider.name == "MangaFire":
             return jsonify({"episodes": _mangafire_pages(provider, url, series_url)})
+        if provider.name in media.SELF_HOSTED_LANGUAGES:
+            return jsonify({"episodes": _self_hosted_episodes(provider, url)})
         return jsonify({"episodes": _season_episodes(provider, url, series_url)})
     except Exception as exc:
         if provider is not None and provider.name == "HanimeTV":
@@ -386,6 +428,35 @@ def _season_episodes(provider, url, series_url):
     return results
 
 
+def _self_hosted_episodes(provider, url):
+    """hentai.tv pages hold one episode, a HentaiHaven title lists several."""
+    if provider.name == "HentaiTV":
+        found = [provider.episode_cls(url=url)]
+    else:
+        found = provider.series_cls(url=_hentaihaven_series_url(url)).episodes
+
+    # Both name the folder after the series, the same way the download does
+    series = SimpleNamespace(title_cleaned=clean_title(found[0].series_title))
+    downloaded = media.downloaded_episodes(series)
+    language = media.SELF_HOSTED_LANGUAGES[provider.name]
+
+    return [
+        {
+            "url": episode.url,
+            "episode_number": episode.episode_number,
+            "title_de": "",
+            # A HentaiHaven title would cost one request per episode
+            "title_en": episode.title
+            if provider.name == "HentaiTV"
+            else f"Episode {episode.episode_number}",
+            "downloaded": (episode.season_number, episode.episode_number) in downloaded,
+            "available_languages": [language],
+            "page_count": 0,
+        }
+        for episode in found
+    ]
+
+
 def _mangafire_pages(provider, url, series_url):
     """A MangaFire "season" is a chapter and its episodes are the pages."""
     from .. import paths
@@ -474,7 +545,9 @@ def proxy_image():
     if not target.startswith(("http://", "https://")):
         return "", 400
     try:
-        headers = {"User-Agent": DEFAULT_USER_AGENT}
+        # Without a brotli module installed the body would come back still
+        # compressed and get passed on as a broken image
+        headers = {"User-Agent": DEFAULT_USER_AGENT, "Accept-Encoding": "gzip, deflate"}
         if "hanime" in target:
             headers["Referer"] = "https://hanime.tv/"
         response = GLOBAL_SESSION.get(target, headers=headers, timeout=10)

@@ -4,7 +4,7 @@ from flask import Response, current_app, jsonify, request
 
 from ...logger import get_logger
 from .. import db, worker
-from ..media import mangafire_format
+from ..media import SELF_HOSTED_LANGUAGES, mangafire_format
 from ..settings_store import english_sub_disabled
 
 logger = get_logger(__name__)
@@ -50,10 +50,15 @@ def start_download():
         return jsonify({"error": "episodes list is required"}), 400
 
     language = data.get("language", "German Dub")
-    if language == "English Sub" and english_sub_disabled():
+    provider = data.get("provider", "VOE")
+    # Self-hosted sites only carry English Sub, the setting would lock them out
+    if (
+        language == "English Sub"
+        and provider not in SELF_HOSTED_LANGUAGES
+        and english_sub_disabled()
+    ):
         return jsonify({"error": "English Sub downloads are disabled"}), 403
 
-    provider = data.get("provider", "VOE")
     if provider == "MangaFire":
         episodes = _tag_mangafire(episodes, data.get("mangafire_format"))
 

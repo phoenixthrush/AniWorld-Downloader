@@ -24,6 +24,8 @@ from ..search import (
     query_filmo,
     query_filmpalast,
     query_hanime,
+    query_hentai_tv,
+    query_hentaihaven,
     query_kinox,
     query_mangafire,
     query_megakino,
@@ -44,6 +46,8 @@ SITE_SEARCH = {
     "burningseries": query_burningseries,
     "mangafire": query_mangafire,
     "htv": query_hanime,
+    "hentaitv": query_hentai_tv,
+    "hentaihaven": query_hentaihaven,
 }
 
 # aniworld/serienstream return relative `/.../<slug>` links, everything else

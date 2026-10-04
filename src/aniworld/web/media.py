@@ -46,6 +46,8 @@ SITE_KEYS = (
     "megakino",
     "mangafire",
     "htv",
+    "hentaitv",
+    "hentaihaven",
     "kinox",
     "burningseries",
     "filmpalast",
@@ -59,6 +61,8 @@ SITE_LABELS = {
     "megakino": "MegaKino",
     "mangafire": "MangaFire",
     "htv": "Hanime",
+    "hentaitv": "HentaiTV",
+    "hentaihaven": "HentaiHaven",
     "kinox": "Kinox",
     "burningseries": "BurningSeries",
     "filmpalast": "FilmPalast",
@@ -78,12 +82,20 @@ SITE_ORDER = (
     "filmpalast",
     "filmo",
     "htv",
+    "hentaitv",
+    "hentaihaven",
     "mangafire",
 )
 
 # Sites nobody gets unless they ask: adult content, or a site that cannot be
 # used without work on the user's side. Every other site starts on.
-SITES_OFF_BY_DEFAULT = frozenset({"htv", "burningseries", "kinox"})
+SITES_OFF_BY_DEFAULT = frozenset(
+    {"htv", "hentaitv", "hentaihaven", "burningseries", "kinox"}
+)
+
+# Sites that stream from their own player instead of a hoster. Each carries one
+# fixed track, so there is no language or hoster to pick in the UI.
+SELF_HOSTED_LANGUAGES = {"HentaiTV": "English Sub", "HentaiHaven": "English Sub"}
 
 
 def normalize_default_sites(value):

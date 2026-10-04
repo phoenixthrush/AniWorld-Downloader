@@ -47,6 +47,8 @@
     filmpalast: "Search FilmPalast...",
     filmo: "Search Filmo...",
     htv: "Search Hanime...",
+    hentaitv: "Search HentaiTV...",
+    hentaihaven: "Search HentaiHaven...",
     mangafire: "Search MangaFire..."
   };
 
@@ -75,7 +77,22 @@
   let episodeLoads = {};
   let availableProviders = null;
 
-  const isHanime = (url) => url.includes("hanime.tv/");
+  // Sites that stream from their own player with a single track, so there is
+  // no language or hoster to choose
+  const FIXED_STREAMS = {
+    "hanime.tv": { language: "Japanese", provider: "HanimeTV" },
+    "hentai.tv": { language: "English Sub", provider: "HentaiTV" },
+    "hentaihaven.xxx": { language: "English Sub", provider: "HentaiHaven" }
+  };
+
+  function fixedStream(url) {
+    try {
+      return FIXED_STREAMS[new URL(url).hostname.replace(/^www\./, "")] || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   const isMangaFire = (url) => url.includes("mangafire.to/");
 
   /* ===== Site switch ===== */
@@ -529,11 +546,11 @@
     showSkeleton(true);
     openModal("seriesOverlay");
 
-    const hanime = isHanime(url);
+    const fixed = fixedStream(url);
     const manga = isMangaFire(url);
-    languageProviderRow.hidden = hanime || manga;
+    languageProviderRow.hidden = Boolean(fixed) || manga;
     mangaFireRow.hidden = !manga;
-    if (!hanime && !manga) {
+    if (!fixed && !manga) {
       rebuildLanguageOptions();
       fillProviderSelect(["megakino", "moflix"].includes(currentSite) ? [] : window.STATIC_PROVIDERS);
     }
@@ -561,7 +578,7 @@
 
       // The provider probe narrows the language/provider selects, so resolve it
       // before revealing or the dropdowns would visibly change afterwards
-      if (firstEpisodes.length && !hanime && !manga) {
+      if (firstEpisodes.length && !fixed && !manga) {
         await fetchProviders(firstEpisodes[0].url);
         if (token !== openToken) return;
       }
@@ -854,14 +871,14 @@
       return;
     }
 
-    const hanime = isHanime(seriesUrl);
+    const fixed = fixedStream(seriesUrl);
     const manga = isMangaFire(seriesUrl);
     const body = {
       episodes,
       title: seriesTitle,
       series_url: seriesUrl,
-      language: hanime ? "Japanese" : manga ? "MangaFire" : languageSelect.value,
-      provider: hanime ? "HanimeTV" : manga ? "MangaFire" : providerSelect.value
+      language: fixed ? fixed.language : manga ? "MangaFire" : languageSelect.value,
+      provider: fixed ? fixed.provider : manga ? "MangaFire" : providerSelect.value
     };
     if (manga) body.mangafire_format = el("mangaFireFormat").value;
     if (customPathSelect.value) body.custom_path_id = Number(customPathSelect.value);
