@@ -17,7 +17,6 @@ try:
         build_provider_attempt_order,
         logger,
     )
-    from ...extractors import provider_functions
     from ..common import ProviderData, clean_title
     from ..common.common import check_downloaded, movie_folder_enabled
     from ..common.common import (
@@ -30,6 +29,7 @@ try:
         watch as episode_watch,
     )
     from ..common.extraction import resolve_stream_url
+    from ..common.provider_map import host_to_provider
 except ImportError:
     from aniworld.config import (
         GLOBAL_SESSION,
@@ -40,7 +40,6 @@ except ImportError:
         build_provider_attempt_order,
         logger,
     )
-    from aniworld.extractors import provider_functions
     from aniworld.models.common import (
         ProviderData,
         check_downloaded,
@@ -57,6 +56,7 @@ except ImportError:
         watch as episode_watch,
     )
     from aniworld.models.common.extraction import resolve_stream_url
+    from aniworld.models.common.provider_map import host_to_provider
 
 MEGAKINO_DOMAIN_SOURCE = "https://raw.githubusercontent.com/Yezun-hikari/new-domain-check/refs/heads/main/monitors/megakino/domain.txt"
 
@@ -177,18 +177,6 @@ class MegaKinoEpisode:
         if not match:
             return url, None
         return url[: match.start()], int(match.group(1))
-
-    @staticmethod
-    def __provider_name_from_url(url):
-        """Map a hoster embed URL to the internal provider name."""
-        host = (urlparse(url).netloc or "").strip().lower()
-        if not host:
-            return None
-        if host.endswith("voe.sx"):
-            return "VOE"
-        if host.endswith("gxplayer.xyz"):
-            return "MegaKino"
-        return host.split(".", 1)[0].upper()
 
     # -----------------------------
     # public properties
@@ -792,13 +780,8 @@ class MegaKinoEpisode:
             re.DOTALL,
         ):
             url = option.group(1).strip()
-            provider_name = self.__provider_name_from_url(url)
+            provider_name = host_to_provider(urlparse(url).hostname)
             if not provider_name:
-                continue
-            if (
-                f"get_direct_link_from_{provider_name.lower()}"
-                not in provider_functions
-            ):
                 continue
             providers.setdefault(provider_name, url)
         return providers
@@ -825,13 +808,8 @@ class MegaKinoEpisode:
         providers = {}
         for source in self.player_sources:
             url = (source.get("url") or "").strip()
-            provider_name = self.__provider_name_from_url(url)
+            provider_name = host_to_provider(urlparse(url).hostname)
             if not provider_name:
-                continue
-            if (
-                f"get_direct_link_from_{provider_name.lower()}"
-                not in provider_functions
-            ):
                 continue
 
             providers[provider_name] = url
