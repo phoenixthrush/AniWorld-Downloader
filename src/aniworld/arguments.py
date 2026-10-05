@@ -4,9 +4,6 @@ import os
 import sys
 
 from packaging.version import parse as parse_version
-from rich.console import Console
-from rich.panel import Panel
-from rich.text import Text
 
 from .anime4k import anime4k
 from .config import (
@@ -19,71 +16,139 @@ from .config import (
 from .logger import get_logger
 
 logger = get_logger(__name__)
-console = Console()
 
 EXAMPLES = r"""
-[bold underline cyan]Command-Line Arguments Example[/]
+Command-Line Examples
 
-[dim]AniWorld Downloader provides command-line options for downloading and streaming anime without relying on the interactive menu or webui.[/]
+AniWorld Downloader supports direct downloads, playback, interactive search, and the Web UI.
 
-[bold yellow]Example 1: Download a Single Episode (default action)[/]
-[dim]To download episode 1 of "Demon Slayer: Kimetsu no Yaiba":[/]
-[green]aniworld[/] [blue]https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1[/]
+Example 1: Download a Single Episode (default action)
+To download episode 1 of "Demon Slayer: Kimetsu no Yaiba":
+aniworld --no-menu https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
 
-[bold yellow]Example 2: Download Multiple Episodes (default action)[/]
-[dim]To download multiple episodes of "Demon Slayer":[/]
-[green]aniworld[/] \
-  [blue]https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1[/] \
-  [blue]https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-2[/]
+Example 2: Download Multiple Episodes (default action)
+To download multiple episodes of "Demon Slayer":
+aniworld --no-menu \
+  https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 \
+  https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-2
 
-[bold yellow]Example 3: Watch Episodes with Aniskip[/]
-[dim]To watch an episode while skipping intros and outros:[/]
-[green]aniworld[/] [magenta]--action[/] [cyan]Watch[/] [magenta]--aniskip[/] \
-  [blue]https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1[/]
+Example 3: Watch Episodes with Aniskip
+To watch an episode while skipping intros and outros:
+aniworld --no-menu --action Watch --aniskip \
+  https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
 
-[bold yellow]Example 4: Syncplay with Friends (+ Keep Watching)[/]
-[dim]To Syncplay a specific episode with friends:[/]
-[green]aniworld[/] [magenta]--action[/] [cyan]Syncplay[/] [magenta]--keep-watching[/] \
-  [magenta]--syncplay-host[/] [cyan]syncplay.pl:8998[/] \
-  [magenta]--syncplay-room[/] [cyan]"MyRoom"[/] \
-  [magenta]--syncplay-username[/] [cyan]"phoenixthrush"[/] \
-  [blue]https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1[/]
+Example 4: Syncplay with Friends (+ Keep Watching)
+To Syncplay a specific episode with friends:
+aniworld --no-menu --action Syncplay --keep-watching \
+  --syncplay-host syncplay.pl:8998 \
+  --syncplay-room "MyRoom" \
+  --syncplay-username "phoenixthrush" \
+  https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
 
-[dim]Language Options for Syncplay[/]
+Language Options for Syncplay
 
-[dim]For German Dub:[/]
-[green]aniworld[/] [magenta]--action[/] [cyan]Syncplay[/] [magenta]--keep-watching[/] [magenta]--language[/] [cyan]"German Dub"[/] [magenta]--aniskip[/] \
-  [magenta]--syncplay-host[/] [cyan]syncplay.pl:8998[/] [magenta]--syncplay-room[/] [cyan]"MyRoom"[/] [magenta]--syncplay-username[/] [cyan]"phoenixthrush"[/] \
-  [blue]https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1[/]
+For German Dub:
+aniworld --no-menu --action Syncplay --keep-watching --language "German Dub" --aniskip \
+  --syncplay-host syncplay.pl:8998 --syncplay-room "MyRoom" --syncplay-username "phoenixthrush" \
+  https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
 
-[dim]For English Sub:[/]
-[green]aniworld[/] [magenta]--action[/] [cyan]Syncplay[/] [magenta]--keep-watching[/] [magenta]--language[/] [cyan]"English Sub"[/] [magenta]--aniskip[/] \
-  [magenta]--syncplay-host[/] [cyan]syncplay.pl:8998[/] [magenta]--syncplay-room[/] [cyan]"MyRoom"[/] [magenta]--syncplay-username[/] [cyan]"phoenixthrush"[/] \
-  [blue]https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1[/]
+For English Sub:
+aniworld --no-menu --action Syncplay --keep-watching --language "English Sub" --aniskip \
+  --syncplay-host syncplay.pl:8998 --syncplay-room "MyRoom" --syncplay-username "phoenixthrush" \
+  https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
 
-[dim]To restrict access, set a password for the room:[/]
-[green]aniworld[/] [magenta]--action[/] [cyan]Syncplay[/] [magenta]--keep-watching[/] [magenta]--language[/] [cyan]"English Sub"[/] [magenta]--aniskip[/] \
-  [magenta]--syncplay-host[/] [cyan]syncplay.pl:8998[/] [magenta]--syncplay-room[/] [cyan]"MyRoom"[/] [magenta]--syncplay-username[/] [cyan]"phoenixthrush"[/] \
-  [magenta]--syncplay-password[/] [cyan]beans[/] \
-  [blue]https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1[/]
+To derive a room name from the episode filename and a shared value:
+Leave --syncplay-room unset; this is not a Syncplay server password.
+aniworld --no-menu --action Syncplay --keep-watching --language "English Sub" --aniskip \
+  --syncplay-host syncplay.pl:8998 --syncplay-username "phoenixthrush" \
+  --syncplay-password beans \
+  https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
 
-[bold yellow]Example 5: Download with Specific Provider and Language (default action)[/]
-[dim]To download using the VOE provider with English subtitles:[/]
-[green]aniworld[/] [magenta]--provider[/] [cyan]VOE[/] [magenta]--language[/] [cyan]"English Sub"[/] \
-  [blue]https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1[/]
+Example 5: Download with Specific Provider and Language (default action)
+To download using the VOE provider with English subtitles:
+aniworld --no-menu --provider VOE --language "English Sub" \
+  https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
 
-[bold yellow]Example 6: Use an Episode File (default action)[/]
-[dim]To download URLs listed in a file:[/]
-[green]aniworld[/] [magenta]--episode-file[/] [cyan]test.txt[/] [magenta]--language[/] [cyan]"German Dub"[/]
+Example 6: Use an Episode File (default action)
+To download URLs listed in a file:
+aniworld --no-menu --episode-file episodes.txt --language "German Dub"
 
-[bold yellow]Example 7: Use a custom provider URL[/]
-[dim]Download a provider page URL directly (resolved to a direct media URL and saved via ffmpeg).[/]
-[dim]Important: you must specify --provider so the right extractor (and headers) are used.[/]
-[green]aniworld[/] [magenta]--provider[/] [cyan]VOE[/] [magenta]--provider-url[/] [blue]https://voe.sx/e/ayginbzzb6bi[/]
+Example 7: Use a custom provider URL
+Replace the example URL with a real provider page URL.
+The resolved media is saved as input.mkv in the configured download folder.
+Specify --provider so the matching extractor and headers are used.
+aniworld --provider VOE --provider-url "https://voe.sx/e/example"
 
-[bold]Notes[/]
-- [magenta]--aniskip[/] and [magenta]--keep-watching[/] can be combined with Watch and Syncplay.
+Example 8: Choose a Download Folder and Action
+Set the download folder explicitly:
+aniworld --no-menu --action Download --output "./downloads" \
+  https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
+
+Example 9: Pick a Random Anime
+Pick a random AniWorld title, then choose episodes in the terminal menu:
+aniworld --random-anime
+
+Example 10: Search SerienStream
+Search for a series interactively using SerienStream:
+aniworld --use-sto-search
+
+Example 11: Configure Anime4K for Playback
+Install the high-end GPU shaders and watch an episode:
+aniworld --no-menu --action Watch --anime4k High \
+  https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
+
+Use the low-end GPU shaders instead:
+aniworld --no-menu --action Watch --anime4k Low \
+  https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
+
+Remove the Anime4K shaders before watching:
+aniworld --no-menu --action Watch --anime4k Remove \
+  https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
+
+Anime4K configures MPV playback shaders; it does not upscale downloaded files.
+
+Example 12: Start the Web UI Locally
+Start the Web UI on the default port (8080) and open it in your browser:
+aniworld --web-ui
+
+Example 13: Run the Web UI on Your Network
+Listen on all interfaces on port 8081, enable local accounts, and skip opening a browser:
+aniworld --web-ui --web-port 8081 --web-expose --web-auth --no-browser
+
+Example 14: Enable Web UI SSO
+Install the optional SSO dependency with: python -m pip install "aniworld[sso]"
+Set ANIWORLD_OIDC_ISSUER_URL, ANIWORLD_OIDC_CLIENT_ID, and
+ANIWORLD_OIDC_CLIENT_SECRET in your .env first.
+Enable local accounts and OIDC login:
+aniworld --web-ui --web-auth --web-sso
+
+Example 15: Require SSO Login
+With the same SSO dependency and OIDC settings, allow only OIDC login:
+aniworld --web-ui --web-force-sso
+
+Example 16: Enable Debug Logging
+Download an episode with detailed logs:
+aniworld --no-menu --debug \
+  https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
+
+Example 17: Show Help, Version, or Examples
+Show the complete argument reference:
+aniworld --help
+
+Show the installed version and check for updates:
+aniworld --version
+
+Show this list of examples:
+aniworld --examples
+
+Notes
+- --aniskip and --keep-watching can be combined with Watch and Syncplay.
+- Download is the default action. --no-menu processes URLs directly.
 - URLs are positional arguments, so you can paste one or many at the end of the command.
+- The selected language must be available for the episode.
+- The preferred provider is tried first, with fallback to other available providers.
+- AniSkip depends on available metadata and timing data.
+- Site URLs and hoster availability can change.
 """.strip()
 
 
@@ -304,13 +369,7 @@ def parse_args():
     args = parser.parse_args()
 
     if args.examples:
-        console.print(
-            Panel.fit(
-                Text.from_markup(EXAMPLES),
-                title="[bold]aniworld --examples[/bold]",
-                border_style="cyan",
-            )
-        )
+        print(EXAMPLES)
         raise SystemExit(0)
 
     if args.language:

@@ -16,7 +16,6 @@ dependencies = [
   "npyscreen",                                                                # >=3.7
   "ffmpeg-python",                                                            # ???
   "python-dotenv",                                                            # >=3.10
-  "rich",                                                                     # >=3.9.0
   "flask",                                                                    # >=3.9
   "flask-wtf",                                                                # >=3.10
   "waitress",                                                                 # >=3.9.0
