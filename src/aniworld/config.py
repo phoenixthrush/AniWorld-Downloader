@@ -12,7 +12,7 @@ import certifi
 from niquests import Session
 from packaging.version import parse as parse_version
 
-from .env import initialize_app_env
+from .env import CA_BUNDLE_ENV_VARS, initialize_app_env
 from .logger import get_logger
 
 VERSION = None
@@ -21,11 +21,6 @@ try:
     VERSION = version("aniworld")
 except PackageNotFoundError:
     VERSION = None
-
-CA_CERT_BUNDLE = certifi.where()
-os.environ.setdefault("SSL_CERT_FILE", CA_CERT_BUNDLE)
-os.environ.setdefault("REQUESTS_CA_BUNDLE", CA_CERT_BUNDLE)
-os.environ.setdefault("CURL_CA_BUNDLE", CA_CERT_BUNDLE)
 
 
 def get_latest_version():
@@ -63,6 +58,13 @@ ANIWORLD_CONFIG_DIR = initialize_app_env(
     Path(__file__).resolve().parent / ".env.example",
     Path.home() / ".aniworld",
 )
+
+CA_CERT_BUNDLE = next(
+    (os.environ[key] for key in CA_BUNDLE_ENV_VARS if os.environ.get(key)),
+    certifi.where(),
+)
+for key in CA_BUNDLE_ENV_VARS:
+    os.environ.setdefault(key, CA_CERT_BUNDLE)
 
 logger = get_logger(__name__)
 

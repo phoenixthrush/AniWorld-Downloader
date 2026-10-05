@@ -7,6 +7,7 @@ from dotenv import dotenv_values, load_dotenv
 
 # match lines like KEY=VALUE, ignoring comments and blank lines
 ENV_LINE_RE = re.compile(r"^([^#\n=]+?)=(.*)$")
+CA_BUNDLE_ENV_VARS = ("REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "SSL_CERT_FILE")
 
 
 def initialize_app_env(example_path: Path, default_dir: Path) -> Path:
@@ -79,6 +80,12 @@ def merge_env(example_path: Path, env_path: Path):
             merged_lines.append(f"{key}={existing_values[key]}")
         else:
             merged_lines.append(f"{key}={default_value}")
+
+    # These client settings are outside the AniWorld template but must survive
+    # merging, so they can be loaded before certificate defaults are applied.
+    for key in CA_BUNDLE_ENV_VARS:
+        if key in existing_values:
+            merged_lines.append(f"{key}={existing_values[key]}")
 
     env_path.parent.mkdir(parents=True, exist_ok=True)
     env_path.write_text("\n".join(merged_lines) + "\n")
