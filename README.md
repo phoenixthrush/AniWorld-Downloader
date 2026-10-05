@@ -43,7 +43,7 @@ To install the latest development version from the `models` branch:
 pip install --upgrade git+https://github.com/phoenixthrush/AniWorld-Downloader.git@models
 ```
 
-Video downloads need **FFmpeg**. Playback uses **mpv**, **IINA**, or **Syncplay**, depending on the action you choose. Portable dependencies can be installed automatically on Windows; macOS and Linux use system packages.
+Video downloads need **FFmpeg**. Playback uses **mpv**, **IINA**, or **Syncplay**, depending on the action you choose. The app offers to install missing portable tools on Windows or system packages on macOS/Linux. You can also install them yourself; unattended deployments should provide the tools in advance.
 
 Prefer another installation method? Use [Docker](#docker) or download a standalone build from [GitHub Releases](https://github.com/phoenixthrush/AniWorld-Downloader/releases). See the [documentation](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/) for platform-specific setup and troubleshooting.
 
@@ -51,12 +51,12 @@ Prefer another installation method? Use [Docker](#docker) or download a standalo
 
 - Download individual episodes, whole seasons or series, movies, and manga chapters.
 - Search supported sites, track your download queue, and browse your library in the Web UI.
-- Keep up with new episodes using Auto-Sync and release scheduling.
+- Schedule Auto-Sync checks for AniWorld titles already downloaded to your library.
 - Choose available audio and subtitle languages, with fallback to other stream hosters.
-- Customize folders, filenames, and output formats, including MKV/MP4 for video and JPG/CBZ for manga.
+- Customize supported naming templates and output formats, including MKV/MP4 for video and JPG/CBZ for manga; naming support varies by backend.
 - Watch through external players, with AniSkip and Anime4K support where applicable.
 
-The Web UI also supports local accounts, optional OIDC SSO, custom CSS, and background shaders. A JSON API and optional Discord request bot let you connect it to other tools. Features and language availability vary by site.
+The Web UI also supports local accounts, optional OIDC SSO, custom CSS, and background shaders. SSO alongside local login requires both `--web-auth` and `--web-sso`; `--web-force-sso` enables SSO-only authentication. A JSON API and optional Discord request bot let you connect it to other tools. Features and language availability vary by site.
 
 For CAPTCHA browser visibility, manual solving, timeouts, and debug logs, see [CAPTCHA configuration](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/configuration#captcha-solving).
 
@@ -76,9 +76,9 @@ All registered source backends are listed below. Availability notes use sampled 
 | MangaFire | Manga | Working | JPG and CBZ downloads |
 | FilmPalast | Movies | Working | |
 | Hanime | Adult animation | Working | Disabled by default |
-| HentaiTV | Adult animation | Implemented; live availability unverified | CLI/Python only |
+| HentaiTV | Adult animation | Implemented; live availability unverified | Optional Web UI tab; disabled by default |
 | AnimeIDHentai | Adult animation | Implemented; live availability unverified | CLI/Python only |
-| HentaiHaven | Adult animation | Implemented; live availability unverified | CLI/Python only |
+| HentaiHaven | Adult animation | Implemented; live availability unverified | Optional Web UI tab; disabled by default |
 | Kinox | Movies and series | Unverified: manual captcha required | Disabled by default |
 | BurningSeries | Series | Broken: embed resolution failed | Disabled by default |
 
@@ -207,7 +207,7 @@ AniWorld Downloader uses [mpv](https://github.com/mpv-player/mpv), [IINA](https:
 - [Jellyfin-AniWorld-Downloader](https://github.com/SiroxCW/Jellyfin-AniWorld-Downloader) by SiroxCW — browse and download AniWorld content from Jellyfin.
 - [AniSeerr](https://github.com/Yezun-hikari/AniSeerr) by Yezun-hikari — connect Seerr requests to AniWorld Downloader.
 - [AniBridge](https://github.com/Zzackllack/AniBridge) by Zzackllack — connect supported catalogues to automation tools through FastAPI.
-- [AniLoader](https://github.com/WimWamWom/AniLoader) by WimWamWom — a standalone web-based fork.
+- [AniLoader](https://github.com/WimWamWom/AniLoader) by WimWamWom — a web-based download manager with automation.
 
 ## Support and Community
 
@@ -217,7 +217,7 @@ If the project has been useful, a star, a contribution, or a [donation](https://
 
 ## Legal Disclaimer
 
-AniWorld Downloader is a client-side tool. It does not host, upload, store, or distribute media on behalf of third-party sites.
+AniWorld Downloader is a client-side tool that saves downloads to locations you choose. It does not operate a media-hosting service for third-party sites.
 
 You are responsible for how you use it and for following the laws and terms that apply where you live. The project is provided "as is". Its maintainers are not responsible for third-party content, external links, or the availability, accuracy, legality, or reliability of outside services.
 
