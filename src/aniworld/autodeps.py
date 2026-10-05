@@ -313,7 +313,11 @@ class DependencyManager:
             self.logger.debug(f"{name} found in {self.install_folder}")
             return local_binary
 
-        url = self._resolve_download_url(name, dep_info)
+        url = (
+            dep_info.get("url")
+            if auto_install_disabled()
+            else self._resolve_download_url(name, dep_info)
+        )
 
         local_path = self.install_folder / Path(url).name if url else None
 
@@ -322,6 +326,13 @@ class DependencyManager:
         if local_binary:
             self.logger.debug(f"{name} found in {self.install_folder}")
             return local_binary
+
+        if auto_install_disabled():
+            raise FileNotFoundError(
+                f"{name} was not found locally and automatic installation is disabled "
+                "(ANIWORLD_NO_AUTO_INSTALL=1). Install it manually and add it to PATH "
+                f"or {self.install_folder}."
+            )
 
         if not prompt_user:
             if url:
