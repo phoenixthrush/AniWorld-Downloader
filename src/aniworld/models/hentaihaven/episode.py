@@ -116,16 +116,28 @@ class HentaiHavenEpisode(HentaiTVEpisode):
         return None
 
     def _add_subtitles(self):
-        url = self.subtitle_url
-        if not url:
-            return
-
         path = self._episode_path
         codec = _SUBTITLE_CODECS.get(path.suffix.lower())
         if codec is None:
             logger.warning(f"[SUBTITLES] {path.suffix} cannot hold subtitles")
             return
 
+        subtitles = [
+            stream
+            for stream in ffmpeg.probe(str(path)).get("streams", [])
+            if stream.get("codec_type") == "subtitle"
+        ]
+        if any(
+            stream.get("tags", {}).get("language", "").lower() in {"en", "eng"}
+            for stream in subtitles
+        ):
+            return
+
+        url = self.subtitle_url
+        if not url:
+            return
+
+        subtitle_index = len(subtitles)
         vtt = path.with_suffix(".en.vtt")
         muxed = path.with_suffix(f".subs{path.suffix}")
         try:
@@ -137,9 +149,9 @@ class HentaiHavenEpisode(HentaiTVEpisode):
                     str(muxed),
                     c="copy",
                     **{
-                        "c:s": codec,
-                        "metadata:s:s:0": "language=eng",
-                        "disposition:s:0": "default",
+                        f"c:s:{subtitle_index}": codec,
+                        f"metadata:s:s:{subtitle_index}": "language=eng",
+                        f"disposition:s:{subtitle_index}": "default",
                     },
                 ),
                 label=self._file_name,
@@ -150,9 +162,8 @@ class HentaiHavenEpisode(HentaiTVEpisode):
             muxed.unlink(missing_ok=True)
 
     def download(self):
-        existed = self._episode_path.exists()
         episode_download(self)
-        if existed or not self._episode_path.exists():
+        if not self._episode_path.exists():
             return
         try:
             self._add_subtitles()

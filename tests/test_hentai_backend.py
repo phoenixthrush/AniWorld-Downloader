@@ -435,6 +435,15 @@ def test_haven_download_uses_shared_hls_pipeline_and_skips_existing(
         Path(ffmpeg.compile(node)[-1]).touch()
 
     muxes = []
+    monkeypatch.setattr(
+        ffmpeg,
+        "probe",
+        lambda path: {
+            "streams": [{"codec_type": "subtitle", "tags": {"language": "eng"}}]
+            if muxes
+            else []
+        },
+    )
 
     def mux(node, label=""):
         args = ffmpeg.compile(node)
@@ -462,7 +471,12 @@ def test_haven_download_uses_shared_hls_pipeline_and_skips_existing(
     assert dependencies == (["ffmpeg", "ffmpeg"] if system == "Windows" else [])
 
 
-def test_haven_download_keeps_video_when_subtitles_fail(monkeypatch, tmp_path):
+@pytest.mark.parametrize("extension,codec", [("mkv", "srt"), ("mp4", "mov_text")])
+def test_haven_download_retries_failed_subtitles(
+    monkeypatch, tmp_path, extension, codec
+):
+    import ffmpeg
+
     from aniworld.models.hentaihaven import episode as haven_module
 
     data = {"videoId": 42, "indexableSource": "https://media.example/m"}
@@ -470,30 +484,109 @@ def test_haven_download_keeps_video_when_subtitles_fail(monkeypatch, tmp_path):
         episode_module, "get_response", lambda *a, **k: response(flight(data))
     )
     episode = HentaiHavenEpisode(HAVEN, selected_path=tmp_path)
+    monkeypatch.setattr(
+        HentaiHavenEpisode, "_file_extension", property(lambda self: extension)
+    )
+    original_subtitles = [{"codec_type": "subtitle", "tags": {"language": "deu"}}]
+    monkeypatch.setattr(ffmpeg, "probe", lambda path: {"streams": original_subtitles})
+    downloads = []
 
     def download(self):
-        self._folder_path.mkdir(parents=True)
-        self._episode_path.write_text("video")
+        if not self._episode_path.exists():
+            downloads.append(self.url)
+            self._folder_path.mkdir(parents=True)
+            self._episode_path.write_text("video")
+
+    requests = []
 
     def broken(url, **kwargs):
-        raise RuntimeError("subtitle host down")
+        requests.append(url)
+        if url == episode.stream_url:
+            return response(MASTER_WITH_SUBTITLES)
+        if requests.count(url) == 1:
+            raise RuntimeError("subtitle host down")
+        return SimpleNamespace(content=b"WEBVTT\n")
+
+    muxes = []
+
+    def mux(node, label=""):
+        args = ffmpeg.compile(node)
+        muxes.append(args)
+        assert args[args.index("-c:s:1") + 1] == codec
+        assert args[args.index("-metadata:s:s:1") + 1] == "language=eng"
+        assert [args[i + 1] for i, arg in enumerate(args) if arg == "-map"] == [
+            "0",
+            "1",
+        ]
+        Path(args[-1]).write_text("subtitled video")
+        original_subtitles.append(
+            {"codec_type": "subtitle", "tags": {"language": "eng"}}
+        )
 
     monkeypatch.setattr(haven_module, "episode_download", download)
     monkeypatch.setattr(haven_module, "get_response", broken)
+    monkeypatch.setattr(haven_module, "_run_ffmpeg_with_progress", mux)
     episode.download()
     assert episode._episode_path.read_text() == "video"
+    episode.download()
+    assert episode._episode_path.read_text() == "subtitled video"
+    episode.download()
+    assert downloads == [HAVEN]
+    assert len(muxes) == 1
+    assert requests.count("https://media.example/s/en.vtt") == 2
+    assert list(episode._folder_path.iterdir()) == [episode._episode_path]
 
 
-def test_haven_without_subtitle_track_downloads_as_is(monkeypatch):
+@pytest.mark.parametrize("language", ["en", "eng", "ENG"])
+def test_haven_existing_english_subtitles_are_preserved(
+    monkeypatch, tmp_path, language
+):
+    from aniworld.models.hentaihaven import episode as haven_module
+
+    episode = HentaiHavenEpisode(HAVEN, selected_path=tmp_path)
+    monkeypatch.setattr(haven_module, "episode_download", lambda self: None)
+    monkeypatch.setattr(HentaiHavenEpisode, "_episode_path", tmp_path / "video.mkv")
+    episode._episode_path.write_text("original video")
+    monkeypatch.setattr(
+        haven_module.ffmpeg,
+        "probe",
+        lambda path: {
+            "streams": [{"codec_type": "subtitle", "tags": {"language": language}}]
+        },
+    )
+    monkeypatch.setattr(
+        haven_module,
+        "get_response",
+        lambda *_: pytest.fail("unexpected subtitle request"),
+    )
+
+    episode.download()
+    assert episode._episode_path.read_text() == "original video"
+
+
+@pytest.mark.parametrize("extension", ["mkv", "mp4"])
+def test_haven_without_subtitle_track_downloads_as_is(monkeypatch, tmp_path, extension):
     from aniworld.models.hentaihaven import episode as haven_module
 
     monkeypatch.setattr(HentaiHavenEpisode, "stream_url", "https://media.example/m")
+    path = tmp_path / f"video.{extension}"
+    path.write_text("original video")
+    monkeypatch.setattr(HentaiHavenEpisode, "_episode_path", path)
+    monkeypatch.setattr(haven_module, "episode_download", lambda self: None)
+    monkeypatch.setattr(haven_module.ffmpeg, "probe", lambda path: {"streams": []})
+    monkeypatch.setattr(
+        haven_module,
+        "_run_ffmpeg_with_progress",
+        lambda *_args, **_kwargs: pytest.fail("unexpected mux"),
+    )
     monkeypatch.setattr(
         haven_module,
         "get_response",
         lambda url, **k: response("#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nv.m3u8\n"),
     )
     assert HentaiHavenEpisode(HAVEN).subtitle_url is None
+    HentaiHavenEpisode(HAVEN).download()
+    assert path.read_text() == "original video"
 
 
 def test_manual_hls_fetch_leaves_fmp4_playlists_alone(monkeypatch, tmp_path):
