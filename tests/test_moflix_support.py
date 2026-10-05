@@ -122,8 +122,8 @@ def test_series_listing_does_not_probe_every_episode(client, monkeypatch):
         "German Dub": ["Gupload", "MoflixClick"]
     }
     download = moflix.MoflixEpisode(episodes[1]["url"])
-    assert download._folder_path.name == "Season 1"
-    assert "S1E2" in download._file_name
+    assert download._folder_path.name == "Season 01"
+    assert "S01E002" in download._file_name
 
 
 def test_mirror_names_are_not_mistaken_for_other_hosters():
