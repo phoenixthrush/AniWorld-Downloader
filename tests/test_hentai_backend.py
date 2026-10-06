@@ -378,13 +378,21 @@ v.m3u8
 
 
 @pytest.mark.parametrize("system", ["Windows", "Linux", "Darwin"])
+@pytest.mark.parametrize("resolution", [False, True])
 def test_haven_download_uses_shared_hls_pipeline_and_skips_existing(
-    monkeypatch, tmp_path, system
+    monkeypatch, tmp_path, system, resolution
 ):
     import ffmpeg
 
     from aniworld.models.common import common
     from aniworld.models.hentaihaven import episode as haven_module
+
+    if resolution:
+        monkeypatch.setenv(
+            "ANIWORLD_NAMING_TEMPLATE",
+            "{title}/{resolution}/{title} S{season}E{episode}.{resolution}.mkv",
+        )
+        monkeypatch.setattr(common, "_read_container_resolution", lambda path: "1080p")
 
     monkeypatch.setattr(common, "platform", SimpleNamespace(system=lambda: system))
     dependencies = []
@@ -450,16 +458,15 @@ def test_haven_download_uses_shared_hls_pipeline_and_skips_existing(
         muxes.append(args)
         Path(args[-1]).write_text("muxed")
 
-    def finalize(temp, target, label, owner):
-        temp.replace(target)
-
     monkeypatch.setattr(common, "_hls_rendition_download", rendition)
     monkeypatch.setattr(common, "_run_ffmpeg_with_progress", run_ffmpeg)
-    monkeypatch.setattr(common, "_finalize_episode", finalize)
     monkeypatch.setattr(haven_module, "_run_ffmpeg_with_progress", mux)
     episode = HentaiHavenEpisode(HAVEN, selected_path=tmp_path)
     episode.download()
     assert episode._episode_path.read_text() == "muxed"
+    if resolution:
+        assert episode._episode_path.parent.name == "1080p"
+        assert episode._episode_path.name.endswith(".1080p.mkv")
     episode.download()
     assert calls == [(source, "jpn")]
     assert fetched == [source, "https://media.example/s/en.vtt"]

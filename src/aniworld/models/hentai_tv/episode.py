@@ -16,7 +16,11 @@ from ...config import (
 )
 from ...extractors.common import extract_video_metadata
 from ..common import ProviderData, check_downloaded, clean_title
-from ..common.common import _download_direct_http
+from ..common.common import (
+    _download_direct_http,
+    _finalize_resolution_naming,
+    _prepare_resolution_naming,
+)
 from ..common.common import syncplay as episode_syncplay
 from ..common.common import watch as episode_watch
 from .http import get_response
@@ -309,7 +313,7 @@ class HentaiTVEpisode:
             "season": f"{self.season_number:02d}",
             "episode": f"{self.episode_number:03d}",
             "language": self.selected_language,
-            "resolution": "unknown",
+            "resolution": getattr(self, "_resolution", "unknown"),
         }
         for key in values:
             template = template.replace(f"%{key}%", "{" + key + "}")
@@ -355,6 +359,7 @@ class HentaiTVEpisode:
             raise ValueError(
                 f"{self.site_name} only provides {self.provider_name} / English Sub"
             )
+        _prepare_resolution_naming(self)
         self._folder_path.mkdir(parents=True, exist_ok=True)
         if not self.is_downloaded["exists"]:
             try:
@@ -368,6 +373,7 @@ class HentaiTVEpisode:
                 _download_direct_http(
                     self._episode_path, self.refresh_stream_url(), self._file_name
                 )
+        _finalize_resolution_naming(self)
 
     watch = episode_watch
     syncplay = episode_syncplay

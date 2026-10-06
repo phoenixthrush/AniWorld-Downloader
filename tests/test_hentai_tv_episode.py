@@ -3,6 +3,7 @@
 import pytest
 
 from aniworld.config import Audio, Subtitles
+from aniworld.models.animeidhentai import AnimeIDHentaiEpisode
 from aniworld.models.common import ProviderData
 from aniworld.models.hentai_tv import episode as module
 
@@ -77,6 +78,92 @@ def test_download_creates_folders_and_skips_existing(episode, monkeypatch):
     assert calls == [
         (episode._episode_path, "https://media.example/video.mp4", episode._file_name)
     ]
+
+
+@pytest.mark.parametrize("cls", [module.HentaiTVEpisode, AnimeIDHentaiEpisode])
+@pytest.mark.parametrize("placeholder", ["{resolution}", "%resolution%"])
+@pytest.mark.parametrize("extension", ["mkv", "mp4"])
+def test_completed_resolution_names_folders_and_files(
+    cls, placeholder, extension, monkeypatch, tmp_path
+):
+    monkeypatch.setattr(cls, "_metadata", property(lambda self: {"episode": 2}))
+    monkeypatch.setattr(cls, "series_title", "Example")
+    monkeypatch.setattr(cls, "release_year", "2024")
+    monkeypatch.setattr(cls, "stream_url", "https://media.example/video.mp4")
+    url = (
+        "https://hentai.tv/hentai/example-episode-2"
+        if cls is module.HentaiTVEpisode
+        else "https://animeidhentai.com/123/example-episode-2-sub-eng"
+    )
+    episode = cls(url, selected_path=tmp_path)
+    monkeypatch.setenv(
+        "ANIWORLD_NAMING_TEMPLATE",
+        f"{{title}}/{placeholder}/{{title}} E{{episode}} {placeholder}.{extension}",
+    )
+    monkeypatch.setattr(
+        module, "check_downloaded", lambda path: {"exists": path.exists()}
+    )
+    monkeypatch.setattr(
+        "aniworld.models.common.common._read_container_resolution", lambda path: "1080p"
+    )
+    calls = []
+
+    def download(path, url, name):
+        calls.append(path)
+        path.write_bytes(b"video")
+
+    monkeypatch.setattr(module, "_download_direct_http", download)
+    episode.download()
+    expected = tmp_path / "Example" / "1080p" / f"Example E002 1080p.{extension}"
+    assert episode._episode_path == expected
+    assert expected.read_bytes() == b"video"
+    assert not calls[0].exists()
+
+    # A fresh model must discover the resolution-named file without downloading.
+    cls(url, selected_path=tmp_path).download()
+    assert len(calls) == 1
+
+
+def test_existing_unknown_resolution_file_is_renamed(episode, monkeypatch):
+    monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "{title}.{resolution}.mkv")
+    old_path = episode._episode_path
+    old_path.write_bytes(b"existing video")
+    monkeypatch.setattr(
+        module, "check_downloaded", lambda path: {"exists": path.exists()}
+    )
+    monkeypatch.setattr(
+        module, "_download_direct_http", lambda *_: pytest.fail("unexpected download")
+    )
+    monkeypatch.setattr(
+        "aniworld.models.common.common._read_container_resolution", lambda path: "720p"
+    )
+
+    episode.download()
+
+    assert episode._episode_path.name == "Example.720p.mkv"
+    assert episode._episode_path.read_bytes() == b"existing video"
+    assert not old_path.exists()
+
+
+def test_unknown_resolution_remains_usable(episode, monkeypatch):
+    monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "{title}.{resolution}.mkv")
+    monkeypatch.setattr(
+        module.HentaiTVEpisode, "stream_url", "https://media.example/video.mp4"
+    )
+    monkeypatch.setattr(
+        module, "check_downloaded", lambda path: {"exists": path.exists()}
+    )
+    monkeypatch.setattr(
+        module, "_download_direct_http", lambda path, *_: path.write_bytes(b"video")
+    )
+    monkeypatch.setattr(
+        "aniworld.models.common.common._read_container_resolution",
+        lambda path: "unknown",
+    )
+
+    episode.download()
+    assert episode._episode_path.name == "Example.unknown.mkv"
+    assert episode._episode_path.read_bytes() == b"video"
 
 
 def test_stream_url_uses_player_result_and_refreshes(episode, monkeypatch):
