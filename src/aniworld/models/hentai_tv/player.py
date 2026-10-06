@@ -8,6 +8,9 @@ from urllib.parse import urlparse
 def resolve_stream_url(player_url, timeout=45):
     from patchright.sync_api import sync_playwright
 
+    from ...autodeps import ensure_patchright_chromium
+
+    ensure_patchright_chromium()
     with sync_playwright() as playwright:
         executable = playwright.chromium.executable_path
         if not Path(executable).is_file():

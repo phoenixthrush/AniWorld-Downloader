@@ -133,7 +133,7 @@ mkdir -p Downloads
 docker compose up -d
 ```
 
-Open [localhost:8080](http://localhost:8080) when the container is ready. The image includes FFmpeg and Chromium for captcha handling.
+Open [localhost:8080](http://localhost:8080) when the container is ready. The image includes FFmpeg and Chromium for captcha handling. Chromium setup runs only when an operation needs a browser and reuses an existing installation.
 
 - Downloads are saved to `./Downloads` on your machine.
 - The `aniworld-data` volume keeps the database, `.env`, and custom themes across container recreation.

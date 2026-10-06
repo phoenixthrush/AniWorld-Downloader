@@ -4,7 +4,6 @@ import sys
 from pathlib import Path
 
 from .arguments import parse_args
-from .autodeps import ensure_patchright_chromium
 from .config import ACTION_METHODS, ANIWORLD_CONFIG_DIR, VERSION
 from .env import merge_env
 from .logger import get_logger
@@ -88,11 +87,6 @@ def aniworld():
         logger.debug("Starting AniWorld-Downloader...")
         set_terminal_title()
         args = parse_args()
-
-        if os.getenv("ANIWORLD_DOWNLOAD_PATH") != "/app/Downloads":
-            logger.debug("Checking dependencies...")
-            ensure_patchright_chromium()
-            logger.debug("Dependencies OK")
 
         if args.web_ui:
             from .web import start_web_ui

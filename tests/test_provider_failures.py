@@ -55,6 +55,7 @@ def test_missing_chromium_error_survives_modal_solver(monkeypatch, tmp_path):
 
     from aniworld import autodeps
 
+    monkeypatch.setenv("ANIWORLD_NO_AUTO_INSTALL", "1")
     runtime = MagicMock()
     runtime.chromium.executable_path = str(tmp_path / "missing-chromium")
     playwright = MagicMock()

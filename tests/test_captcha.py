@@ -23,6 +23,7 @@ def browser(monkeypatch):
     context.cookies.return_value = []
     handle = SimpleNamespace(context=context, close=Mock())
     monkeypatch.setattr(sync_api, "sync_playwright", MagicMock())
+    monkeypatch.setattr(autodeps, "ensure_patchright_chromium", Mock())
     monkeypatch.setattr(autodeps, "_ensure_xvfb", Mock())
     monkeypatch.setattr(captcha, "_launch_browser_context", Mock(return_value=handle))
     monkeypatch.setattr(captcha, "_sync_session_user_agent", Mock())
@@ -35,6 +36,33 @@ def browser(monkeypatch):
 
     page.wait_for_timeout.side_effect = wait
     return handle, page
+
+
+def test_browser_prepares_chromium_and_display_before_launch(browser, monkeypatch):
+    from patchright import sync_api
+
+    handle, page = browser
+    events = []
+    runtime = sync_api.sync_playwright()
+    monkeypatch.setattr(
+        autodeps, "ensure_patchright_chromium", lambda: events.append("chromium")
+    )
+    monkeypatch.setattr(autodeps, "_ensure_xvfb", lambda: events.append("display"))
+
+    def start():
+        events.append("runtime")
+        return runtime
+
+    def launch(*args, **kwargs):
+        events.append("launch")
+        return handle
+
+    monkeypatch.setattr(sync_api, "sync_playwright", start)
+    monkeypatch.setattr(captcha, "_launch_browser_context", launch)
+    with captcha._browser(SOURCE) as result:
+        assert result == (handle.context, page)
+    assert events == ["chromium", "display", "runtime", "launch"]
+    handle.close.assert_called_once_with()
 
 
 @pytest.mark.parametrize(

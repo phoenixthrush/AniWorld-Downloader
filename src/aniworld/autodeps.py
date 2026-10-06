@@ -497,7 +497,7 @@ def ensure_patchright_chromium():
     """Install the patchright Chromium browser if not already present."""
     _log = get_logger(__name__)
     if auto_install_disabled():
-        _log.debug("ANIWORLD_NO_AUTO_INSTALL=1 — skipping chromium/Xvfb setup")
+        _log.debug("ANIWORLD_NO_AUTO_INSTALL=1 — skipping chromium setup")
         return
 
     try:
@@ -506,9 +506,9 @@ def ensure_patchright_chromium():
         _log.debug("patchright not installed, skipping chromium check")
         return
 
-    _ensure_xvfb()
     try:
         from patchright._impl._driver import compute_driver_executable, get_driver_env
+        from patchright.sync_api import sync_playwright
 
         os.environ.setdefault(
             "PLAYWRIGHT_BROWSERS_PATH",
@@ -521,6 +521,10 @@ def ensure_patchright_chromium():
 
         if PLATFORM != "Windows" and not os.access(driver_path, os.X_OK):
             driver_path.chmod(driver_path.stat().st_mode | 0o111)
+
+        with sync_playwright() as runtime:
+            if Path(runtime.chromium.executable_path).is_file():
+                return
 
         _log.debug("Installing patchright chromium (this may take a moment)...")
         subprocess.run(

@@ -97,6 +97,7 @@ def handshake(monkeypatch, session):
     browser.context.pages = []
     page = browser.context.new_page.return_value
     monkeypatch.setattr(sync_api, "sync_playwright", MagicMock())
+    monkeypatch.setattr(autodeps, "ensure_patchright_chromium", Mock())
     monkeypatch.setattr(autodeps, "_ensure_xvfb", lambda: None)
     monkeypatch.setattr(captcha, "_launch_browser_context", lambda *a, **kw: browser)
     monkeypatch.setattr(captcha, "_sync_session_user_agent", Mock())

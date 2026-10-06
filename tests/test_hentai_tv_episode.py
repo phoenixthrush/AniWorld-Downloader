@@ -231,12 +231,15 @@ def test_invalid_urls(url):
 
 @pytest.mark.parametrize("failure", [False, True])
 def test_browser_reads_main_context_and_closes(monkeypatch, failure):
-    from unittest.mock import MagicMock
+    from unittest.mock import MagicMock, Mock
 
     from patchright import sync_api
 
+    from aniworld import autodeps
     from aniworld.models.hentai_tv import player
 
+    ensure = Mock()
+    monkeypatch.setattr(autodeps, "ensure_patchright_chromium", ensure)
     browser = MagicMock()
     page = browser.new_page.return_value
     page.evaluate.side_effect = [
@@ -264,5 +267,9 @@ def test_browser_reads_main_context_and_closes(monkeypatch, failure):
     assert all(
         call.kwargs == {"isolated_context": False}
         for call in page.evaluate.call_args_list
+    )
+    ensure.assert_called_once_with()
+    runtime.__enter__.return_value.chromium.launch.assert_called_once_with(
+        headless=True, executable_path="/fake/chromium"
     )
     browser.close.assert_called_once()

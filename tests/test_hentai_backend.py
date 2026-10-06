@@ -339,7 +339,6 @@ def test_cli_download_dispatch(monkeypatch, url, cls, no_menu):
             url=[url], action=None, web_ui=False, episode_file=None
         ),
     )
-    monkeypatch.setattr(entry, "ensure_patchright_chromium", lambda: None)
     monkeypatch.setattr(entry, "set_terminal_title", lambda: None)
     monkeypatch.setenv("ANIWORLD_NO_MENU", "1" if no_menu else "0")
     calls = []

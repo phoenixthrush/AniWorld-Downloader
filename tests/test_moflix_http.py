@@ -83,6 +83,7 @@ def test_browser_response_and_cleanup(monkeypatch, outcome):
     runtime.return_value.__enter__ = Mock()
     runtime.return_value.__exit__ = Mock(return_value=False)
     monkeypatch.setattr(sync_api, "sync_playwright", runtime)
+    monkeypatch.setattr(autodeps, "ensure_patchright_chromium", Mock())
     monkeypatch.setattr(autodeps, "_ensure_xvfb", Mock())
     monkeypatch.setattr(captcha, "_launch_browser_context", lambda *a, **k: handle)
     monkeypatch.setattr(captcha, "_sync_session_user_agent", Mock())

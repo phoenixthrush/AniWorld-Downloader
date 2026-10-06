@@ -302,8 +302,9 @@ def _attach_debug_listeners(page):
 def _browser(url, offscreen=True):
     from patchright.sync_api import sync_playwright
 
-    from ..autodeps import _ensure_xvfb
+    from ..autodeps import _ensure_xvfb, ensure_patchright_chromium
 
+    ensure_patchright_chromium()
     _ensure_xvfb()
     with sync_playwright() as runtime:
         handle = _launch_browser_context(runtime, offscreen=offscreen)
