@@ -8,7 +8,7 @@
 [![Docker Image Size](https://ghcr-badge.egpl.dev/phoenixthrush/aniworld-downloader/size)](https://github.com/phoenixthrush/AniWorld-Downloader/pkgs/container/aniworld-downloader)
 ![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/phoenixthrush/AniWorld-Downloader)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?logo=discord&logoColor=white)](https://discord.gg/BfDvrKd8V5)
-[![PayPal Donate](https://img.shields.io/badge/PayPal-Donate-blue?logo=paypal)](https://www.paypal.com/paypalme/justnekochan)
+[![GitHub Sponsors](https://img.shields.io/badge/♥%20Sponsor-Visit-red)](https://github.com/sponsors/phoenixthrush)
 ![GitHub Repo stars](https://img.shields.io/github/stars/phoenixthrush/AniWorld-Downloader)
 ![GitHub forks](https://img.shields.io/github/forks/phoenixthrush/AniWorld-Downloader)
 
@@ -213,7 +213,7 @@ AniWorld Downloader uses [mpv](https://github.com/mpv-player/mpv), [IINA](https:
 
 For help, check the [documentation](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/), open a [GitHub issue](https://github.com/phoenixthrush/AniWorld-Downloader/issues), or join us on [Discord](https://discord.gg/BfDvrKd8V5). You can also reach me at [contact@phoenixthrush.com](mailto:contact@phoenixthrush.com).
 
-If the project has been useful, a star, a contribution, or a [donation](https://www.paypal.com/paypalme/justnekochan) is always appreciated. Thanks for being part of it. <3
+If the project has been useful, a star, a contribution, or a [donation](https://github.com/sponsors/phoenixthrush) is always appreciated. Thanks for being part of it. <3
 
 ## Legal Disclaimer
 
