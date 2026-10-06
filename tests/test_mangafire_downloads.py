@@ -3,6 +3,7 @@
 import shutil
 import subprocess
 from functools import cache
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 from zipfile import ZipFile
@@ -61,12 +62,13 @@ def read_archive(path):
 
 @pytest.fixture
 def chapter(monkeypatch):
-    def make(number=1, selected_pages=None):
+    def make(number=1, selected_pages=None, selected_path=None):
         result = manga.MangaFireToChapter(
             url=f"https://mangafire.to/title/example/chapter/{number}",
             chapter_id=1,
             chapter_number=number,
             selected_pages=selected_pages,
+            selected_path=selected_path,
             format="cbz",
         )
         pages = [
@@ -84,6 +86,32 @@ def fetch(monkeypatch):
     fetch = Mock(return_value=SimpleNamespace(content=image_bytes()))
     monkeypatch.setattr(manga, "_get", fetch)
     return fetch
+
+
+@pytest.mark.parametrize("format", ["jpg", "cbz"])
+def test_selected_root_keeps_existing_downloads(
+    tmp_path, chapter, fetch, monkeypatch, format
+):
+    monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", str(tmp_path / "ignored"))
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    item = chapter(selected_path="Manga with spaces")
+    item.mangafire_format = format
+    destination = item.download()
+    folder = tmp_path / "Manga with spaces" / "Chapter 1" / "Chapter 1"
+    if format == "cbz":
+        assert destination == folder.with_name("Chapter 1.cbz")
+        assert read_archive(destination) == {
+            "001.png": image_bytes(),
+            "002.png": image_bytes(),
+        }
+    else:
+        assert destination == folder
+        assert (folder / "001.png").read_bytes() == image_bytes()
+        assert (folder / "002.png").read_bytes() == image_bytes()
+    assert fetch.call_count == 2
+    assert item.download() == destination
+    assert fetch.call_count == 2
+    assert not (tmp_path / "ignored").exists()
 
 
 @pytest.mark.parametrize("format", ["PNG", "JPEG", "WEBP", "GIF"])

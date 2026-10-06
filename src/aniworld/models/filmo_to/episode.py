@@ -14,6 +14,7 @@ from ..common.common import syncplay as episode_syncplay
 from ..common.common import watch as episode_watch
 from ..common.extraction import resolve_stream_url
 from ..common.http import CaptchaRequired, get_session, is_captcha_page
+from ..common.paths import resolve_download_path
 from ..common.provider_map import host_to_provider
 
 FILMO_EPISODE_PATTERN = re.compile(
@@ -88,17 +89,21 @@ class FilmoEpisode:
         self.url = url
         self.__redirect_url = None
         self.__provider_url = None
-        self.selected_path = (
-            selected_path
-            or os.getenv("ANIWORLD_DOWNLOAD_PATH")
-            or str(Path.home() / "Downloads")
-        )
+        self.selected_path = selected_path
         self.selected_language = selected_language or os.getenv(
             "ANIWORLD_LANGUAGE", "German Dub"
         )
         self.selected_provider = selected_provider or os.getenv(
             "ANIWORLD_PROVIDER", "VOE"
         )
+
+    @property
+    def selected_path(self):
+        return self.__selected_path
+
+    @selected_path.setter
+    def selected_path(self, value):
+        self.__selected_path = str(resolve_download_path(value))
 
     @cached_property
     def _html(self):
@@ -290,9 +295,7 @@ class FilmoEpisode:
 
     @property
     def _base_folder(self):
-        path = Path(self.selected_path).expanduser()
-        if not path.is_absolute():
-            path = Path.home() / path
+        path = Path(self.selected_path)
         return path / self._file_name if movie_folder_enabled() else path
 
     @property

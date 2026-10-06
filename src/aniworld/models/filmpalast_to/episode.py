@@ -25,6 +25,7 @@ try:
         watch as episode_watch,
     )
     from ..common.extraction import resolve_stream_url
+    from ..common.paths import resolve_download_path
     from ..common.provider_map import host_to_provider
 except ImportError:
     from aniworld.config import (
@@ -52,6 +53,7 @@ except ImportError:
         watch as episode_watch,
     )
     from aniworld.models.common.extraction import resolve_stream_url
+    from aniworld.models.common.paths import resolve_download_path
     from aniworld.models.common.provider_map import host_to_provider
 
 FILMPALAST_EPISODE_PATTERN = re.compile(r"^https?://(?:www\.)?filmpalast\.to/stream/.+")
@@ -235,16 +237,9 @@ class FilmPalastEpisode:
     @property
     def selected_path(self):
         if self.__selected_path is None:
-            raw_path = self.__selected_path_param or os.getenv(
-                "ANIWORLD_DOWNLOAD_PATH", str(Path.home() / "Downloads")
+            self.__selected_path = str(
+                resolve_download_path(self.__selected_path_param)
             )
-
-            path = Path(raw_path).expanduser()
-
-            if not path.is_absolute():
-                path = Path.home() / path
-
-            self.__selected_path = str(path)
         return self.__selected_path
 
     @selected_path.setter

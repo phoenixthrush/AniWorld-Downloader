@@ -25,6 +25,7 @@ from ..common.common import (
     watch as episode_watch,
 )
 from ..common.extraction import resolve_stream_url
+from ..common.paths import resolve_download_path
 
 
 class AniworldEpisode:
@@ -370,16 +371,9 @@ class AniworldEpisode:
     @property
     def selected_path(self):
         if self.__selected_path is None:
-            raw_path = self.__selected_path_param or os.getenv(
-                "ANIWORLD_DOWNLOAD_PATH", str(Path.home() / "Downloads")
+            self.__selected_path = str(
+                resolve_download_path(self.__selected_path_param)
             )
-
-            path = Path(raw_path).expanduser()
-
-            if not path.is_absolute():
-                path = Path.home() / path
-
-            self.__selected_path = str(path)
         return self.__selected_path
 
     @selected_path.setter

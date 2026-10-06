@@ -23,6 +23,7 @@ from ..common.common import (
 )
 from ..common.common import syncplay as episode_syncplay
 from ..common.common import watch as episode_watch
+from ..common.paths import resolve_download_path
 from .http import get_response
 from .page import page_objects
 from .player import resolve_stream_url
@@ -275,11 +276,7 @@ class HentaiTVEpisode:
 
     @property
     def selected_path(self):
-        raw_path = self.__selected_path_param or os.getenv(
-            "ANIWORLD_DOWNLOAD_PATH", str(Path.home() / "Downloads")
-        )
-        path = Path(raw_path).expanduser()
-        return str(path if path.is_absolute() else Path.home() / path)
+        return str(resolve_download_path(self.__selected_path_param))
 
     @selected_path.setter
     def selected_path(self, value):

@@ -16,6 +16,7 @@ from ...common.search import (
 )
 from ...config import GLOBAL_SESSION
 from ...playwright.captcha import is_captcha_page, solve_captcha
+from ..common.paths import resolve_download_path
 from .vrf import sign_url
 
 SEARCH_API = "https://mangafire.to/api/titles"
@@ -55,21 +56,6 @@ def _get(url: str, timeout=None):
         response = GLOBAL_SESSION.get(request_url, headers=HEADERS, timeout=timeout)
     response.raise_for_status()
     return response
-
-
-def _get_download_root() -> Path:
-    """Return the download root path."""
-    value = getenv("ANIWORLD_DOWNLOAD_PATH", "Downloads").strip()
-
-    if not value:
-        value = "Downloads"
-
-    path = Path(value).expanduser()
-
-    if path.is_absolute():
-        return path
-
-    return Path.home() / path
 
 
 def _valid_image(data: bytes) -> bool:
@@ -208,7 +194,7 @@ class MangaFireToPage:
         """Download the page image."""
         if folder is None:
             folder = (
-                _get_download_root()
+                resolve_download_path()
                 / _safe_name(self.chapter.series.title)
                 / self.chapter.folder_name
             )
@@ -411,8 +397,8 @@ class MangaFireToChapter:
 
     @property
     def selected_path(self):
-        """Return the explicitly selected download path, if any."""
-        return self.__selected_path_param
+        """Return the expanded download root."""
+        return str(resolve_download_path(self.__selected_path_param))
 
     @property
     def selected_language(self):
@@ -455,16 +441,9 @@ class MangaFireToChapter:
             else self.chapter_name or f"Chapter {self.chapter_number}"
         )
         if folder is None:
-            if self.selected_path:
-                folder = (
-                    Path(self.selected_path)
-                    / _safe_name(chapter_title)
-                    / self.folder_name
-                )
-            else:
-                folder = (
-                    _get_download_root() / _safe_name(chapter_title) / self.folder_name
-                )
+            folder = (
+                Path(self.selected_path) / _safe_name(chapter_title) / self.folder_name
+            )
         else:
             folder = Path(folder)
 
@@ -770,7 +749,7 @@ class MangaFireToSeries:
     ) -> Path:
         """Download a set of chapters."""
         if folder is None:
-            folder = _get_download_root() / _safe_name(self.title)
+            folder = resolve_download_path() / _safe_name(self.title)
         else:
             folder = Path(folder)
 
