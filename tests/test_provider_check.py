@@ -83,6 +83,25 @@ def test_guarded_keeps_the_original_exception():
     assert checks.guarded(fail) == (None, error)
 
 
+@pytest.mark.parametrize("only", [None, ["gupload"]])
+def test_site_check_reports_missing_sample_as_skipped(monkeypatch, capsys, only):
+    monkeypatch.setattr(
+        search, "fetch_moflix_movies", lambda: [{"url": "https://example.test/title"}]
+    )
+    monkeypatch.setattr(checks, "extractors", dict)
+    monkeypatch.setattr(checks, "first_episode", lambda url: object())
+    monkeypatch.setattr(
+        checks,
+        "hosters_of",
+        lambda episode: [("German Dub", "MoflixClick")] if only else [],
+    )
+
+    assert checks.run_site("Moflix", "fetch_moflix_movies", only) == 0
+    output = capsys.readouterr().out
+    assert "SKIP" in output
+    assert "0 passed, 0 failed, 1 skipped" in output
+
+
 @pytest.mark.parametrize("blocked", [True, False])
 def test_burningseries_check_stops_after_warning_or_timeout(
     monkeypatch, capsys, blocked

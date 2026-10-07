@@ -94,7 +94,7 @@ Sites list the titles; stream hosters provide the video links. These results use
 | Filemoon | Samples passed | Not implemented |
 | Doodstream | Samples passed | Not implemented |
 | MegaKino | Sample passed | Not implemented |
-| Gupload | No current embed found in sampled titles | Not implemented |
+| Gupload | Hostname did not resolve during the check | Not implemented |
 | MoflixClick | Sample passed | Not implemented |
 | Vidara | Kinox CAPTCHA prevented resolving the sample embed | Not implemented |
 | Vidmoly | Samples failed: no embed HTML returned | Samples failed |

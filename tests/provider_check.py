@@ -239,9 +239,20 @@ def run_site(site_name, fetch_name, only=None):
         return 1
 
     pairs = hosters_of(episode)
+    if only:
+        pairs = [
+            (language, name)
+            for language, name in pairs
+            if any(o in name.lower() for o in only)
+        ]
     if not pairs:
-        line(SKIP, site_name, "episode offered no hosters")
-        return 0
+        detail = (
+            "episode offered no matching hosters"
+            if only
+            else "episode offered no hosters"
+        )
+        line(SKIP, site_name, detail)
+        return report([SKIP])
 
     for language, provider_name in pairs:
         key = provider_name.lower()
@@ -253,9 +264,6 @@ def run_site(site_name, fetch_name, only=None):
             line(NOIMPL, label, "extractor registered but not implemented")
             results.append(NOIMPL)
             continue
-        if only and not any(o in key for o in only):
-            continue
-
         url, exc = guarded(embed_url, episode, language, provider_name)
         if exc:
             line(FAIL, label, f"embed: {describe(exc)}")

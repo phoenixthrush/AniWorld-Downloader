@@ -58,8 +58,8 @@ def render_menu(monkeypatch):
 @pytest.mark.parametrize(
     "path, relative, folder",
     [
-        ("/app/Downloads", False, "/app/Downloads"),
-        ("/data/media", False, "/data/media"),
+        ("/app/Downloads", False, "app/Downloads"),
+        ("/data/media", False, "data/media"),
         ("~/Videos", True, "Videos"),
         ("Videos", True, "Videos"),
         ("   ", True, "Downloads"),
@@ -79,6 +79,7 @@ def test_menu_restriction_is_independent_of_save_location(
 ):
     home = tmp_path / "home"
     monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
     monkeypatch.setattr(Path, "home", lambda: home)
     if path is None:
         monkeypatch.delenv("ANIWORLD_DOWNLOAD_PATH", raising=False)
@@ -91,7 +92,21 @@ def test_menu_restriction_is_independent_of_save_location(
 
     result, widgets = render_menu()
     assert widgets["Action"].values == expected_actions
-    expected_path = home / folder if relative else Path(folder)
+    # A rooted path without a drive keeps the home drive on Windows.
+    base = home if relative else Path(home.anchor)
+    expected_path = base / folder
     assert widgets["Save Location"].value == expected_path
     assert result["path"] == expected_path
     assert result["action"] == "Download"
+
+
+def test_menu_preserves_native_absolute_save_location(
+    monkeypatch, tmp_path, render_menu
+):
+    destination = tmp_path / "media"
+    monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", str(destination))
+    monkeypatch.setenv("ANIWORLD_MENU_DOWNLOAD_ONLY", "1")
+
+    result, widgets = render_menu()
+    assert widgets["Save Location"].value == destination
+    assert result["path"] == destination
