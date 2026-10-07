@@ -1,16 +1,18 @@
 """Shared machinery for the manual provider checks.
 
-Not a test file and not named like one, so pytest never collects it. The
-per-site files import it, and pytest does import those, so a syntax error in
-here still turns CI red rather than hiding until someone runs a check by hand.
+The live scripts are excluded from pytest collection. Offline tests cover
+this helper, and Ruff checks the scripts without contacting providers.
 
 One file per source site lives next to this one:
 
     tests/test_providers_aniworld.py       tests/test_providers_kinox.py
     tests/test_providers_serienstream.py   tests/test_providers_burningseries.py
     tests/test_providers_megakino.py
+    tests/test_providers_filmo.py          tests/test_providers_moflix.py
     tests/test_providers_filmpalast.py     tests/test_providers_hanimetv.py
     tests/test_providers_mangafire.py
+    tests/test_providers_hentaitv.py       tests/test_providers_animeidhentai.py
+    tests/test_providers_hentaihaven.py
 
 and one that checks the hosters on their own, independent of any site:
 
@@ -21,9 +23,9 @@ is a pytest test: they fail whenever a site changes its markup, blocks the
 runner or goes down, and that must never turn a push red.
 """
 
+import queue
+import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
-from concurrent.futures import TimeoutError as FutureTimeout
 
 TIMEOUT = 45
 PASS, FAIL, SKIP, NOIMPL = "PASS", "FAIL", "SKIP", "NOIMPL"
@@ -36,11 +38,12 @@ PASS, FAIL, SKIP, NOIMPL = "PASS", "FAIL", "SKIP", "NOIMPL"
 # down at any time. A 404 here usually means the video is gone, not that the
 # extractor broke. Replace it with any current embed URL from that hoster.
 FALLBACK_EMBEDS = {
-    "VOE": "https://voe.sx/e/oa16zsjaqohr",
-    "Doodstream": "https://dood.so/d/obx2lizzns385sm6gvbxwn56iu9maael",
+    "VOE": "https://voe.sx/e/on0cg79zre0c",
+    "Doodstream": "https://playmogo.com/e/h9ifa0wgocdz",
     "Vidmoly": "https://vidmoly.net/embed-zquo82b8dm1k.html",
     "Vidoza": "https://videzz.net/embed-xneznizpludf.html",
-    "Filemoon": "https://filemoon.sx/e/8xqf0yq0y2qk",
+    "Filemoon": "https://bysezejataos.com/d/1mzplk2ac3p1",
+    "MegaKino": "https://watch.gxplayer.xyz/watch?v=153CJ76X",
 }
 
 
@@ -97,14 +100,20 @@ def guarded(fn, *args):
     Returns (value, exception). The exception itself is handed back, not a
     string, so callers can tell NotImplementedError from a real failure.
     """
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        future = pool.submit(fn, *args)
+    result = queue.Queue(maxsize=1)
+
+    def call():
         try:
-            return future.result(timeout=TIMEOUT), None
-        except FutureTimeout:
-            return None, TimeoutError(f"timed out after {TIMEOUT}s")
+            result.put((fn(*args), None))
         except Exception as exc:
-            return None, exc
+            result.put((None, exc))
+
+    # A stuck request must not keep the manual-check process alive on exit.
+    threading.Thread(target=call, daemon=True).start()
+    try:
+        return result.get(timeout=TIMEOUT)
+    except queue.Empty:
+        return None, TimeoutError(f"timed out after {TIMEOUT}s")
 
 
 def describe(exc):
@@ -159,6 +168,9 @@ def first_episode(site_url):
     if not provider.series_cls:
         raise ValueError(f"{provider.name}: no way to reach an episode")
     series = provider.series_cls(url=site_url)
+    episodes = list(getattr(series, "episodes", []) or [])
+    if episodes:
+        return episodes[0]
     seasons = list(getattr(series, "seasons", []) or [])
     if not seasons:
         raise ValueError(f"{provider.name}: series exposed no seasons")
@@ -248,6 +260,17 @@ def run_site(site_name, fetch_name, only=None):
         if exc:
             line(FAIL, label, f"embed: {describe(exc)}")
             results.append(FAIL)
+            if site_name == "BurningSeries":
+                from aniworld.models.burningseries.series import BurningSeriesVPNWarning
+
+                if isinstance(exc, (BurningSeriesVPNWarning, TimeoutError)):
+                    print(
+                        "  Stopping BurningSeries check; remaining hosters were not "
+                        "checked because the stream mirrors returned a VPN warning "
+                        "or timed out.",
+                        flush=True,
+                    )
+                    break
             continue
 
         status, detail, took = check("direct link", registry[key]["direct"], url)
@@ -261,20 +284,27 @@ def run_site(site_name, fetch_name, only=None):
     return report(results)
 
 
-def run_stream_site(site_name, fetch_name):
+def run_stream_site(site_name, fetch_name, keyword=None):
     """For a site that owns its stream resolution instead of using a hoster.
 
     HanimeTV is its own extractor: the episode resolves a stream itself rather
     than pointing at VOE or Doodstream, so walking a hoster map would report
     "no hosters" and prove nothing.
     """
+    from aniworld import search
+
     registry = extractors()
     results = []
 
     print(f"\n=== {site_name} ===\n")
-    titles, exc = guarded(globals()[fetch_name])
+    fetch = getattr(search, fetch_name, None) or globals().get(fetch_name)
+    if fetch is None:
+        line(FAIL, site_name, f"no fetcher named {fetch_name}")
+        return 1
+    titles, exc = guarded(lambda: fetch(keyword) if keyword is not None else fetch())
     if exc or not titles:
-        line(FAIL, f"{site_name} front page", describe(exc) if exc else "no titles")
+        source = "search" if keyword is not None else "front page"
+        line(FAIL, f"{site_name} {source}", describe(exc) if exc else "no titles")
         return 1
 
     site_url = titles[0]["url"]
@@ -289,10 +319,15 @@ def run_stream_site(site_name, fetch_name):
     line(status, f"{site_name} stream", detail, took)
     results.append(status)
 
-    key = "hanime_tv"
-    if key in registry:
-        status, detail, took = check("preview", registry[key]["preview"], site_url)
+    if site_name == "HanimeTV" and "hanime_tv" in registry:
+        status, detail, took = check(
+            "preview", registry["hanime_tv"]["preview"], site_url
+        )
         line(status, f"{site_name} preview", detail, took)
+        results.append(status)
+    else:
+        status, detail, took = check("poster", lambda _: episode.poster_url, site_url)
+        line(status, f"{site_name} poster", detail, took)
         results.append(status)
     return report(results)
 

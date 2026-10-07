@@ -64,43 +64,43 @@ For CAPTCHA browser visibility, manual solving, timeouts, and debug logs, see [C
 
 AniWorld and SerienStream are the main focus of the project.
 
-All registered source backends are listed below. Availability notes use sampled stream/image checks from **09/2026**, not complete downloads or playback tests. Availability can vary by title, region, and stream hoster.
+All registered source backends were checked live in **10/2026** using the manual provider scripts. The tables show the best observed results. Successful checks resolved sample stream or chapter/page URLs; no complete media files were downloaded. Results can vary by title, connection, and stream hoster.
 
 | Site | Content | Status | Notes |
 | --- | --- | --- | --- |
-| AniWorld | Anime and anime movies | Working | |
-| SerienStream | Series | CAPTCHA verification required | |
-| MegaKino | Movies and series | Working | |
-| Filmo | Movies | Working | |
-| Moflix | Movies and series | Working | |
-| MangaFire | Manga | Working | JPG and CBZ downloads |
-| FilmPalast | Movies | Working | |
-| Hanime | Adult animation | Working | Disabled by default |
-| HentaiTV | Adult animation | Implemented; live availability unverified | Optional Web UI tab; disabled by default |
-| AnimeIDHentai | Adult animation | Implemented; live availability unverified | CLI/Python only |
-| HentaiHaven | Adult animation | Implemented; live availability unverified | Optional Web UI tab; disabled by default |
-| Kinox | Movies and series | Unverified: manual captcha required | Disabled by default |
-| BurningSeries | Series | Broken: embed resolution failed | Disabled by default |
+| AniWorld | Anime and anime movies | Stream URLs resolved | VOE, Doodstream, and Filemoon samples passed; Vidmoly failed |
+| SerienStream | Series | Stream URLs resolved | VOE and Doodstream samples passed |
+| MegaKino | Movies and series | Stream URLs resolved | VOE and the MegaKino hoster passed |
+| Filmo | Movies | Stream URLs resolved | VOE samples passed |
+| Moflix | Movies and series | Stream URL resolved | MoflixClick sample passed |
+| MangaFire | Manga | Chapter/page URLs resolved | JPG and CBZ downloads supported |
+| FilmPalast | Movies | Stream URL resolved | VOE sample passed |
+| Hanime | Adult animation | Stream URL resolved | Disabled by default |
+| HentaiTV | Adult animation | Stream and poster URLs resolved | Optional Web UI tab; disabled by default |
+| AnimeIDHentai | Adult animation | Stream and poster URLs resolved | CLI/Python only |
+| HentaiHaven | Adult animation | Stream and poster URLs resolved | Optional Web UI tab; disabled by default |
+| Kinox | Movies and series | Blocked by verification CAPTCHA | Disabled by default |
+| BurningSeries | Series | Stream mirrors returned VPN warning pages | Disabled by default |
 
 "Disabled by default" refers to Web UI visibility; direct CLI URLs remain accepted. Hanime (`hanime.tv`), HentaiTV (`hentai.tv`) and HentaiHaven (`hentaihaven.xxx`) have optional Web UI tabs, enabled with `ANIWORLD_ENABLE_HTV=1`, `ANIWORLD_ENABLE_HENTAITV=1` and `ANIWORLD_ENABLE_HENTAIHAVEN=1`. AnimeIDHentai (`animeidhentai.com`) supports direct CLI URLs and Python use. See [adult-site usage](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/usage#adult-site-backends) for examples.
 
 ### Stream Hosters
 
-Sites list the titles; stream hosters provide the video links. The checks below use the same **09/2026** snapshot.
+Sites list the titles; stream hosters provide the video links. These results use the same **10/2026** checks, including fresh embed URLs discovered from current titles.
 
-| Hoster | Status |
-| --- | --- |
-| VOE | Working |
-| Filemoon | Working |
-| Doodstream | Working |
-| MegaKino | Working |
-| Gupload | Working |
-| MoflixClick | Working |
-| Vidara | Working |
-| Vidmoly | Broken: no embed HTML returned |
-| Vidoza | Unverified: Shut down? |
+| Hoster | Stream extraction | Preview extraction |
+| --- | --- | --- |
+| VOE | Samples passed | Samples failed |
+| Filemoon | Samples passed | Not implemented |
+| Doodstream | Samples passed | Not implemented |
+| MegaKino | Sample passed | Not implemented |
+| Gupload | No current embed found in sampled titles | Not implemented |
+| MoflixClick | Sample passed | Not implemented |
+| Vidara | Kinox CAPTCHA prevented resolving the sample embed | Not implemented |
+| Vidmoly | Samples failed: no embed HTML returned | Samples failed |
+| Vidoza | Sample URL returned HTTP 404 | Sample URL returned HTTP 404 |
 
-If a hoster fails, the downloader can try others in your configured fallback order, provided the title offers them in the selected language. It does not automatically switch languages. VOE previews are broken; Filemoon, Doodstream, and MegaKino previews are not implemented.
+If a hoster fails, the downloader can try others in your configured fallback order, provided the title offers them in the selected language. It does not automatically switch languages. A failed or missing sample does not establish that a hoster has shut down. See [live provider checks](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/contributing#live-provider-checks) to repeat these checks.
 
 ## CLI Usage
 
@@ -188,7 +188,7 @@ python -m pip install -e ".[all,test]"
 pytest
 ```
 
-Automated tests run without contacting live sites. Separate `tests/test_providers_*.py` scripts check live providers. CI also runs Ruff checks. Keep pull requests focused and explain what changed and how you tested it.
+Automated tests run offline. See the [testing guide](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/contributing) for automated tests and live provider checks. CI also runs Ruff checks. Keep pull requests focused and explain what changed and how you tested it.
 
 ### Contributors
 

@@ -84,6 +84,23 @@ _BS_HOSTS = (
 )
 
 
+class BurningSeriesVPNWarning(RuntimeError):
+    """The stream mirrors returned a VPN warning instead of a player."""
+
+
+def _is_vpn_warning(page_html):
+    # Large inline styles can put the actual warning beyond the first 6 KB.
+    text = re.sub(
+        r"<(script|style)\b[^>]*>.*?</\1\s*>",
+        "",
+        page_html,
+        flags=re.IGNORECASE | re.DOTALL,
+    ).lower()
+    return "vpn" in text and any(
+        marker in text for marker in ("burning series", "zensur", "gesperrt")
+    )
+
+
 def bs_current_base():
     return _DOMAINS[_active_idx]
 
@@ -190,10 +207,7 @@ def _resolve_hoster_link(hoster_path, referer):
             # German ISPs block burning-series, so the site serves a "you must
             # use a VPN" interstitial instead of the player. Detect it to give a
             # clear reason instead of a vague failure.
-            low = player_html[:6000].lower()
-            if "vpn" in low and (
-                "burning series" in low or "zensur" in low or "gesperrt" in low
-            ):
+            if _is_vpn_warning(player_html):
                 vpn_blocked = True
                 last_err = RuntimeError("VPN required")
                 continue
@@ -211,9 +225,13 @@ def _resolve_hoster_link(hoster_path, referer):
 
             # Follow the redirect (Chrome impersonation passes Turnstile).
             try:
-                _body, final = _bs_curl_get(stream_url, player_url)
+                body, final = _bs_curl_get(stream_url, player_url)
                 if final and not _is_bs_host(final):
                     return final
+                if _is_vpn_warning(body):
+                    vpn_blocked = True
+                    last_err = RuntimeError("VPN warning instead of a player")
+                    continue
             except Exception as exc:
                 logger.debug(f"burning-series redirect follow failed: {exc}")
 
@@ -229,10 +247,9 @@ def _resolve_hoster_link(hoster_path, referer):
                 last_err = exc
 
         if vpn_blocked:
-            raise RuntimeError(
-                "burning-series is geo-blocked for German ISPs and serves a "
-                "'use a VPN' page instead of the player — run the app/container "
-                "behind a VPN to download from burning-series."
+            raise BurningSeriesVPNWarning(
+                "BurningSeries returned a VPN warning page instead of a player; "
+                "no usable stream mirror was found."
             )
         raise RuntimeError(
             "burning-series: could not resolve the hoster embed on "
