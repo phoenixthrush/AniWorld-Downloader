@@ -353,7 +353,7 @@ def parse_args():
     syncplay.add_argument(
         "-sR",
         "--syncplay-room",
-        help="Specify the Syncplay room name",
+        help="Specify the Syncplay room name (overrides the generated name)",
     )
     syncplay.add_argument(
         "-sU",
@@ -363,7 +363,10 @@ def parse_args():
     syncplay.add_argument(
         "-sP",
         "--syncplay-password",
-        help="Specify the Syncplay password (if required)",
+        help=(
+            "Seed the generated room name. Ignored when a room is set; "
+            "does not authenticate to the Syncplay server."
+        ),
     )
 
     args = parser.parse_args()
