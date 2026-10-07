@@ -10,6 +10,7 @@ from typing import ClassVar
 import npyscreen
 
 from .config import INVERSE_LANG_KEY_MAP, LANG_LABELS, VERSION, logger
+from .models.common.paths import resolve_download_path
 from .providers import resolve_provider
 
 
@@ -244,16 +245,11 @@ class MenuApp(npyscreen.NPSApp):
         y = 2  # leave space for form title
 
         # --- Action ---
-        is_docker = False
-
-        if os.getenv("ANIWORLD_DOWNLOAD_PATH") == "/app/Downloads":
-            is_docker = True
-
         action = F.add(
             npyscreen.TitleSelectOne,
             name="Action",
             values=[Action.DOWNLOAD.value]
-            if is_docker
+            if os.getenv("ANIWORLD_MENU_DOWNLOAD_ONLY") == "1"
             else [Action.DOWNLOAD.value, Action.WATCH.value, Action.SYNCPLAY.value],
             value=[0],
             max_height=3,
@@ -265,7 +261,7 @@ class MenuApp(npyscreen.NPSApp):
         path = F.add(
             npyscreen.TitleFilenameCombo,
             name="Save Location",
-            value=(Path("/app/Downloads") if is_docker else Path.home() / "Downloads"),
+            value=resolve_download_path(),
             rely=y + 4,
             max_height=2,
         )
