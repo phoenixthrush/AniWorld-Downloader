@@ -1,6 +1,6 @@
 from aniworld.models import MangaFireToSeries
 
-url = "https://mangafire.to/title/zlwvm-darling-in-the-franxx"
+url = "https://mangafire.to/title/z9w-velvet-kisss"
 
 series = MangaFireToSeries(url)
 chapter = series.preferred_chapters[0]

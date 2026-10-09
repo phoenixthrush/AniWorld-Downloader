@@ -64,16 +64,18 @@ def test_a_plain_url_entry():
 def test_a_dict_entry_keeps_its_extras():
     url, extra = worker._episode_request(
         {
-            "url": "  https://x/ep1  ",
+            "url": "  https://mangafire.to/title/z9w-velvet-kisss/chapter/1  ",
             "selected_pages": [1, 2],
-            "series_url": "https://x",
-            "mangafire_format": "pdf",
+            "series_url": "https://mangafire.to/title/z9w-velvet-kisss",
+            "mangafire_format": "epub",
         }
     )
-    assert url == "https://x/ep1", "surrounding whitespace is trimmed"
+    assert url == "https://mangafire.to/title/z9w-velvet-kisss/chapter/1", (
+        "surrounding whitespace is trimmed"
+    )
     assert extra["selected_pages"] == [1, 2]
-    assert extra["_series_url"] == "https://x"
-    assert extra["_format"] == "pdf"
+    assert extra["_series_url"] == "https://mangafire.to/title/z9w-velvet-kisss"
+    assert extra["_format"] == "epub"
 
 
 def test_a_missing_format_falls_back_to_the_setting(monkeypatch):

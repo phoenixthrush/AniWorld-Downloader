@@ -35,11 +35,11 @@ def test_genre_keyword_sort_and_limit(api, genre):
     calls, pages = api
     pages.append({"items": [{"id": n} for n in range(3)], "meta": {"hasNext": True}})
     assert series.search_series(
-        "some title", genre=genre, sort="score:desc", limit=2
+        "Velvet Kiss", genre=genre, sort="score:desc", limit=2
     ) == [{"id": 0}, {"id": 1}]
     params = parse_qs(urlparse(calls[1]).query)
     assert params == {
-        "keyword": ["some title"],
+        "keyword": ["Velvet Kiss"],
         "genres_in[]": ["987"],
         "order[score]": ["desc"],
         "page": ["1"],
@@ -77,7 +77,7 @@ def test_repeated_page_stops(api):
 def test_keyword_search_default_stays_twenty(api):
     calls, pages = api
     pages.append({"items": [{"id": n} for n in range(20)], "meta": {"hasNext": True}})
-    assert len(series.search_series("example")) == 20
+    assert len(series.search_series("Velvet Kiss")) == 20
     assert len(calls) == 1
     assert parse_qs(urlparse(calls[0]).query)["limit"] == ["20"]
 

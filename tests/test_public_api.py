@@ -57,11 +57,11 @@ def test_mangafire_common_query_preserves_filters(monkeypatch):
         mangafire, "fetch_mangafire_genres", lambda: [{"id": 987, "name": "New Tag"}]
     )
     assert search.query_mangafire(
-        "dragon", genre="New Tag", sort="score:desc", limit=1
+        "Velvet Kiss", genre="New Tag", sort="score:desc", limit=1
     ) == [{"id": 1}]
     params = parse_qs(urlparse(calls[0]).query)
     assert params["genres_in[]"] == ["987"]
-    assert params["keyword"] == ["dragon"]
+    assert params["keyword"] == ["Velvet Kiss"]
     assert params["order[score]"] == ["desc"]
 
 

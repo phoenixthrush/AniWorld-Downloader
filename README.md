@@ -53,7 +53,7 @@ Prefer another installation method? Use [Docker](#docker) or download a standalo
 - Search supported sites, track your download queue, and browse your library in the Web UI.
 - Schedule Auto-Sync checks for AniWorld titles already downloaded to your library.
 - Choose available audio and subtitle languages, with fallback to other stream hosters.
-- Customize supported naming templates and output formats, including MKV/MP4 for video and JPG/CBZ for manga; naming support varies by backend.
+- Customize supported naming templates and output formats, including MKV/MP4 for video and JPG/CBZ/EPUB for manga; naming support varies by backend.
 - Watch through external players, with AniSkip and Anime4K support where applicable.
 
 The Web UI also supports local accounts, optional OIDC SSO, custom CSS, and background shaders. SSO alongside local login requires both `--web-auth` and `--web-sso`; `--web-force-sso` enables SSO-only authentication. A JSON API and optional Discord request bot let you connect it to other tools. Features and language availability vary by site.
@@ -73,7 +73,7 @@ All registered source backends were checked live in **10/2026** using the manual
 | MegaKino | Movies and series | Stream URLs resolved | VOE and the MegaKino hoster passed |
 | Filmo | Movies | Stream URLs resolved | VOE samples passed |
 | Moflix | Movies and series | Stream URL resolved | MoflixClick sample passed |
-| MangaFire | Manga | Chapter/page URLs resolved | JPG and CBZ downloads supported |
+| MangaFire | Manga | Chapter/page URLs resolved | JPG and CBZ; EPUB with the `epub` extra |
 | FilmPalast | Movies | Stream URL resolved | VOE sample passed |
 | Hanime | Adult animation | Stream URL resolved | Disabled by default |
 | HentaiTV | Adult animation | Stream and poster URLs resolved | Optional Web UI tab; disabled by default |
@@ -133,7 +133,7 @@ mkdir -p Downloads
 docker compose up -d
 ```
 
-Open [localhost:8080](http://localhost:8080) when the container is ready. The image includes FFmpeg and Chromium for captcha handling. Chromium setup runs only when an operation needs a browser and reuses an existing installation.
+Open [localhost:8080](http://localhost:8080) when the container is ready. The image includes FFmpeg, Chromium for captcha handling, and the EPUB extra. Chromium setup runs only when an operation needs a browser and reuses an existing installation.
 
 The terminal menu in the Docker image offers only Download and uses your configured download folder.
 
@@ -156,14 +156,15 @@ Configuration lives in `~/.aniworld/.env` by default. Set `ANIWORLD_INSTALL_FOLD
 
 Many settings can be changed in the Web UI. Those marked *resets after restart* must also be set in your `.env` or deployment environment to persist. Saved themes, database records, and Discord bot settings are stored separately and survive restarts when the app data is retained.
 
-**Optional integrations:** the standard installation includes the Web UI and terminal dependencies. Install an extra for OIDC login or Discord requests:
+**Optional features:** the standard installation includes the Web UI and terminal dependencies. Install an extra for EPUB output, OIDC login, or Discord requests:
 
 ```bash
+python -m pip install "aniworld[epub]"
 python -m pip install "aniworld[sso]"
 python -m pip install "aniworld[discord]"
 ```
 
-Use `"aniworld[all]"` to install both. The Docker image already includes them.
+Use `"aniworld[all]"` to install all three extras. Docker builds include them; the standalone build workflow includes the EPUB extra.
 
 **API:** search, manage the queue, and access library and settings operations through JSON endpoints. Create a key in **Settings → API Keys**, then send it with your requests:
 

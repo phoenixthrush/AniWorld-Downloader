@@ -39,6 +39,9 @@
       "index.language": "Sprache",
       "index.provider": "Anbieter",
       "index.format": "Format",
+      "index.volume": "Band",
+      "index.manga_format_hint":
+        "CBZ und EPUB verwenden verfügbare Bände, sonst Kapitel. Ein Formatwechsel setzt die Seitenauswahl zurück.",
       "index.download_folder": "Zielordner",
       "index.default": "Standard",
       "index.download_selected": "Auswahl herunterladen",
@@ -180,7 +183,7 @@
       "settings.enable_filmpalast_hint": "Filme auf Deutsch.",
       "settings.enable_filmo_hint": "Filme auf Deutsch und Englisch.",
       "settings.enable_mangafire_hint":
-        "Manga, gespeichert als einzelne Bilder oder als ein CBZ-Archiv pro Kapitel.",
+        "Manga, gespeichert als einzelne Bilder oder als CBZ- oder EPUB-Dateien für verfügbare Bände, sonst Kapitel.",
       "settings.nav.downloads": "Downloads",
       "settings.nav.library": "Bibliothek",
       "settings.nav.sites": "Seiten",
@@ -374,7 +377,7 @@
       "settings.api_ping": "Schlüssel prüfen und Zugriffsstufe anzeigen",
       "settings.api_search": "Auf einer Seite suchen, Body: keyword, site",
       "settings.api_series": "Titel, Poster, Beschreibung und Genres",
-      "settings.api_seasons": "Staffeln einer Serie",
+      "settings.api_seasons": "Staffeln; MangaFire-Kapitel oder -Bände je nach mangafire_format",
       "settings.api_episodes": "Episoden einer Staffel, mit Sprachen",
       "settings.api_providers": "Verfügbare Hoster je Sprache",
       "settings.api_queue": "Warteschlange mit Fortschritt",

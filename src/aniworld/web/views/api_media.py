@@ -241,6 +241,13 @@ def seasons():
         # here would fetch every season up front. The count fills in when a
         # season is expanded instead.
         defer_counts = provider.name == "BurningSeries"
+        output = request.args.get("mangafire_format") or media.mangafire_format()
+        listed = (
+            found.download_items(output)
+            if provider.name == "MangaFire"
+            and output.strip().lower() in ("cbz", "epub")
+            else found.seasons
+        )
         return jsonify(
             {
                 "seasons": [
@@ -250,8 +257,9 @@ def seasons():
                         "episode_count": None if defer_counts else season.episode_count,
                         "are_movies": getattr(season, "are_movies", False),
                         "chapter_type": getattr(season, "chapter_type", ""),
+                        "is_volume": getattr(season, "is_volume", False),
                     }
-                    for season in found.seasons
+                    for season in listed
                 ]
             }
         )
@@ -464,7 +472,7 @@ def _self_hosted_episodes(provider, url):
 
 
 def _mangafire_pages(provider, url, series_url):
-    """A MangaFire "season" is a chapter and its episodes are the pages."""
+    """A MangaFire "season" is a chapter or volume; its episodes are pages."""
     from .. import paths
 
     found = _resolve_series(provider, url, series_url or url)

@@ -1,6 +1,6 @@
 from aniworld.models import MangaFireToSeries
 
-url = "https://mangafire.to/title/zlwvm-darling-in-the-franxx"
+url = "https://mangafire.to/title/z9w-velvet-kisss"
 
 series = MangaFireToSeries(url)
 chapter = series.preferred_chapters[0]  # MangaFireToChapter
@@ -33,4 +33,7 @@ print("Selected Pages:", chapter.selected_pages)
 print("Series:", chapter.series)
 print("URL:", chapter.url)
 
+# JPG (loose images) is the default; CBZ and EPUB create one file per chapter.
+# For EPUB, install the extra first: python -m pip install "aniworld[epub]"
+# chapter.mangafire_format = "epub"
 # chapter.download()

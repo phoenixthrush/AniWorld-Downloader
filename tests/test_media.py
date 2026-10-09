@@ -226,7 +226,7 @@ def test_mangafire_loads_every_chapter_page(monkeypatch):
         return SimpleNamespace(json=lambda: next(pages))
 
     monkeypatch.setattr(mangafire, "_get", get)
-    found = mangafire.MangaFireToSeries("https://mangafire.to/title/test-title")
+    found = mangafire.MangaFireToSeries("https://mangafire.to/title/z9w-velvet-kisss")
 
     assert found.chapters_data["items"] == [{"id": 1}, {"id": 2}]
     assert [url.split("page=")[1].split("&")[0] for url in calls] == ["1", "2", "3"]

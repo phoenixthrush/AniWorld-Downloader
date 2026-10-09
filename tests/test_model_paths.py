@@ -35,7 +35,7 @@ MODELS = [
     (BurningSeriesEpisode, "https://bs.to/serie/example/1/1-example/de"),
     (FilmPalastEpisode, "https://filmpalast.to/stream/example"),
     (FilmoEpisode, "https://filmo.to/movies/example"),
-    (MangaFireToChapter, "https://mangafire.to/title/example/chapter/1"),
+    (MangaFireToChapter, "https://mangafire.to/title/z9w-velvet-kisss/chapter/1"),
 ]
 
 
@@ -166,9 +166,9 @@ def test_relative_cli_output_stays_beneath_working_directory(model, home, monkey
 
 
 def test_mangafire_download_uses_expanded_selected_path(home, monkeypatch):
-    series = SimpleNamespace(title="Example")
+    series = SimpleNamespace(title="Velvet Kiss")
     chapter = MangaFireToChapter(
-        "https://mangafire.to/title/example/chapter/1",
+        "https://mangafire.to/title/z9w-velvet-kisss/chapter/1",
         series=series,
         chapter_number=1,
         selected_path="~/Manga",
@@ -177,18 +177,18 @@ def test_mangafire_download_uses_expanded_selected_path(home, monkeypatch):
     page = SimpleNamespace(download=Mock())
     monkeypatch.setattr(chapter, "_MangaFireToChapter__pages", [page])
     destination = chapter.download()
-    assert destination == home / "Manga" / "Example" / "Chapter 1"
+    assert destination == home / "Manga" / "Velvet Kiss" / "Chapter 1"
     assert destination.is_dir()
     page.download.assert_called_once_with(destination, total_pages=1)
 
 
 def test_mangafire_series_uses_shared_configured_root(home, monkeypatch):
     monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", "~/Manga")
-    series = MangaFireToSeries("https://mangafire.to/title/123-example")
-    monkeypatch.setattr(MangaFireToSeries, "title", "Example")
+    series = MangaFireToSeries("https://mangafire.to/title/z9w-velvet-kisss")
+    monkeypatch.setattr(MangaFireToSeries, "title", "Velvet Kiss")
     chapter = SimpleNamespace(folder_name="Chapter 1", download=Mock())
     destination = series.download(chapters=[chapter])
-    assert destination == home / "Manga" / "Example"
+    assert destination == home / "Manga" / "Velvet Kiss"
     chapter.download.assert_called_once_with(
         destination / "Chapter 1", chapter_index=1, total_chapters=1
     )
@@ -196,7 +196,8 @@ def test_mangafire_series_uses_shared_configured_root(home, monkeypatch):
 
 def test_mangafire_explicit_folder_remains_a_direct_destination(home, monkeypatch):
     chapter = MangaFireToChapter(
-        "https://mangafire.to/title/example/chapter/1",
+        "https://mangafire.to/title/z9w-velvet-kisss/chapter/1",
+        chapter_id=5484330,
         chapter_number=1,
         selected_path="~/ignored",
         format="jpg",

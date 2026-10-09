@@ -127,19 +127,24 @@ def test_mangafire_chapters_carry_the_output_format(client):
     queue_id = client.post(
         "/api/download",
         json={
-            "episodes": ["https://mangafire.to/read/x/chapter/1"],
+            "episodes": ["https://mangafire.to/title/z9w-velvet-kisss/chapter/1"],
             "provider": "MangaFire",
-            "mangafire_format": "pdf",
+            "mangafire_format": "epub",
         },
     ).get_json()["queue_id"]
-    assert episodes_of(queue_id)[0]["mangafire_format"] == "pdf"
+    assert episodes_of(queue_id)[0]["mangafire_format"] == "epub"
 
 
 def test_mangafire_falls_back_to_the_configured_format(client, monkeypatch):
     monkeypatch.setenv("ANIWORLD_MANGAFIRE_FORMAT", "png")
     queue_id = client.post(
         "/api/download",
-        json={"episodes": [{"url": "https://x/chapter/1"}], "provider": "MangaFire"},
+        json={
+            "episodes": [
+                {"url": "https://mangafire.to/title/z9w-velvet-kisss/chapter/1"}
+            ],
+            "provider": "MangaFire",
+        },
     ).get_json()["queue_id"]
     assert episodes_of(queue_id)[0]["mangafire_format"] == "png"
 

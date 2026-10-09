@@ -35,6 +35,9 @@ license = "MIT"
 license-files = ["LICENSE"]
 
 [project.optional-dependencies]
+epub = [
+  "Pillow", # Manga EPUB image dimensions and WebP conversion
+]
 sso = [
   "authlib", # >=3.10
 ]
@@ -42,7 +45,7 @@ discord = [
   "discord.py", # optional Discord request bot
 ]
 test = ["pytest"]
-all = ["authlib", "discord.py"]
+all = ["authlib", "discord.py", "Pillow"]
 
 
 [project.urls]

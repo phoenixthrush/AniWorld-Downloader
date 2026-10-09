@@ -1,6 +1,6 @@
 from aniworld.models import MangaFireToSeries
 
-url = "https://mangafire.to/title/zlwvm-darling-in-the-franxx"
+url = "https://mangafire.to/title/z9w-velvet-kisss"
 
 series = MangaFireToSeries(url)
 
@@ -23,4 +23,11 @@ print("Official Chapters:", series.official_chapters)
 print("Unofficial Chapters:", series.unofficial_chapters)
 print("Preferred Chapters:", series.preferred_chapters)
 
-# series.download()
+print("Available Volumes:", series.volumes)
+print("Archive Units:", series.download_items("epub"))
+
+# To save archives, install: python -m pip install "aniworld[epub]"
+# series.download(format="epub")  # Or format="cbz" without the extra.
+# Archives use source volumes when available, otherwise preferred chapters.
+# Velvet Kiss currently has no published volume grouping on MangaFire.
+# series.download(format="jpg")  # Loose images remain organized by chapter.

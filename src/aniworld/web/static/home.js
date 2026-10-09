@@ -563,7 +563,7 @@
     try {
       const [series, seasonData] = await Promise.all([
         apiFetch(`/api/series?url=${encodeURIComponent(url)}`),
-        apiFetch(`/api/seasons?url=${encodeURIComponent(url)}`)
+        apiFetch(`/api/seasons?url=${encodeURIComponent(url)}${manga ? `&mangafire_format=${encodeURIComponent(el("mangaFireFormat").value)}` : ""}`)
       ]);
       if (token !== openToken) return;
 
@@ -598,6 +598,10 @@
       showToast(`${t("index.load_failed", "Failed to load title")}: ${error.message}`);
     }
   }
+
+  el("mangaFireFormat").addEventListener("change", () => {
+    if (isMangaFire(seriesUrl)) openSeries(seriesUrl);
+  });
 
   // Only meaningful for aniworld titles, that is all Auto-Sync looks at
   async function loadAutosyncExclusion(url) {
@@ -638,7 +642,8 @@
   function seasonLabel(season, count) {
     const shown = typeof count === "number" ? count : season.episode_count;
     if (currentSite === "mangafire") {
-      return `${t("index.chapter", "Chapter")} ${season.season_number}`;
+      const label = season.is_volume ? t("index.volume", "Volume") : t("index.chapter", "Chapter");
+      return `${label} ${season.season_number}`;
     }
     const name = season.are_movies
       ? t("index.movies", "Movies")
@@ -841,7 +846,7 @@
     const boxes = Array.from(accordion.querySelectorAll(selector(all)));
     if (currentSite !== "mangafire") return boxes.map((box) => box.value);
 
-    // MangaFire downloads whole chapters with a page selection
+    // MangaFire downloads native chapters or volumes with a page selection
     const chapters = new Map();
     boxes.forEach((box) => {
       const chapter = box.dataset.chapterUrl;

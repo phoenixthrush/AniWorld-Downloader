@@ -354,41 +354,51 @@ def run_image_site(site_name, fetch_name):
 
     titles, exc = guarded(globals()[fetch_name])
     if exc or not titles:
-        line(FAIL, f"{site_name} top titles", describe(exc) if exc else "no titles")
+        line(FAIL, f"{site_name} sample title", describe(exc) if exc else "no titles")
         return 1
 
-    url = titles[0]["url"]
-    print(f"  discovered: {url}\n")
+    for title in titles:
+        url = title["url"]
+        print(f"  discovered: {url}\n")
 
-    provider = resolve_provider(url)
-    series, exc = guarded(provider.series_cls, url)
-    if exc:
-        line(FAIL, f"{site_name} series", describe(exc))
-        return 1
+        provider = resolve_provider(url)
+        series, exc = guarded(provider.series_cls, url)
+        if exc:
+            line(FAIL, f"{site_name} series", describe(exc))
+            results.append(FAIL)
+            continue
 
-    chapters = list(
-        getattr(series, "chapters", None) or getattr(series, "seasons", []) or []
-    )
-    if not chapters:
-        line(FAIL, f"{site_name} chapters", "series exposed no chapters")
-        return 1
-    line(PASS, f"{site_name} chapters", f"{len(chapters)} found")
-    results.append(PASS)
+        chapters, exc = guarded(
+            lambda s: list(
+                getattr(s, "chapters", None) or getattr(s, "seasons", []) or []
+            ),
+            series,
+        )
+        if exc or not chapters:
+            line(
+                FAIL,
+                f"{site_name} chapters",
+                describe(exc) if exc else "series exposed no chapters",
+            )
+            results.append(FAIL)
+            continue
+        line(PASS, f"{site_name} chapters", f"{len(chapters)} found")
+        results.append(PASS)
 
-    pages, exc = guarded(lambda c: list(getattr(c, "pages", []) or []), chapters[0])
-    if exc or not pages:
-        line(FAIL, f"{site_name} pages", describe(exc) if exc else "no pages")
-        results.append(FAIL)
-        return report(results)
+        pages, exc = guarded(lambda c: list(getattr(c, "pages", []) or []), chapters[0])
+        if exc or not pages:
+            line(FAIL, f"{site_name} pages", describe(exc) if exc else "no pages")
+            results.append(FAIL)
+            continue
 
-    image = getattr(pages[0], "image_url", None) or getattr(pages[0], "url", None)
-    if not image:
-        line(FAIL, f"{site_name} page image", "page carried no image URL")
-        results.append(FAIL)
-        return report(results)
+        image = getattr(pages[0], "image_url", None) or getattr(pages[0], "url", None)
+        if not image:
+            line(FAIL, f"{site_name} page image", "page carried no image URL")
+            results.append(FAIL)
+            continue
 
-    line(PASS, f"{site_name} pages", f"{len(pages)} pages, first {str(image)[:46]}")
-    results.append(PASS)
+        line(PASS, f"{site_name} pages", f"{len(pages)} pages, first {str(image)[:46]}")
+        results.append(PASS)
     return report(results)
 
 
@@ -431,22 +441,12 @@ def hanime_trending():
     ]
 
 
-def mangafire_trending():
-    """MangaFire's top titles, shaped like the other browse fetchers."""
-    import niquests
-
-    from aniworld.models.mangafire_to.vrf import sign_url
-
-    response = niquests.get(sign_url("https://mangafire.to/api/top-titles"), timeout=20)
-    response.raise_for_status()
-    out = []
-    for item in (response.json() or {}).get("items", []) or []:
-        url = (item.get("url") or "").strip()
-        if url:
-            out.append(
-                {"url": url if url.startswith("http") else f"https://mangafire.to{url}"}
-            )
-    return out
+def mangafire_sample():
+    """Check Darling in the Franxx and Velvet Kiss chapter/page lookups."""
+    return [
+        {"url": "https://mangafire.to/title/zlwvm-darling-in-the-franxx"},
+        {"url": "https://mangafire.to/title/z9w-velvet-kisss"},
+    ]
 
 
 def report(results):

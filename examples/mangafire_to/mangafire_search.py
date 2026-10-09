@@ -24,7 +24,7 @@ for result in results:
     print(result["title"], "-", urljoin("https://mangafire.to", result["url"]))
 
 # Example 2: Keyword within a genre.
-results = query_mangafire("dragon", genre="Fantasy", limit=10)
+results = query_mangafire("Velvet Kiss", genre="Romance", limit=10)
 for result in results:
     print(result["title"], "-", urljoin("https://mangafire.to", result["url"]))
 

@@ -76,7 +76,7 @@ def start_download():
 
 
 def _tag_mangafire(episodes, requested_format):
-    """MangaFire needs the output format stored per queued chapter."""
+    """MangaFire needs the output format stored per queued chapter or volume."""
     output = requested_format or mangafire_format()
     tagged = []
     for entry in episodes:

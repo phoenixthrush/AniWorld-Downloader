@@ -27,7 +27,7 @@ jobs:
 
       - name: Install your Dependencies
         run: |
-          pip install imageio .
+          pip install imageio ".[epub]"
 
       - name: Build Executable with Nuitka
         uses: Nuitka/Nuitka-Action@main

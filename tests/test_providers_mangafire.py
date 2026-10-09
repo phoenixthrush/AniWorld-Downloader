@@ -1,4 +1,4 @@
-"""MangaFire: top titles -> a chapter -> its page images.
+"""MangaFire: Darling in the Franxx and Velvet Kiss -> chapters -> page images.
 
 MangaFire has no video hoster at all, so checking it against the extractor
 registry would prove nothing. What matters is that a title still resolves to
@@ -21,4 +21,4 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from provider_check import run_image_site
 
 if __name__ == "__main__":
-    sys.exit(run_image_site("MangaFire", "mangafire_trending"))
+    sys.exit(run_image_site("MangaFire", "mangafire_sample"))

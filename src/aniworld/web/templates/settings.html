@@ -362,7 +362,7 @@
                   <span class="site-row-kind" data-i18n="settings.kind.manga">Manga</span>
                 </span>
                 <span class="site-row-hint" data-i18n="settings.enable_mangafire_hint">
-                  Manga, saved as loose images or as one CBZ archive per chapter.
+                  Manga, saved as loose images or as CBZ/EPUB files for available volumes, otherwise chapters.
                 </span>
               </span>
               <input type="checkbox" class="site-switch" id="enableMangaFire" data-setting="enable_mangafire"
@@ -653,7 +653,7 @@
                   <tr>
                     <td><code>GET /api/seasons?url=</code></td>
                     <td>read</td>
-                    <td data-i18n="settings.api_seasons">Seasons of a series</td>
+                    <td data-i18n="settings.api_seasons">Seasons; MangaFire chapters or volumes by mangafire_format</td>
                   </tr>
                   <tr>
                     <td><code>GET /api/episodes?url=</code></td>

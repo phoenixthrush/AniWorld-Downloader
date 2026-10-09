@@ -24,6 +24,8 @@ FILTER_OPTIONS_API = "https://mangafire.to/api/filter-options"
 CHAPTERS_API = "https://mangafire.to/api/titles/{}/chapters?language=en&sort=number&order=asc&page={}&limit=200"
 CHAPTER_URL = "https://mangafire.to/title/{}/chapter/{}"
 CHAPTER_API = "https://mangafire.to/api/chapters/{}"
+VOLUMES_API = "https://mangafire.to/api/titles/{}/volumes"
+VOLUME_API = "https://mangafire.to/api/volumes/{}"
 
 HEADERS = {"Referer": "https://mangafire.to/"}
 
@@ -222,7 +224,7 @@ class MangaFireToPage:
 
 
 class MangaFireToChapter:
-    """Store MangaFire chapter data."""
+    """Store MangaFire chapter or volume data."""
 
     def __init__(
         self,
@@ -246,8 +248,11 @@ class MangaFireToChapter:
             or getenv("ANIWORLD_MANGAFIRE_FORMAT", "jpg").strip().lower()
         )
         self._series = series
+        self.is_volume = "/volume/" in urlparse(url).path.lower()
         self.chapter_url = url
         self.chapter_id = chapter_id
+        if self.is_volume and self.chapter_id is None:
+            self.chapter_id = int(url.rstrip("/").rsplit("/", 1)[-1])
         self.chapter_number = chapter_number
         self.chapter_name = chapter_name
         self.chapter_language = chapter_language
@@ -259,22 +264,25 @@ class MangaFireToChapter:
         self.__selected_provider_param = selected_provider
         self.__selected_pages_param = selected_pages
 
-        self.chapter_api_url = CHAPTER_API.format(chapter_id or 0)
+        api = VOLUME_API if self.is_volume else CHAPTER_API
+        self.chapter_api_url = api.format(self.chapter_id or 0)
 
         self.__chapter_data = None
         self.__pages = None
 
-        if self.chapter_number is None:
+        if self.chapter_number is None and not self.is_volume:
             self.chapter_number = self.__extract_chapter_number_from_url(url)
 
         self.__load_metadata_from_series()
-        self.chapter_api_url = CHAPTER_API.format(self.chapter_id or 0)
+        self.chapter_api_url = api.format(self.chapter_id or 0)
 
     def __str__(self) -> str:
         """Return a readable chapter string."""
+        self.__load_volume_metadata()
+        label = "Volume" if self.is_volume else "Chapter"
         if self.chapter_name:
-            return f"Chapter {self.chapter_number} - {self.chapter_name}"
-        return f"Chapter {self.chapter_number}"
+            return f"{label} {self.chapter_number} - {self.chapter_name}"
+        return f"{label} {self.chapter_number}"
 
     def __repr__(self) -> str:
         """Return a readable debug string."""
@@ -291,7 +299,7 @@ class MangaFireToChapter:
 
     def __load_metadata_from_series(self) -> None:
         """Fill chapter metadata from the parent series when possible."""
-        if self.chapter_id and self.chapter_number is not None:
+        if self.is_volume or (self.chapter_id and self.chapter_number is not None):
             return
 
         try:
@@ -316,6 +324,21 @@ class MangaFireToChapter:
                 )
                 self.created_at = self.created_at or getattr(chapter, "created_at", 0)
                 break
+
+    def __load_volume_metadata(self) -> None:
+        """Resolve a volume URL's ID to its display number and language."""
+        if self.is_volume and self.chapter_number is None:
+            data = self.chapter_data
+            self.chapter_number = data["number"]
+            self.chapter_name = data.get("name", "")
+            self.chapter_language = data.get("language", "en")
+            self.chapter_type = "volume"
+
+    @property
+    def volume_number(self):
+        """Return the volume number for a volume, otherwise None."""
+        self.__load_volume_metadata()
+        return self.chapter_number if self.is_volume else None
 
     @property
     def chapter_data(self) -> dict:
@@ -355,19 +378,23 @@ class MangaFireToChapter:
     @property
     def folder_name(self) -> str:
         """Return the chapter folder name."""
-        base = f"Chapter {self.chapter_number}"
+        self.__load_volume_metadata()
+        label = "Volume" if self.is_volume else "Chapter"
+        base = f"{label} {self.chapter_number}"
         if self.chapter_name:
             base += f" - {self.chapter_name}"
         return _safe_name(base)
 
     @property
     def season_number(self):
-        """Return a chapter number for web UI compatibility."""
+        """Return a chapter or volume number for web UI compatibility."""
+        self.__load_volume_metadata()
         return self.chapter_number
 
     @property
     def episode_number(self):
-        """Return a chapter number for episode-style UIs."""
+        """Return a chapter or volume number for episode-style UIs."""
+        self.__load_volume_metadata()
         return self.chapter_number
 
     @property
@@ -383,7 +410,9 @@ class MangaFireToChapter:
     @property
     def title_en(self) -> str:
         """Return the English title label for the chapter."""
-        return self.chapter_name or f"Chapter {self.chapter_number}"
+        self.__load_volume_metadata()
+        label = "Volume" if self.is_volume else "Chapter"
+        return self.chapter_name or f"{label} {self.chapter_number}"
 
     @property
     def title_de(self) -> str:
@@ -419,7 +448,7 @@ class MangaFireToChapter:
     def series(self):
         """Return the parent series."""
         if self._series is None:
-            series_url = self.chapter_url.rsplit("/chapter/", 1)[0]
+            series_url = self.chapter_url.rstrip("/").rsplit("/", 2)[0]
             self._series = MangaFireToSeries(series_url=series_url)
         return self._series
 
@@ -434,11 +463,27 @@ class MangaFireToChapter:
         chapter_index: int = 0,
         total_chapters: int = 0,
     ) -> Path:
-        """Download all chapter pages as a .cbz file."""
+        """Download chapter or volume pages as loose images, CBZ, or EPUB."""
+        if self.mangafire_format == "epub":
+            try:
+                from .epub import write_epub
+            except ModuleNotFoundError as exc:
+                if exc.name != "PIL":
+                    raise
+                raise RuntimeError(
+                    "EPUB output requires Pillow. Install it with: "
+                    'python -m pip install "aniworld[epub]"'
+                ) from exc
+
+        self.__load_volume_metadata()
         chapter_title = (
             getattr(self._series, "title", "")
             if self._series is not None
-            else self.chapter_name or f"Chapter {self.chapter_number}"
+            else (
+                self.chapter_data.get("title", {}).get("name", "")
+                if self.is_volume
+                else self.chapter_name or f"Chapter {self.chapter_number}"
+            )
         )
         if folder is None:
             folder = (
@@ -447,7 +492,7 @@ class MangaFireToChapter:
         else:
             folder = Path(folder)
 
-        cbz_path = folder.with_name(folder.name + ".cbz")
+        archive_path = folder.with_name(folder.name + f".{self.mangafire_format}")
 
         chapter_progress = (
             f"{chapter_index:03}/{total_chapters:03}"
@@ -464,7 +509,7 @@ class MangaFireToChapter:
         if not pages:
             raise ValueError("No MangaFire pages selected for download")
 
-        if self.mangafire_format != "cbz":
+        if self.mangafire_format not in ("cbz", "epub"):
             folder.mkdir(parents=True, exist_ok=True)
             print(f"[{chapter_progress}] {self}")
             for page in pages:
@@ -472,25 +517,35 @@ class MangaFireToChapter:
             return folder
 
         existing_files = set()
-        if cbz_path.exists():
+        if archive_path.exists():
             try:
-                with zipfile.ZipFile(cbz_path, "r") as zf:
+                with zipfile.ZipFile(archive_path, "r") as zf:
                     for name in set(zf.namelist()):
                         try:
-                            if _valid_image(zf.read(name)):
+                            if (
+                                self.mangafire_format != "epub"
+                                or re.fullmatch(r"\d+\.(jpg|jpeg|png|gif|webp)", name)
+                            ) and _valid_image(zf.read(name)):
                                 existing_files.add(name)
                         except (zipfile.BadZipFile, zlib.error, EOFError):
                             continue
             except (zipfile.BadZipFile, zlib.error, EOFError):
                 pass
 
-        pages_to_download = [p for p in pages if p.file_name not in existing_files]
+        if self.mangafire_format == "epub":
+            existing_numbers = {int(Path(name).stem) for name in existing_files}
+            pages_to_download = [
+                p for p in pages if p.page_number not in existing_numbers
+            ]
+            # Rebuild EPUB metadata even when all selected images can be reused.
+        else:
+            pages_to_download = [p for p in pages if p.file_name not in existing_files]
 
-        if not pages_to_download:
+        if not pages_to_download and self.mangafire_format != "epub":
             print(
-                f"[SKIP] [{chapter_progress}] {cbz_path.name} (all selected pages already in archive)"
+                f"[SKIP] [{chapter_progress}] {archive_path.name} (all selected pages already in archive)"
             )
-            return cbz_path
+            return archive_path
 
         folder.mkdir(parents=True, exist_ok=True)
         print(f"[{chapter_progress}] {self}")
@@ -498,26 +553,39 @@ class MangaFireToChapter:
         for page in pages_to_download:
             page.download(folder, total_pages=total_pages)
 
-        print(f"[ZIP] Updating {cbz_path.name}...")
+        print(f"[ZIP] Updating {archive_path.name}...")
         with tempfile.TemporaryDirectory(
             prefix=".mangafire-", dir=folder.parent
         ) as tmp:
-            temporary = Path(tmp) / cbz_path.name
+            temporary = Path(tmp) / archive_path.name
             with zipfile.ZipFile(temporary, "w", zipfile.ZIP_DEFLATED) as zf:
-                if existing_files:
-                    with zipfile.ZipFile(cbz_path, "r") as existing:
-                        for name in sorted(existing_files):
-                            zf.writestr(name, existing.read(name))
-                for page in pages_to_download:
-                    zf.write(folder / page.file_name, arcname=page.file_name)
+                if self.mangafire_format == "epub":
+                    images = {}
+                    if existing_files:
+                        with zipfile.ZipFile(archive_path, "r") as existing:
+                            images = {
+                                name: existing.read(name) for name in existing_files
+                            }
+                    images.update(
+                        (page.file_name, (folder / page.file_name).read_bytes())
+                        for page in pages_to_download
+                    )
+                    write_epub(zf, self, chapter_title, images)
+                else:
+                    if existing_files:
+                        with zipfile.ZipFile(archive_path, "r") as existing:
+                            for name in sorted(existing_files):
+                                zf.writestr(name, existing.read(name))
+                    for page in pages_to_download:
+                        zf.write(folder / page.file_name, arcname=page.file_name)
             with zipfile.ZipFile(temporary, "r") as zf:
                 if zf.testzip() is not None:
                     raise ValueError("MangaFire archive verification failed")
-            temporary.replace(cbz_path)
+            temporary.replace(archive_path)
 
         shutil.rmtree(folder, ignore_errors=True)
 
-        return cbz_path
+        return archive_path
 
     def debug_pages(self) -> None:
         """Print raw chapter data."""
@@ -544,6 +612,7 @@ class MangaFireToSeries:
         self.__series_item = None
         self.__chapters_data = None
         self.__chapters = None
+        self.__volumes = None
         self.__poster_url = ""
         self.__description = ""
         self.__genres = []
@@ -719,6 +788,42 @@ class MangaFireToSeries:
         return self.__chapters
 
     @property
+    def volumes(self) -> list:
+        """Return the source's published English volumes in reading order."""
+        if self.__volumes is None:
+            self.__load_series_metadata()
+            volumes = []
+            # A legacy all-chapter bundle can exist even when there are no volumes.
+            if self.__series_data.get("hasVolumes"):
+                items = _get(VOLUMES_API.format(self.hid)).json().get("items", [])
+                for item in sorted(items, key=lambda item: item["number"]):
+                    if item["language"] != "en":
+                        continue
+                    volumes.append(
+                        MangaFireToChapter(
+                            url=f"{self.series_url.rstrip('/')}/volume/{item['id']}",
+                            series=self,
+                            chapter_id=item["id"],
+                            chapter_number=item["number"],
+                            chapter_name=item.get("name", ""),
+                            chapter_language=item["language"],
+                            chapter_type="volume",
+                        )
+                    )
+            self.__volumes = volumes
+        return self.__volumes
+
+    def download_items(self, format: str = "") -> list:
+        """Prefer native volumes for archives, falling back to chapters."""
+        output = (
+            format.strip().lower()
+            or getenv("ANIWORLD_MANGAFIRE_FORMAT", "jpg").strip().lower()
+        )
+        if output in ("cbz", "epub") and self.volumes:
+            return self.volumes
+        return self.preferred_chapters
+
+    @property
     def seasons(self) -> list:
         """Return chapter objects in a season-like shape for the web UI."""
         return self.chapters
@@ -746,8 +851,10 @@ class MangaFireToSeries:
         self,
         folder: str | Path | None = None,
         chapters: list | None = None,
+        format: str = "",
     ) -> Path:
-        """Download a set of chapters."""
+        """Download native volumes for CBZ/EPUB, or chapter images."""
+        format = format.strip().lower()
         if folder is None:
             folder = resolve_download_path() / _safe_name(self.title)
         else:
@@ -755,10 +862,14 @@ class MangaFireToSeries:
 
         folder.mkdir(parents=True, exist_ok=True)
 
-        selected_chapters = chapters or self.preferred_chapters
+        selected_chapters = (
+            chapters if chapters is not None else self.download_items(format)
+        )
         total_chapters = len(selected_chapters)
 
         for index, chapter in enumerate(selected_chapters, start=1):
+            if format:
+                chapter.mangafire_format = format
             chapter_folder = folder / chapter.folder_name
             chapter.download(
                 chapter_folder,
@@ -838,7 +949,7 @@ def search_series(query: str = "", *, genre=None, sort=None, limit=20) -> list:
 
 
 if __name__ == "__main__":
-    # query = "darling in the franxx"
+    # query = "velvet kiss"
     # results = search_series(query)
 
     # if not results:
@@ -848,9 +959,7 @@ if __name__ == "__main__":
     # series_url = f"https://mangafire.to{first_item['url']}"
     # series = MangaFireToSeries(series_url=series_url)
 
-    series = MangaFireToSeries(
-        series_url="https://mangafire.to/title/zlwvm-darling-in-the-franxx"
-    )
+    series = MangaFireToSeries(series_url="https://mangafire.to/title/z9w-velvet-kisss")
 
     print(series)
     print()

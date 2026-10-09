@@ -92,7 +92,7 @@ def _build_episode(url, extra, item, selected_path):
 
     series = None
     if provider.name == "MangaFire":
-        series_url = extra.get("_series_url") or url.rsplit("/chapter/", 1)[0]
+        series_url = extra.get("_series_url") or url.rstrip("/").rsplit("/", 2)[0]
         try:
             series = provider.series_cls(url=series_url)
         except Exception:

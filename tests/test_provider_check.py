@@ -138,3 +138,35 @@ def test_burningseries_check_stops_after_warning_or_timeout(
     assert checks.run_site("BurningSeries", "fetch_burningseries_series") == 1
     assert len(calls) == 1
     assert "remaining hosters were not checked" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("first_fails", [False, True])
+def test_mangafire_check_visits_both_titles(monkeypatch, capsys, first_fails):
+    urls = [
+        "https://mangafire.to/title/zlwvm-darling-in-the-franxx",
+        "https://mangafire.to/title/z9w-velvet-kisss",
+    ]
+    calls = []
+
+    def series(url):
+        calls.append(url)
+        if first_fails and url == urls[0]:
+            raise OSError("source unavailable")
+        return SimpleNamespace(
+            chapters=[
+                SimpleNamespace(
+                    pages=[
+                        SimpleNamespace(image_url="https://example.invalid/page.jpg")
+                    ]
+                )
+            ]
+        )
+
+    monkeypatch.setattr(
+        providers, "resolve_provider", lambda url: SimpleNamespace(series_cls=series)
+    )
+    assert checks.run_image_site("MangaFire", "mangafire_sample") == int(first_fails)
+    assert calls == urls
+    output = capsys.readouterr().out
+    assert all(url in output for url in urls)
+    assert ("2 passed, 1 failed" if first_fails else "4 passed, 0 failed") in output

@@ -101,7 +101,13 @@ def test_hanime_cli_video_url_selects_one_video():
 
 def test_mangafire_format_setting_controls_model_and_web_ui(monkeypatch):
     monkeypatch.setenv("ANIWORLD_MANGAFIRE_FORMAT", "cbz")
-    chapter = MangaFireToChapter("https://mangafire.to/read/example/en/chapter-1")
+    chapter = MangaFireToChapter(
+        "https://mangafire.to/title/z9w-velvet-kisss/chapter/1",
+        chapter_id=5484330,
+        chapter_number=1,
+    )
     assert chapter.mangafire_format == media.mangafire_format() == "cbz"
-    explicit = MangaFireToChapter(chapter.chapter_url, format="jpg")
+    explicit = MangaFireToChapter(
+        chapter.chapter_url, chapter_id=5484330, chapter_number=1, format="jpg"
+    )
     assert explicit.mangafire_format == "jpg"
