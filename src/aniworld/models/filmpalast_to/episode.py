@@ -25,6 +25,7 @@ try:
         watch as episode_watch,
     )
     from ..common.extraction import resolve_stream_url
+    from ..common.naming import TemplatePaths
     from ..common.paths import resolve_download_path
     from ..common.provider_map import host_to_provider
 except ImportError:
@@ -53,6 +54,7 @@ except ImportError:
         watch as episode_watch,
     )
     from aniworld.models.common.extraction import resolve_stream_url
+    from aniworld.models.common.naming import TemplatePaths
     from aniworld.models.common.paths import resolve_download_path
     from aniworld.models.common.provider_map import host_to_provider
 
@@ -60,7 +62,7 @@ FILMPALAST_EPISODE_PATTERN = re.compile(r"^https?://(?:www\.)?filmpalast\.to/str
 
 
 # TODO: update docstring with actual properties and methods of this class, and example values
-class FilmPalastEpisode:
+class FilmPalastEpisode(TemplatePaths):
     """
     Represents a single episode of an FilmPalast series.
 
@@ -327,8 +329,22 @@ class FilmPalastEpisode:
         base = self.title_cleaned or "Movie"
         return f"{base} ({year})" if year else base
 
+    _template_kind = "movie"
+
     @property
-    def _base_folder(self):
+    def _template_values(self):
+        return {
+            "title": self.title_cleaned,
+            "year": self.release_year,
+            "imdbid": "",
+            "season": "",
+            "episode": "",
+            "language": self.selected_language,
+            "resolution": getattr(self, "_resolution", "unknown"),
+        }
+
+    @property
+    def _legacy_base_folder(self):
         if self.__base_folder is None:
             if movie_folder_enabled():
                 self.__base_folder = Path(self.selected_path) / self._movie_basename
@@ -337,19 +353,19 @@ class FilmPalastEpisode:
         return self.__base_folder
 
     @property
-    def _folder_path(self):
+    def _legacy_folder_path(self):
         if self.__folder_path is None:
-            self.__folder_path = self._base_folder
+            self.__folder_path = self._legacy_base_folder
         return self.__folder_path
 
     @property
-    def _file_name(self):
+    def _legacy_file_name(self):
         if self.__file_name is None:
             self.__file_name = self._movie_basename
         return self.__file_name
 
     @property
-    def _file_extension(self):
+    def _legacy_file_extension(self):
         if self.__file_extension is None:
             naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
             try:
@@ -364,10 +380,11 @@ class FilmPalastEpisode:
         return self.__file_extension
 
     @property
-    def _episode_path(self):
+    def _legacy_episode_path(self):
         if self.__episode_path is None:
             self.__episode_path = (
-                self._folder_path / f"{self._file_name}.{self._file_extension}"
+                self._legacy_folder_path
+                / f"{self._legacy_file_name}.{self._legacy_file_extension}"
             )
         return self.__episode_path
 

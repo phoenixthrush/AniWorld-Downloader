@@ -60,8 +60,10 @@ def clean_title(title: str) -> str:
     return FORBIDDEN_CHARS.sub("", title).strip()
 
 
-def _naming_template_uses_resolution():
-    template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
+def _naming_template_uses_resolution(self=None):
+    template = getattr(self, "_naming_template", None) or os.getenv(
+        "ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE
+    )
     return "{resolution}" in template or "%resolution%" in template
 
 
@@ -105,16 +107,22 @@ def _set_naming_resolution(self, resolution):
 
 def _prepare_resolution_naming(self):
     """Start with unknown, or reuse a matching previously downloaded file."""
-    if not _naming_template_uses_resolution():
+    if not _naming_template_uses_resolution(self):
         return
     _set_naming_resolution(self, "unknown")
-    if self._episode_path.exists():
+    path = getattr(self, "_template_path", None) or self._episode_path
+    if path.exists():
         return
 
     marker = "__ANIWORLD_RESOLUTION__"
     _set_naming_resolution(self, marker)
-    pattern = glob.escape(str(self._episode_path)).replace(marker, "*")
-    candidates = [Path(path) for path in glob.glob(pattern)]
+    paths = [getattr(self, "_template_path", None) or self._episode_path]
+    if getattr(self, "_naming_template", None):
+        paths.append(self._legacy_episode_path)
+    candidates = []
+    for path in paths:
+        pattern = glob.escape(str(path)).replace(marker, "*")
+        candidates.extend(Path(candidate) for candidate in glob.glob(pattern))
     for candidate in candidates:
         resolution = _read_container_resolution(candidate)
         _set_naming_resolution(self, resolution)
@@ -125,12 +133,14 @@ def _prepare_resolution_naming(self):
 
 def _finalize_resolution_naming(self):
     """Rename a finished local container using its unambiguous resolution."""
-    if not _naming_template_uses_resolution():
+    if not _naming_template_uses_resolution(self):
         return
     old_path = self._episode_path
     _set_naming_resolution(self, _read_container_resolution(old_path))
-    new_path = self._episode_path
+    new_path = getattr(self, "_template_path", None) or self._episode_path
     if new_path != old_path:
+        if new_path.exists():
+            raise FileExistsError(f"Resolution output already exists: {new_path}")
         new_path.parent.mkdir(parents=True, exist_ok=True)
         os.replace(old_path, new_path)
 
@@ -139,7 +149,7 @@ def _progress_file_name(self):
     """Hide post-processed resolution metadata from the live progress label."""
     name = self._file_name or ""
     resolution = str(getattr(self, "_resolution", "") or "")
-    if not _naming_template_uses_resolution() or not resolution:
+    if not _naming_template_uses_resolution(self) or not resolution:
         return name
     index = name.rfind(resolution)
     if index < 0:

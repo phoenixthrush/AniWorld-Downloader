@@ -23,13 +23,14 @@ from ..common.common import (
 )
 from ..common.common import syncplay as episode_syncplay
 from ..common.common import watch as episode_watch
+from ..common.naming import TemplatePaths
 from ..common.paths import resolve_download_path
 from .http import get_response
 from .page import page_objects
 from .player import resolve_stream_url
 
 
-class HentaiTVEpisode:
+class HentaiTVEpisode(TemplatePaths):
     """A standalone hentai.tv episode with lazy metadata and player resolution."""
 
     site_name = "hentai.tv"
@@ -318,34 +319,49 @@ class HentaiTVEpisode:
         return re.sub(r"\s*\[imdbid-\]\s*", "", formatted).strip()
 
     @property
-    def _base_folder(self):
+    def _template_values(self):
+        return {
+            "title": self.series_title,
+            "year": self.release_year,
+            "imdbid": "",
+            "season": "01",
+            "episode": f"{self.episode_number:03d}",
+            "language": self.selected_language,
+            "resolution": getattr(self, "_resolution", "unknown"),
+        }
+
+    @property
+    def _legacy_base_folder(self):
         path = Path(self.selected_path)
         if len(self._naming_parts) > 1:
             path /= self._format_naming_part(self._naming_parts[0])
         return path
 
     @property
-    def _folder_path(self):
-        path = self._base_folder
+    def _legacy_folder_path(self):
+        path = self._legacy_base_folder
         for part in self._naming_parts[1:-1]:
             path /= self._format_naming_part(part)
         return path
 
     @property
-    def _file_name(self):
+    def _legacy_file_name(self):
         template = self._naming_parts[-1]
         if "." in template:
             template = template.rsplit(".", 1)[0]
         return self._format_naming_part(template)
 
     @property
-    def _file_extension(self):
+    def _legacy_file_extension(self):
         template = self._naming_parts[-1]
         return (template.rsplit(".", 1)[-1] or "mkv") if "." in template else "mkv"
 
     @property
-    def _episode_path(self):
-        return self._folder_path / f"{self._file_name}.{self._file_extension}"
+    def _legacy_episode_path(self):
+        return (
+            self._legacy_folder_path
+            / f"{self._legacy_file_name}.{self._legacy_file_extension}"
+        )
 
     @property
     def is_downloaded(self):

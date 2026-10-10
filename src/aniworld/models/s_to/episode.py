@@ -21,6 +21,7 @@ from ..common.common import (
     watch as episode_watch,
 )
 from ..common.extraction import resolve_stream_url
+from ..common.naming import TemplatePaths
 from ..common.paths import resolve_download_path
 from .http import response_text, sto_get, sto_host
 
@@ -62,7 +63,7 @@ LANG_CODE_MAP = {
 }
 
 
-class SerienstreamEpisode:
+class SerienstreamEpisode(TemplatePaths):
     """
     Represents a single episode of an Serienstream series.
 
@@ -329,7 +330,19 @@ class SerienstreamEpisode:
 
     # TODO: add this into a common base class
     @property
-    def _base_folder(self):
+    def _template_values(self):
+        return {
+            "title": self.series.title_cleaned,
+            "year": self.series.release_year,
+            "imdbid": self.series.imdb,
+            "season": f"{self.season.season_number:02d}",
+            "episode": f"{self.episode_number:03d}",
+            "language": self.selected_language,
+            "resolution": getattr(self, "_resolution", "unknown"),
+        }
+
+    @property
+    def _legacy_base_folder(self):
         if self.__base_folder is None:
             naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
             parts = naming_template.split("/")
@@ -349,12 +362,12 @@ class SerienstreamEpisode:
         return self.__base_folder
 
     @property
-    def _folder_path(self):
+    def _legacy_folder_path(self):
         if self.__folder_path is None:
             naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
             parts = naming_template.split("/")
             if len(parts) <= 2:
-                self.__folder_path = self._base_folder
+                self.__folder_path = self._legacy_base_folder
             else:
                 folder_str = parts[1].format(
                     title=self.series.title_cleaned,
@@ -365,11 +378,11 @@ class SerienstreamEpisode:
                     language=self.selected_language,
                     resolution=getattr(self, "_resolution", "unknown"),
                 )
-                self.__folder_path = self._base_folder / folder_str
+                self.__folder_path = self._legacy_base_folder / folder_str
         return self.__folder_path
 
     @property
-    def _file_name(self):
+    def _legacy_file_name(self):
         if self.__file_name is None:
             naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
             try:
@@ -402,7 +415,7 @@ class SerienstreamEpisode:
         return self.__file_name
 
     @property
-    def _file_extension(self):
+    def _legacy_file_extension(self):
         if self.__file_extension is None:
             naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
             try:
@@ -417,10 +430,11 @@ class SerienstreamEpisode:
         return self.__file_extension
 
     @property
-    def _episode_path(self):
+    def _legacy_episode_path(self):
         if self.__episode_path is None:
             self.__episode_path = (
-                self._folder_path / f"{self._file_name}.{self._file_extension}"
+                self._legacy_folder_path
+                / f"{self._legacy_file_name}.{self._legacy_file_extension}"
             )
         return self.__episode_path
 

@@ -22,15 +22,15 @@ def walk_objects(value):
             yield from walk_objects(child)
 
 
-def extract_video_metadata(html):
-    """Read the first JSON-LD VideoObject, including arrays and @graph blocks."""
+def extract_video_metadata(html, types=("VideoObject",)):
+    """Read the first matching JSON-LD media object, including @graph blocks."""
     for raw in _JSON_LD.findall(html):
         try:
             value = json.loads(unescape(raw.strip()))
         except ValueError:
             continue
         for item in walk_objects(value):
-            if item.get("@type") == "VideoObject":
+            if item.get("@type") in types:
                 return item
     return {}
 

@@ -108,6 +108,68 @@ def test_image_validation(format):
     assert not manga._valid_image(data[: len(data) // 2])
 
 
+@pytest.mark.parametrize("format", ["jpg", "cbz", "epub"])
+@pytest.mark.parametrize("name", ["", "Bonus: /Story?"])
+def test_manga_template_handles_fractional_chapters(
+    tmp_path, chapter, fetch, monkeypatch, format, name
+):
+    monkeypatch.setenv(
+        "ANIWORLD_MANGA_NAMING_TEMPLATE",
+        "{title} ({year})/{language}/Chapter {chapter} - {chapter_title}",
+    )
+    item = chapter(number=1.5, selected_path=tmp_path, format=format)
+    item._series = SimpleNamespace(title="Example", release_year=None)
+    item.chapter_name = name
+    item.chapter_language = "en"
+    folder = (
+        tmp_path
+        / "Example"
+        / "en"
+        / ("Chapter 1.5 - Bonus Story" if name else "Chapter 1.5")
+    )
+    expected = (
+        folder if format == "jpg" else folder.with_name(f"{folder.name}.{format}")
+    )
+    assert item.download() == expected
+    assert item.download() == expected
+    assert fetch.call_count == 2
+    if format == "jpg":
+        assert (folder / "001.png").read_bytes() == image_bytes()
+    else:
+        assert read_images(expected)["001.png"] == image_bytes()
+
+
+@pytest.mark.parametrize("format", ["jpg", "cbz", "epub"])
+def test_manga_template_reuses_existing_downloads(
+    tmp_path, chapter, fetch, monkeypatch, format
+):
+    item = chapter(selected_path=tmp_path, format=format)
+    item._series = SimpleNamespace(title="Example", release_year="2024")
+    old = item.download()
+    monkeypatch.setenv(
+        "ANIWORLD_MANGA_NAMING_TEMPLATE", "New/{title}/Chapter {chapter}"
+    )
+    assert item.download() == old
+    assert fetch.call_count == 2
+
+
+def test_manga_series_applies_template_to_chapters(
+    tmp_path, chapter, fetch, monkeypatch
+):
+    monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", str(tmp_path))
+    monkeypatch.setenv(
+        "ANIWORLD_MANGA_NAMING_TEMPLATE", "New/{title}/Chapter {chapter}"
+    )
+    series = manga.MangaFireToSeries(DARLING)
+    monkeypatch.setattr(manga.MangaFireToSeries, "title", "Example")
+    monkeypatch.setattr(manga.MangaFireToSeries, "release_year", "2024")
+    item = chapter(number=0, format="jpg")
+    item._series = series
+    series.download(chapters=[item])
+    assert (tmp_path / "New" / "Example" / "Chapter 0" / "001.png").exists()
+    assert fetch.call_count == 2
+
+
 @pytest.mark.parametrize(
     "data",
     [b"", b"broken image", b"<html>challenge</html>", b"\xff\xd8garbage\xff\xd9"],
@@ -468,6 +530,28 @@ def test_series_archives_use_native_volumes(tmp_path, volume_api, format):
     for path in folder.iterdir():
         assert read_images(path) == dict.fromkeys(("001.png", "002.png"), image_bytes())
     assert "titles/zlwvm/chapters" not in calls
+    assert "volumes/250113" in calls
+    assert "volumes/250114" in calls
+
+
+@pytest.mark.parametrize("format", ["cbz", "epub"])
+def test_manga_template_keeps_volumes_distinct_from_chapters(
+    tmp_path, volume_api, monkeypatch, format
+):
+    series, _, calls = volume_api
+    monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", str(tmp_path))
+    monkeypatch.setenv(
+        "ANIWORLD_MANGA_NAMING_TEMPLATE", "New/{title}/Chapter {chapter}"
+    )
+    series.download(chapters=series.preferred_chapters, format=format)
+    series.download(format=format)
+    folder = tmp_path / "New" / "DARLING in the FRANXX"
+    assert sorted(path.name for path in folder.iterdir()) == [
+        f"Chapter 1.{format}",
+        f"Chapter 2.{format}",
+        f"Volume 1.{format}",
+        f"Volume 2.{format}",
+    ]
     assert "volumes/250113" in calls
     assert "volumes/250114" in calls
 

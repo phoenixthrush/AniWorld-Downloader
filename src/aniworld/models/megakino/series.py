@@ -29,7 +29,7 @@ try:
         watch as episode_watch,
     )
     from ..common.extraction import resolve_stream_url
-    from ..common.naming import template_path
+    from ..common.naming import TemplatePaths, template_path
     from ..common.paths import resolve_download_path
     from ..common.provider_map import host_to_provider
 except ImportError:
@@ -58,7 +58,7 @@ except ImportError:
         watch as episode_watch,
     )
     from aniworld.models.common.extraction import resolve_stream_url
-    from aniworld.models.common.naming import template_path
+    from aniworld.models.common.naming import TemplatePaths, template_path
     from aniworld.models.common.paths import resolve_download_path
     from aniworld.models.common.provider_map import host_to_provider
 
@@ -78,7 +78,7 @@ def get_megakino_domain():
     return domain
 
 
-class MegaKinoEpisode:
+class MegaKinoEpisode(TemplatePaths):
     def __init__(
         self,
         url=str,
@@ -1076,7 +1076,23 @@ class MegaKinoEpisode:
         return self._episode_path.suffix.lstrip(".")
 
     @property
-    def _episode_path(self):
+    def _template_kind(self):
+        return "series" if self.is_series else "movie"
+
+    @property
+    def _template_values(self):
+        return {
+            "title": self.title_cleaned,
+            "year": self.release_year,
+            "imdbid": "",
+            "season": "01" if self.is_series else "",
+            "episode": f"{(self.__episode_index or 1):03d}" if self.is_series else "",
+            "language": self.selected_language,
+            "resolution": getattr(self, "_resolution", "unknown"),
+        }
+
+    @property
+    def _legacy_episode_path(self):
         if self.__episode_path is None:
             template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
             path = template_path(

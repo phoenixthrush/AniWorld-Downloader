@@ -490,9 +490,7 @@ def test_haven_download_retries_failed_subtitles(
         episode_module, "get_response", lambda *a, **k: response(flight(data))
     )
     episode = HentaiHavenEpisode(HAVEN, selected_path=tmp_path)
-    monkeypatch.setattr(
-        HentaiHavenEpisode, "_file_extension", property(lambda self: extension)
-    )
+    monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", f"{{title}}/{{title}}.{extension}")
     original_subtitles = [{"codec_type": "subtitle", "tags": {"language": "deu"}}]
     monkeypatch.setattr(ffmpeg, "probe", lambda path: {"streams": original_subtitles})
     downloads = []

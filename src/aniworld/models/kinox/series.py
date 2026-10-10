@@ -26,6 +26,7 @@ try:
     from ..common.common import watch as episode_watch
     from ..common.extraction import resolve_stream_url
     from ..common.http import get_html, get_session
+    from ..common.naming import TemplatePaths
     from ..common.paths import resolve_download_path
     from ..common.provider_map import host_to_provider
 except ImportError:
@@ -45,6 +46,7 @@ except ImportError:
     from aniworld.models.common.common import watch as episode_watch
     from aniworld.models.common.extraction import resolve_stream_url
     from aniworld.models.common.http import get_html, get_session
+    from aniworld.models.common.naming import TemplatePaths
     from aniworld.models.common.paths import resolve_download_path
     from aniworld.models.common.provider_map import host_to_provider
 
@@ -189,7 +191,7 @@ class _KinoxLanguageMixin:
         return "German Dub"
 
 
-class KinoxEpisode(_KinoxLanguageMixin):
+class KinoxEpisode(TemplatePaths, _KinoxLanguageMixin):
     def __init__(
         self,
         url,
@@ -398,7 +400,23 @@ class KinoxEpisode(_KinoxLanguageMixin):
         return f"{base} ({year})" if year else base
 
     @property
-    def _base_folder(self):
+    def _template_kind(self):
+        return "movie" if self.is_movie else "series"
+
+    @property
+    def _template_values(self):
+        return {
+            "title": self.series.title_cleaned,
+            "year": self.series.release_year,
+            "imdbid": "",
+            "season": f"{self.season_number:02d}",
+            "episode": f"{self.episode_number:03d}",
+            "language": self.selected_language,
+            "resolution": getattr(self, "_resolution", "unknown"),
+        }
+
+    @property
+    def _legacy_base_folder(self):
         if self.__base_folder is None:
             if self.is_movie and not movie_folder_enabled():
                 self.__base_folder = Path(self.selected_path)
@@ -411,18 +429,18 @@ class KinoxEpisode(_KinoxLanguageMixin):
         return self.__base_folder
 
     @property
-    def _folder_path(self):
+    def _legacy_folder_path(self):
         if self.__folder_path is None:
             if self.is_movie:
-                self.__folder_path = self._base_folder
+                self.__folder_path = self._legacy_base_folder
             else:
                 self.__folder_path = (
-                    self._base_folder / f"Season {self.season_number:02d}"
+                    self._legacy_base_folder / f"Season {self.season_number:02d}"
                 )
         return self.__folder_path
 
     @property
-    def _file_name(self):
+    def _legacy_file_name(self):
         if self.__file_name is None:
             if self.is_movie:
                 self.__file_name = self._movie_basename
@@ -434,7 +452,7 @@ class KinoxEpisode(_KinoxLanguageMixin):
         return self.__file_name
 
     @property
-    def _file_extension(self):
+    def _legacy_file_extension(self):
         if self.__file_extension is None:
             from ...config import NAMING_TEMPLATE
 
@@ -446,10 +464,11 @@ class KinoxEpisode(_KinoxLanguageMixin):
         return self.__file_extension
 
     @property
-    def _episode_path(self):
+    def _legacy_episode_path(self):
         if self.__episode_path is None:
             self.__episode_path = (
-                self._folder_path / f"{self._file_name}.{self._file_extension}"
+                self._legacy_folder_path
+                / f"{self._legacy_file_name}.{self._legacy_file_extension}"
             )
         return self.__episode_path
 
