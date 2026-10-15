@@ -71,6 +71,7 @@
       "browse.popular_series": "Beliebte Serien",
       "browse.popular_movies": "Beliebte Filme",
       "browse.new_movies": "Neue Filme",
+      "browse.recently_added": "Neu hinzugefügt",
       "browse.recent_series": "Kürzlich aktualisiert",
       "browse.trending_movies": "Angesagte Filme",
       "browse.trending_manga": "Angesagte Manga",

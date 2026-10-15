@@ -550,6 +550,8 @@ MPV_SCRIPTS_DIR = MPV_CONFIG_DIR / "scripts"
 
 
 MOFLIX_SERIES_PATTERN = re.compile(
-    r"^https?://(?:www\.)?moflix-stream\.xyz/titles/\d+(?:/season/\d+(?:/episodes/\d+)?)?(?:\?[^#]*)?/?$",
+    r"^https?://(?:www\.)?moflix-stream\.xyz/titles/\d+"
+    r"(?:/(?!(?:season|episodes)(?:[/?#]|$))[^/?#]+)?"
+    r"(?:/season/\d+(?:/episodes/\d+)?)?/?(?:\?[^#]*)?$",
     re.IGNORECASE,
 )

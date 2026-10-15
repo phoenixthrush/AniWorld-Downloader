@@ -8,6 +8,7 @@ come back.
 import re
 
 from ..logger import get_logger
+from ..models.moflix_stream.data import MoflixResponseError
 from ..search import (
     fetch_aniworld_genres,
     fetch_burningseries_genres,
@@ -74,6 +75,14 @@ SERIES_SITES = ("sto", "burningseries", "aniworld", "kinox", "moflix")
 MOVIE_SITES = ("megakino", "filmpalast", "filmo", "kinox", "moflix")
 
 
+class SearchResults(list):
+    """Keep list compatibility while allowing HTTP clients to see a failed source."""
+
+    def __init__(self, *, error):
+        super().__init__()
+        self.error = error
+
+
 def sites_for(media_type):
     return MOVIE_SITES if media_type == "movie" else SERIES_SITES
 
@@ -122,6 +131,14 @@ def search(site, keyword):
     try:
         raw = query(keyword) or []
     except Exception as exc:
+        if site == "moflix":
+            logger.warning("Search on Moflix failed (%s)", type(exc).__name__)
+            message = (
+                str(exc)
+                if isinstance(exc, MoflixResponseError)
+                else "Moflix search failed. Please try again later."
+            )
+            return SearchResults(error=message)
         logger.warning("Search on %s failed for '%s': %s", site, keyword, exc)
         return []
     return _normalise(site, raw, keyword)

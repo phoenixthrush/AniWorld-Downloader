@@ -36,6 +36,8 @@
 
   // Browse rows are cached per process on the server, refresh occasionally here
   const BROWSE_REFRESH_MS = 300000;
+  // Leave room for Moflix's existing browser fallback, but never wait forever.
+  const MOFLIX_REQUEST_TIMEOUT_MS = 120000;
 
   const SEARCH_PLACEHOLDERS = {
     aniworld: "Search AniWorld...",
@@ -155,13 +157,27 @@
       grid.innerHTML = `<div class="empty-state">${t("common.loading", "Loading...")}</div>`;
     }
 
-    state.pending = apiFetch(`/api/${key.replace(/_/g, "-")}`)
+    state.pending = apiFetch(`/api/${key.replace(/_/g, "-")}`, {
+      timeoutMs: key === "moflix_movies" ? MOFLIX_REQUEST_TIMEOUT_MS : undefined
+    })
       .then((data) => {
         state.loadedAt = Date.now();
         renderCards(grid, data.results || []);
       })
-      .catch(() => {
-        grid.innerHTML = `<div class="empty-state">${t("common.failed", "Failed")}</div>`;
+      .catch((error) => {
+        const message = document.createElement("div");
+        message.className = "empty-state";
+        message.setAttribute("role", "alert");
+        message.textContent = `${t("common.failed", "Failed")}: ${error.message}`;
+        const retry = document.createElement("button");
+        retry.type = "button";
+        retry.className = "btn btn-secondary";
+        retry.textContent = t("common.retry", "Try again");
+        retry.addEventListener("click", () => {
+          grid.replaceChildren();
+          loadRow(section, true);
+        });
+        grid.replaceChildren(message, retry);
       })
       .finally(() => {
         state.pending = null;
@@ -372,7 +388,12 @@
     browse.hidden = true;
 
     try {
-      const data = await apiSend("/api/search", "POST", { keyword, site: currentSite });
+      const data = await apiFetch("/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keyword, site: currentSite }),
+        timeoutMs: currentSite === "moflix" ? MOFLIX_REQUEST_TIMEOUT_MS : undefined
+      });
       renderCards(resultsGrid, data.results || []);
       loadMissingPosters();
     } catch (error) {

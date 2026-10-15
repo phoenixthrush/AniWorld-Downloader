@@ -1866,28 +1866,41 @@ def search(is_aniworld=None):
 
 
 def _moflix_json(endpoint):
+    from curl_cffi.requests.exceptions import RequestException as CurlRequestException
+
+    from .models.moflix_stream.data import (
+        MoflixResponseError,
+        parse_bootstrap,
+        read_json,
+        validate_response,
+    )
     from .models.moflix_stream.http import BASE_URL, get_response
 
-    page = get_response(BASE_URL + "/")
-    page.raise_for_status()
-    csrf_match = re.search(r'"csrf_token"\s*:\s*"([^"]+)"', page.text)
-    csrf = csrf_match.group(1) if csrf_match else None
-    response = get_response(BASE_URL + endpoint, page.cookies, csrf)
-    response.raise_for_status()
-    return response.json()
+    try:
+        page = validate_response(get_response(BASE_URL + "/"))
+        csrf = parse_bootstrap(page.text).get("csrf_token")
+        response = get_response(BASE_URL + endpoint, page.cookies, csrf)
+        return read_json(response)
+    except CurlRequestException as exc:
+        if exc.response is not None:
+            message = f"Moflix request failed (HTTP {exc.response.status_code})."
+        else:
+            message = "Moflix request failed. Please try again later."
+        raise MoflixResponseError(message) from None
 
 
 def fetch_moflix_movies():
-    data = _moflix_json("/api/v1/titles?perPage=24&orderBy=createdAt&orderDir=desc")
-    results = []
-    for item in data.get("pagination", {}).get("data", []):
-        url = f"https://moflix-stream.xyz/titles/{item.get('id')}"
-        title = item.get("name") or "Unknown"
-        poster = item.get("poster") or ""
-        if poster and not poster.startswith("http"):
-            poster = "https://moflix-stream.xyz/" + poster.lstrip("/")
-        results.append({"title": title, "url": url, "poster_url": poster})
-    return results
+    """Return recently added titles in the public channel's order."""
+    from .models.moflix_stream.data import MoflixResponseError, page_loader, title_cards
+
+    loader = page_loader("/now-playing", "channelPage")
+    channel = loader.get("channel")
+    if not isinstance(channel, dict) or channel.get("slug") != "now-playing":
+        raise MoflixResponseError("Moflix returned a different browse channel.")
+    content = channel.get("content")
+    if not isinstance(content, dict):
+        raise MoflixResponseError("Moflix browse data has an invalid format.")
+    return title_cards(content.get("data"))[:24]
 
 
 def fetch_moflix_genres():
@@ -1899,7 +1912,14 @@ def fetch_moflix_genres():
 
 
 def query_moflix(keyword="", *, genre=None, limit=None):
-    """Search titles, or browse a genre within the API's result scope."""
+    """Search a public page, or browse genres through the recommendation API."""
+    from .models.moflix_stream.data import (
+        GENRE_API_LIMIT,
+        MoflixResponseError,
+        page_loader,
+        title_cards,
+    )
+
     validate_limit(limit)
     if limit == 0:
         return []
@@ -1911,31 +1931,18 @@ def query_moflix(keyword="", *, genre=None, limit=None):
             + quote(str(genre), safe="")
         )
         if limit is not None:
-            endpoint += f"&limit={limit}"
+            endpoint += f"&limit={min(limit, GENRE_API_LIMIT)}"
         data = _moflix_json(endpoint)
         items = data.get("titles", [])
     else:
-        if not keyword.strip():
+        keyword = keyword.strip()
+        if not keyword:
             return []
-        data = _moflix_json(f"/api/v1/search/{quote(keyword, safe='')}")
-        items = data.get("results", [])
-    results = []
-    for item in items:
-        # The search API also returns people. Their IDs cannot be opened
-        # through /titles/ and would produce a 404 in the detail view.
-        if not isinstance(item, dict):
-            continue
-        if genre in (None, "") and item.get("model_type") != "title":
-            continue
-        title_id = item.get("id")
-        if not str(title_id).isdigit():
-            continue
-        url = f"https://moflix-stream.xyz/titles/{title_id}"
-        title = item.get("name") or "Unknown"
-        poster = item.get("poster") or ""
-        if poster and not poster.startswith("http"):
-            poster = "https://moflix-stream.xyz/" + poster.lstrip("/")
-        results.append({"title": title, "url": url, "poster_url": poster})
+        loader = page_loader("/search/" + quote(keyword, safe=""), "searchPage")
+        if loader.get("query") != keyword:
+            raise MoflixResponseError("Moflix returned results for a different search.")
+        items = loader.get("results")
+    results = title_cards(items, require_title=genre in (None, ""))
     return limit_results(results, limit)
 
 
