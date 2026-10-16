@@ -56,7 +56,7 @@ def set_templates(monkeypatch):
 def test_all_video_sites_use_complete_media_template(episode, monkeypatch, tmp_path):
     set_templates(monkeypatch)
     path = episode._episode_path
-    movie = episode._template_kind == "movie"
+    movie = episode._media_type == "movie"
     assert path.relative_to(tmp_path).parts[:4] == (
         "Movies" if movie else "Series",
         "Example",
@@ -87,25 +87,18 @@ def test_all_video_sites_use_complete_media_template(episode, monkeypatch, tmp_p
     assert episode._episode_path == tmp_path / "other" / path.relative_to(tmp_path)
 
 
-def test_all_video_sites_reuse_legacy_downloads(episode, monkeypatch):
+def test_video_paths_do_not_switch_to_previous_layout(episode, monkeypatch):
     legacy = episode._episode_path
     legacy.parent.mkdir(parents=True)
     legacy.write_bytes(b"existing")
     set_templates(monkeypatch)
-    assert episode._episode_path == legacy
-    assert episode._file_extension == "mkv"
+    path = episode._episode_path
+    assert path != legacy
+    assert episode._file_extension == "mp4"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"new")
+    assert episode._episode_path == path
     assert legacy.read_bytes() == b"existing"
-
-
-def test_new_download_wins_over_legacy(episode, monkeypatch):
-    legacy = episode._episode_path
-    set_templates(monkeypatch)
-    new = episode._episode_path
-    new.parent.mkdir(parents=True)
-    new.touch()
-    legacy.parent.mkdir(parents=True, exist_ok=True)
-    legacy.touch()
-    assert episode._episode_path == new
 
 
 @pytest.mark.parametrize(
@@ -145,7 +138,6 @@ def test_missing_metadata_and_sanitization(tmp_path, style):
                 "imdbid": "",
                 "chapter_title": "",
             },
-            is_series=True,
             extension="",
         )
         == tmp_path / "Example Test" / "Example Test"
@@ -159,7 +151,6 @@ def test_movie_folder_policy(tmp_path, movie_folder):
             tmp_path,
             "Movies/{title}/{title}.mp4",
             {"title": "Example"},
-            is_series=False,
             movie_folder=movie_folder,
         )
         == (tmp_path / "Movies" / "Example" if movie_folder else tmp_path)
@@ -178,12 +169,17 @@ def test_template_settings_survive_env_merge_and_export(tmp_path, monkeypatch):
         "ANIWORLD_MOVIE_NAMING_TEMPLATE": "{title}.mkv",
         "ANIWORLD_MANGA_NAMING_TEMPLATE": "{title}/Chapter {chapter}",
     }
-    env.write_text("\n".join(f'{key}="{value}"' for key, value in values.items()))
+    env.write_text(
+        'ANIWORLD_NAMING_TEMPLATE="Old/{title}.mkv"\n'
+        + "\n".join(f'{key}="{value}"' for key, value in values.items())
+    )
     merge_env(Path(__file__).parents[1] / "src/aniworld/.env.example", env)
     for key, value in values.items():
         assert f'{key}="{value}"' in env.read_text()
         monkeypatch.setenv(key, value)
         assert f"{key}=" in settings_store.export_env()
+    assert "ANIWORLD_NAMING_TEMPLATE=" not in env.read_text()
+    assert "ANIWORLD_NAMING_TEMPLATE=" not in settings_store.export_env()
 
 
 @pytest.mark.parametrize(
@@ -261,53 +257,6 @@ def test_new_template_resolution_is_finalized_and_reused(episode, monkeypatch):
     assert episode._episode_path == new
 
 
-def test_resolution_search_prefers_new_file_over_legacy(episode, monkeypatch):
-    from aniworld.models.common import common
-
-    legacy = episode._episode_path
-    set_templates(monkeypatch)
-    common._set_naming_resolution(episode, "720p")
-    new = episode._episode_path
-    new.parent.mkdir(parents=True)
-    new.write_bytes(b"new")
-    legacy.parent.mkdir(parents=True, exist_ok=True)
-    legacy.write_bytes(b"legacy")
-    monkeypatch.setattr(common, "_read_container_resolution", lambda path: "720p")
-    common._prepare_resolution_naming(episode)
-    assert episode._episode_path == new
-
-
-def test_resolution_finalization_never_overwrites_legacy(episode, monkeypatch):
-    from aniworld.models.common import common
-
-    legacy = episode._episode_path
-    set_templates(monkeypatch)
-    old = episode._episode_path
-    old.parent.mkdir(parents=True)
-    old.write_bytes(b"new download")
-    legacy.parent.mkdir(parents=True, exist_ok=True)
-    legacy.write_bytes(b"legacy download")
-    monkeypatch.setattr(common, "_read_container_resolution", lambda path: "720p")
-    common._finalize_resolution_naming(episode)
-    assert legacy.read_bytes() == b"legacy download"
-    assert episode._episode_path.name.endswith(".720p.mp4")
-    assert episode._episode_path.read_bytes() == b"new download"
-
-
-def test_new_templates_reuse_resolved_legacy_download(episode, monkeypatch):
-    from aniworld.models.common import common
-
-    monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "Old/{title}.{resolution}.mkv")
-    common._set_naming_resolution(episode, "720p")
-    legacy = episode._episode_path
-    legacy.parent.mkdir(parents=True)
-    legacy.write_bytes(b"legacy")
-    set_templates(monkeypatch)
-    monkeypatch.setattr(common, "_read_container_resolution", lambda path: "720p")
-    common._prepare_resolution_naming(episode)
-    assert episode._episode_path == legacy
-
-
 def test_web_movie_preview_uses_its_own_template(tmp_path, monkeypatch):
     monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", str(tmp_path))
     monkeypatch.setenv("ANIWORLD_SERIES_NAMING_TEMPLATE", "Series/{title}.mkv")
@@ -333,12 +282,12 @@ def test_web_format_changes_both_active_video_templates(monkeypatch):
 @pytest.mark.parametrize("template", ["", "Folder/", "Folder/{year}", "Folder/.."])
 def test_empty_filename_is_rejected(tmp_path, template):
     with pytest.raises(ValueError, match="filename"):
-        template_path(tmp_path, template, {"year": ""}, is_series=True)
+        template_path(tmp_path, template, {"year": ""})
 
 
 def test_unknown_placeholder_is_rejected(tmp_path):
     with pytest.raises(KeyError, match="unknown"):
-        template_path(tmp_path, "{unknown}.mkv", {}, is_series=True)
+        template_path(tmp_path, "{unknown}.mkv", {})
 
 
 def test_metadata_cannot_escape_download_root(tmp_path):
@@ -346,7 +295,6 @@ def test_metadata_cannot_escape_download_root(tmp_path):
         tmp_path,
         "{title}/{title}.mkv",
         {"title": "../../other\\..\\movie:C"},
-        is_series=True,
     )
     assert path.is_relative_to(tmp_path)
     assert len(path.relative_to(tmp_path).parts) == 2
@@ -356,7 +304,7 @@ def test_all_video_sites_support_percent_templates_and_default_extension(
     episode, monkeypatch
 ):
     monkeypatch.setenv(
-        f"ANIWORLD_{episode._template_kind.upper()}_NAMING_TEMPLATE",
+        f"ANIWORLD_{episode._media_type.upper()}_NAMING_TEMPLATE",
         "%title%/%language%/%year%/%title%",
     )
     path = episode._episode_path
@@ -367,7 +315,7 @@ def test_all_video_sites_support_percent_templates_and_default_extension(
 
 def test_all_video_sites_reject_unsupported_container(episode, monkeypatch):
     monkeypatch.setenv(
-        f"ANIWORLD_{episode._template_kind.upper()}_NAMING_TEMPLATE", "{title}.avi"
+        f"ANIWORLD_{episode._media_type.upper()}_NAMING_TEMPLATE", "{title}.avi"
     )
     with pytest.raises(ValueError, match=".mkv or .mp4"):
         _ = episode._episode_path
@@ -447,3 +395,27 @@ def test_web_queue_uses_model_template_and_custom_language_root(
     assert len(written) == 1
     assert written[0].is_relative_to(root / "german-dub")
     assert written[0].suffix == ".mp4"
+
+
+@pytest.mark.parametrize("kind", ["series", "movie", "manga"])
+@pytest.mark.parametrize("value", [None, ""])
+def test_media_defaults_ignore_removed_global_template(kind, value, monkeypatch):
+    from aniworld.config import NAMING_TEMPLATES
+    from aniworld.models.common.naming import naming_template
+
+    monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "Ignored/{title}")
+    if value is not None:
+        monkeypatch.setenv(f"ANIWORLD_{kind.upper()}_NAMING_TEMPLATE", value)
+    assert naming_template(kind) == NAMING_TEMPLATES[kind]
+
+
+def test_preview_does_not_construct_provider_models(monkeypatch):
+    from aniworld.models.filmpalast_to.episode import FilmPalastEpisode
+
+    def fail(*args, **kwargs):
+        pytest.fail("preview must only format example metadata")
+
+    monkeypatch.setattr(AniworldEpisode, "__init__", fail)
+    monkeypatch.setattr(FilmPalastEpisode, "__init__", fail)
+    preview = settings_store.preview_paths()
+    assert "episode" in preview and "movie" in preview

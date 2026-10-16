@@ -1,31 +1,28 @@
 import json
 import os
 import re
-from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 try:
     from ...config import (
         MOFLIX_SERIES_PATTERN,
-        NAMING_TEMPLATE,
         Audio,
         Subtitles,
         build_provider_attempt_order,
     )
-    from ..common import ProviderData, check_downloaded, movie_folder_enabled
+    from ..common import ProviderData, check_downloaded
     from ..common.common import clean_title
     from ..common.common import download as episode_download
     from ..common.common import syncplay as episode_syncplay
     from ..common.common import watch as episode_watch
     from ..common.extraction import resolve_stream_url
-    from ..common.naming import TemplatePaths, template_path
+    from ..common.naming import base_folder, media_path
     from ..common.paths import resolve_download_path
     from ..common.provider_map import host_to_provider
     from .http import get_response as _fetch_moflix
 except ImportError:
     from aniworld.config import (
         MOFLIX_SERIES_PATTERN,
-        NAMING_TEMPLATE,
         Audio,
         Subtitles,
         build_provider_attempt_order,
@@ -34,19 +31,18 @@ except ImportError:
         ProviderData,
         check_downloaded,
         clean_title,
-        movie_folder_enabled,
     )
     from aniworld.models.common import download as episode_download
     from aniworld.models.common import syncplay as episode_syncplay
     from aniworld.models.common import watch as episode_watch
     from aniworld.models.common.extraction import resolve_stream_url
-    from aniworld.models.common.naming import TemplatePaths, template_path
+    from aniworld.models.common.naming import base_folder, media_path
     from aniworld.models.common.paths import resolve_download_path
     from aniworld.models.common.provider_map import host_to_provider
     from aniworld.models.moflix_stream.http import get_response as _fetch_moflix
 
 
-class MoflixEpisode(TemplatePaths):
+class MoflixEpisode:
     def __init__(
         self,
         url: str,
@@ -88,12 +84,6 @@ class MoflixEpisode(TemplatePaths):
 
         self.__redirect_url = None
         self.__provider_url = None
-
-        self.__base_folder = None
-        self.__folder_path = None
-        self.__file_name = None
-        self.__file_extension = None
-        self.__episode_path = None
 
         self.__is_downloaded = None
 
@@ -321,9 +311,6 @@ class MoflixEpisode(TemplatePaths):
     def selected_path(self, value):
         self.__selected_path_param = value
         self.__selected_path = None
-        self.__base_folder = None
-        self.__folder_path = None
-        self.__episode_path = None
 
     @property
     def selected_language(self):
@@ -380,25 +367,28 @@ class MoflixEpisode(TemplatePaths):
         return True
 
     @property
-    def _movie_basename(self):
-        year = self.release_year
-        base = self.title_cleaned or "Movie"
-        return f"{base} ({year})" if year else base
+    def _media_type(self):
+        return "series" if self.is_series else "movie"
 
     @property
-    def _legacy_base_folder(self):
-        if self.__base_folder is None:
-            if movie_folder_enabled():
-                self.__base_folder = Path(self.selected_path) / self._movie_basename
-            else:
-                self.__base_folder = Path(self.selected_path)
-        return self.__base_folder
+    def _naming_values(self):
+        return {
+            "title": self.title_cleaned,
+            "year": self.release_year,
+            "imdbid": "",
+            "season": f"{self.season_number:02d}" if self.is_series else "",
+            "episode": f"{(self.episode_number):03d}" if self.is_series else "",
+            "language": self.selected_language,
+            "resolution": getattr(self, "_resolution", "unknown"),
+        }
+
+    @property
+    def _episode_path(self):
+        return media_path(self.selected_path, self._media_type, self._naming_values)
 
     @property
     def _base_folder(self):
-        root = Path(self.selected_path)
-        relative = self._episode_path.relative_to(root)
-        return root / relative.parts[0] if len(relative.parts) > 1 else root
+        return base_folder(self.selected_path, self._episode_path)
 
     @property
     def _folder_path(self):
@@ -411,58 +401,6 @@ class MoflixEpisode(TemplatePaths):
     @property
     def _file_extension(self):
         return self._episode_path.suffix.lstrip(".")
-
-    @property
-    def _template_kind(self):
-        return "series" if self.is_series else "movie"
-
-    @property
-    def _template_values(self):
-        return {
-            "title": self.title_cleaned,
-            "year": self.release_year,
-            "imdbid": "",
-            "season": f"{self.season_number:02d}" if self.is_series else "",
-            "episode": f"{(self.episode_number):03d}" if self.is_series else "",
-            "language": self.selected_language,
-            "resolution": getattr(self, "_resolution", "unknown"),
-        }
-
-    @property
-    def _legacy_episode_path(self):
-        if self.__episode_path is None:
-            template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-            path = template_path(
-                self.selected_path,
-                template,
-                {
-                    "title": self.title_cleaned,
-                    "year": self.release_year,
-                    "imdbid": "",
-                    "season": f"{self.season_number:02d}" if self.is_series else "",
-                    "episode": f"{self.episode_number:03d}" if self.is_series else "",
-                    "language": self.selected_language,
-                    "resolution": getattr(self, "_resolution", "unknown"),
-                },
-                is_series=self.is_series,
-                movie_folder=movie_folder_enabled(),
-            )
-            extension = path.suffix.lstrip(".")
-            if self.is_series:
-                legacy = (
-                    self._legacy_base_folder
-                    / f"Season {self.season_id}"
-                    / f"{self._movie_basename} S{self.season_id}E{self.episode_id}.{extension}"
-                )
-            else:
-                legacy = (
-                    self._legacy_base_folder / f"{self._movie_basename}.{extension}"
-                )
-            # Keep old downloads in place; new downloads use the full template.
-            self.__episode_path = (
-                path if path.exists() or not legacy.exists() else legacy
-            )
-        return self.__episode_path
 
     @property
     def is_downloaded(self):

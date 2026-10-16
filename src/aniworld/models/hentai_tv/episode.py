@@ -1,8 +1,6 @@
 import json
-import os
 import re
 from html import unescape
-from pathlib import Path
 from urllib.parse import urljoin
 
 from niquests.exceptions import HTTPError
@@ -10,7 +8,6 @@ from niquests.exceptions import HTTPError
 from ...config import (
     GLOBAL_SESSION,
     HENTAI_TV_EPISODE_PATTERN,
-    NAMING_TEMPLATE,
     Audio,
     Subtitles,
 )
@@ -23,14 +20,14 @@ from ..common.common import (
 )
 from ..common.common import syncplay as episode_syncplay
 from ..common.common import watch as episode_watch
-from ..common.naming import TemplatePaths
+from ..common.naming import base_folder, media_path
 from ..common.paths import resolve_download_path
 from .http import get_response
 from .page import page_objects
 from .player import resolve_stream_url
 
 
-class HentaiTVEpisode(TemplatePaths):
+class HentaiTVEpisode:
     """A standalone hentai.tv episode with lazy metadata and player resolution."""
 
     site_name = "hentai.tv"
@@ -300,26 +297,7 @@ class HentaiTVEpisode(TemplatePaths):
         self.__selected_provider = value
 
     @property
-    def _naming_parts(self):
-        return os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE).split("/")
-
-    def _format_naming_part(self, template):
-        values = {
-            "title": clean_title(self.series_title),
-            "year": self.release_year,
-            "imdbid": "",
-            "season": f"{self.season_number:02d}",
-            "episode": f"{self.episode_number:03d}",
-            "language": self.selected_language,
-            "resolution": getattr(self, "_resolution", "unknown"),
-        }
-        for key in values:
-            template = template.replace(f"%{key}%", "{" + key + "}")
-        formatted = template.format(**values)
-        return re.sub(r"\s*\[imdbid-\]\s*", "", formatted).strip()
-
-    @property
-    def _template_values(self):
+    def _naming_values(self):
         return {
             "title": self.series_title,
             "year": self.release_year,
@@ -330,38 +308,27 @@ class HentaiTVEpisode(TemplatePaths):
             "resolution": getattr(self, "_resolution", "unknown"),
         }
 
-    @property
-    def _legacy_base_folder(self):
-        path = Path(self.selected_path)
-        if len(self._naming_parts) > 1:
-            path /= self._format_naming_part(self._naming_parts[0])
-        return path
+    _media_type = "series"
 
     @property
-    def _legacy_folder_path(self):
-        path = self._legacy_base_folder
-        for part in self._naming_parts[1:-1]:
-            path /= self._format_naming_part(part)
-        return path
+    def _episode_path(self):
+        return media_path(self.selected_path, self._media_type, self._naming_values)
 
     @property
-    def _legacy_file_name(self):
-        template = self._naming_parts[-1]
-        if "." in template:
-            template = template.rsplit(".", 1)[0]
-        return self._format_naming_part(template)
+    def _base_folder(self):
+        return base_folder(self.selected_path, self._episode_path)
 
     @property
-    def _legacy_file_extension(self):
-        template = self._naming_parts[-1]
-        return (template.rsplit(".", 1)[-1] or "mkv") if "." in template else "mkv"
+    def _folder_path(self):
+        return self._episode_path.parent
 
     @property
-    def _legacy_episode_path(self):
-        return (
-            self._legacy_folder_path
-            / f"{self._legacy_file_name}.{self._legacy_file_extension}"
-        )
+    def _file_name(self):
+        return self._episode_path.stem
+
+    @property
+    def _file_extension(self):
+        return self._episode_path.suffix.lstrip(".")
 
     @property
     def is_downloaded(self):

@@ -470,7 +470,7 @@ def test_the_export_reads_back_as_the_same_settings(client, tmp_path):
     assert loaded["ANIWORLD_AUTOSYNC_CRON"] == "0 22 * * 1,5", "quotes survive"
     assert loaded["ANIWORLD_ENABLE_HTV"] == "1"
     assert loaded["ANIWORLD_ENABLE_MEGAKINO"] == "0"
-    assert loaded["ANIWORLD_NAMING_TEMPLATE"].endswith(".mp4"), "spaces survive"
+    assert loaded["ANIWORLD_SERIES_NAMING_TEMPLATE"].endswith(".mp4"), "spaces survive"
     assert loaded["ANIWORLD_UI_LANGUAGE"] == "en"
 
 

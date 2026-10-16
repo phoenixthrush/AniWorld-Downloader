@@ -1,9 +1,6 @@
-import os
 import re
 from html import unescape
-from pathlib import Path
 
-from ...config import NAMING_TEMPLATE
 from ...extractors.provider.hanime_tv import (
     fetch_hanime_api_data,
     get_direct_link_from_hanime_tv,
@@ -18,11 +15,11 @@ from ..common.common import (
 from ..common.common import (
     watch as episode_watch,
 )
-from ..common.naming import TemplatePaths
+from ..common.naming import base_folder, media_path
 from ..common.paths import resolve_download_path
 
 
-class HanimeTVEpisode(TemplatePaths):
+class HanimeTVEpisode:
     """
     Represents a single video on hanime.tv.
 
@@ -72,12 +69,7 @@ class HanimeTVEpisode(TemplatePaths):
         self.__stream_url = None
         self.__provider_data = None
 
-        self.__base_folder = None
-        self.__folder_path = None
         self.__naming_title = None
-        self.__file_name = None
-        self.__file_extension = None
-        self.__episode_path = None
 
         self.__is_downloaded = None
 
@@ -207,9 +199,6 @@ class HanimeTVEpisode(TemplatePaths):
     @selected_path.setter
     def selected_path(self, value):
         self.__selected_path_param = value
-        self.__base_folder = None
-        self.__folder_path = None
-        self.__episode_path = None
 
     @property
     def selected_language(self):
@@ -230,20 +219,6 @@ class HanimeTVEpisode(TemplatePaths):
     # -----------------------------
     # FILE PATHS
     # -----------------------------
-
-    @staticmethod
-    def _format_naming_part(
-        template_part, title, year, season_num, episode_num, language, resolution
-    ):
-        return template_part.format(
-            title=title,
-            year=year,
-            imdbid="",
-            season=f"{season_num:02d}",
-            episode=f"{episode_num:03d}",
-            language=language,
-            resolution=resolution,
-        )
 
     def _collides_in_franchise(self):
         """True when another video of this franchise claims the same number.
@@ -291,11 +266,7 @@ class HanimeTVEpisode(TemplatePaths):
         return self.__naming_title
 
     @property
-    def _template_filename_title(self):
-        return self._naming_title
-
-    @property
-    def _template_values(self):
+    def _naming_values(self):
         return {
             "title": self.series.title_cleaned,
             "year": self.series.release_year,
@@ -306,102 +277,32 @@ class HanimeTVEpisode(TemplatePaths):
             "resolution": getattr(self, "_resolution", "unknown"),
         }
 
-    @property
-    def _legacy_base_folder(self):
-        if self.__base_folder is None:
-            naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-            parts = naming_template.split("/")
-            if len(parts) <= 1:
-                self.__base_folder = Path(self.selected_path)
-            else:
-                folder_str = self._format_naming_part(
-                    parts[0],
-                    self.series.title_cleaned,
-                    self.series.release_year,
-                    self.season.season_number,
-                    self.episode_number,
-                    self.selected_language,
-                    getattr(self, "_resolution", "unknown"),
-                )
-                # Strip empty imdbid markers from folder name
-                folder_str = re.sub(r"\s*\[imdbid-\]\s*", "", folder_str).strip()
-                self.__base_folder = Path(self.selected_path) / folder_str
-        return self.__base_folder
+    _media_type = "series"
 
     @property
-    def _legacy_folder_path(self):
-        if self.__folder_path is None:
-            naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-            parts = naming_template.split("/")
-            if len(parts) <= 2:
-                self.__folder_path = self._legacy_base_folder
-            else:
-                folder_str = self._format_naming_part(
-                    parts[1],
-                    self.series.title_cleaned,
-                    self.series.release_year,
-                    self.season.season_number,
-                    self.episode_number,
-                    self.selected_language,
-                    getattr(self, "_resolution", "unknown"),
-                )
-                self.__folder_path = self._legacy_base_folder / folder_str
-        return self.__folder_path
+    def _episode_path(self):
+        return media_path(
+            self.selected_path,
+            self._media_type,
+            self._naming_values,
+            filename_title=self._naming_title,
+        )
 
     @property
-    def _legacy_file_name(self):
-        if self.__file_name is None:
-            naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-            try:
-                file_template = naming_template.split("/")[-1]
-            except IndexError:
-                file_template = "{title} S{season}E{episode}.mkv"
-
-            if "." in file_template:
-                file_template = ".".join(file_template.split(".")[:-1])
-
-            file_template = file_template.replace("%title%", "{title}")
-            file_template = file_template.replace("%year%", "{year}")
-            file_template = file_template.replace("%imdbid%", "{imdbid}")
-            file_template = file_template.replace("%season%", "{season}")
-            file_template = file_template.replace("%episode%", "{episode}")
-            file_template = file_template.replace("%language%", "{language}")
-            file_template = file_template.replace("%resolution%", "{resolution}")
-
-            self.__file_name = self._format_naming_part(
-                file_template,
-                self._naming_title,
-                self.series.release_year,
-                self.season.season_number,
-                self.episode_number,
-                self.selected_language,
-                getattr(self, "_resolution", "unknown"),
-            )
-        return self.__file_name
+    def _base_folder(self):
+        return base_folder(self.selected_path, self._episode_path)
 
     @property
-    def _legacy_file_extension(self):
-        if self.__file_extension is None:
-            naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-            try:
-                file_part = naming_template.split("/")[-1]
-                if "." in file_part:
-                    ext = file_part.rsplit(".", 1)[-1]
-                    self.__file_extension = ext if ext else "mkv"
-                else:
-                    self.__file_extension = "mkv"
-            except IndexError:
-                self.__file_extension = "mkv"
-        return self.__file_extension
+    def _folder_path(self):
+        return self._episode_path.parent
 
     @property
-    def _legacy_episode_path(self):
-        if self.__episode_path is None:
-            self.__episode_path = (
-                self._legacy_folder_path
-                / f"{self._legacy_file_name}.{self._legacy_file_extension}"
-            )
-        return self.__episode_path
+    def _file_name(self):
+        return self._episode_path.stem
+
+    @property
+    def _file_extension(self):
+        return self._episode_path.suffix.lstrip(".")
 
     @property
     def is_downloaded(self):

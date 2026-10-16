@@ -16,7 +16,7 @@ from ...common.search import (
 )
 from ...config import GLOBAL_SESSION
 from ...playwright.captcha import is_captcha_page, solve_captcha
-from ..common.naming import template_path
+from ..common.naming import media_path
 from ..common.paths import resolve_download_path
 from .vrf import sign_url
 
@@ -197,10 +197,7 @@ class MangaFireToPage:
         """Download the page image."""
         if folder is None:
             root = resolve_download_path()
-            folder = self.chapter._template_folder(
-                root,
-                root / _safe_name(self.chapter.series.title) / self.chapter.folder_name,
-            )
+            folder = self.chapter._download_folder(root)
         else:
             folder = Path(folder)
 
@@ -386,38 +383,23 @@ class MangaFireToChapter:
             base += f" - {self.chapter_name}"
         return _safe_name(base)
 
-    def _template_folder(self, root, legacy):
-        template = getenv("ANIWORLD_MANGA_NAMING_TEMPLATE")
-        if not template:
-            return legacy
+    def _download_folder(self, root):
         self.__load_volume_metadata()
         number = self.chapter_number
-        path = template_path(
+        return media_path(
             root,
-            template,
+            "manga",
             {
                 "title": self.series.title,
                 "year": getattr(self.series, "release_year", ""),
+                "chapter_type": "Volume" if self.is_volume else "Chapter",
                 "chapter": str(number).removesuffix(".0")
                 if number is not None
                 else "unknown",
                 "chapter_title": self.chapter_name,
                 "language": self.chapter_language or self.selected_language or "",
             },
-            is_series=True,
-            extension="",
         )
-        if self.is_volume:
-            # Keep native volumes separate from chapters with the same number.
-            path = path.with_name(self.folder_name)
-        suffix = (
-            f".{self.mangafire_format}"
-            if self.mangafire_format in ("cbz", "epub")
-            else ""
-        )
-        if path.exists() or Path(f"{path}{suffix}").exists():
-            return path
-        return legacy if legacy.exists() or Path(f"{legacy}{suffix}").exists() else path
 
     @property
     def season_number(self):
@@ -520,10 +502,7 @@ class MangaFireToChapter:
             )
         )
         if folder is None:
-            root = Path(self.selected_path)
-            folder = self._template_folder(
-                root, root / _safe_name(chapter_title) / self.folder_name
-            )
+            folder = self._download_folder(Path(self.selected_path))
         else:
             folder = Path(folder)
 
@@ -907,8 +886,8 @@ class MangaFireToSeries:
             if format:
                 chapter.mangafire_format = format
             chapter_folder = folder / chapter.folder_name
-            if template_root is not None and getenv("ANIWORLD_MANGA_NAMING_TEMPLATE"):
-                chapter_folder = chapter._template_folder(template_root, chapter_folder)
+            if template_root is not None:
+                chapter_folder = chapter._download_folder(template_root)
             chapter.download(
                 chapter_folder,
                 chapter_index=index,

@@ -23,7 +23,6 @@ try:
         INVERSE_LANG_LABELS,
         LANG_CODE_MAP,
         LANG_KEY_MAP,
-        NAMING_TEMPLATE,
         PROVIDER_HEADERS_D,
         PROVIDER_HEADERS_W,
         Audio,
@@ -38,7 +37,6 @@ except ImportError:
         INVERSE_LANG_LABELS,
         LANG_CODE_MAP,
         LANG_KEY_MAP,
-        NAMING_TEMPLATE,
         PROVIDER_HEADERS_D,
         PROVIDER_HEADERS_W,
         Audio,
@@ -60,10 +58,10 @@ def clean_title(title: str) -> str:
     return FORBIDDEN_CHARS.sub("", title).strip()
 
 
-def _naming_template_uses_resolution(self=None):
-    template = getattr(self, "_naming_template", None) or os.getenv(
-        "ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE
-    )
+def _naming_template_uses_resolution(self):
+    from .naming import naming_template
+
+    template = naming_template(getattr(self, "_media_type", "series"))
     return "{resolution}" in template or "%resolution%" in template
 
 
@@ -87,22 +85,11 @@ def _read_container_resolution(path):
     return f"{streams[0]}p" if len(streams) == 1 else "unknown"
 
 
-def _reset_naming_cache(self):
-    suffixes = (
-        "__base_folder",
-        "__folder_path",
-        "__file_name",
-        "__episode_path",
-        "__is_downloaded",
-    )
-    for name in vars(self):
-        if name.endswith(suffixes):
-            setattr(self, name, None)
-
-
 def _set_naming_resolution(self, resolution):
     self._resolution = resolution
-    _reset_naming_cache(self)
+    for name in vars(self):
+        if name.endswith("__is_downloaded"):
+            setattr(self, name, None)
 
 
 def _prepare_resolution_naming(self):
@@ -110,20 +97,15 @@ def _prepare_resolution_naming(self):
     if not _naming_template_uses_resolution(self):
         return
     _set_naming_resolution(self, "unknown")
-    path = getattr(self, "_template_path", None) or self._episode_path
+    path = self._episode_path
     if path.exists():
         return
 
     marker = "__ANIWORLD_RESOLUTION__"
     _set_naming_resolution(self, marker)
-    paths = [getattr(self, "_template_path", None) or self._episode_path]
-    if getattr(self, "_naming_template", None):
-        paths.append(self._legacy_episode_path)
-    candidates = []
-    for path in paths:
-        pattern = glob.escape(str(path)).replace(marker, "*")
-        candidates.extend(Path(candidate) for candidate in glob.glob(pattern))
-    for candidate in candidates:
+    pattern = glob.escape(str(self._episode_path)).replace(marker, "*")
+    for candidate in glob.glob(pattern):
+        candidate = Path(candidate)
         resolution = _read_container_resolution(candidate)
         _set_naming_resolution(self, resolution)
         if self._episode_path == candidate:
@@ -137,7 +119,7 @@ def _finalize_resolution_naming(self):
         return
     old_path = self._episode_path
     _set_naming_resolution(self, _read_container_resolution(old_path))
-    new_path = getattr(self, "_template_path", None) or self._episode_path
+    new_path = self._episode_path
     if new_path != old_path:
         if new_path.exists():
             raise FileExistsError(f"Resolution output already exists: {new_path}")
