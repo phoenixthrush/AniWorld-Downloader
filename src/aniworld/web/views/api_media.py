@@ -4,6 +4,8 @@ import re
 import time
 from types import SimpleNamespace
 
+from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
+from curl_cffi.requests.exceptions import RequestException as CurlRequestException
 from flask import Response, jsonify, request
 from niquests.exceptions import HTTPError, RequestException
 
@@ -635,11 +637,11 @@ def genre():
             lambda: _genre_page(site, slug, page),
             raise_errors=True,
         )
-    except HTTPError as exc:
+    except (HTTPError, CurlHTTPError) as exc:
         if exc.response is not None and exc.response.status_code == 404:
             return jsonify({"error": f"Genre not available: {slug}"}), 404
         return jsonify({"error": f"Failed to fetch genre {slug}"}), 502
-    except RequestException:
+    except (RequestException, CurlRequestException):
         return jsonify({"error": f"Failed to fetch genre {slug}"}), 502
     except ValueError:
         # Sites that know their genres up front reject an unknown one outright

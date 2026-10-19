@@ -1899,7 +1899,7 @@ def fetch_moflix_genres():
 
 
 def query_moflix(keyword="", *, genre=None, limit=None):
-    """Search titles, or browse a genre within the API's result scope."""
+    """Search titles, or browse up to 12 genre recommendations."""
     validate_limit(limit)
     if limit == 0:
         return []
@@ -1910,8 +1910,9 @@ def query_moflix(keyword="", *, genre=None, limit=None):
             "/api/v1/moflix/recommendations?route=genre&mediaType=all&genres="
             + quote(str(genre), safe="")
         )
-        if limit is not None:
-            endpoint += f"&limit={limit}"
+        # Recommendations have no pagination and reject limits above 12.
+        # The Web UI asks for 31 to detect whether another page follows.
+        endpoint += f"&limit={min(limit, 12) if limit is not None else 12}"
         data = _moflix_json(endpoint)
         items = data.get("titles", [])
     else:

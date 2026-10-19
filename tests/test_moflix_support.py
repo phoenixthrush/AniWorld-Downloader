@@ -3,9 +3,11 @@
 import base64
 import json
 from types import SimpleNamespace
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
+from aniworld import search
 from aniworld.extractors.provider import gupload, moflixclick, vidara
 from aniworld.models.common.provider_map import host_to_provider
 from aniworld.models.moflix_stream import series as moflix
@@ -268,6 +270,22 @@ def test_moflix_search_and_browse_propagate_request_errors(monkeypatch):
         query_moflix("silo")
     with pytest.raises(TimeoutError, match="moflix timed out"):
         fetch_moflix_movies()
+
+
+@pytest.mark.parametrize("limit", [1, 12, 31, 61, None])
+def test_moflix_genre_respects_recommendation_limit(monkeypatch, limit):
+    def fetch(endpoint):
+        params = parse_qs(urlsplit(endpoint).query)
+        assert params["genres"] == ["Krieg & Politik"]
+        assert params["route"] == ["genre"]
+        assert params["mediaType"] == ["all"]
+        requested = int(params["limit"][0])
+        assert 1 <= requested <= 12
+        return {"titles": [{"id": n, "name": f"Title {n}"} for n in range(requested)]}
+
+    monkeypatch.setattr(search, "_moflix_json", fetch)
+    results = query_moflix(genre="Krieg & Politik", limit=limit)
+    assert len(results) == (min(limit, 12) if limit is not None else 12)
 
 
 def test_vidara_uses_its_stream_api(monkeypatch):
