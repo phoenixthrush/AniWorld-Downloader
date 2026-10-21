@@ -208,6 +208,7 @@ AniWorld Downloader uses [mpv](https://github.com/mpv-player/mpv), [IINA](https:
 ### Other Cool Projects
 
 - [Jellyfin-AniWorld-Downloader](https://github.com/SiroxCW/Jellyfin-AniWorld-Downloader) by SiroxCW — browse and download AniWorld content from Jellyfin.
+- [aniworld-themes](https://github.com/SiroxCW/aniworld-themes) by SiroxCW — community themes and background shaders for the Web UI.
 - [AniSeerr](https://github.com/Yezun-hikari/AniSeerr) by Yezun-hikari — connect Seerr requests to AniWorld Downloader.
 - [AniBridge](https://github.com/Zzackllack/AniBridge) by Zzackllack — connect supported catalogues to automation tools through FastAPI.
 - [AniLoader](https://github.com/WimWamWom/AniLoader) by WimWamWom — a web-based download manager with automation.
