@@ -109,6 +109,18 @@ def test_two_videos_in_one_franchise_get_their_own_file(hanime):
     assert second._file_name == "Yogoreta Kanojo S01E001"
 
 
+def test_series_template_preserves_franchise_collision_handling(hanime, monkeypatch):
+    monkeypatch.setenv(
+        "ANIWORLD_SERIES_NAMING_TEMPLATE",
+        "{title}/Season {season}/{title} E{episode}.mp4",
+    )
+    first, second = hanime(COLLIDING)
+    assert first._folder_path == second._folder_path
+    assert first._file_name == "Tonari no Kanojo E001"
+    assert second._file_name == "Yogoreta Kanojo E001"
+    assert first._episode_path != second._episode_path
+
+
 def test_the_second_video_is_no_longer_taken_for_the_first(hanime):
     first, second = hanime(COLLIDING)
 

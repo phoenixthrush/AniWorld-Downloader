@@ -17,6 +17,7 @@ from ..config import (
     parse_provider_order,
 )
 from ..logger import get_logger
+from ..models.common.naming import media_path, naming_template
 from . import paths, schedule
 from .media import SITE_KEYS, SITE_LABELS, SITES_OFF_BY_DEFAULT, WORKING_PROVIDERS
 
@@ -196,15 +197,10 @@ def default_language():
 # ---------------------------------------------------------------------------
 # Naming template (drives the output container)
 # ---------------------------------------------------------------------------
-def _naming_template():
-    from ..config import NAMING_TEMPLATE
-
-    return os.environ.get("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-
-
 def output_format():
     """Container implied by the naming template's file extension."""
-    last = _naming_template().rstrip('"').split("/")[-1]
+    template = naming_template("series")
+    last = template.rstrip('"').split("/")[-1]
     if "." in last:
         extension = last.rsplit(".", 1)[1].strip().strip('"').lower()
         if extension:
@@ -212,8 +208,7 @@ def output_format():
     return "mkv"
 
 
-def _template_with_extension(extension):
-    template = _naming_template()
+def _template_with_extension(extension, template):
     quoted = template.startswith('"') and template.endswith('"')
     if quoted:
         template = template[1:-1]
@@ -226,21 +221,8 @@ def _template_with_extension(extension):
 # ---------------------------------------------------------------------------
 # Where a download lands
 #
-# Not a second implementation of the naming rules: the episode path is built by
-# the downloader itself, a real AniworldEpisode handed a stand-in series, so the
-# box on the settings page cannot say one thing while the disk gets another.
-#
-# The stand-in carries what a real page gives, which is why the title is the
-# whole cleaned title and the year is a range rather than one year.
-#
-# Movies never go through the naming template. Every movie site writes
-# "Title (Year)", inside a folder of the same name unless that is switched off,
-# and takes only the file extension from the template.
+# Use the same formatter as downloads, with example metadata and no provider I/O.
 # ---------------------------------------------------------------------------
-_PREVIEW_URL = (
-    "https://aniworld.to/anime/stream/konosuba-gods-blessing-on-this-wonderful-world"
-    "/staffel-1/episode-3"
-)
 _PREVIEW_TITLE = "KonoSuba God\u2019s blessing on this wonderful world!"
 _PREVIEW_YEARS = "2016-2025"
 _PREVIEW_IMDB = "tt5370118"
@@ -248,34 +230,8 @@ _PREVIEW_RESOLUTION = "1080p"
 _PREVIEW_MOVIE = ("Your Name", "2016")
 
 
-def _preview_episode(root, language):
-    """A real episode object, built without touching the network."""
-    from types import SimpleNamespace
-
-    from ..models.aniworld_to.episode import AniworldEpisode
-
-    episode = AniworldEpisode(
-        url=_PREVIEW_URL,
-        series=SimpleNamespace(
-            title_cleaned=_PREVIEW_TITLE,
-            release_year=_PREVIEW_YEARS,
-            imdb=_PREVIEW_IMDB,
-        ),
-        season=SimpleNamespace(season_number=1),
-        episode_number=3,
-        selected_path=str(root),
-        selected_language=language,
-    )
-    # What the downloader sets once it has probed the finished file, so a
-    # template using {resolution} previews the name the file ends up with
-    episode._resolution = _PREVIEW_RESOLUTION
-    return episode
-
-
 def preview_paths(download_path=None):
     """The full path a movie and an episode would be written to."""
-    from ..models.common.common import movie_folder_enabled
-
     root = (
         paths.expand(download_path) if download_path else paths.default_download_path()
     )
@@ -284,9 +240,30 @@ def preview_paths(download_path=None):
         root = root / paths.lang_folder_for(language)
 
     try:
-        episode = _preview_episode(root, language)
-        episode_path = str(episode._episode_path)
-        extension = episode._file_extension
+        values = {
+            "title": _PREVIEW_TITLE,
+            "year": _PREVIEW_YEARS,
+            "imdbid": _PREVIEW_IMDB,
+            "season": "01",
+            "episode": "003",
+            "language": language,
+            "resolution": _PREVIEW_RESOLUTION,
+        }
+        episode_path = str(media_path(root, "series", values))
+        movie_path = str(
+            media_path(
+                root,
+                "movie",
+                dict(
+                    values,
+                    title=_PREVIEW_MOVIE[0],
+                    year=_PREVIEW_MOVIE[1],
+                    imdbid="",
+                    season="",
+                    episode="",
+                ),
+            )
+        )
     except KeyError as exc:
         # The downloader raises the same way on the first download, so saying
         # it here is the whole point of having a preview
@@ -299,12 +276,9 @@ def preview_paths(download_path=None):
         logger.warning("Could not work out the download path preview: %s", exc)
         return {"error": "Could not work this out from the naming template"}
 
-    title, year = _PREVIEW_MOVIE
-    movie_name = f"{title} ({year})"
-    folder = root / movie_name if movie_folder_enabled() else root
     return {
         "episode": episode_path,
-        "movie": str(folder / f"{movie_name}.{extension}"),
+        "movie": movie_path,
     }
 
 
@@ -509,7 +483,9 @@ def update_settings(data):
         fmt = str(data["output_format"]).strip().lower().lstrip(".")
         if fmt not in OUTPUT_FORMATS:
             raise SettingsError(f"Invalid output_format: {fmt}")
-        updates["ANIWORLD_NAMING_TEMPLATE"] = _template_with_extension(fmt)
+        for kind in ("series", "movie"):
+            key = f"ANIWORLD_{kind.upper()}_NAMING_TEMPLATE"
+            updates[key] = _template_with_extension(fmt, naming_template(kind))
 
     if "provider_fallback_order" in data:
         _collect_provider_order(data["provider_fallback_order"], updates)
@@ -555,7 +531,18 @@ def _env_sections():
         (
             "Downloads",
             [
-                ("ANIWORLD_NAMING_TEMPLATE", _naming_template()),
+                (
+                    "ANIWORLD_SERIES_NAMING_TEMPLATE",
+                    naming_template("series"),
+                ),
+                (
+                    "ANIWORLD_MOVIE_NAMING_TEMPLATE",
+                    naming_template("movie"),
+                ),
+                (
+                    "ANIWORLD_MANGA_NAMING_TEMPLATE",
+                    naming_template("manga"),
+                ),
                 (
                     "ANIWORLD_PROVIDER_FALLBACK_ORDER",
                     ",".join(get_provider_fallback_order(WORKING_PROVIDERS)),

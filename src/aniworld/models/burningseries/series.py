@@ -13,7 +13,6 @@ import os
 import re
 import threading
 import time
-from pathlib import Path
 from urllib.parse import urlparse
 
 try:
@@ -32,6 +31,7 @@ try:
     from ..common.common import watch as episode_watch
     from ..common.extraction import resolve_stream_url
     from ..common.http import get_html, get_session
+    from ..common.naming import base_folder, media_path
     from ..common.paths import resolve_download_path
     from ..common.provider_map import host_to_provider
 except ImportError:
@@ -50,6 +50,7 @@ except ImportError:
     from aniworld.models.common.common import watch as episode_watch
     from aniworld.models.common.extraction import resolve_stream_url
     from aniworld.models.common.http import get_html, get_session
+    from aniworld.models.common.naming import base_folder, media_path
     from aniworld.models.common.paths import resolve_download_path
     from aniworld.models.common.provider_map import host_to_provider
 
@@ -306,11 +307,6 @@ class BurningSeriesEpisode(_BSLanguageMixin):
         self.__redirect_url = None
         self.__provider_url = None
 
-        self.__base_folder = None
-        self.__folder_path = None
-        self.__file_name = None
-        self.__file_extension = None
-        self.__episode_path = None
         self.__is_downloaded = None
 
     @property
@@ -353,7 +349,6 @@ class BurningSeriesEpisode(_BSLanguageMixin):
     def selected_path(self, value):
         self.__selected_path_param = value
         self.__selected_path = None
-        self.__base_folder = self.__folder_path = self.__episode_path = None
 
     @property
     def selected_language(self):
@@ -459,45 +454,38 @@ class BurningSeriesEpisode(_BSLanguageMixin):
         return resolve_stream_url(self)
 
     @property
-    def _base_folder(self):
-        if self.__base_folder is None:
-            self.__base_folder = Path(self.selected_path) / self.series.title_cleaned
-        return self.__base_folder
+    def _naming_values(self):
+        return {
+            "title": self.series.title_cleaned,
+            "year": self.series.release_year,
+            "imdbid": "",
+            "season": f"{self.season_number:02d}",
+            "episode": f"{self.episode_number:03d}",
+            "language": self.selected_language,
+            "resolution": getattr(self, "_resolution", "unknown"),
+        }
 
-    @property
-    def _folder_path(self):
-        if self.__folder_path is None:
-            self.__folder_path = self._base_folder / f"Season {self.season_number:02d}"
-        return self.__folder_path
-
-    @property
-    def _file_name(self):
-        if self.__file_name is None:
-            self.__file_name = (
-                f"{self.series.title_cleaned} "
-                f"S{self.season_number:02d}E{self.episode_number:02d}"
-            )
-        return self.__file_name
-
-    @property
-    def _file_extension(self):
-        if self.__file_extension is None:
-            from ...config import NAMING_TEMPLATE
-
-            template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-            tail = template.rstrip('"').split("/")[-1]
-            self.__file_extension = (
-                tail.rsplit(".", 1)[-1] if "." in tail else "mkv"
-            ) or "mkv"
-        return self.__file_extension
+    _media_type = "series"
 
     @property
     def _episode_path(self):
-        if self.__episode_path is None:
-            self.__episode_path = (
-                self._folder_path / f"{self._file_name}.{self._file_extension}"
-            )
-        return self.__episode_path
+        return media_path(self.selected_path, self._media_type, self._naming_values)
+
+    @property
+    def _base_folder(self):
+        return base_folder(self.selected_path, self._episode_path)
+
+    @property
+    def _folder_path(self):
+        return self._episode_path.parent
+
+    @property
+    def _file_name(self):
+        return self._episode_path.stem
+
+    @property
+    def _file_extension(self):
+        return self._episode_path.suffix.lstrip(".")
 
     @property
     def is_downloaded(self):

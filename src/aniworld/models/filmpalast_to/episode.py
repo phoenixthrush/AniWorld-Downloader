@@ -1,19 +1,17 @@
 import os
 import re
 from html import unescape
-from pathlib import Path
 
 try:
     from ...config import (
         FILMPALAST_HOST_PATTERN,
         GLOBAL_SESSION,
-        NAMING_TEMPLATE,
         Audio,
         Subtitles,
         build_provider_attempt_order,
         logger,
     )
-    from ..common import ProviderData, check_downloaded, movie_folder_enabled
+    from ..common import ProviderData, check_downloaded
     from ..common.common import clean_title
     from ..common.common import (
         download as episode_download,
@@ -25,13 +23,13 @@ try:
         watch as episode_watch,
     )
     from ..common.extraction import resolve_stream_url
+    from ..common.naming import base_folder, media_path
     from ..common.paths import resolve_download_path
     from ..common.provider_map import host_to_provider
 except ImportError:
     from aniworld.config import (
         FILMPALAST_HOST_PATTERN,
         GLOBAL_SESSION,
-        NAMING_TEMPLATE,
         Audio,
         Subtitles,
         build_provider_attempt_order,
@@ -41,7 +39,6 @@ except ImportError:
         ProviderData,
         check_downloaded,
         clean_title,
-        movie_folder_enabled,
     )
     from aniworld.models.common import (
         download as episode_download,
@@ -53,6 +50,7 @@ except ImportError:
         watch as episode_watch,
     )
     from aniworld.models.common.extraction import resolve_stream_url
+    from aniworld.models.common.naming import base_folder, media_path
     from aniworld.models.common.paths import resolve_download_path
     from aniworld.models.common.provider_map import host_to_provider
 
@@ -144,13 +142,6 @@ class FilmPalastEpisode:
 
         self.__redirect_url = None
         self.__provider_url = None
-
-        # https://jellyfin.org/docs/general/server/media/shows/#organization
-        self.__base_folder = None
-        self.__folder_path = None
-        self.__file_name = None
-        self.__file_extension = None
-        self.__episode_path = None
 
         self.__is_downloaded = None
 
@@ -246,9 +237,6 @@ class FilmPalastEpisode:
     def selected_path(self, value):
         self.__selected_path_param = value
         self.__selected_path = None
-        self.__base_folder = None
-        self.__folder_path = None
-        self.__episode_path = None
 
     @property
     def selected_language(self):
@@ -266,10 +254,6 @@ class FilmPalastEpisode:
         self.__redirect_url = None
         self.__provider_url = None
         self.__is_downloaded = None
-        self.__base_folder = None
-        self.__folder_path = None
-        self.__episode_path = None
-        self.__file_name = None
 
     @property
     def selected_provider(self):
@@ -321,55 +305,39 @@ class FilmPalastEpisode:
     def stream_url(self):
         return resolve_stream_url(self)
 
-    @property
-    def _movie_basename(self):
-        year = self.release_year
-        base = self.title_cleaned or "Movie"
-        return f"{base} ({year})" if year else base
+    _media_type = "movie"
 
     @property
-    def _base_folder(self):
-        if self.__base_folder is None:
-            if movie_folder_enabled():
-                self.__base_folder = Path(self.selected_path) / self._movie_basename
-            else:
-                self.__base_folder = Path(self.selected_path)
-        return self.__base_folder
-
-    @property
-    def _folder_path(self):
-        if self.__folder_path is None:
-            self.__folder_path = self._base_folder
-        return self.__folder_path
-
-    @property
-    def _file_name(self):
-        if self.__file_name is None:
-            self.__file_name = self._movie_basename
-        return self.__file_name
-
-    @property
-    def _file_extension(self):
-        if self.__file_extension is None:
-            naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-            try:
-                file_part = naming_template.split("/")[-1]
-                if "." in file_part:
-                    ext = file_part.rsplit(".", 1)[-1]
-                    self.__file_extension = ext if ext else "mkv"
-                else:
-                    self.__file_extension = "mkv"
-            except IndexError:
-                self.__file_extension = "mkv"
-        return self.__file_extension
+    def _naming_values(self):
+        return {
+            "title": self.title_cleaned,
+            "year": self.release_year,
+            "imdbid": "",
+            "season": "",
+            "episode": "",
+            "language": self.selected_language,
+            "resolution": getattr(self, "_resolution", "unknown"),
+        }
 
     @property
     def _episode_path(self):
-        if self.__episode_path is None:
-            self.__episode_path = (
-                self._folder_path / f"{self._file_name}.{self._file_extension}"
-            )
-        return self.__episode_path
+        return media_path(self.selected_path, self._media_type, self._naming_values)
+
+    @property
+    def _base_folder(self):
+        return base_folder(self.selected_path, self._episode_path)
+
+    @property
+    def _folder_path(self):
+        return self._episode_path.parent
+
+    @property
+    def _file_name(self):
+        return self._episode_path.stem
+
+    @property
+    def _file_extension(self):
+        return self._episode_path.suffix.lstrip(".")
 
     # END
 

@@ -29,7 +29,7 @@ def test_provider_data_does_not_resolve_media(monkeypatch):
 
 def test_default_template_folders(episode, monkeypatch, tmp_path):
     monkeypatch.setenv(
-        "ANIWORLD_NAMING_TEMPLATE",
+        "ANIWORLD_SERIES_NAMING_TEMPLATE",
         "{title} ({year}) [imdbid-{imdbid}]/Season {season}/{title} S{season}E{episode}.mkv",
     )
     assert episode._base_folder == tmp_path / "Example (2023)"
@@ -41,7 +41,7 @@ def test_default_template_folders(episode, monkeypatch, tmp_path):
 
 def test_legacy_placeholders_and_updated_settings(episode, monkeypatch, tmp_path):
     monkeypatch.setenv(
-        "ANIWORLD_NAMING_TEMPLATE",
+        "ANIWORLD_SERIES_NAMING_TEMPLATE",
         "%title%/%year%/Season %season%/%title% %episode% %language%.mp4",
     )
     assert episode._episode_path == (
@@ -52,7 +52,7 @@ def test_legacy_placeholders_and_updated_settings(episode, monkeypatch, tmp_path
     assert episode._episode_path == (
         tmp_path / "other/Example/2023/Season 01/Example 002 Japanese.mp4"
     )
-    monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "{title}")
+    monkeypatch.setenv("ANIWORLD_SERIES_NAMING_TEMPLATE", "{title}")
     assert episode._episode_path == tmp_path / "other/Example.mkv"
 
 
@@ -97,7 +97,7 @@ def test_completed_resolution_names_folders_and_files(
     )
     episode = cls(url, selected_path=tmp_path)
     monkeypatch.setenv(
-        "ANIWORLD_NAMING_TEMPLATE",
+        "ANIWORLD_SERIES_NAMING_TEMPLATE",
         f"{{title}}/{placeholder}/{{title}} E{{episode}} {placeholder}.{extension}",
     )
     monkeypatch.setattr(
@@ -125,7 +125,7 @@ def test_completed_resolution_names_folders_and_files(
 
 
 def test_existing_unknown_resolution_file_is_renamed(episode, monkeypatch):
-    monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "{title}.{resolution}.mkv")
+    monkeypatch.setenv("ANIWORLD_SERIES_NAMING_TEMPLATE", "{title}.{resolution}.mkv")
     old_path = episode._episode_path
     old_path.write_bytes(b"existing video")
     monkeypatch.setattr(
@@ -146,7 +146,7 @@ def test_existing_unknown_resolution_file_is_renamed(episode, monkeypatch):
 
 
 def test_unknown_resolution_remains_usable(episode, monkeypatch):
-    monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "{title}.{resolution}.mkv")
+    monkeypatch.setenv("ANIWORLD_SERIES_NAMING_TEMPLATE", "{title}.{resolution}.mkv")
     monkeypatch.setattr(
         module.HentaiTVEpisode, "stream_url", "https://media.example/video.mp4"
     )

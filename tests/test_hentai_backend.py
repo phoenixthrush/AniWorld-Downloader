@@ -388,7 +388,7 @@ def test_haven_download_uses_shared_hls_pipeline_and_skips_existing(
 
     if resolution:
         monkeypatch.setenv(
-            "ANIWORLD_NAMING_TEMPLATE",
+            "ANIWORLD_SERIES_NAMING_TEMPLATE",
             "{title}/{resolution}/{title} S{season}E{episode}.{resolution}.mkv",
         )
         monkeypatch.setattr(common, "_read_container_resolution", lambda path: "1080p")
@@ -490,8 +490,8 @@ def test_haven_download_retries_failed_subtitles(
         episode_module, "get_response", lambda *a, **k: response(flight(data))
     )
     episode = HentaiHavenEpisode(HAVEN, selected_path=tmp_path)
-    monkeypatch.setattr(
-        HentaiHavenEpisode, "_file_extension", property(lambda self: extension)
+    monkeypatch.setenv(
+        "ANIWORLD_SERIES_NAMING_TEMPLATE", f"{{title}}/{{title}}.{extension}"
     )
     original_subtitles = [{"codec_type": "subtitle", "tags": {"language": "deu"}}]
     monkeypatch.setattr(ffmpeg, "probe", lambda path: {"streams": original_subtitles})

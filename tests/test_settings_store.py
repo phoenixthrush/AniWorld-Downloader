@@ -316,7 +316,7 @@ def test_unsupported_formats_are_refused(fmt):
 
 def test_changing_the_format_only_touches_the_extension():
     update_settings({"output_format": "mp4"})
-    template = os.environ["ANIWORLD_NAMING_TEMPLATE"]
+    template = os.environ["ANIWORLD_SERIES_NAMING_TEMPLATE"]
     assert template.endswith(".mp4")
     assert "{title}" in template and "Season {season}" in template
 
@@ -325,29 +325,29 @@ def test_the_format_survives_a_round_trip():
     update_settings({"output_format": "mp4"})
     update_settings({"output_format": "mkv"})
     assert settings_store.output_format() == "mkv"
-    assert os.environ["ANIWORLD_NAMING_TEMPLATE"].endswith(".mkv")
+    assert os.environ["ANIWORLD_SERIES_NAMING_TEMPLATE"].endswith(".mkv")
 
 
 def test_a_quoted_template_stays_quoted(monkeypatch):
     monkeypatch.setenv(
-        "ANIWORLD_NAMING_TEMPLATE", '"{title}/{title} S{season}E{episode}.mkv"'
+        "ANIWORLD_SERIES_NAMING_TEMPLATE", '"{title}/{title} S{season}E{episode}.mkv"'
     )
     update_settings({"output_format": "mp4"})
-    template = os.environ["ANIWORLD_NAMING_TEMPLATE"]
+    template = os.environ["ANIWORLD_SERIES_NAMING_TEMPLATE"]
     assert template.startswith('"') and template.endswith('"')
     assert settings_store.output_format() == "mp4"
 
 
 def test_a_template_without_an_extension_reads_as_mkv(monkeypatch):
     monkeypatch.setenv(
-        "ANIWORLD_NAMING_TEMPLATE", "{title}/{title} S{season}E{episode}"
+        "ANIWORLD_SERIES_NAMING_TEMPLATE", "{title}/{title} S{season}E{episode}"
     )
     assert settings_store.output_format() == "mkv"
 
 
 def test_a_dot_in_the_folder_does_not_confuse_the_format(monkeypatch):
     monkeypatch.setenv(
-        "ANIWORLD_NAMING_TEMPLATE", "{title} (2024)/Season 1/{title} S01E01.mp4"
+        "ANIWORLD_SERIES_NAMING_TEMPLATE", "{title} (2024)/Season 1/{title} S01E01.mp4"
     )
     assert settings_store.output_format() == "mp4"
 
@@ -572,7 +572,7 @@ def test_the_preview_is_built_by_the_downloader_itself(monkeypatch, tmp_path):
 
     monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", str(tmp_path))
     real = AniworldEpisode(
-        url=settings_store._PREVIEW_URL,
+        url="https://aniworld.to/anime/stream/example/staffel-1/episode-3",
         series=SimpleNamespace(
             title_cleaned=PREVIEW_TITLE,
             release_year="2016-2025",
@@ -602,12 +602,14 @@ def test_a_movie_lands_where_the_movie_sites_put_it(monkeypatch, tmp_path):
     assert settings_store.preview_paths()["movie"] == str(real._episode_path)
 
 
-def test_a_movie_does_not_use_the_template(monkeypatch, tmp_path):
-    """Movies get "Title (Year)" whatever the template says, plus its extension."""
+def test_a_movie_uses_its_own_template(monkeypatch, tmp_path):
     monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", str(tmp_path))
-    monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "{title}/S{season}/{title}.mp4")
+    monkeypatch.setenv(
+        "ANIWORLD_SERIES_NAMING_TEMPLATE", "{title}/S{season}/{title}.mkv"
+    )
+    monkeypatch.setenv("ANIWORLD_MOVIE_NAMING_TEMPLATE", "Movies/{title}.mp4")
     assert settings_store.preview_paths()["movie"] == str(
-        tmp_path / "Your Name (2016)" / "Your Name (2016).mp4"
+        tmp_path / "Movies" / "Your Name.mp4"
     )
 
 
@@ -628,7 +630,9 @@ def test_the_preview_follows_the_language_folders(monkeypatch, tmp_path):
 
 def test_a_template_of_two_parts_has_no_season_folder(monkeypatch, tmp_path):
     monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", str(tmp_path))
-    monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "{title}/{title} E{episode}.mkv")
+    monkeypatch.setenv(
+        "ANIWORLD_SERIES_NAMING_TEMPLATE", "{title}/{title} E{episode}.mkv"
+    )
     assert settings_store.preview_paths()["episode"] == str(
         tmp_path / PREVIEW_TITLE / f"{PREVIEW_TITLE} E003.mkv"
     )
@@ -636,7 +640,9 @@ def test_a_template_of_two_parts_has_no_season_folder(monkeypatch, tmp_path):
 
 def test_a_template_of_one_part_is_a_file_in_the_root(monkeypatch, tmp_path):
     monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", str(tmp_path))
-    monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "{title} S{season}E{episode}.mkv")
+    monkeypatch.setenv(
+        "ANIWORLD_SERIES_NAMING_TEMPLATE", "{title} S{season}E{episode}.mkv"
+    )
     assert settings_store.preview_paths()["episode"] == str(
         tmp_path / f"{PREVIEW_TITLE} S01E003.mkv"
     )
@@ -645,7 +651,9 @@ def test_a_template_of_one_part_is_a_file_in_the_root(monkeypatch, tmp_path):
 def test_the_percent_style_placeholders_are_filled_in_too(monkeypatch, tmp_path):
     """The downloader accepts %title%, so the preview has to as well."""
     monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", str(tmp_path))
-    monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "%title% S%season%E%episode%.mkv")
+    monkeypatch.setenv(
+        "ANIWORLD_SERIES_NAMING_TEMPLATE", "%title% S%season%E%episode%.mkv"
+    )
     assert settings_store.preview_paths()["episode"].endswith(
         f"{PREVIEW_TITLE} S01E003.mkv"
     )
@@ -654,7 +662,7 @@ def test_the_percent_style_placeholders_are_filled_in_too(monkeypatch, tmp_path)
 def test_a_placeholder_no_download_can_fill_is_reported(monkeypatch, tmp_path):
     """The downloader raises on this too, so the preview is where you find out."""
     monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", str(tmp_path))
-    monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "{nope}/{title}.mkv")
+    monkeypatch.setenv("ANIWORLD_SERIES_NAMING_TEMPLATE", "{nope}/{title}.mkv")
 
     preview = settings_store.preview_paths()
     assert "{nope}" in preview["error"]

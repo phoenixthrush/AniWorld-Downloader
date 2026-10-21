@@ -68,10 +68,11 @@ for key in CA_BUNDLE_ENV_VARS:
 
 logger = get_logger(__name__)
 
-NAMING_TEMPLATE = os.getenv(
-    "ANIWORLD_NAMING_TEMPLATE",
-    "{title} ({year}) [imdbid-{imdbid}]/Season {season}/{title} S{season}E{episode}.mkv",
-)
+NAMING_TEMPLATES = {
+    "series": "{title} ({year}) [imdbid-{imdbid}]/Season {season}/{title} S{season}E{episode}.mkv",
+    "movie": "{title} ({year})/{title} ({year}).mkv",
+    "manga": "{title}/{chapter_type} {chapter} - {chapter_title}",
+}
 
 # Video codec configuration
 VIDEO_CODEC = os.getenv("ANIWORLD_VIDEO_CODEC", "copy")

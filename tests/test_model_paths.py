@@ -148,7 +148,7 @@ def test_changing_selected_root_updates_complete_video_path(
     }.items():
         monkeypatch.setattr(cls, name, value, raising=False)
     monkeypatch.setenv(
-        "ANIWORLD_NAMING_TEMPLATE",
+        "ANIWORLD_SERIES_NAMING_TEMPLATE",
         "{title}/Season {season}/{title} S{season}E{episode}.mkv",
     )
     episode = cls(url, selected_path="~/First")
@@ -186,7 +186,14 @@ def test_mangafire_series_uses_shared_configured_root(home, monkeypatch):
     monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", "~/Manga")
     series = MangaFireToSeries("https://mangafire.to/title/z9w-velvet-kisss")
     monkeypatch.setattr(MangaFireToSeries, "title", "Velvet Kiss")
-    chapter = SimpleNamespace(folder_name="Chapter 1", download=Mock())
+    monkeypatch.setattr(MangaFireToSeries, "release_year", "")
+    chapter = MangaFireToChapter(
+        "https://mangafire.to/title/z9w-velvet-kisss/chapter/1",
+        series=series,
+        chapter_id=1,
+        chapter_number=1,
+    )
+    monkeypatch.setattr(chapter, "download", Mock())
     destination = series.download(chapters=[chapter])
     assert destination == home / "Manga" / "Velvet Kiss"
     chapter.download.assert_called_once_with(

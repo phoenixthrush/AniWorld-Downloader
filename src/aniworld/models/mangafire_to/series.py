@@ -16,6 +16,7 @@ from ...common.search import (
 )
 from ...config import GLOBAL_SESSION
 from ...playwright.captcha import is_captcha_page, solve_captcha
+from ..common.naming import media_path
 from ..common.paths import resolve_download_path
 from .vrf import sign_url
 
@@ -195,11 +196,8 @@ class MangaFireToPage:
     def download(self, folder: str | Path | None = None, total_pages: int = 0) -> Path:
         """Download the page image."""
         if folder is None:
-            folder = (
-                resolve_download_path()
-                / _safe_name(self.chapter.series.title)
-                / self.chapter.folder_name
-            )
+            root = resolve_download_path()
+            folder = self.chapter._download_folder(root)
         else:
             folder = Path(folder)
 
@@ -385,6 +383,24 @@ class MangaFireToChapter:
             base += f" - {self.chapter_name}"
         return _safe_name(base)
 
+    def _download_folder(self, root):
+        self.__load_volume_metadata()
+        number = self.chapter_number
+        return media_path(
+            root,
+            "manga",
+            {
+                "title": self.series.title,
+                "year": getattr(self.series, "release_year", ""),
+                "chapter_type": "Volume" if self.is_volume else "Chapter",
+                "chapter": str(number).removesuffix(".0")
+                if number is not None
+                else "unknown",
+                "chapter_title": self.chapter_name,
+                "language": self.chapter_language or self.selected_language or "",
+            },
+        )
+
     @property
     def season_number(self):
         """Return a chapter or volume number for web UI compatibility."""
@@ -486,9 +502,7 @@ class MangaFireToChapter:
             )
         )
         if folder is None:
-            folder = (
-                Path(self.selected_path) / _safe_name(chapter_title) / self.folder_name
-            )
+            folder = self._download_folder(Path(self.selected_path))
         else:
             folder = Path(folder)
 
@@ -855,6 +869,7 @@ class MangaFireToSeries:
     ) -> Path:
         """Download native volumes for CBZ/EPUB, or chapter images."""
         format = format.strip().lower()
+        template_root = resolve_download_path() if folder is None else None
         if folder is None:
             folder = resolve_download_path() / _safe_name(self.title)
         else:
@@ -871,6 +886,8 @@ class MangaFireToSeries:
             if format:
                 chapter.mangafire_format = format
             chapter_folder = folder / chapter.folder_name
+            if template_root is not None:
+                chapter_folder = chapter._download_folder(template_root)
             chapter.download(
                 chapter_folder,
                 chapter_index=index,

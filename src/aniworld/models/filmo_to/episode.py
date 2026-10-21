@@ -3,17 +3,17 @@ import re
 from functools import cached_property
 from html import unescape
 from html.parser import HTMLParser
-from pathlib import Path
 from urllib.parse import quote, urljoin, urlparse
 
 from ...config import Audio, Subtitles, build_provider_attempt_order
-from ..common import ProviderData, check_downloaded, movie_folder_enabled
+from ..common import ProviderData, check_downloaded
 from ..common.common import clean_title
 from ..common.common import download as episode_download
 from ..common.common import syncplay as episode_syncplay
 from ..common.common import watch as episode_watch
 from ..common.extraction import resolve_stream_url
 from ..common.http import CaptchaRequired, get_session, is_captcha_page
+from ..common.naming import base_folder, media_path
 from ..common.paths import resolve_download_path
 from ..common.provider_map import host_to_provider
 
@@ -287,31 +287,39 @@ class FilmoEpisode:
     def stream_url(self):
         return resolve_stream_url(self)
 
-    @property
-    def _file_name(self):
-        title = self.title_cleaned
-        year = self.release_year
-        return f"{title} ({year})" if year else title
+    _media_type = "movie"
 
     @property
-    def _base_folder(self):
-        path = Path(self.selected_path)
-        return path / self._file_name if movie_folder_enabled() else path
-
-    @property
-    def _folder_path(self):
-        return self._base_folder
-
-    @property
-    def _file_extension(self):
-        return (
-            Path(os.getenv("ANIWORLD_NAMING_TEMPLATE", "movie.mkv")).suffix.lstrip(".")
-            or "mkv"
-        )
+    def _naming_values(self):
+        return {
+            "title": self.title_cleaned,
+            "year": self.release_year,
+            "imdbid": "",
+            "season": "",
+            "episode": "",
+            "language": self.selected_language,
+            "resolution": getattr(self, "_resolution", "unknown"),
+        }
 
     @property
     def _episode_path(self):
-        return self._folder_path / f"{self._file_name}.{self._file_extension}"
+        return media_path(self.selected_path, self._media_type, self._naming_values)
+
+    @property
+    def _base_folder(self):
+        return base_folder(self.selected_path, self._episode_path)
+
+    @property
+    def _folder_path(self):
+        return self._episode_path.parent
+
+    @property
+    def _file_name(self):
+        return self._episode_path.stem
+
+    @property
+    def _file_extension(self):
+        return self._episode_path.suffix.lstrip(".")
 
     @property
     def is_downloaded(self):
