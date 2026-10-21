@@ -174,7 +174,7 @@ curl -H "X-API-Key: YOUR_API_KEY" http://localhost:8080/api/queue
 
 Keys have read, read-and-download, or full-access permissions. They cannot manage other API keys. The settings page includes an endpoint reference with examples.
 
-**Appearance:** use **Settings → Appearance** for custom CSS and background shaders. The [`themes/`](themes) directory contains a light theme and a documented CSS template. To recover from a theme that hides controls, open `/settings?nocss=1`.
+**Appearance:** use **Settings → Appearance** for custom CSS and background shaders. The [`themes/`](themes) directory contains a light theme and a documented CSS template. For community themes and installation instructions, see [aniworld-themes](https://github.com/SiroxCW/aniworld-themes) by SiroxCW. To recover from a theme that hides controls, open `/settings?nocss=1`.
 
 **Python:** all public site models are available from `aniworld` or `aniworld.models`. Search and genre functions share `aniworld.search`; see [Genre Search](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/genre-search) for supported filters and site limits. The [`examples/`](examples) directory demonstrates models, metadata, downloads, and genre queries.
 
