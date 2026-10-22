@@ -111,7 +111,7 @@ def test_search_stays_open_to_read_keys(client, api_key, monkeypatch):
     """Search is a POST only because the query goes in the body."""
     from aniworld.web import sitesearch
 
-    monkeypatch.setattr(sitesearch, "search", lambda site, keyword: [])
+    monkeypatch.setattr(sitesearch, "search", lambda site, keyword, **kwargs: [])
     raw, _ = api_key(scope="read")
     response = client.post(
         "/api/search", json={"keyword": "naruto"}, headers=headers(raw)

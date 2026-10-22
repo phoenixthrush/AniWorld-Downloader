@@ -36,6 +36,8 @@
 
   // Browse rows are cached per process on the server, refresh occasionally here
   const BROWSE_REFRESH_MS = 300000;
+  // Browser verification can take longer than a normal HTTP request.
+  const MOFLIX_TIMEOUT_MS = 120000;
 
   const SEARCH_PLACEHOLDERS = {
     aniworld: "Search AniWorld...",
@@ -141,7 +143,7 @@
     browse.querySelectorAll(".browse-section").forEach((section) => {
       section.hidden = !section.dataset.sites.split(",").includes(currentSite);
     });
-    visibleSections().forEach(loadRow);
+    visibleSections().forEach((section) => loadRow(section));
   }
 
   async function loadRow(section, force) {
@@ -155,13 +157,18 @@
       grid.innerHTML = `<div class="empty-state">${t("common.loading", "Loading...")}</div>`;
     }
 
-    state.pending = apiFetch(`/api/${key.replace(/_/g, "-")}`)
+    state.pending = apiFetch(`/api/${key.replace(/_/g, "-")}`, {
+      timeoutMs: key === "moflix_movies" ? MOFLIX_TIMEOUT_MS : undefined
+    })
       .then((data) => {
         state.loadedAt = Date.now();
         renderCards(grid, data.results || []);
       })
-      .catch(() => {
-        grid.innerHTML = `<div class="empty-state">${t("common.failed", "Failed")}</div>`;
+      .catch((error) => {
+        grid.innerHTML = `
+          <div class="empty-state" role="alert">${esc(error.message)}</div>
+          <button type="button" class="btn btn-secondary">${t("common.retry", "Try again")}</button>`;
+        grid.querySelector("button").addEventListener("click", () => loadRow(section, true));
       })
       .finally(() => {
         state.pending = null;
@@ -372,7 +379,9 @@
     browse.hidden = true;
 
     try {
-      const data = await apiSend("/api/search", "POST", { keyword, site: currentSite });
+      const data = await apiSend("/api/search", "POST", { keyword, site: currentSite }, {
+        timeoutMs: currentSite === "moflix" ? MOFLIX_TIMEOUT_MS : undefined
+      });
       renderCards(resultsGrid, data.results || []);
       loadMissingPosters();
     } catch (error) {

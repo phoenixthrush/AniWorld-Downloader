@@ -1,4 +1,3 @@
-import json
 import os
 import re
 from pathlib import Path
@@ -6,7 +5,6 @@ from urllib.parse import parse_qs, urlparse
 
 try:
     from ...config import (
-        MOFLIX_SERIES_PATTERN,
         NAMING_TEMPLATE,
         Audio,
         Subtitles,
@@ -21,10 +19,10 @@ try:
     from ..common.naming import template_path
     from ..common.paths import resolve_download_path
     from ..common.provider_map import host_to_provider
+    from .http import MoflixError, normalize_url, parse_csrf_token, parse_json
     from .http import get_response as _fetch_moflix
 except ImportError:
     from aniworld.config import (
-        MOFLIX_SERIES_PATTERN,
         NAMING_TEMPLATE,
         Audio,
         Subtitles,
@@ -43,6 +41,12 @@ except ImportError:
     from aniworld.models.common.naming import template_path
     from aniworld.models.common.paths import resolve_download_path
     from aniworld.models.common.provider_map import host_to_provider
+    from aniworld.models.moflix_stream.http import (
+        MoflixError,
+        normalize_url,
+        parse_csrf_token,
+        parse_json,
+    )
     from aniworld.models.moflix_stream.http import get_response as _fetch_moflix
 
 
@@ -58,10 +62,7 @@ class MoflixEpisode:
         episode_number: int | None = None,
         title_en: str = "",
     ):
-        if not bool(MOFLIX_SERIES_PATTERN.match(url)):
-            raise ValueError(f"Invalid Moflix episode URL: {url}")
-
-        self.url = url
+        self.url = normalize_url(url)
         self._season = season
         self._series = series
         self.__episode_number = episode_number
@@ -114,15 +115,8 @@ class MoflixEpisode:
 
         if self.__csrf_token is None:
             resp = _fetch_moflix(self.url)
-            resp.raise_for_status()
+            self.__csrf_token = parse_csrf_token(resp)
             self.__session_cookies = resp.cookies
-            match = re.search(r"window\.bootstrapData\s*=\s*(\{.*?\});", resp.text)
-            if not match:
-                raise ValueError("Moflix bootstrap data not found")
-            data = json.loads(match.group(1))
-            self.__csrf_token = data.get("csrf_token")
-            if not self.__csrf_token:
-                raise ValueError("Moflix CSRF token not found")
 
     def __fetch_metadata(self):
         if (
@@ -135,10 +129,10 @@ class MoflixEpisode:
         if self.__metadata is None:
             api_url = f"https://moflix-stream.xyz/api/v1/titles/{self.title_id}"
             resp = self._api_get(api_url)
-            resp.raise_for_status()
-            self.__metadata = resp.json()
-            if not isinstance(self.__metadata, dict):
-                raise ValueError("Moflix title API returned invalid data")
+            metadata = parse_json(resp)
+            if not isinstance(metadata.get("title"), dict):
+                raise MoflixError("Moflix returned invalid title data.")
+            self.__metadata = metadata
         return self.__metadata
 
     def _api_get(self, url):
@@ -151,16 +145,15 @@ class MoflixEpisode:
             if self.is_series:
                 api_url = f"https://moflix-stream.xyz/api/v1/titles/{self.title_id}/seasons/{self.season_id}/episodes/{self.episode_id}"
                 resp = self._api_get(api_url)
-                resp.raise_for_status()
-                data = resp.json()
+                data = parse_json(resp)
                 item = data.get("episode")
             else:
                 item = self._title_data
             if not isinstance(item, dict):
-                raise ValueError("Moflix video API returned invalid data")
+                raise MoflixError("Moflix returned invalid episode data.")
             videos = item.get("videos") or []
             if not isinstance(videos, list):
-                raise ValueError("Moflix video list has an invalid format")
+                raise MoflixError("Moflix returned an invalid video list.")
             self.__videos_data = videos
         return self.__videos_data
 
@@ -578,17 +571,39 @@ class MoflixSeason:
             f"https://moflix-stream.xyz/api/v1/titles/{self.series.title_id}"
             f"/seasons/{self.season_number}?perPage=500"
         )
-        resp = self.series._api_get(api_url)
-        resp.raise_for_status()
-        data = resp.json()
-        episodes = data.get("episodes") or {}
-        eps_data = episodes.get("data", []) if isinstance(episodes, dict) else []
-        if not isinstance(eps_data, list):
-            raise TypeError("Moflix episode list has an invalid format")
+        # Keep pagination on this endpoint; never follow an upstream URL.
+        page = 1
+        episodes = {}
+        for _ in range(100):
+            url = api_url if page == 1 else f"{api_url}&page={page}"
+            pagination = parse_json(self.series._api_get(url)).get("episodes")
+            if not isinstance(pagination, dict) or not isinstance(
+                pagination.get("data"), list
+            ):
+                raise MoflixError("Moflix returned an invalid episode list.")
+            for item in pagination["data"]:
+                number = item.get("episode_number") if isinstance(item, dict) else None
+                if type(number) is not int or number < 1:
+                    raise MoflixError("Moflix returned an invalid episode number.")
+                episodes.setdefault(number, item)
+
+            last_page = pagination.get("last_page")
+            if last_page is not None:
+                last_page = self._page_number(last_page)
+            next_page = pagination.get("next_page")
+            if next_page is None:
+                if last_page is None or page >= last_page:
+                    break
+                next_page = page + 1
+            next_page = self._page_number(next_page)
+            if next_page <= page:
+                raise MoflixError("Moflix returned a repeated episode page.")
+            page = next_page
+        else:
+            raise MoflixError("Moflix episode pagination exceeded 100 pages.")
 
         results = []
-        for ep_data in sorted(eps_data, key=lambda x: x.get("episode_number", 1)):
-            episode_number = ep_data.get("episode_number", 1)
+        for episode_number, ep_data in sorted(episodes.items()):
             ep_url = (
                 f"https://moflix-stream.xyz/titles/{self.series.title_id}"
                 f"/season/{self.season_number}/episodes/{episode_number}"
@@ -603,3 +618,9 @@ class MoflixSeason:
                 )
             )
         return results
+
+    @staticmethod
+    def _page_number(value):
+        if not re.fullmatch(r"[1-9][0-9]*", str(value)):
+            raise MoflixError("Moflix returned an invalid episode page number.")
+        return int(value)

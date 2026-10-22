@@ -59,8 +59,9 @@ async function apiFetch(url, options) {
   return data || {};
 }
 
-function apiSend(url, method, body) {
+function apiSend(url, method, body, options) {
   return apiFetch(url, {
+    ...options,
     method: method,
     headers: { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body)

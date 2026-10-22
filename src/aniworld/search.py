@@ -1866,21 +1866,32 @@ def search(is_aniworld=None):
 
 
 def _moflix_json(endpoint):
-    from .models.moflix_stream.http import BASE_URL, get_response
+    from .models.moflix_stream.http import (
+        BASE_URL,
+        get_response,
+        parse_csrf_token,
+        parse_json,
+    )
 
     page = get_response(BASE_URL + "/")
-    page.raise_for_status()
-    csrf_match = re.search(r'"csrf_token"\s*:\s*"([^"]+)"', page.text)
-    csrf = csrf_match.group(1) if csrf_match else None
+    csrf = parse_csrf_token(page)
     response = get_response(BASE_URL + endpoint, page.cookies, csrf)
-    response.raise_for_status()
-    return response.json()
+    return parse_json(response)
 
 
 def fetch_moflix_movies():
+    from .models.moflix_stream.http import MoflixError
+
     data = _moflix_json("/api/v1/titles?perPage=24&orderBy=createdAt&orderDir=desc")
+    pagination = data.get("pagination")
+    if not isinstance(pagination, dict) or not isinstance(pagination.get("data"), list):
+        raise MoflixError("Moflix returned an invalid title list.")
     results = []
-    for item in data.get("pagination", {}).get("data", []):
+    for item in pagination["data"]:
+        if not isinstance(item, dict) or not re.fullmatch(
+            r"[0-9]+", str(item.get("id"))
+        ):
+            continue
         url = f"https://moflix-stream.xyz/titles/{item.get('id')}"
         title = item.get("name") or "Unknown"
         poster = item.get("poster") or ""
@@ -1892,14 +1903,23 @@ def fetch_moflix_movies():
 
 def fetch_moflix_genres():
     """Discover genres from Moflix's public recommendation API."""
+    from .models.moflix_stream.http import MoflixError
+
     data = _moflix_json(
         "/api/v1/moflix/recommendations?route=genre&mediaType=all&limit=1"
     )
-    return [{"name": name, "slug": name} for name in data.get("genres", [])]
+    genres = data.get("genres")
+    if not isinstance(genres, list) or not all(
+        isinstance(name, str) for name in genres
+    ):
+        raise MoflixError("Moflix returned an invalid genre list.")
+    return [{"name": name, "slug": name} for name in genres]
 
 
 def query_moflix(keyword="", *, genre=None, limit=None):
     """Search titles, or browse up to 12 genre recommendations."""
+    from .models.moflix_stream.http import MoflixError
+
     validate_limit(limit)
     if limit == 0:
         return []
@@ -1914,12 +1934,15 @@ def query_moflix(keyword="", *, genre=None, limit=None):
         # The Web UI asks for 31 to detect whether another page follows.
         endpoint += f"&limit={min(limit, 12) if limit is not None else 12}"
         data = _moflix_json(endpoint)
-        items = data.get("titles", [])
+        items = data.get("titles")
     else:
-        if not keyword.strip():
+        keyword = keyword.strip()
+        if not keyword:
             return []
         data = _moflix_json(f"/api/v1/search/{quote(keyword, safe='')}")
-        items = data.get("results", [])
+        items = data.get("results")
+    if not isinstance(items, list):
+        raise MoflixError("Moflix returned an invalid search result list.")
     results = []
     for item in items:
         # The search API also returns people. Their IDs cannot be opened

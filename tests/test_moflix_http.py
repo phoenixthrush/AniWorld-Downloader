@@ -58,6 +58,65 @@ def test_rate_limit_retries_are_bounded(monkeypatch):
     assert get.call_count == 3
 
 
+def test_bootstrap_accepts_multiline_json_and_embedded_delimiters():
+    answer = response()
+    answer.content = (
+        "<script>window.bootstrapData = "
+        + json.dumps(
+            {"nested": {"text": 'a }; "quote"'}, "csrf_token": "test"}, indent=2
+        )
+        + ";</script>"
+    ).encode()
+    assert http.parse_csrf_token(answer) == "test"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "<html></html>",
+        "window.bootstrapData = {broken};",
+        "window.bootstrapData = [];",
+        'window.bootstrapData = {"csrf_token": null};',
+    ],
+)
+def test_invalid_bootstrap_is_reported_without_exposing_page_contents(text):
+    answer = response()
+    answer.content = text.encode()
+    with pytest.raises(http.MoflixError, match="Moflix page"):
+        http.parse_csrf_token(answer)
+
+
+@pytest.mark.parametrize("parser", [http.parse_csrf_token, http.parse_json])
+def test_verification_pages_have_a_public_error(parser):
+    answer = response()
+    answer.content = b"<title>Just a moment...</title>"
+    with pytest.raises(http.MoflixError, match="verification"):
+        parser(answer)
+
+
+@pytest.mark.parametrize(
+    "body,content_type",
+    [
+        ("<html>secret</html>", "text/html"),
+        ("invalid-json", "application/json"),
+        ("[]", "application/json"),
+    ],
+)
+def test_invalid_json_is_reported_without_exposing_the_body(body, content_type):
+    answer = response()
+    answer.content = body.encode()
+    answer.headers["Content-Type"] = content_type
+    with pytest.raises(http.MoflixError, match="Moflix returned") as exc:
+        http.parse_json(answer)
+    assert body not in str(exc.value)
+
+
+def test_json_preserves_http_errors():
+    answer = response(503)
+    with pytest.raises(http.requests.exceptions.HTTPError):
+        http.parse_json(answer)
+
+
 @pytest.mark.parametrize(
     "outcome", ["success", "forbidden", "navigation-error", "challenge-timeout"]
 )

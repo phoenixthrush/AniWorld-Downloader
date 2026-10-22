@@ -14,6 +14,7 @@ from ...extractors.provider.hanime_tv import fetch_hanime_trending
 from ...logger import get_logger
 from ...models.common import clean_title
 from ...models.mangafire_to.series import _get as get_mangafire
+from ...models.moflix_stream.http import MoflixError
 from ...providers import resolve_provider
 from ...search import (
     GENRE_PAGE_SIZE,
@@ -92,17 +93,23 @@ def search():
     if not keyword:
         return jsonify({"error": "keyword is required"}), 400
 
-    if site == "htv":
-        results = _search_hanime(keyword)
-    else:
-        results = [
-            {
-                "title": item["title"],
-                "url": item["url"],
-                "poster_url": media.proxy_image(item["poster"]),
-            }
-            for item in sitesearch.search(site, keyword)
-        ]
+    try:
+        if site == "htv":
+            results = _search_hanime(keyword)
+        else:
+            results = [
+                {
+                    "title": item["title"],
+                    "url": item["url"],
+                    "poster_url": media.proxy_image(item["poster"]),
+                }
+                for item in sitesearch.search(site, keyword, raise_errors=True)
+            ]
+    except MoflixError as exc:
+        return jsonify({"error": str(exc)}), 502
+    except Exception as exc:
+        logger.warning("Search on %s failed (%s)", site, type(exc).__name__)
+        return jsonify({"error": f"Search on {site} failed. Please try again."}), 502
     return jsonify({"results": results})
 
 
@@ -110,11 +117,7 @@ def _search_hanime(keyword):
     """hanime groups sequels under one slug family, show one card per franchise."""
     from ...search import query_hanime
 
-    try:
-        hits = query_hanime(keyword) or []
-    except Exception as exc:
-        logger.warning("HTV search failed: %s", exc)
-        return []
+    hits = query_hanime(keyword) or []
 
     results = []
     seen = set()
@@ -643,6 +646,8 @@ def genre():
         return jsonify({"error": f"Failed to fetch genre {slug}"}), 502
     except (RequestException, CurlRequestException):
         return jsonify({"error": f"Failed to fetch genre {slug}"}), 502
+    except MoflixError as exc:
+        return jsonify({"error": str(exc)}), 502
     except ValueError:
         # Sites that know their genres up front reject an unknown one outright
         return jsonify({"error": f"Genre not available: {slug}"}), 404
@@ -763,7 +768,13 @@ def _cached(key, fetch, *, raise_errors=False):
 
 def _make_browse_view(key, fetch):
     def view():
-        results = _cached(key, fetch)
+        try:
+            results = _cached(key, fetch, raise_errors=True)
+        except MoflixError as exc:
+            return jsonify({"error": str(exc)}), 502
+        except Exception as exc:
+            logger.warning("Browse fetch '%s' failed (%s)", key, type(exc).__name__)
+            results = None
         if results is None:
             return jsonify({"error": f"Failed to fetch {key.replace('_', ' ')}"}), 500
         return jsonify(

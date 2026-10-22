@@ -113,8 +113,8 @@ def _normalise(site, raw, fallback=""):
     return results
 
 
-def search(site, keyword):
-    """Run one site's search and return normalised [{title, url, poster}]."""
+def search(site, keyword, *, raise_errors=False):
+    """Search one site; callers can opt into errors instead of an empty list."""
     query = SITE_SEARCH.get(site)
     if not query:
         return []
@@ -122,7 +122,9 @@ def search(site, keyword):
     try:
         raw = query(keyword) or []
     except Exception as exc:
-        logger.warning("Search on %s failed for '%s': %s", site, keyword, exc)
+        logger.warning("Search on %s failed (%s)", site, type(exc).__name__)
+        if raise_errors:
+            raise
         return []
     return _normalise(site, raw, keyword)
 

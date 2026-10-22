@@ -1,12 +1,69 @@
 """Moflix requests with browser fallback for Cloudflare challenges."""
 
+import json
+import re
 import time
 
 from curl_cffi import requests
 
-from ...config import GLOBAL_SESSION
+from ...config import GLOBAL_SESSION, MOFLIX_SERIES_PATTERN
 
 BASE_URL = "https://moflix-stream.xyz"
+
+
+class MoflixError(RuntimeError):
+    """An upstream response the app cannot use, with a public error message."""
+
+
+def normalize_url(url):
+    match = MOFLIX_SERIES_PATTERN.fullmatch(url.strip())
+    if not match:
+        raise ValueError(f"Invalid Moflix episode URL: {url}")
+    return (
+        f"{BASE_URL}/titles/{match['title_id']}"
+        + (match["episode_path"] or "").lower()
+        + (match["query"] or "")
+    )
+
+
+def _check_response(response):
+    if response.headers.get("cf-mitigated") == "challenge" or re.search(
+        r"<title>\s*(?:Just a moment|Attention Required)",
+        response.text[:4096],
+        re.IGNORECASE,
+    ):
+        raise MoflixError("Moflix requires verification. Please try again later.")
+    response.raise_for_status()
+
+
+def parse_csrf_token(response):
+    """Read the bootstrap JSON without relying on its layout or a closing `};`."""
+    _check_response(response)
+    assignment = re.search(r"window\.bootstrapData\s*=\s*", response.text)
+    if not assignment:
+        raise MoflixError("Moflix page is missing its bootstrap data.")
+    try:
+        data, _ = json.JSONDecoder().raw_decode(response.text[assignment.end() :])
+    except ValueError:
+        raise MoflixError("Moflix page contains invalid bootstrap data.") from None
+    token = data.get("csrf_token") if isinstance(data, dict) else None
+    if not isinstance(token, str) or not token:
+        raise MoflixError("Moflix page is missing its CSRF token.")
+    return token
+
+
+def parse_json(response):
+    _check_response(response)
+    content_type = response.headers.get("Content-Type", "").lower()
+    if content_type and "json" not in content_type:
+        raise MoflixError("Moflix returned a page instead of JSON.")
+    try:
+        data = response.json()
+    except ValueError:
+        raise MoflixError("Moflix returned invalid JSON.") from None
+    if not isinstance(data, dict):
+        raise MoflixError("Moflix returned an invalid JSON object.")
+    return data
 
 
 def get_response(url, session_cookies=None, csrf_token=None):

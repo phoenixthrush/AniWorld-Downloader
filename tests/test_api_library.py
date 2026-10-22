@@ -18,6 +18,96 @@ def empty_browse_cache():
     api_media._browse_cache.clear()
 
 
+@pytest.mark.parametrize("site", ["moflix", "aniworld", "htv"])
+def test_search_errors_are_reported_without_exposing_exception_details(
+    client, monkeypatch, caplog, site
+):
+    from aniworld import search
+    from aniworld.web import sitesearch
+
+    def fail(keyword):
+        raise RuntimeError("private-session-value")
+
+    monkeypatch.setitem(sitesearch.SITE_SEARCH, site, fail)
+    monkeypatch.setattr(search, "query_hanime", fail)
+    response = client.post("/api/search", json={"site": site, "keyword": "test"})
+    assert response.status_code == 502
+    assert "error" in response.get_json()
+    assert "results" not in response.get_json()
+    assert "private-session-value" not in response.get_data(as_text=True)
+    assert "private-session-value" not in caplog.text
+
+
+def test_search_distinguishes_no_matches_from_upstream_failure(client, monkeypatch):
+    monkeypatch.setitem(api_media.sitesearch.SITE_SEARCH, "moflix", lambda keyword: [])
+    response = client.post("/api/search", json={"site": "moflix", "keyword": "test"})
+    assert response.status_code == 200
+    assert response.get_json() == {"results": []}
+
+
+def test_aggregate_search_can_still_skip_a_failed_source(monkeypatch):
+    from aniworld.web import sitesearch
+
+    def fail(keyword):
+        raise RuntimeError("upstream down")
+
+    monkeypatch.setattr(sitesearch, "MOVIE_SITES", ("moflix", "kinox"))
+    monkeypatch.setitem(sitesearch.SITE_SEARCH, "moflix", fail)
+    monkeypatch.setitem(
+        sitesearch.SITE_SEARCH,
+        "kinox",
+        lambda keyword: [
+            {"title": "Example", "url": "https://kinox.to/Stream/test.html"}
+        ],
+    )
+    assert sitesearch.aggregate("test", "movie")[0]["site"] == "kinox"
+
+
+@pytest.mark.parametrize(
+    "method,path,body",
+    [
+        ("post", "/api/search", {"site": "moflix", "keyword": "test"}),
+        ("get", "/api/moflix-movies", None),
+        ("get", "/api/genre?site=moflix&slug=Action", None),
+    ],
+)
+def test_moflix_failures_have_public_errors_and_can_be_retried(
+    client, monkeypatch, method, path, body
+):
+    import json
+
+    from aniworld.models.moflix_stream import http
+
+    calls = []
+
+    def fetch(url, *args):
+        calls.append(url)
+        response = http.requests.Response()
+        response.status_code = 200
+        if len(calls) == 1:
+            response.content = b"<title>Just a moment...</title>"
+        elif url == http.BASE_URL + "/":
+            response.content = b'window.bootstrapData = {"csrf_token": "test"};'
+        else:
+            title = {"id": 42, "name": "Silo", "model_type": "title"}
+            response.headers["Content-Type"] = "application/json"
+            response.content = json.dumps(
+                {"results": [title], "titles": [title], "pagination": {"data": [title]}}
+            ).encode()
+        return response
+
+    monkeypatch.setattr(http, "get_response", fetch)
+    request = getattr(client, method)
+    failed = request(path, json=body)
+    assert failed.status_code == 502
+    assert "verification" in failed.get_json()["error"]
+    assert api_media._browse_cache == {}
+    retried = request(path, json=body)
+    assert retried.status_code == 200
+    assert retried.get_json()["results"][0]["title"] == "Silo"
+    assert len(calls) == 3
+
+
 # ---------------------------------------------------------------------------
 # Library
 # ---------------------------------------------------------------------------
@@ -396,7 +486,7 @@ def test_a_browse_row_is_served_from_the_cache(client):
 
 
 def test_a_browse_row_that_fails_is_a_500(client, monkeypatch):
-    monkeypatch.setattr(api_media, "_cached", lambda key, fetch: None)
+    monkeypatch.setattr(api_media, "_cached", lambda key, fetch, **kwargs: None)
     assert client.get("/api/new-animes").status_code == 500
 
 

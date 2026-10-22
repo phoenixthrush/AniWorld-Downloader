@@ -11,6 +11,7 @@ from aniworld import search
 from aniworld.extractors.provider import gupload, moflixclick, vidara
 from aniworld.models.common.provider_map import host_to_provider
 from aniworld.models.moflix_stream import series as moflix
+from aniworld.providers import normalize_url, resolve_provider
 from aniworld.search import fetch_moflix_movies, query_moflix
 
 
@@ -246,7 +247,7 @@ def test_moflix_search_excludes_people_and_invalid_ids(monkeypatch):
                     ]
                 }
             )
-        return _response(text='{"csrf_token":"test"}')
+        return _response(text='window.bootstrapData = {"csrf_token":"test"};')
 
     monkeypatch.setattr(curl_cffi.requests, "get", get)
     assert query_moflix("silo") == [
@@ -286,6 +287,108 @@ def test_moflix_genre_respects_recommendation_limit(monkeypatch, limit):
     monkeypatch.setattr(search, "_moflix_json", fetch)
     results = query_moflix(genre="Krieg & Politik", limit=limit)
     assert len(results) == (min(limit, 12) if limit is not None else 12)
+
+
+@pytest.mark.parametrize(
+    "path,expected",
+    [
+        ("/titles/42/silo", "/titles/42"),
+        ("/titles/42/silo/?season=2&episode=3", "/titles/42?season=2&episode=3"),
+        ("/titles/42/silo/season/2/episodes/3", "/titles/42/season/2/episodes/3"),
+        ("/TITLES/42/SEASON/2/EPISODES/3/", "/titles/42/season/2/episodes/3"),
+    ],
+)
+def test_browser_urls_are_normalized_before_resolving_or_loading(path, expected):
+    url = "http://www.moflix-stream.xyz" + path
+    canonical = "https://moflix-stream.xyz" + expected
+    assert normalize_url(url) == canonical
+    assert resolve_provider(url).name == "Moflix"
+    episode = moflix.MoflixEpisode(" " + url + " ")
+    assert episode.url == canonical
+    if "season" in expected:
+        assert (episode.season_id, episode.episode_id) == (2, 3)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://moflix-stream.xyz.evil.test/titles/42/silo",
+        "https://user@moflix-stream.xyz/titles/42/silo",
+        "https://moflix-stream.xyz/titles/42/silo/unknown",
+        "https://moflix-stream.xyz/titles/42/season",
+        "https://moflix-stream.xyz/titles/42/episodes/3",
+    ],
+)
+def test_invalid_browser_urls_are_rejected(url):
+    with pytest.raises(ValueError):
+        resolve_provider(url)
+    with pytest.raises(ValueError, match="Invalid Moflix"):
+        moflix.MoflixEpisode(url)
+
+
+@pytest.mark.parametrize("pagination", [{"next_page": "2"}, {"last_page": 2}])
+def test_seasons_follow_pages_deduplicate_and_remain_lazy(monkeypatch, pagination):
+    _moflix_api(monkeypatch, series=True)
+    original = moflix.MoflixEpisode._api_get
+    calls = []
+
+    def fetch(self, url):
+        calls.append(url)
+        if "/seasons/1?" not in url:
+            return original(self, url)
+        first = {"episode_number": 1, "name": "One"}
+        second = {"episode_number": 2, "name": "Two"}
+        if "page=2" in url:
+            return _response(payload={"episodes": {"data": [second, first]}})
+        return _response(payload={"episodes": {"data": [second], **pagination}})
+
+    monkeypatch.setattr(moflix.MoflixEpisode, "_api_get", fetch)
+    season = moflix.MoflixEpisode("https://moflix-stream.xyz/titles/42").seasons[0]
+    assert [episode.episode_number for episode in season.episodes] == [1, 2]
+    assert [episode.title_en for episode in season.episodes] == ["One", "Two"]
+    assert sum("/seasons/1?" in url for url in calls) == 2
+    assert not any("/episodes/" in url for url in calls)
+
+
+@pytest.mark.parametrize("pointer", [1, 0, True, "https://example.com/next"])
+def test_invalid_pagination_is_rejected_before_another_fetch(monkeypatch, pointer):
+    _moflix_api(monkeypatch, series=True)
+    title = moflix.MoflixEpisode("https://moflix-stream.xyz/titles/42")
+    season = title.seasons[0]
+    calls = []
+
+    def fetch(url):
+        calls.append(url)
+        return _response(payload={"episodes": {"data": [], "next_page": pointer}})
+
+    monkeypatch.setattr(title, "_api_get", fetch)
+    with pytest.raises(moflix.MoflixError, match="page"):
+        _ = season.episodes
+    assert len(calls) == 1
+
+
+def test_season_pagination_is_bounded(monkeypatch):
+    _moflix_api(monkeypatch, series=True)
+    title = moflix.MoflixEpisode("https://moflix-stream.xyz/titles/42")
+    season = title.seasons[0]
+    calls = []
+
+    def fetch(url):
+        calls.append(url)
+        page = int(parse_qs(urlsplit(url).query).get("page", [1])[0])
+        return _response(payload={"episodes": {"data": [], "next_page": page + 1}})
+
+    monkeypatch.setattr(title, "_api_get", fetch)
+    with pytest.raises(moflix.MoflixError, match="100 pages"):
+        _ = season.episodes
+    assert len(calls) == 100
+
+
+@pytest.mark.parametrize("data", [{}, {"pagination": {}}, {"pagination": {"data": {}}}])
+def test_invalid_browse_data_is_not_an_empty_success(monkeypatch, data):
+    monkeypatch.setattr(search, "_moflix_json", lambda endpoint: data)
+    with pytest.raises(moflix.MoflixError, match="title list"):
+        fetch_moflix_movies()
 
 
 def test_vidara_uses_its_stream_api(monkeypatch):
