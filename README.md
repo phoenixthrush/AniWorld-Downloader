@@ -43,7 +43,7 @@ To install the latest development version from the `models` branch:
 pip install --upgrade git+https://github.com/phoenixthrush/AniWorld-Downloader.git@models
 ```
 
-Video downloads need **FFmpeg**. Playback uses **mpv**, **IINA**, or **Syncplay**, depending on the action you choose. The app offers to install missing portable tools on Windows or system packages on macOS/Linux. You can also install them yourself; unattended deployments should provide the tools in advance.
+Video downloads need **FFmpeg**. Watching uses **mpv**, or **IINA** on macOS. Synchronized playback requires **Syncplay and mpv**. The app can offer portable FFmpeg, mpv, and Syncplay installation on Windows, and player installation through supported package managers on macOS/Linux. Install FFmpeg yourself on macOS/Linux; unattended deployments should provide the required tools in advance.
 
 Prefer another installation method? Use [Docker](#docker) or download a standalone build from [GitHub Releases](https://github.com/phoenixthrush/AniWorld-Downloader/releases). See the [documentation](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/) for platform-specific setup and troubleshooting.
 
