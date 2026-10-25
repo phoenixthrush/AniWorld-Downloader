@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Aus web/static/flags/de.svg (flag-icons, MIT, siehe android/lizenzen) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="16dp" android:height="12dp" android:viewportWidth="640" android:viewportHeight="480">
+    <path android:fillColor="#FFCC00" android:pathData="M0,320h640v160H0z" />
+    <path android:fillColor="#000001" android:pathData="M0,0h640v160H0z" />
+    <path android:fillColor="#FF0000" android:pathData="M0,160h640v160H0z" />
+</vector>

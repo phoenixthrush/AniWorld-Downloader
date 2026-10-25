@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Hintergrund der Web-UI (bg) -->
+    <color name="hintergrund">#0A0A0F</color>
+</resources>

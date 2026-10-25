@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<body>
+ <div class="wrapper">
+ <div class="wrapper-container wrapper-main d-flex fd-column">
+ <header class="header d-flex ai-center vw100">
+ <div class="header__search d-none">
+ <form id="quicksearch" method="post">
+ <input type="hidden" name="do" value="search">
+ <input type="hidden" name="subaction" value="search">
+ <div class="header__search-box">
+ <input id="story" name="story" placeholder="Suche ..." type="text" autocomplete="off">
+ <button type="submit" class="search-btn"><span class="fal fa-search"></span></button>
+ </div>
+ </form>
+ </div>
+ <a href="/" class="logo header__logo">
+ <div class="logo__title">MegaKino</div>
+ <p class="logo__caption">Kostenlos Filme und Serien auf Deutsch anschauen.</p>
+ </a>
+ <ul class="header__menu d-flex flex-grow-1 js-this-in-mobile-menu">
+ <li><a href="/"><span class="fal fa-home"></span>Home</a></li>
+ <li><a href="/films/"><span class="fal fa-fire-alt"></span>Filme</a></li>
+ <li><a href="/serials/"><span class="fal fa-play"></span>Serien</a></li>
+ <li><a href="/documentary/"><span class="fal fa-tv-retro"></span>Dokus</a></li>
+ </ul>
+ <div class="header__btn-search btn-icon js-toggle-search"><span class="fal fa-search"></span></div>
+ <div class="header__btn-menu d-none js-show-mobile-menu"><span class="fal fa-bars"></span></div>
+ </header>
+ <div class="content flex-grow-1 cols d-flex">
+ <aside class="col-side">
+ <div class="side-block js-this-in-mobile-menu">
+ <div class="side-block__title">Was interessiert Sie?</div>
+ <ul class="side-block__content side-block__menu" data-showitems="10" itemscope itemtype="http://schema.org/SiteNavigationElement"> 
+ <li><a href="/films/" itemprop="url"><font itemprop="name">Filme</font></a><span style="float: right">5440</span></li><li><a href="/kinofilme/" itemprop="url"><font itemprop="name">Kinofilme</font></a><span style="float: right">222</span></li><li><a href="/serials/" itemprop="url"><font itemprop="name">Serien</font></a><span style="float: right">1000</span></li><li><a href="/multfilm/" itemprop="url"><font itemprop="name">Animation</font></a><span style="float: right">322</span></li><li><a href="/documentary/" itemprop="url"><font itemprop="name">Dokumentationen</font></a><span style="float: right">115</span></li>
+ </ul>
+ </div>
+ <div class="side-block">
+ <div class="side-block__title">Sammlung</div>
+ <div class="side-block__content collection-scroll">
+ <a href="/collection/2092-die-besten-weihnachtsfilme.html" class="custom-collection">
+ <div class="custom-collection-image"><img class="xfieldimage collection_cover" data-src="/uploads/posts/2022-12/merry.webp" alt=""></div>
+ <div class="custom-collection-title">Die besten Weihnachtsfilme</div>
+</a>
+<a href="/collection/412-batman-filme-die-komplette-chronologie.html" class="custom-collection">
+ <div class="custom-collection-image"><img class="xfieldimage collection_cover" data-src="/uploads/posts/2022-02/batman.webp" alt=""></div>
+ <div class="custom-collection-title">Batman Filme - Die Komplette Chronologie</div>
+</a>
+<a href="/collection/127-marvel-filme-chronologischer.html" class="custom-collection">
+ <div class="custom-collection-image"><img class="xfieldimage collection_cover" data-src="/uploads/posts/2022-01/mcu.webp" alt=""></div>
+ <div class="custom-collection-title">Marvel Filme - Die Komplette Chronologie</div>
+</a>
+<a href="/collection/181-harry-potter-die-komplette-chronologie.html" class="custom-collection">
+ <div class="custom-collection-image"><img class="xfieldimage collection_cover" data-src="/uploads/posts/2022-01/harry.webp" alt=""></div>
+ <div class="custom-collection-title">Harry Potter - Die Komplette Chronologie</div>
+</a>
+<a href="/collection/136-star-wars-die-komplette-chronologie.html" class="custom-collection">
+ <div class="custom-collection-image"><img class="xfieldimage collection_cover" data-src="/uploads/posts/2022-01/starwars.webp" alt=""></div>
+ <div class="custom-collection-title">Star Wars – Die Komplette Chronologie</div>
+</a>
+<a href="/collection/135-fast-and-furious-chronologischer.html" class="custom-collection">
+ <div class="custom-collection-image"><img class="xfieldimage collection_cover" data-src="/uploads/posts/2022-01/forsag.webp" alt=""></div>
+ <div class="custom-collection-title">Fast and Furious - Die Komplette Chronologie</div>
+</a>
+ </div>
+ </div>
+ <div class="side-block js-this-in-mobile-menu">
+ <div class="side-block__title">Genres</div>
+ <ul class="side-block__content side-block__menu" data-showitems="10"> 
+ <li><a href="/multfilm/">Animation</a><span style="float: right">322</span></li><li><a href="/action/">Action</a><span style="float: right">1748</span></li><li><a href="/adventure/">Adventure</a><span style="float: right">973</span></li><li><a href="/comedy/">Comedy</a><span style="float: right">1858</span></li><li><a href="/crime/">Crime</a><span style="float: right">796</span></li><li><a href="/documentary/">Dokumentationen</a><span style="float: right">115</span></li><li><a href="/drama/">Drama</a><span style="float: right">2602</span></li><li><a href="/family/">Family</a><span style="float: right">521</span></li><li><a href="/fantasy/">Fantasy</a><span style="float: right">689</span></li><li><a href="/history/">History</a><span style="float: right">263</span></li><li><a href="/horror/">Horror</a><span style="float: right">943</span></li><li><a href="/music/">Music</a><span style="float: right">127</span></li><li><a href="/mystery/">Mystery</a><span style="float: right">439</span></li><li><a href="/romance/">Romance</a><span style="float: right">572</span></li><li><a href="/science-fiction/">Sci-Fi</a><span style="float: right">779</span></li><li><a href="/tv-movie/">TV Movie</a><span style="float: right">59</span></li><li><a href="/thriller/">Thriller</a><span style="float: right">1827</span></li><li><a href="/war/">War</a><span style="float: right">150</span></li><li><a href="/western/">Western</a><span style="float: right">93</span></li>
+ </ul>
+ </div>
+ <div class="side-block">
+ <div class="side-block__title">Demnächst bei uns!</div>
+ <div class="side-block__content">
+ </div>
+ </div>
+ <div class="side-block">
+ <div class="side-block__title">Kommentare</div>
+ <div class="side-block__content">
+ <div class="lcomm">
+ <div class="lcomm__meta d-flex ai-center">
+ <div class="lcomm__author flex-grow-1 ws-nowrap">descendants 5</div>
+ <div class="lcomm__date">11.08.26</div>
+ </div>
+ <div class="lcomm__text">sehr schön liebe die songs</div>
+ <a class="lcomm__link ws-nowrap icon-at-left" href="/films/6374-descendants-5-wicked-wonderland.html#comment"><span class="fal fa-arrow-circle-right"></span>Descendants 5: Wicked Wonderland</a>
+</div><div class="lcomm">
+ <div class="lcomm__meta d-flex ai-center">
+ <div class="lcomm__author flex-grow-1 ws-nowrap">iceman</div>
+ <div class="lcomm__date">11.08.26</div>
+ </div>
+ <div class="lcomm__text">sehr geil wenn der typ mit dem bart unterhose an hat die seine pobacken zeigen</div>
+ <a class="lcomm__link ws-nowrap icon-at-left" href="/films/2798-hangover.html#comment"><span class="fal fa-arrow-circle-right"></span>Hangover</a>
+</div><div class="lcomm">
+ <div class="lcomm__meta d-flex ai-center">
+ <div class="lcomm__author flex-grow-1 ws-nowrap">Lajana</div>
+ <div class="lcomm__date">11.08.26</div>
+ </div>
+ <div class="lcomm__text">Ich glaube, das ist Zeitverschwendung und eine Uncut Version!!</div>
+ <a class="lcomm__link ws-nowrap icon-at-left" href="/films/657-doctor-sleeps-erwachen.html#comment"><span class="fal fa-arrow-circle-right"></span>Doctor Sleeps Erwachen</a>
+</div>
+ </div>
+ </div>
+ </aside>
+ <main class="col-main flex-grow-1 d-flex fd-column grid-2">
+ <div id="dle-content"><form name="fullsearch" id="fullsearch" action="/index.php?do=search" method="post">
+<input type="hidden" name="do" id="do" value="search" />
+<input type="hidden" name="subaction" id="subaction" value="search" />
+<input type="hidden" name="search_start" id="search_start" value="0" />
+<input type="hidden" name="full_search" id="full_search" value="0" />
+<input type="hidden" name="result_from" id="result_from" value="1" />
+<div class="search-page">
+ <h1 class="search-page__title">Поиск по сайту</h1>
+ <div class="searchtable" id="searchtable" name="searchtable"><table style="width:100%;">
+ <tr>
+ <td class="search">
+ <div style="margin:10px;">
+ <input type="text" name="story" id="searchinput" value="batman" class="textin" style="width:250px" onchange="document.getElementById('result_from').value = 1"><br /><br />
+ <input type="button" class="bbcodes" name="dosearch" id="dosearch" value="Start search" onclick="javascript:list_submit(-1); return false;">
+ <input type="button" class="bbcodes" name="dofullsearch" id="dofullsearch" value="Advanced search " onclick="javascript:full_submit(1); return false;" />
+ </div>
+ </td>
+ </tr>
+</table></div>
+ <div class="message-info message-info--yellow">Found 18 responses (Query results 1 - 18) :</div>
+</div>
+</form>
+<a class="poster grid-item d-flex fd-column has-overlay" href="/crime/4692-the-penguin-staffel-1.html">
+ <div class="poster__img img-responsive img-responsive--portrait img-fit-cover">
+ <img data-src="/uploads/posts/2024-09/3f15381c8fb6aac1a2a56326361b7a5c_jpg-c_310_420_x-f_jpg-q_x-xxyxx.webp" src="/templates/popcornie-dark/images/no-img.png" alt="The Penguin - Staffel 1">
+ <div class="poster__label">Komplett</div>
+ <div class="has-overlay__mask btn-icon anim"><span class="fal fa-play"></span></div>
+ </div>
+ <div class="poster__desc">
+ <h3 class="poster__title ws-nowrap">The Penguin - Staffel 1</h3>
+ <ul class="poster__subtitle ws-nowrap">
+ <li>Ireland, United, </li>
+ <li>Crime / Drama / Serien</li>
+ </ul>
+ <div class="poster__text line-clamp">Nach dem verheerenden Angriff des Riddlers auf Gotham sind die ärmsten und verletzlichsten Stadtteile schwer getroffen, was Oz &quot;der</div>
+ </div>
+</a>
+<a class="poster grid-item d-flex fd-column has-overlay" href="/action/4954-batwoman-staffel-3.html">
+ <div class="poster__img img-responsive img-responsive--portrait img-fit-cover">
+ <img data-src="/uploads/posts/2024-11/338b30a705_jpg.webp" src="/templates/popcornie-dark/images/no-img.png" alt="Batwoman - Staffel 3">
+ <div class="poster__label">+2 Episode</div>
+ <div class="has-overlay__mask btn-icon anim"><span class="fal fa-play"></span></div>
+ </div>
+ <div class="poster__desc">
+ <h3 class="poster__title ws-nowrap">Batwoman - Staffel 3</h3>
+ <ul class="poster__subtitle ws-nowrap">
+ <li>United States of, 2021</li>
+ <li>Action / Drama / Serien</li>
+ </ul>
+ <div class="poster__text line-clamp">Batman ist fort. Der einstige Beschützer von Gotham City scheint der Stadt ein für alle Mal den Rücken gekehrt und sie damit ihrem Schicksal</div>
+ </div>
+</a>
+<a class="poster grid-item d-flex fd-column has-overlay" href="/adventure/4804-the-lego-movie-2.html">
+ <div class="poster__img img-responsive img-responsive--portrait img-fit-cover">
+ <img data-src="/uploads/posts/2024-10/4977526_jpg-c_310_420_x-f_jpg-q_x-xxyxx.webp" src="/templates/popcornie-dark/images/no-img.png" alt="The LEGO Movie 2">
+ <div class="poster__label">HD</div>
+ <div class="has-overlay__mask btn-icon anim"><span class="fal fa-play"></span></div>
+ </div>
+ <div class="poster__desc">
+ <h3 class="poster__title ws-nowrap">The LEGO Movie 2</h3>
+ <ul class="poster__subtitle ws-nowrap">
+ <li>Canada, Denmark,, 2019</li>
+ <li>Adventure / Animation / Filme</li>
+ </ul>
+ <div class="poster__text line-clamp">Fünf Jahre, nachdem die Pläne des skrupellosen Lord Business (Stimme im Original: Will Ferrell) vereitelt werden konnten, haben die DUPLO-Invasoren</div>
+ </div>
+</a>
+<a class="poster grid-item d-flex fd-column has-overlay" href="/action/4447-batman-caped-crusader-staffel-1.html">
+ <div class="poster__img img-responsive img-responsive--portrait img-fit-cover">
+ <img data-src="/uploads/posts/2024-08/f37b3ede04afb1db1516056dfcf72e97.webp" src="/templates/popcornie-dark/images/no-img.png" alt="Batman: Caped Crusader - Staffel 1">
+ <div class="poster__label">Komplett</div>
+ <div class="has-overlay__mask btn-icon anim"><span class="fal fa-play"></span></div>
+ </div>
+ <div class="poster__desc">
+ <h3 class="poster__title ws-nowrap">Batman: Caped Crusader - Staffel 1</h3>
+ <ul class="poster__subtitle ws-nowrap">
+ <li>United States of, 2024</li>
+ <li>Action / Adventure / Fantasy / Serien</li>
+ </ul>
+ <div class="poster__text line-clamp">Kriminalität und Korruption nehmen Überhand in Gotham City des Jahres 1940 und während die Verbrecher bald schon in der Überzahl sind, fürchten die</div>
+ </div>
+</a>
+<a class="poster grid-item d-flex fd-column has-overlay" href="/action/4199-gotham-knights-staffel-1.html">
+ <div class="poster__img img-responsive img-responsive--portrait img-fit-cover">
+ <img data-src="/uploads/posts/2024-06/1852009_jpg-c_310_420_x-f_jpg-q_x-xxyxx.webp" src="/templates/popcornie-dark/images/no-img.png" alt="Gotham Knights - Staffel 1">
+ <div class="poster__label">Komplett</div>
+ <div class="has-overlay__mask btn-icon anim"><span class="fal fa-play"></span></div>
+ </div>
+ <div class="poster__desc">
+ <h3 class="poster__title ws-nowrap">Gotham Knights - Staffel 1</h3>
+ <ul class="poster__subtitle ws-nowrap">
+ <li>United States of, 2023</li>
+ <li>Action / Fantasy / Serien</li>
+ </ul>
+ <div class="poster__text line-clamp">Nachdem Batman ermordet wird, glaubt Gotham plötzlich, dass sein rebellischer Adoptivsohn Turner Hayes (Oscar Morgan) und einige der Söhne und</div>
+ </div>
+</a>
+<a class="poster grid-item d-flex fd-column has-overlay" href="/films/3463-merry-little-batman.html">
+ <div class="poster__img img-responsive img-responsive--portrait img-fit-cover">
+ <img data-src="/uploads/posts/2023-12/5222470.webp" src="/templates/popcornie-dark/images/no-img.png" alt="Merry Little Batman">
+ <div class="poster__label">HD</div>
+ <div class="has-overlay__mask btn-icon anim"><span class="fal fa-play"></span></div>
+ </div>
+ <div class="poster__desc">
+ <h3 class="poster__title ws-nowrap">Merry Little Batman</h3>
+ <ul class="poster__subtitle ws-nowrap">
+ <li>United States of, 2023</li>
+ <li>Filme / Animation / Action / Comedy / Family</li>
+ </ul>
+ <div class="poster__text line-clamp">Der kleine Damian Wayne (Stimme im Original: Yonas Kibreab) möchte, wie so viele Söhne, gerne seinem Vater nacheifern. Der ist in seinem Falle</div>
+ </div>
+</a>
+<a class="poster grid-item d-flex fd-column has-overlay" href="/films/3020-the-flash.html">
+ <div class="poster__img img-responsive img-responsive--portrait img-fit-cover">
+ <img data-src="/uploads/posts/2023-06/3096359.webp" src="/templates/popcornie-dark/images/no-img.png" alt="The Flash">
+ <div class="poster__label">HD</div>
+ <div class="has-overlay__mask btn-icon anim"><span class="fal fa-play"></span></div>
+ </div>
+ <div class="poster__desc">
+ <h3 class="poster__title ws-nowrap">The Flash</h3>
+ <ul class="poster__subtitle ws-nowrap">
+ <li>United States of, 2023</li>
+ <li>Filme / Action / Adventure / Sci-Fi / Kinofilme</li>
+ </ul>
+ <div class="poster__text line-clamp">Gerade hat Barry Allen alias The Flash (Ezra Miller) mal wieder gemeinsam mit Batman (Ben Affleck), Wonder Woman (Gal Gadot) und der restlichen</div>
+ </div>
+</a>
+<a class="poster grid-item d-flex fd-column has-overlay" href="/films/411-justice-league.html">
+ <div class="poster__img img-responsive img-responsive--portrait img-fit-cover">
+ <img data-src="/uploads/posts/2022-02/141052_posters_164587qlk061.webp" src="/templates/popcornie-dark/images/no-img.png" alt="Justice League">
+ <div class="poster__label">HD</div>
+ <div class="has-overlay__mask btn-icon anim"><span class="fal fa-play"></span></div>
+ </div>
+ <div class="poster__desc">
+ <h3 class="poster__title ws-nowrap">Justice League</h3>
+ <ul class="poster__subtitle ws-nowrap">
+ <li>United Kingdom,, 2017</li>
+ <li>Filme / Action / Adventure / Fantasy / Sci-Fi</li>
+ </ul>
+ <div class="poster__text line-clamp">Bruce Wayne alias Batman hat wieder Vertrauen in die Menschheit – auch dank Superman, der im Kampf gegen das Monster Doomsday wahre Selbstlosigkeit</div>
+ </div>
+</a>
+<a class="poster grid-item d-flex fd-column has-overlay" href="/films/410-the-dark-knight.html">
+ <div class="poster__img img-responsive img-responsive--portrait img-fit-cover">
+ <img data-src="/uploads/posts/2022-02/155_poster_16458713724zkoq1.webp" src="/templates/popcornie-dark/images/no-img.png" alt="The Dark Knight">
+ <div class="poster__label">HD</div>
+ <div class="has-overlay__mask btn-icon anim"><span class="fal fa-play"></span></div>
+ </div>
+ <div class="poster__desc">
+ <h3 class="poster__title ws-nowrap">The Dark Knight</h3>
+ <ul class="poster__subtitle ws-nowrap">
+ <li>United Kingdom,, 2008</li>
+ <li>Filme / Action / Crime / Drama / Thriller</li>
+ </ul>
+ <div class="poster__text line-clamp">Gemeinsam mit Bezirksstaatsanwalt Harvey Dent und Lieutenant James Gordon versucht der im Fledermauskostüm agierende Milliardär Bruce Wayne dem</div>
+ </div>
+</a>
+<a class="poster grid-item d-flex fd-column has-overlay" href="/films/405-batman-robin.html">
+ <div class="poster__img img-responsive img-responsive--portrait img-fit-cover">
+ <img data-src="/uploads/posts/2022-02/415_poster_164587095780ki11.webp" src="/templates/popcornie-dark/images/no-img.png" alt="Batman &amp; Robin">
+ <div class="poster__label">HD</div>
+ <div class="has-overlay__mask btn-icon anim"><span class="fal fa-play"></span></div>
+ </div>
+ <div class="poster__desc">
+ <h3 class="poster__title ws-nowrap">Batman &amp; Robin</h3>
+ <ul class="poster__subtitle ws-nowrap">
+ <li>United Kingdom,, 1997</li>
+ <li>Filme / Action / Fantasy / Sci-Fi</li>
+ </ul>
+ <div class="poster__text line-clamp">Turbulenzen in Gotham City und im Hause Wayne. Zwei neue Superverbrecher, der rachsüchtige Wissenschaftler Mr. Freeze und die giftige Ökoamazone</div>
+ </div>
+</a>
+<a class="poster grid-item d-flex fd-column has-overlay" href="/films/665-the-batman.html">
+ <div class="poster__img img-responsive img-responsive--portrait img-fit-cover">
+ <img data-src="/uploads/posts/2022-04/414906_poster_1649786qnk3c1.webp" src="/templates/popcornie-dark/images/no-img.png" alt="The Batman">
+ <div class="poster__label">HD</div>
+ <div class="has-overlay__mask btn-icon anim"><span class="fal fa-play"></span></div>
+ </div>
+ <div class="poster__desc">
+ <h3 class="poster__title ws-nowrap">The Batman</h3>
+ <ul class="poster__subtitle ws-nowrap">
+ <li>United States of, 2022</li>
+ <li>Filme / Crime / Mystery / Thriller / Kinofilme</li>
+ </ul>
+ <div class="poster__text line-clamp">Seit zwei Jahren kämpft der Milliardär Bruce Wayne (Robert Pattinson) als rächender Vigilant Batman für eine bessere Welt in seiner Heimatstadt</div>
+ </div>
+</a>
+<a class="poster grid-item d-flex fd-column has-overlay" href="/films/727-the-lego-movie.html">
+ <div class="poster__img img-responsive img-responsive--portrait img-fit-cover">
+ <img data-src="/uploads/posts/2022-04/137106_poster_164993468kwn.webp" src="/templates/popcornie-dark/images/no-img.png" alt="The Lego Movie">
+ <div class="poster__label">HD</div>
+ <div class="has-overlay__mask btn-icon anim"><span class="fal fa-play"></span></div>
+ </div>
+ <div class="poster__desc">
+ <h3 class="poster__title ws-nowrap">The Lego Movie</h3>
+ <ul class="poster__subtitle ws-nowrap">
+ <li>Denmark, United, 2014</li>
+ <li>Filme / Animation / Adventure / Comedy / Family / Fantasy</li>
+ </ul>
+ <div class="poster__text line-clamp">Der gutmütige Emmet wird eines Tages von der abenteuerlustigen Wyldstyle entführt. Sie glaubt, in dem Normalo den von einer Prophezeiung</div>
+ </div>
+</a>
+<a class="poster grid-item d-flex fd-column has-overlay" href="/films/702-the-lego-batman-movie.html">
+ <div class="poster__img img-responsive img-responsive--portrait img-fit-cover">
+ <img data-src="/uploads/posts/2022-04/324849_posters_164988rckab1.webp" src="/templates/popcornie-dark/images/no-img.png" alt="The Lego Batman Movie">
+ <div class="poster__label">HD</div>
+ <div class="has-overlay__mask btn-icon anim"><span class="fal fa-play"></span></div>
+ </div>
+ <div class="poster__desc">
+ <h3 class="poster__title ws-nowrap">The Lego Batman Movie</h3>
+ <ul class="poster__subtitle ws-nowrap">
+ <li>Denmark, United, 2017</li>
+ <li>Filme / Animation / Action / Comedy</li>
+ </ul>
+ <div class="poster__text line-clamp">LEGO-Batman erlebt nach seinem ersten Leinwand-Auftritt in „The LEGO Movie“ nun ein Solo-Abenteuer, in dem es um die Frage geht: Kann Batman</div>
+ </div>
+</a>
+<a class="poster grid-item d-flex fd-column has-overlay" href="/films/409-the-dark-knight-rises.html">
+ <div class="poster__img img-responsive img-responsive--portrait img-fit-cover">
+ <img data-src="/uploads/posts/2022-02/49026_poster_164587120bk1h1.webp" src="/templates/popcornie-dark/images/no-img.png" alt="The Dark Knight Rises">
+ <div class="poster__label">HD</div>
+ <div class="has-overlay__mask btn-icon anim"><span class="fal fa-play"></span></div>
+ </div>
+ <div class="poster__desc">
+ <h3 class="poster__title ws-nowrap">The Dark Knight Rises</h3>
+ <ul class="poster__subtitle ws-nowrap">
+ <li>United States of, 2012</li>
+ <li>Filme / Action / Crime / Drama / Thriller</li>
+ </ul>
+ <div class="poster__text line-clamp">Nach dem Tod des Staatsanwalts Harvey Dent alias Two-Face nahm Batman die Schuld von dessen Verbrechen auf sich, um seinen Ruf zu schützen. Daher</div>
+ </div>
+</a>
+<a class="poster grid-item d-flex fd-column has-overlay" href="/films/406-batman-begins.html">
+ <div class="poster__img img-responsive img-responsive--portrait img-fit-cover">
+ <img data-src="/uploads/posts/2022-02/272_poster_1645871064aykno1.webp" src="/templates/popcornie-dark/images/no-img.png" alt="Batman Begins">
+ <div class="poster__label">HD</div>
+ <div class="has-overlay__mask btn-icon anim"><span class="fal fa-play"></span></div>
+ </div>
+ <div class="poster__desc">
+ <h3 class="poster__title ws-nowrap">Batman Begins</h3>
+ <ul class="poster__subtitle ws-nowrap">
+ <li>United Kingdom,, 2005</li>
+ <li>Filme / Action / Crime / Drama</li>
+ </ul>
+ <div class="poster__text line-clamp">Wie wurde Bruce Wayne zu Batman? Als kleiner Junge musste Bruce Wayne mit ansehen, wie seine Eltern auf grauenhafte Weise umgebracht wurden. Deshalb</div>
+ </div>
+</a>
+<a class="poster grid-item d-flex fd-column has-overlay" href="/films/408-batman.html">
+ <div class="poster__img img-responsive img-responsive--portrait img-fit-cover">
+ <img data-src="/uploads/posts/2022-02/268_poster_1645871241icja11.webp" src="/templates/popcornie-dark/images/no-img.png" alt="Batman">
+ <div class="poster__label">HD</div>
+ <div class="has-overlay__mask btn-icon anim"><span class="fal fa-play"></span></div>
+ </div>
+ <div class="poster__desc">
+ <h3 class="poster__title ws-nowrap">Batman</h3>
+ <ul class="poster__subtitle ws-nowrap">
+ <li>United States of, 1989</li>
+ <li>Filme / Action / Fantasy</li>
+ </ul>
+ <div class="poster__text line-clamp">Gotham City erstickt in einem Sumpf aus Korruption und Verbrechen, und nur ein Mann stellt sich der Gefahr: Batman, der dunkle Ritter in dem</div>
+ </div>
+</a>
+<a class="poster grid-item d-flex fd-column has-overlay" href="/films/407-batman-forever.html">
+ <div class="poster__img img-responsive img-responsive--portrait img-fit-cover">
+ <img data-src="/uploads/posts/2022-02/414_poster_1645871158uxjgc1.webp" src="/templates/popcornie-dark/images/no-img.png" alt="Batman Forever">
+ <div class="poster__label">HD</div>
+ <div class="has-overlay__mask btn-icon anim"><span class="fal fa-play"></span></div>
+ </div>
+ <div class="poster__desc">
+ <h3 class="poster__title ws-nowrap">Batman Forever</h3>
+ <ul class="poster__subtitle ws-nowrap">
+ <li>United Kingdom,, 1995</li>
+ <li>Filme / Action / Crime / Fantasy</li>
+ </ul>
+ <div class="poster__text line-clamp">Der dunkle Ritter von Gotham City hat es diesmal mit zwei äusserst gefährlichen Schurken zu tun: Der frühere Staatsanwalt Harvey Dent, der durch</div>
+ </div>
+</a>
+<a class="poster grid-item d-flex fd-column has-overlay" href="/films/241-batman-v-superman-dawn-of-justice.html">
+ <div class="poster__img img-responsive img-responsive--portrait img-fit-cover">
+ <img data-src="/uploads/posts/2022-01/209112_poster_1642968jfkuz1.webp" src="/templates/popcornie-dark/images/no-img.png" alt="Batman v Superman: Dawn of Justice">
+ <div class="poster__label">HD</div>
+ <div class="has-overlay__mask btn-icon anim"><span class="fal fa-play"></span></div>
+ </div>
+ <div class="poster__desc">
+ <h3 class="poster__title ws-nowrap">Batman v Superman: Dawn of Justice</h3>
+ <ul class="poster__subtitle ws-nowrap">
+ <li>United States of, 2016</li>
+ <li>Filme / Action / Adventure / Fantasy</li>
+ </ul>
+ <div class="poster__text line-clamp">Zwei Wesen des zerstörten Planeten Krypton brachten im Finale von „Man of Steel“ Zerstörung auf die Erde: die Kontrahenten Superman und General Zod.</div>
+ </div>
+</a>
+</div>
+</main>
+ </div>
+ <footer class="footer d-flex ai-center">
+ <a href="/?do=feedback" class="btn-accent centered-content">Kontakt</a>
+ <div class="logo footer__logo">
+ <div class="logo__title">MegaKino</div>
+ <p class="logo__caption">Kostenlos Filme und Serien auf Deutsch anschauen.</p>
+ </div>
+ <div class="footer__text flex-grow-1">
+ © 2024 "MegaKino" <br>Bietet Dir eine vielzahl von neuen
+ <br>Filmen , Serien und Kinofilmen.
+ </div>
+ <div class="footer__counter">
+X
+ </div>
+ </footer>
+ </div>
+ </div>
+ <ins class="604c7625" data-key="a194e23a-9276-4eae-aab3-1b19d679a85b" data-cp-host="39f199aed1bd4b98a92539a0e4e0fe3b|megakino.ink" data-cp-domain="megakino.ink"></ins>
+</body>
+</html>

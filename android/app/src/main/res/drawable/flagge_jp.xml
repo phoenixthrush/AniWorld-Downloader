@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nach web/static/flags/jp.svg (flag-icons, MIT, siehe android/lizenzen), Kreis direkt berechnet -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="16dp" android:height="12dp" android:viewportWidth="640" android:viewportHeight="480">
+    <path android:fillColor="#FFFFFF" android:pathData="M0,0h640v480H0z" />
+    <path android:fillColor="#BC002D" android:pathData="M170.8,240a149.2,149.2 0,1 0,298.4 0a149.2,149.2 0,1 0,-298.4 0z" />
+</vector>
