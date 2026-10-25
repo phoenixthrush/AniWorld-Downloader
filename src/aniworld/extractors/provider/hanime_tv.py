@@ -1,5 +1,8 @@
+import base64
+import hashlib
 import json
 import re
+import secrets
 import threading
 import time
 import unicodedata
@@ -11,6 +14,7 @@ from urllib.parse import quote, unquote, urlencode, urljoin, urlparse
 
 import niquests
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from curl_cffi import requests as curl_requests
 
 from ...common.search import limit_results, validate_limit
 
@@ -322,8 +326,87 @@ def _parse_hanime_manifest_token(token):
     return manifest
 
 
+def _encode_hanime_handshake(slug, timestamp):
+    """Encrypt the same request envelope as Hanime's public web player."""
+
+    def encode(value):
+        return base64.urlsafe_b64encode(value).rstrip(b"=").decode("ascii")
+
+    payload = {
+        "timestamp_unix": timestamp,
+        "directive": "htv_player_handshake",
+        "slug": slug,
+    }
+    iv = secrets.token_bytes(12)
+    encrypted = AESGCM(_HANIME_AES_KEY).encrypt(
+        iv, json.dumps(payload, separators=(",", ":")).encode(), _HANIME_AES_HEADER
+    )
+    envelope = {
+        "v": 1,
+        "alg": "AES-256-GCM",
+        "iv": encode(iv),
+        "tag": encode(encrypted[-16:]),
+        "data": encode(encrypted[:-16]),
+    }
+    return encode(json.dumps(envelope, separators=(",", ":")).encode())
+
+
+def _fetch_hanime_manifest_http(slug):
+    """Use the public CSRF and encrypted handshake endpoints without Chromium."""
+    headers = {
+        "Accept": "application/json",
+        "Origin": HANIME_BASE_URL,
+        "Referer": HANIME_VIDEO_URL.format(slug=slug),
+    }
+    with curl_requests.Session(
+        impersonate="chrome", cookies=GLOBAL_SESSION.cookies
+    ) as session:
+        try:
+            csrf_response = session.get(
+                "https://ct.hanime.tv/csrf-token", headers=headers, timeout=15
+            )
+            csrf_response.raise_for_status()
+            csrf = csrf_response.json().get("csrf_token")
+            if not isinstance(csrf, str) or not csrf:
+                raise ValueError("Hanime did not return a CSRF token")
+
+            timestamp = int(time.time())
+            # The public WASM signer hashes the timestamp, origin and these salts.
+            signature = hashlib.sha256(
+                f"{timestamp},Xkdi29,{HANIME_BASE_URL},mn2,{timestamp}".encode()
+            ).hexdigest()
+            result = session.post(
+                "https://auth.hanime.tv/api/v11/handshake",
+                headers={
+                    **headers,
+                    "X-CSRF-Token": csrf,
+                    "X-Signature-Version": "web2",
+                    "X-Time": str(timestamp),
+                    "X-Signature": signature,
+                },
+                json={"token": _encode_hanime_handshake(slug, timestamp)},
+                timeout=15,
+            )
+            result.raise_for_status()
+            manifest = _parse_hanime_manifest_token(result.headers.get("x-token"))
+            if not any(
+                item.get("kind", "normal") == "normal"
+                and (item.get("src") or item.get("signed_url") or item.get("url"))
+                for item in manifest["sources"]
+            ):
+                raise ValueError("Hanime handshake did not return playable sources")
+            return manifest
+        finally:
+            GLOBAL_SESSION.cookies.update(session.cookies.jar)
+
+
 def fetch_hanime_manifest(slug):
-    """Resolve a fresh stream manifest through Hanime's own web player."""
+    """Resolve the HTTP handshake, retaining the web player as a fallback."""
+    try:
+        return _fetch_hanime_manifest_http(slug)
+    except Exception as exc:
+        logger.debug("Hanime HTTP handshake failed: %s", type(exc).__name__)
+
     page_url = HANIME_VIDEO_URL.format(slug=slug)
     try:
         token = playwright_get_hanime_manifest_token(page_url, timeout=15)
