@@ -6,10 +6,6 @@ on:
   pull_request:
   workflow_dispatch:
 
-concurrency:
-  group: tests-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   test:
     name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
