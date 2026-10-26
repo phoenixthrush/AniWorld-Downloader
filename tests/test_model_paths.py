@@ -212,6 +212,101 @@ def test_cli_episode_file_loads_urls(home, monkeypatch, path_type):
     assert args.url == [positional_url, *urls]
 
 
+@pytest.fixture
+def direct_provider_download(monkeypatch):
+    import ffmpeg
+
+    from aniworld.extractors import provider_functions
+
+    stream = Mock()
+    monkeypatch.setattr(ffmpeg, "input", Mock(return_value=stream))
+    monkeypatch.setitem(
+        provider_functions,
+        "get_direct_link_from_voe",
+        lambda url: "https://example.invalid/video.mp4",
+    )
+
+    def run_ffmpeg():
+        destination = Path(stream.output.call_args.args[0])
+        assert destination.parent.is_dir()
+
+    stream.output.return_value.run.side_effect = run_ffmpeg
+
+    def download(*options):
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "aniworld",
+                "--provider",
+                "VOE",
+                "--provider-url",
+                "https://voe.sx/e/example",
+                *options,
+            ],
+        )
+        with pytest.raises(SystemExit) as exc:
+            arguments.parse_args()
+        assert exc.value.code == 0
+        stream.output.return_value.run.assert_called_once_with()
+        return Path(stream.output.call_args.args[0])
+
+    return download
+
+
+@pytest.mark.parametrize(
+    "setting,folder",
+    [
+        (None, "Downloads"),
+        ("", "Downloads"),
+        (" \t ", "Downloads"),
+        ("Media/Videos", "Media/Videos"),
+        ("~/Media/Videos", "Media/Videos"),
+        ("  ~/Media with spaces/Videos  ", "Media with spaces/Videos"),
+    ],
+)
+def test_direct_provider_download_resolves_configured_root(
+    home, monkeypatch, direct_provider_download, setting, folder
+):
+    if setting is None:
+        monkeypatch.delenv("ANIWORLD_DOWNLOAD_PATH", raising=False)
+    else:
+        monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", setting)
+
+    assert direct_provider_download() == home / folder / "input.mkv"
+
+
+@pytest.mark.parametrize("existing", [False, True])
+def test_direct_provider_download_preserves_absolute_root(
+    home, tmp_path, monkeypatch, direct_provider_download, existing
+):
+    destination = tmp_path / "Absolute media" / "Videos"
+    if existing:
+        destination.mkdir(parents=True)
+    monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", str(destination))
+
+    assert direct_provider_download() == destination / "input.mkv"
+
+
+@pytest.mark.parametrize("path_type", ["relative", "tilde", "absolute"])
+def test_direct_provider_download_uses_cli_output(
+    home, tmp_path, monkeypatch, direct_provider_download, path_type
+):
+    if path_type == "relative":
+        value = "Media with spaces/Videos"
+        destination = Path.cwd() / value
+    elif path_type == "tilde":
+        value = "~/Media with spaces/Videos"
+        destination = home / "Media with spaces" / "Videos"
+    else:
+        destination = tmp_path / "Absolute media" / "Videos"
+        value = str(destination)
+    monkeypatch.setenv("ANIWORLD_DOWNLOAD_PATH", "~/ignored")
+
+    assert direct_provider_download("--output", value) == destination / "input.mkv"
+    assert not (home / "ignored").exists()
+
+
 def test_mangafire_download_uses_expanded_selected_path(home, monkeypatch):
     series = SimpleNamespace(title="Velvet Kiss")
     chapter = MangaFireToChapter(

@@ -4,6 +4,7 @@ import ast
 import os
 import re
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 from dotenv import dotenv_values
@@ -50,7 +51,7 @@ def test_nonblank_install_folder_preserves_spaces(tmp_path, monkeypatch, source)
     monkeypatch.setattr(Path, "home", lambda: home)
     example = tmp_path / "example"
     example.write_text("ANIWORLD_INSTALL_FOLDER=.aniworld\n")
-    value = "  custom data  "
+    value = "custom data"
     if source == "environment":
         monkeypatch.setenv("ANIWORLD_INSTALL_FOLDER", value)
     else:
@@ -60,6 +61,21 @@ def test_nonblank_install_folder_preserves_spaces(tmp_path, monkeypatch, source)
     expected_dir = (home / value).resolve()
     assert initialize_app_env(example, default_dir) == expected_dir
     assert (expected_dir / ".env").is_file()
+
+
+def test_install_folder_resolution_preserves_surrounding_spaces(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    monkeypatch.setattr(Path, "home", lambda: home)
+    value = "  custom data  "
+    monkeypatch.setenv("ANIWORLD_INSTALL_FOLDER", value)
+    # Windows cannot reliably create a directory whose name ends in spaces.
+    merge = Mock()
+    monkeypatch.setattr("aniworld.env.merge_env", merge)
+    example = tmp_path / "example"
+
+    expected_dir = (home / value).resolve()
+    assert initialize_app_env(example, home / ".aniworld") == expected_dir
+    merge.assert_called_once_with(example, expected_dir / ".env")
 
 
 @pytest.mark.parametrize("default_encoding", ["utf-8", "cp1252"])

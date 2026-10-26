@@ -445,6 +445,7 @@ def parse_args():
 
         from .config import PROVIDER_HEADERS_D
         from .extractors import provider_functions
+        from .models.common.paths import resolve_download_path
 
         provider_key = (args.provider or "").strip()
         headers = PROVIDER_HEADERS_D.get(provider_key, {})
@@ -455,8 +456,9 @@ def parse_args():
             f"get_direct_link_from_{provider_key.lower()}"
         ](args.provider_url)
 
-        download_dir = os.getenv("ANIWORLD_DOWNLOAD_PATH", ".")
-        output_path = os.path.join(download_dir, "input.mkv")
+        download_dir = resolve_download_path()
+        download_dir.mkdir(parents=True, exist_ok=True)
+        output_path = str(download_dir / "input.mkv")
 
         (
             ffmpeg.input(
