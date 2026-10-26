@@ -10,6 +10,16 @@ ENV_LINE_RE = re.compile(r"^([^#\n=]+?)=(.*)$")
 CA_BUNDLE_ENV_VARS = ("REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "SSL_CERT_FILE")
 
 
+def resolve_env_directory(name: str, default: Path) -> Path:
+    """Use an absolute environment directory, otherwise its platform default."""
+    value = os.environ.get(name, "")
+    if value.strip():
+        path = Path(value)
+        if path.is_absolute():
+            return path
+    return default
+
+
 def initialize_app_env(example_path: Path, default_dir: Path) -> Path:
     """Resolve the app directory and load its .env file.
 

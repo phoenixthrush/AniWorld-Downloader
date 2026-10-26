@@ -189,3 +189,18 @@ def test_custom_browser_and_node_paths_are_preserved(
     assert os.environ["PLAYWRIGHT_BROWSERS_PATH"] == "/ms-playwright"
     assert os.environ["PLAYWRIGHT_NODEJS_PATH"] == "/custom/node"
     browser_install.install.assert_not_called()
+
+
+@pytest.mark.parametrize("value", ["0", "../custom-cache", "~/custom-cache"])
+def test_explicit_browser_cache_semantics_are_preserved(
+    browser_install, monkeypatch, value
+):
+    import os
+
+    monkeypatch.setenv("PLAYWRIGHT_BROWSERS_PATH", value)
+    browser_install.executable.touch()
+
+    autodeps.ensure_patchright_chromium()
+
+    assert os.environ["PLAYWRIGHT_BROWSERS_PATH"] == value
+    browser_install.install.assert_not_called()

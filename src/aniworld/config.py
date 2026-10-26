@@ -12,7 +12,7 @@ import certifi
 from niquests import Session
 from packaging.version import parse as parse_version
 
-from .env import CA_BUNDLE_ENV_VARS, initialize_app_env
+from .env import CA_BUNDLE_ENV_VARS, initialize_app_env, resolve_env_directory
 from .logger import get_logger
 
 VERSION = None
@@ -538,14 +538,20 @@ BURNINGSERIES_EPISODE_PATTERN = re.compile(
 
 # TODO: add many other directories and use them throughout the app
 
-# Determine mpv scripts directory
-# On Linux/macOS: ~/.config/mpv/scripts
-# On Windows: %APPDATA%\mpv\scripts
-if os.name == "nt":
-    MPV_CONFIG_DIR = Path(os.getenv("APPDATA")) / "mpv"
-else:
-    MPV_CONFIG_DIR = Path.home() / ".config" / "mpv"
 
+def _mpv_config_dir():
+    if os.name == "nt":
+        base = resolve_env_directory("APPDATA", Path.home() / "AppData" / "Roaming")
+    else:
+        base = resolve_env_directory("XDG_CONFIG_HOME", Path.home() / ".config")
+        value = os.environ.get("XDG_CONFIG_HOME", "")
+        if value and not Path(value).is_absolute():
+            # Some mpv builds otherwise read relative XDG paths in child processes.
+            os.environ["XDG_CONFIG_HOME"] = str(base)
+    return base / "mpv"
+
+
+MPV_CONFIG_DIR = _mpv_config_dir()
 MPV_SCRIPTS_DIR = MPV_CONFIG_DIR / "scripts"
 
 

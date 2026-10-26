@@ -11,11 +11,13 @@ PLATFORM = platform.system()
 try:
     from .common import fetch_github_asset_urls
     from .config import ANIWORLD_CONFIG_DIR, GLOBAL_SESSION
+    from .env import resolve_env_directory
     from .logger import get_logger
 
 except ImportError:
     from aniworld.common import fetch_github_asset_urls
     from aniworld.config import ANIWORLD_CONFIG_DIR, GLOBAL_SESSION
+    from aniworld.env import resolve_env_directory
     from aniworld.logger import get_logger
 
 
@@ -481,15 +483,15 @@ def _ensure_xvfb():
 def _default_playwright_browsers_path() -> Path:
     """Return Playwright's platform-specific browser cache directory."""
     if PLATFORM == "Windows":
-        local_app_data = os.environ.get("LOCALAPPDATA")
-        if local_app_data:
-            return Path(local_app_data) / "ms-playwright"
-        return Path.home() / "AppData" / "Local" / "ms-playwright"
+        cache_dir = resolve_env_directory(
+            "LOCALAPPDATA", Path.home() / "AppData" / "Local"
+        )
+        return cache_dir / "ms-playwright"
 
     if PLATFORM == "Darwin":
         return Path.home() / "Library" / "Caches" / "ms-playwright"
 
-    cache_dir = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
+    cache_dir = resolve_env_directory("XDG_CACHE_HOME", Path.home() / ".cache")
     return cache_dir / "ms-playwright"
 
 
