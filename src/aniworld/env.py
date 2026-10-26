@@ -22,6 +22,8 @@ def initialize_app_env(example_path: Path, default_dir: Path) -> Path:
     configured_dir = os.environ.get("ANIWORLD_INSTALL_FOLDER")
     if configured_dir is None and default_env_path.exists():
         configured_dir = dotenv_values(default_env_path).get("ANIWORLD_INSTALL_FOLDER")
+    if configured_dir is not None and not configured_dir.strip():
+        configured_dir = None
 
     app_dir = Path(configured_dir or default_dir).expanduser()
     if not app_dir.is_absolute():

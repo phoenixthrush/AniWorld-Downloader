@@ -8,10 +8,58 @@ from pathlib import Path
 import pytest
 from dotenv import dotenv_values
 
-from aniworld.env import merge_env
+from aniworld.env import initialize_app_env, merge_env
 from aniworld.web.media import SITE_KEYS
 
 SOURCE = Path(__file__).resolve().parents[1] / "src" / "aniworld"
+
+
+@pytest.mark.parametrize("source", ["environment", "dotenv"])
+@pytest.mark.parametrize("value", ["", "   ", "\t \t"])
+def test_blank_install_folder_uses_default_directory(
+    tmp_path, monkeypatch, source, value
+):
+    home = tmp_path / "home"
+    default_dir = home / ".aniworld"
+    default_dir.mkdir(parents=True)
+    monkeypatch.setattr(Path, "home", lambda: home)
+    example = tmp_path / "example"
+    example.write_text(
+        "ANIWORLD_INSTALL_FOLDER=.aniworld\nANIWORLD_LANGUAGE=German Dub\n"
+    )
+    saved_folder = value if source == "dotenv" else "relocated"
+    env_path = default_dir / ".env"
+    env_path.write_text(
+        f'ANIWORLD_INSTALL_FOLDER="{saved_folder}"\nANIWORLD_LANGUAGE=English Dub\n'
+    )
+    if source == "environment":
+        monkeypatch.setenv("ANIWORLD_INSTALL_FOLDER", value)
+    else:
+        monkeypatch.delenv("ANIWORLD_INSTALL_FOLDER", raising=False)
+
+    assert initialize_app_env(example, default_dir) == default_dir
+    assert dotenv_values(env_path)["ANIWORLD_LANGUAGE"] == "English Dub"
+    assert list(home.iterdir()) == [default_dir]
+
+
+@pytest.mark.parametrize("source", ["environment", "dotenv"])
+def test_nonblank_install_folder_preserves_spaces(tmp_path, monkeypatch, source):
+    home = tmp_path / "home"
+    default_dir = home / ".aniworld"
+    default_dir.mkdir(parents=True)
+    monkeypatch.setattr(Path, "home", lambda: home)
+    example = tmp_path / "example"
+    example.write_text("ANIWORLD_INSTALL_FOLDER=.aniworld\n")
+    value = "  custom data  "
+    if source == "environment":
+        monkeypatch.setenv("ANIWORLD_INSTALL_FOLDER", value)
+    else:
+        monkeypatch.delenv("ANIWORLD_INSTALL_FOLDER", raising=False)
+        (default_dir / ".env").write_text(f'ANIWORLD_INSTALL_FOLDER="{value}"\n')
+
+    expected_dir = (home / value).resolve()
+    assert initialize_app_env(example, default_dir) == expected_dir
+    assert (expected_dir / ".env").is_file()
 
 
 @pytest.mark.parametrize("default_encoding", ["utf-8", "cp1252"])
