@@ -15,7 +15,7 @@ from ...logger import get_logger
 from ...models.common import clean_title
 from ...models.mangafire_to.series import _get as get_mangafire
 from ...models.moflix_stream.http import MoflixError
-from ...providers import resolve_provider
+from ...providers import normalize_url, resolve_provider
 from ...search import (
     GENRE_PAGE_SIZE,
     fetch_burningseries_series,
@@ -162,6 +162,7 @@ def series():
 
     provider = None
     try:
+        url = normalize_url(url)
         provider = resolve_provider(url)
         found = _series_model(provider, url)
         return jsonify(
@@ -222,6 +223,7 @@ def seasons():
 
     provider = None
     try:
+        url = normalize_url(url)
         provider = resolve_provider(url)
         if provider.name in SINGLE_PAGE_SITES:
             return jsonify({"seasons": _single_page_seasons(provider, url)})
@@ -304,6 +306,8 @@ def episodes():
     series_url = request.args.get("series_url", "").strip() or None
     provider = None
     try:
+        url = normalize_url(url)
+        series_url = normalize_url(series_url)
         provider = resolve_provider(url)
         if provider.name in SINGLE_PAGE_SITES:
             return jsonify({"episodes": _single_page_episodes(provider, url)})
@@ -530,6 +534,7 @@ def providers():
         return jsonify({"error": "url is required"}), 400
 
     try:
+        url = normalize_url(url)
         provider = resolve_provider(url)
         if provider.name == "MangaFire":
             return jsonify({"providers": {}})

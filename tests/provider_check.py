@@ -151,8 +151,9 @@ def line(status, label, detail, took=None):
 # ---------------------------------------------------------------------------
 def first_episode(site_url):
     """An episode for `site_url`, resolving through series/season when needed."""
-    from aniworld.providers import resolve_provider
+    from aniworld.providers import normalize_url, resolve_provider
 
+    site_url = normalize_url(site_url)
     provider = resolve_provider(site_url)
     kwargs = {"url": site_url}
     if provider.name == "MegaKino":
@@ -347,7 +348,7 @@ def run_image_site(site_name, fetch_name):
     registry would say nothing. What matters is that a title still resolves to
     a chapter and that chapter to real page image URLs.
     """
-    from aniworld.providers import resolve_provider
+    from aniworld.providers import normalize_url, resolve_provider
 
     results = []
     print(f"\n=== {site_name} ===\n")
@@ -358,7 +359,7 @@ def run_image_site(site_name, fetch_name):
         return 1
 
     for title in titles:
-        url = title["url"]
+        url = normalize_url(title["url"])
         print(f"  discovered: {url}\n")
 
         provider = resolve_provider(url)

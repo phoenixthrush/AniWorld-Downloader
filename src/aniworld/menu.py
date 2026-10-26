@@ -11,7 +11,7 @@ import npyscreen
 
 from .config import INVERSE_LANG_KEY_MAP, LANG_LABELS, VERSION, logger
 from .models.common.paths import resolve_download_path
-from .providers import resolve_provider
+from .providers import normalize_url, resolve_provider
 
 
 def _extract_menu_languages(provider_name: str, provider_data: dict) -> list[str]:
@@ -167,7 +167,7 @@ class Action(Enum):
 class MenuApp(npyscreen.NPSApp):
     def __init__(self, url: str = ""):
         super().__init__()
-        self.url = url
+        self.url = normalize_url(url)
         self._episodes_widget = None
 
     def _calculate_layout(self, languages_count, providers_count):

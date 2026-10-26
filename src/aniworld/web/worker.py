@@ -9,7 +9,7 @@ import threading
 import time
 
 from ..logger import get_logger
-from ..providers import resolve_provider
+from ..providers import normalize_url, resolve_provider
 from . import db, paths
 from .media import mangafire_format
 
@@ -83,6 +83,7 @@ def _episode_request(entry):
 
 
 def _build_episode(url, extra, item, selected_path):
+    url = normalize_url(url)
     provider = resolve_provider(url)
     kwargs = {
         "url": url,
@@ -93,6 +94,7 @@ def _build_episode(url, extra, item, selected_path):
     series = None
     if provider.name == "MangaFire":
         series_url = extra.get("_series_url") or url.rstrip("/").rsplit("/", 2)[0]
+        series_url = normalize_url(series_url)
         try:
             series = provider.series_cls(url=series_url)
         except Exception:

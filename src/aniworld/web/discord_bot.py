@@ -15,7 +15,7 @@ import os
 import threading
 
 from ..logger import get_logger
-from ..providers import resolve_provider
+from ..providers import normalize_url, resolve_provider
 from . import db
 from .media import SITE_LABELS
 from .sitesearch import aggregate
@@ -197,6 +197,7 @@ def _default_provider():
 
 def _enqueue(title, url, media_type, language, provider, requester, requester_id):
     """Blocking: resolves the series and writes to sqlite, run in an executor."""
+    url = normalize_url(url)
     if media_type == "movie":
         episodes = [url]
     else:

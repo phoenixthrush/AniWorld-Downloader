@@ -22,7 +22,7 @@ from datetime import UTC, datetime, timedelta
 
 from ..config import LANG_CODE_MAP, LANG_KEY_MAP, LANG_LABELS
 from ..logger import get_logger
-from ..providers import resolve_provider
+from ..providers import normalize_url, resolve_provider
 from ..search import fetch_new_episodes
 from . import db, paths, schedule
 from .media import BADGE_ORDER, folder_matches_title
@@ -346,7 +346,7 @@ def _handle(candidate, provider_name):
     Reasons are shown verbatim on the Auto-Sync page, so they read as sentences.
     """
     title = candidate["title"]
-    series_url = candidate["series_url"]
+    series_url = normalize_url(candidate["series_url"])
     report = {"title": title, "series_url": series_url, "where": _where(candidate)}
 
     have_languages = detect_languages(candidate["folder"], candidate["lang_folder"])

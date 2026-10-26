@@ -8,7 +8,7 @@ from .config import ACTION_METHODS, ANIWORLD_CONFIG_DIR, VERSION
 from .env import merge_env
 from .logger import get_logger
 from .models.common import run_each
-from .providers import resolve_provider
+from .providers import normalize_url, resolve_provider
 
 merge_env(
     Path(__file__).resolve().parent / ".env.example",
@@ -68,6 +68,7 @@ def run_action(obj, action: str):
 
 
 def model_for_url(url):
+    url = normalize_url(url)
     provider = resolve_provider(url)
     # A video URL is one episode even when a site's franchise pattern overlaps.
     for pattern, model in (
@@ -159,6 +160,7 @@ def aniworld():
 
         # FIX: replace s.to with serienstream.to to avoid issues with s.to being down
         url = url.replace("://s.to", "://serienstream.to")
+        url = normalize_url(url)
 
         provider = resolve_provider(url)
 

@@ -344,7 +344,7 @@ def test_cli_download_dispatch(monkeypatch, url, cls, no_menu):
     calls = []
     monkeypatch.setattr(cls, "download", lambda self: calls.append(self.url))
     assert entry.aniworld() == 0
-    assert calls == [url]
+    assert calls == [url.rstrip("/")]
 
 
 def test_http_fallback_preserves_request_options(monkeypatch):
