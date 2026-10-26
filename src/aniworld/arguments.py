@@ -397,10 +397,11 @@ def parse_args():
         os.environ["ANIWORLD_USE_STO_SEARCH"] = "1"
 
     if args.output:
+        output_path = os.path.expanduser(args.output)
         os.environ["ANIWORLD_DOWNLOAD_PATH"] = (
-            os.path.abspath(args.output)
-            if not os.path.isabs(args.output)
-            else args.output
+            os.path.abspath(output_path)
+            if not os.path.isabs(output_path)
+            else output_path
         )
 
     if args.anime4k:
@@ -429,7 +430,7 @@ def parse_args():
 
     if args.episode_file:
         try:
-            with open(args.episode_file, "r") as f:
+            with open(os.path.expanduser(args.episode_file), "r") as f:
                 for line in f:
                     u = line.strip()
                     if u:

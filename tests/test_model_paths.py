@@ -1,5 +1,6 @@
 """Backend download roots share one policy without changing CLI destinations."""
 
+import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -163,6 +164,52 @@ def test_relative_cli_output_stays_beneath_working_directory(model, home, monkey
     monkeypatch.setattr(sys, "argv", ["aniworld", "--output", "./downloads"])
     arguments.parse_args()
     assert Path(model().selected_path) == Path.cwd() / "downloads"
+
+
+@pytest.mark.parametrize(
+    "value,folder", [("~", ""), ("~/Videos with spaces", "Videos with spaces")]
+)
+def test_quoted_cli_output_expands_tilde(home, monkeypatch, value, folder):
+    monkeypatch.setattr(sys, "argv", ["aniworld", "--output", value])
+
+    arguments.parse_args()
+
+    assert Path(os.environ["ANIWORLD_DOWNLOAD_PATH"]) == home / folder
+
+
+def test_absolute_cli_output_preserves_parent_components(home, monkeypatch, tmp_path):
+    destination = tmp_path / "Media with spaces" / ".." / "Videos"
+    monkeypatch.setattr(sys, "argv", ["aniworld", "--output", str(destination)])
+
+    arguments.parse_args()
+
+    assert os.environ["ANIWORLD_DOWNLOAD_PATH"] == str(destination)
+
+
+@pytest.mark.parametrize("path_type", ["tilde", "relative", "absolute"])
+def test_cli_episode_file_loads_urls(home, monkeypatch, path_type):
+    base = Path.cwd() if path_type == "relative" else home
+    episode_file = base / "Episode lists" / "urls.txt"
+    episode_file.parent.mkdir()
+    urls = [
+        "https://aniworld.to/anime/stream/example/staffel-1/episode-1",
+        "https://aniworld.to/anime/stream/example/staffel-1/episode-2",
+    ]
+    episode_file.write_text(f"\n  {urls[0]}  \n\n{urls[1]}\n")
+    if path_type == "tilde":
+        value = "~/Episode lists/urls.txt"
+    elif path_type == "relative":
+        value = str(episode_file.relative_to(Path.cwd()))
+    else:
+        value = str(episode_file)
+    positional_url = "https://aniworld.to/anime/stream/example/staffel-1/episode-3"
+    monkeypatch.setattr(
+        sys, "argv", ["aniworld", positional_url, "--episode-file", value]
+    )
+
+    args = arguments.parse_args()
+
+    assert args.url == [positional_url, *urls]
 
 
 def test_mangafire_download_uses_expanded_selected_path(home, monkeypatch):
