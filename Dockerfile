@@ -42,7 +42,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install patchright && \
     python -m patchright install chromium --no-shell && \
     rm -rf /ms-playwright/ffmpeg-* && \
-    find /ms-playwright -name "*.pak*" | grep -vE "(resources|chrome_100|chrome_200|de|en-US|en-GB)\.pak" | xargs -r rm -f && \
+    find /ms-playwright -name "*.pak*" | grep -vE "/(resources|chrome_(100|200)_percent|de|en-US|en-GB)\.pak$" | xargs -r rm -f && \
     chrome_dir=$(ls -d /ms-playwright/chromium-* | grep -v headless_shell | head -n 1) && \
     chrome_inner_dir=$(ls -d "$chrome_dir"/chrome-* | head -n 1) && \
     arch=$(dpkg --print-architecture) && \
@@ -104,7 +104,9 @@ RUN adduser --disabled-password --gecos "" aniworld \
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends --option=Apt::Retries=3 \
+    tini \
     xvfb \
+    xauth \
     ffmpeg \
     libnss3 \
     libnspr4 \
@@ -136,7 +138,6 @@ ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     ANIWORLD_DOWNLOAD_PATH=/app/Downloads \
     ANIWORLD_MENU_DOWNLOAD_ONLY=1 \
-    DISPLAY=:99 \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
     NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 
@@ -147,8 +148,9 @@ USER aniworld
 
 EXPOSE 8080
 
-# This command will be inherited by the final stage
-CMD ["sh", "-c", "Xvfb :99 -screen 0 1280x720x24 -nolisten tcp & sleep 1 && exec aniworld --web-ui --web-expose --no-browser --web-port 8080"]
+# Wait for a working display before starting the app, including custom commands.
+ENTRYPOINT ["tini", "-g", "--", "xvfb-run", "-a", "-s", "-screen 0 1280x720x24"]
+CMD ["aniworld", "--web-ui", "--web-expose", "--no-browser", "--web-port", "8080"]
 
 
 # ==========================================
@@ -165,7 +167,6 @@ ENV PATH="/opt/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:
     PYTHONUNBUFFERED=1 \
     ANIWORLD_DOWNLOAD_PATH=/app/Downloads \
     ANIWORLD_MENU_DOWNLOAD_ONLY=1 \
-    DISPLAY=:99 \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
     NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 
@@ -175,4 +176,5 @@ USER aniworld
 
 EXPOSE 8080
 
-CMD ["sh", "-c", "Xvfb :99 -screen 0 1280x720x24 -nolisten tcp & sleep 1 && exec aniworld --web-ui --web-expose --no-browser --web-port 8080"]
+ENTRYPOINT ["tini", "-g", "--", "xvfb-run", "-a", "-s", "-screen 0 1280x720x24"]
+CMD ["aniworld", "--web-ui", "--web-expose", "--no-browser", "--web-port", "8080"]
