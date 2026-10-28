@@ -1513,7 +1513,7 @@ def watch(self):
         from ...aniskip import build_mpv_flags, setup_aniskip
 
         setup_aniskip()
-        skip_flags = build_mpv_flags(skip_times).split()
+        skip_flags = build_mpv_flags(skip_times)
         logger.debug(f"[SKIP TIMES FOUND]: {skip_flags}")
     else:
         skip_flags = []
@@ -1638,7 +1638,7 @@ def syncplay(self):
         from ...aniskip import build_mpv_flags, setup_aniskip
 
         setup_aniskip()
-        skip_flags = build_mpv_flags(skip_times).split()
+        skip_flags = build_mpv_flags(skip_times)
         cmd.extend(skip_flags)
         logger.debug(f"[SKIP TIMES FOUND]: {skip_flags}")
 

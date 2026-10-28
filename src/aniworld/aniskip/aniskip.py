@@ -56,13 +56,13 @@ def ftoi(seconds: float) -> int:
     return round(seconds * 1000)
 
 
-def build_mpv_flags(skip_data) -> str:
+def build_mpv_flags(skip_data) -> list[str]:
     """
     Build MPV command flags based on AniSkip API response.
-    Returns a string with --chapters-file and --script-opts options.
+    Return separate arguments so chapter paths containing spaces stay intact.
     """
     if not skip_data or skip_data.get("found") is not True:
-        return ""
+        return []
 
     options_list = []
     with tempfile.NamedTemporaryFile("w", delete=False) as chapters_file:
@@ -80,7 +80,10 @@ def build_mpv_flags(skip_data) -> str:
 
     options_str = ",".join(options_list)
 
-    return f"--chapters-file={chapters_file.name} --script-opts={options_str}"
+    return [
+        f"--chapters-file={chapters_file.name}",
+        f"--script-opts={options_str}",
+    ]
 
 
 if __name__ == "__main__":
