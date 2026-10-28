@@ -1,4 +1,4 @@
-"""Regressions for missing Chromium and permanently deleted VOE links (#305)."""
+"""Regressions for provider failures and preview URL construction."""
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock
@@ -8,6 +8,59 @@ import pytest
 from aniworld.extractors.provider import voe
 from aniworld.models.s_to import episode as sto
 from aniworld.playwright import captcha
+
+
+@pytest.fixture
+def voe_preview_session(monkeypatch):
+    session = SimpleNamespace(
+        get=Mock(return_value=SimpleNamespace(text="", raise_for_status=Mock())),
+        head=Mock(
+            return_value=SimpleNamespace(
+                headers={"Content-Type": "image/jpeg"}, raise_for_status=Mock()
+            )
+        ),
+    )
+    monkeypatch.setattr(voe, "GLOBAL_SESSION", session)
+    return session
+
+
+@pytest.mark.parametrize("quote", ["'", '"'])
+@pytest.mark.parametrize("padding", ["", " \n\t"])
+def test_voe_preview_requests_the_unquoted_url(voe_preview_session, quote, padding):
+    session = voe_preview_session
+    session.get.return_value.text = (
+        f"window.location = {quote}{padding}https://mirror.example/e/abc{quote};"
+    )
+    headers = {"Referer": "https://voe.sx/"}
+    expected = "https://mirror.example/cache/abc_storyboard_L2.jpg"
+
+    result = voe.get_preview_image_link_from_voe(
+        "https://voe.sx/e/start", headers=headers
+    )
+
+    assert result == expected
+    session.get.assert_called_once_with("https://voe.sx/e/start", headers=headers)
+    session.head.assert_called_once_with(
+        expected, headers=headers, allow_redirects=True
+    )
+    session.get.return_value.raise_for_status.assert_called_once()
+    session.head.return_value.raise_for_status.assert_called_once()
+
+
+def test_voe_preview_without_a_redirect_does_not_request_an_image(voe_preview_session):
+    with pytest.raises(ValueError, match="No redirect URL found"):
+        voe.get_preview_image_link_from_voe("https://voe.sx/e/start")
+    voe_preview_session.head.assert_not_called()
+
+
+def test_voe_preview_rejects_a_non_image_response(voe_preview_session):
+    voe_preview_session.get.return_value.text = (
+        'window.location = "https://mirror.example/e/abc";'
+    )
+    voe_preview_session.head.return_value.headers = {"Content-Type": "text/html"}
+
+    with pytest.raises(ValueError, match="Preview image not reachable"):
+        voe.get_preview_image_link_from_voe("https://voe.sx/e/start")
 
 
 @pytest.mark.parametrize("status", [404, 410])

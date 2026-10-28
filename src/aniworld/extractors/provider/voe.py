@@ -250,7 +250,7 @@ def get_preview_image_link_from_voe(embeded_voe_link, headers=None):
         if not redirect_match:
             raise ValueError("No redirect URL found in VOE response.")
 
-        redirect_url = redirect_match.group(0)
+        redirect_url = redirect_match.group(1).strip()
         image_url = f"{redirect_url.replace('/e/', '/cache/')}_storyboard_L2.jpg"
 
         head_resp = GLOBAL_SESSION.head(
