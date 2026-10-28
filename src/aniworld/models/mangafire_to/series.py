@@ -196,8 +196,8 @@ class MangaFireToPage:
         """Download the page image."""
         if folder is None:
             folder = (
-                resolve_download_path()
-                / _safe_name(self.chapter.series.title)
+                Path(self.chapter.selected_path)
+                / _safe_name(self.chapter.series_title)
                 / self.chapter.folder_name
             )
         else:
@@ -453,6 +453,14 @@ class MangaFireToChapter:
         return self._series
 
     @property
+    def series_title(self) -> str:
+        """Use parent metadata or the manga title embedded in the chapter data."""
+        if self._series is not None:
+            return self._series.title
+        title = self.chapter_data.get("title") or {}
+        return title.get("name") or self.series.title
+
+    @property
     def url(self) -> str:
         """Return the canonical chapter url."""
         return self.chapter_url
@@ -476,18 +484,11 @@ class MangaFireToChapter:
                 ) from exc
 
         self.__load_volume_metadata()
-        chapter_title = (
-            getattr(self._series, "title", "")
-            if self._series is not None
-            else (
-                self.chapter_data.get("title", {}).get("name", "")
-                if self.is_volume
-                else self.chapter_name or f"Chapter {self.chapter_number}"
-            )
-        )
         if folder is None:
             folder = (
-                Path(self.selected_path) / _safe_name(chapter_title) / self.folder_name
+                Path(self.selected_path)
+                / _safe_name(self.series_title)
+                / self.folder_name
             )
         else:
             folder = Path(folder)
@@ -570,7 +571,7 @@ class MangaFireToChapter:
                         (page.file_name, (folder / page.file_name).read_bytes())
                         for page in pages_to_download
                     )
-                    write_epub(zf, self, chapter_title, images)
+                    write_epub(zf, self, self.series_title, images)
                 else:
                     if existing_files:
                         with zipfile.ZipFile(archive_path, "r") as existing:
