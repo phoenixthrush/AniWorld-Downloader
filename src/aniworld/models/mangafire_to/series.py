@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import zipfile
 import zlib
+from decimal import Decimal
 from os import getenv
 from pathlib import Path
 from pprint import pprint
@@ -115,6 +116,12 @@ def _strip_html(value: str) -> str:
     text = re.sub(r"<[^>]+>", " ", value)
     text = re.sub(r"\s+", " ", text).strip()
     return text
+
+
+def _chapter_key(url: str):
+    """Identify a chapter independently of the title slug and number formatting."""
+    title, _, number = urlparse(url).path.rstrip("/").rsplit("/", 2)
+    return title.rsplit("/", 1)[-1].split("-", 1)[0], Decimal(number)
 
 
 # -----------------------------
@@ -252,7 +259,7 @@ class MangaFireToChapter:
         self.chapter_url = url
         self.chapter_id = chapter_id
         if self.is_volume and self.chapter_id is None:
-            self.chapter_id = int(url.rstrip("/").rsplit("/", 1)[-1])
+            self.chapter_id = int(urlparse(url).path.rstrip("/").rsplit("/", 1)[-1])
         self.chapter_number = chapter_number
         self.chapter_name = chapter_name
         self.chapter_language = chapter_language
@@ -290,7 +297,7 @@ class MangaFireToChapter:
 
     def __extract_chapter_number_from_url(self, chapter_url: str):
         """Return the chapter number encoded in a MangaFire chapter url."""
-        chapter_part = chapter_url.rstrip("/").rsplit("/chapter/", 1)[-1]
+        chapter_part = urlparse(chapter_url).path.rstrip("/").rsplit("/", 1)[-1]
         try:
             value = float(chapter_part)
         except ValueError:
@@ -307,8 +314,10 @@ class MangaFireToChapter:
         except Exception:
             chapters = []
 
+        key = _chapter_key(self.chapter_url)
         for chapter in chapters:
-            if getattr(chapter, "chapter_url", "") == self.chapter_url:
+            chapter_url = getattr(chapter, "chapter_url", "")
+            if chapter_url and _chapter_key(chapter_url) == key:
                 self.chapter_id = getattr(chapter, "chapter_id", self.chapter_id)
                 self.chapter_number = getattr(
                     chapter, "chapter_number", self.chapter_number
@@ -346,7 +355,11 @@ class MangaFireToChapter:
         if self.__chapter_data is None:
             if not self.chapter_id:
                 self.__load_metadata_from_series()
-                self.chapter_api_url = CHAPTER_API.format(self.chapter_id or 0)
+                if not self.chapter_id:
+                    raise ValueError(
+                        f"Could not resolve MangaFire chapter ID: {self.chapter_url}"
+                    )
+                self.chapter_api_url = CHAPTER_API.format(self.chapter_id)
             response = _get(self.chapter_api_url)
             self.__chapter_data = response.json().get("data", {})
         return self.__chapter_data
@@ -623,12 +636,13 @@ class MangaFireToSeries:
         self.__load_from_series_url(series_url)
 
     def __load_from_series_url(self, series_url: str) -> None:
-        """Load series data from a MangaFire title url."""
-        slug_part = series_url.rstrip("/").split("/title/")[-1]
+        """Read the title ID and optional display slug from a MangaFire URL."""
+        slug_part = urlparse(series_url).path.strip("/").split("/")[1]
+        hid, _, slug = slug_part.partition("-")
         self.__series_item = {
-            "hid": slug_part.split("-")[0],
-            "slug": "-".join(slug_part.split("-")[1:]),
-            "title": slug_part.split("-", 1)[1].replace("-", " ").title(),
+            "hid": hid,
+            "slug": slug,
+            "title": slug.replace("-", " ").title() or hid,
         }
 
     def __load_series_metadata(self) -> None:

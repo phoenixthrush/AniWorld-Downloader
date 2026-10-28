@@ -548,6 +548,120 @@ def test_direct_volume_url_uses_id_but_names_file_by_number(
     assert calls.count("/zlwvm/2.png") == 1
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        DARLING,
+        DARLING + "/",
+        "https://mangafire.to/title/zlwvm",
+        "http://www.mangafire.to/title/zlwvm/",
+    ],
+)
+def test_title_url_forms_resolve_the_same_manga(volume_api, url):
+    _, _, calls = volume_api
+
+    series = manga.MangaFireToSeries(url)
+
+    assert calls == []
+    assert series.hid == "zlwvm"
+    assert series.title == "DARLING in the FRANXX"
+    assert calls == ["titles/zlwvm"]
+
+
+def test_id_only_title_without_display_metadata_uses_id(volume_api):
+    _, payloads, _ = volume_api
+    del payloads["titles/zlwvm"]["data"]["title"]
+
+    series = manga.MangaFireToSeries("https://mangafire.to/title/zlwvm")
+
+    assert series.title == "zlwvm"
+
+
+@pytest.mark.parametrize("with_parent", [False, True])
+@pytest.mark.parametrize(
+    "url,number",
+    [
+        (DARLING + "/chapter/1", 1),
+        (DARLING + "/chapter/1/", 1),
+        ("https://mangafire.to/title/zlwvm/chapter/1", 1),
+        ("http://www.mangafire.to/title/zlwvm-other-slug/chapter/01.0/", 1),
+        (DARLING + "/chapter/1.5", 1.5),
+        ("https://mangafire.to/title/zlwvm/chapter/1.50/", 1.5),
+    ],
+)
+def test_chapter_url_forms_resolve_and_download(
+    tmp_path, volume_api, with_parent, url, number
+):
+    parent, payloads, calls = volume_api
+    fractional = payloads["titles/zlwvm/chapters"]["items"][0].copy()
+    fractional.update(id=4532230, number=1.5)
+    payloads["titles/zlwvm/chapters"]["items"].append(fractional)
+    payloads["chapters/4532230"] = {
+        "data": {**payloads["chapters/4532228"]["data"], "id": 4532230, "number": 1.5}
+    }
+    chapter_id = 4532228 if number == 1 else 4532230
+
+    chapter = manga.MangaFireToChapter(
+        url,
+        series=parent if with_parent else None,
+        selected_path=tmp_path,
+        format="jpg",
+    )
+
+    assert chapter.chapter_id == chapter_id
+    assert chapter.chapter_number == number
+    destination = chapter.download()
+    assert destination == tmp_path / "DARLING in the FRANXX" / f"Chapter {number}"
+    assert (destination / "001.png").read_bytes() == image_bytes()
+    assert (destination / "002.png").read_bytes() == image_bytes()
+    assert f"chapters/{chapter_id}" in calls
+    assert "chapters/0" not in calls
+
+
+@pytest.mark.parametrize("series_url", [DARLING, "https://mangafire.to/title/zlwvm"])
+@pytest.mark.parametrize("with_series_url", [False, True])
+def test_web_chapter_url_forms_return_pages(
+    client, volume_api, series_url, with_series_url
+):
+    query = {"url": series_url + "/chapter/1"}
+    if with_series_url:
+        query["series_url"] = DARLING
+
+    response = client.get("/api/episodes", query_string=query)
+
+    assert response.status_code == 200
+    assert [page["page_number"] for page in response.json["episodes"]] == [1, 2]
+
+
+def test_web_id_only_title_returns_metadata(client, volume_api):
+    response = client.get(
+        "/api/series", query_string={"url": "https://mangafire.to/title/zlwvm"}
+    )
+
+    assert response.status_code == 200
+    assert response.json["title"] == "DARLING in the FRANXX"
+
+
+@pytest.mark.parametrize("series_url", [DARLING, "https://mangafire.to/title/zlwvm"])
+def test_unknown_chapter_does_not_request_id_zero(volume_api, series_url):
+    _, _, calls = volume_api
+    chapter = manga.MangaFireToChapter(series_url + "/chapter/99")
+
+    with pytest.raises(ValueError, match="Could not resolve MangaFire chapter ID"):
+        _ = chapter.pages
+    assert "chapters/0" not in calls
+
+
+def test_chapter_does_not_match_another_mangas_number(volume_api):
+    _, _, calls = volume_api
+    parent = manga.MangaFireToSeries(VELVET_KISS)
+    chapter = manga.MangaFireToChapter(DARLING + "/chapter/1", series=parent)
+
+    with pytest.raises(ValueError, match="Could not resolve MangaFire chapter ID"):
+        _ = chapter.pages
+    assert not any(call.startswith("chapters/") for call in calls)
+
+
 @pytest.mark.parametrize("kind,unit_id", [("chapter", 1), ("volume", 250113)])
 @pytest.mark.parametrize(
     "root_type", ["absolute", "relative", "tilde", "configured", "default"]
