@@ -59,6 +59,11 @@ ANIWORLD_CONFIG_DIR = initialize_app_env(
     Path.home() / ".aniworld",
 )
 
+for key in CA_BUNDLE_ENV_VARS:
+    value = os.environ.get(key)
+    if value:
+        os.environ[key] = os.path.expanduser(value)
+
 CA_CERT_BUNDLE = next(
     (os.environ[key] for key in CA_BUNDLE_ENV_VARS if os.environ.get(key)),
     certifi.where(),

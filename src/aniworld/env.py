@@ -54,6 +54,8 @@ def initialize_app_env(example_path: Path, default_dir: Path) -> Path:
 
 
 def merge_env(example_path: Path, env_path: Path):
+    example_path = Path(example_path).expanduser()
+    env_path = Path(env_path).expanduser()
     env_path.parent.mkdir(parents=True, exist_ok=True)
     if not example_path.exists():
         if env_path.exists():
@@ -115,7 +117,7 @@ def persist_env_values(env_path: Path, updates: dict):
     survive a restart (e.g. the Discord bot config) while every other web-UI
     setting stays session-only.
     """
-    env_path = Path(env_path)
+    env_path = Path(env_path).expanduser()
     env_path.parent.mkdir(parents=True, exist_ok=True)
     lines = env_path.read_text().splitlines() if env_path.exists() else []
 

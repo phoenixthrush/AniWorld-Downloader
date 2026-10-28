@@ -30,5 +30,5 @@ def template_path(root, template, values, *, is_series, movie_folder=True):
         formatted.append(part)
     if not formatted:
         raise ValueError("Naming template does not produce a filename")
-    path = Path(root).joinpath(*formatted)
+    path = Path(root).expanduser().joinpath(*formatted)
     return path if Path(parts[-1]).suffix else Path(f"{path}.mkv")

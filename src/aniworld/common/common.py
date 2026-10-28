@@ -101,8 +101,8 @@ def fetch_github_asset_urls(repo, asset_patterns, release="latest"):
 
 
 def unzip(file_path, target_dir):
-    file_path = Path(file_path)
-    target_dir = Path(target_dir)
+    file_path = Path(file_path).expanduser()
+    target_dir = Path(target_dir).expanduser()
     target_dir.mkdir(parents=True, exist_ok=True)
 
     if file_path.suffix.lower() == ".zip":

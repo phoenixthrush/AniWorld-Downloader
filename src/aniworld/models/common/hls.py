@@ -473,7 +473,7 @@ def download_hls_parallel(
     if get_concurrency() == 1:
         raise HLSUnsupported("parallel HLS download disabled")
 
-    temp_prefix = Path(temp_prefix)
+    temp_prefix = Path(temp_prefix).expanduser()
     headers = _default_headers(headers)
 
     master_text = _fetch_text(stream_url, headers)
@@ -534,7 +534,7 @@ def download_hls_parallel(
 
 def cleanup_temp_files(temp_prefix):
     """Remove any partial files a previous HLS attempt may have left behind."""
-    temp_prefix = Path(temp_prefix)
+    temp_prefix = Path(temp_prefix).expanduser()
     for suffix in (
         ".hls_video.ts",
         ".hls_video.mp4",

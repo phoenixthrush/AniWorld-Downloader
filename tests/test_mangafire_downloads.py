@@ -792,6 +792,84 @@ def test_explicit_folder_needs_no_title_metadata(
     )
 
 
+@pytest.mark.parametrize(
+    "path_type", ["tilde-string", "tilde-path", "relative", "absolute"]
+)
+@pytest.mark.parametrize(
+    "scope,format",
+    [
+        ("image", "jpg"),
+        ("page", "jpg"),
+        ("chapter", "jpg"),
+        ("chapter", "cbz"),
+        ("chapter", "epub"),
+        ("series", "jpg"),
+        ("series", "cbz"),
+        ("series", "epub"),
+    ],
+)
+def test_explicit_destinations_expand_home_shortcut(
+    tmp_path, volume_api, monkeypatch, path_type, scope, format
+):
+    series, _, _ = volume_api
+    home = tmp_path / "home"
+    work = tmp_path / "work"
+    home.mkdir()
+    work.mkdir()
+    monkeypatch.setattr(Path, "home", lambda: home)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.chdir(work)
+    if path_type.startswith("tilde"):
+        argument = "~/Output with spaces"
+        expected = home / "Output with spaces"
+    elif path_type == "relative":
+        argument = "Output with spaces"
+        expected = Path(argument)
+    else:
+        expected = tmp_path / "Absolute output"
+        argument = str(expected)
+    if scope == "image":
+        argument += ".png"
+        expected = expected.with_name(expected.name + ".png")
+    if path_type == "tilde-path":
+        argument = Path(argument)
+    item = manga.MangaFireToChapter(
+        DARLING + "/chapter/1",
+        series=series,
+        chapter_id=4532228,
+        chapter_number=1,
+        format=format,
+    )
+
+    if scope == "image":
+        destination = item.pages[0].image.download(argument)
+        assert destination == expected
+        assert destination.read_bytes() == image_bytes()
+    elif scope == "page":
+        destination = item.pages[0].download(argument)
+        assert destination == expected / "001.png"
+        assert destination.read_bytes() == image_bytes()
+    else:
+        if scope == "series":
+            assert series.download(argument, chapters=[item], format=format) == expected
+            expected /= item.folder_name
+        else:
+            destination = item.download(argument)
+        if format == "jpg":
+            if scope == "chapter":
+                assert destination == expected
+            assert (expected / "001.png").read_bytes() == image_bytes()
+        else:
+            expected = expected.with_name(expected.name + f".{format}")
+            if scope == "chapter":
+                assert destination == expected
+            assert read_images(expected) == dict.fromkeys(
+                ("001.png", "002.png"), image_bytes()
+            )
+    assert not (work / "~").exists()
+
+
 def test_missing_title_metadata_does_not_create_a_wrong_destination(
     tmp_path, volume_api, monkeypatch
 ):

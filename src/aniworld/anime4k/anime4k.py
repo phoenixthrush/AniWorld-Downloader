@@ -46,7 +46,7 @@ def get_anime4k_urls():
 
 def download_anime4k(target_dir=None, mode="high"):
     """Download Anime4K GLSL assets only if not already extracted."""
-    target_dir = Path(target_dir or ANIWORLD_CONFIG_DIR) / "Anime4K"
+    target_dir = Path(target_dir or ANIWORLD_CONFIG_DIR).expanduser() / "Anime4K"
     target_dir.mkdir(parents=True, exist_ok=True)
 
     if mode == "remove":
@@ -82,10 +82,11 @@ def download_anime4k(target_dir=None, mode="high"):
 
 def extract_anime4k(files, target_dir=None):
     """Extract downloaded zip files and clean up."""
-    target_dir = Path(target_dir or ANIWORLD_CONFIG_DIR) / "Anime4K"
+    target_dir = Path(target_dir or ANIWORLD_CONFIG_DIR).expanduser() / "Anime4K"
     extracted_dirs = []
 
     for filepath in files:
+        filepath = Path(filepath).expanduser()
         extracted_dir = target_dir / filepath.stem
         if extracted_dir.exists():
             logger.debug(f"{extracted_dir} exists, skipping extraction.")
@@ -119,6 +120,8 @@ def detect_current_mode():
 
 def copy_with_markers(src_file, dst_file):
     """Copy a config file and wrap it with Anime4K markers."""
+    src_file = Path(src_file).expanduser()
+    dst_file = Path(dst_file).expanduser()
     with open(src_file, "r", encoding="utf-8") as f:
         content = f.read()
 
@@ -169,6 +172,7 @@ def setup_anime4k(mode="low"):
 
 def remove_anime4k_lines(file_path):
     """Remove Anime4K block from a config file."""
+    file_path = Path(file_path).expanduser()
     if not file_path.exists():
         return
 

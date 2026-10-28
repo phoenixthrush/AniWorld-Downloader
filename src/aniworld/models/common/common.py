@@ -198,6 +198,7 @@ def format_command_for_shell(cmd, windows: bool | None = None) -> str:
 
 
 def check_downloaded(episode_path):
+    episode_path = Path(episode_path).expanduser()
     result = {
         "exists": False,
         "video_langs": set(),

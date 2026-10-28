@@ -21,6 +21,8 @@ def load_config(monkeypatch, tmp_path):
     for key in CA_BUNDLE_ENV_VARS:
         monkeypatch.delenv(key, raising=False)
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
     app_dir = tmp_path / "config"
     app_dir.mkdir()
     env_path = app_dir / ".env"
@@ -50,21 +52,59 @@ def load_config(monkeypatch, tmp_path):
 
 @pytest.mark.parametrize("key", CA_BUNDLE_ENV_VARS)
 @pytest.mark.parametrize("source", ["file", "process"])
-def test_single_ca_setting_is_used_by_http_clients(load_config, key, source):
-    path = "/test/custom-ca.pem"
+@pytest.mark.parametrize("path_type", ["absolute", "tilde", "relative"])
+def test_single_ca_setting_is_used_by_http_clients(load_config, key, source, path_type):
+    path = {
+        "absolute": "/test/custom-ca.pem",
+        "tilde": "~/Certificates with spaces/custom-ca.pem",
+        "relative": "./Certificates with spaces/custom-ca.pem",
+    }[path_type]
+    expected = (
+        Path.home() / "Certificates with spaces/custom-ca.pem"
+        if path_type == "tilde"
+        else Path(path)
+    )
     values = {key: path}
     config, stored = load_config(
         file_values=values if source == "file" else None,
         process_values=values if source == "process" else None,
     )
 
-    assert config.CA_CERT_BUNDLE == path
-    assert config.GLOBAL_SESSION.verify == path
-    assert all(os.environ[name] == path for name in CA_BUNDLE_ENV_VARS)
+    assert Path(config.CA_CERT_BUNDLE) == expected
+    assert config.GLOBAL_SESSION.verify == config.CA_CERT_BUNDLE
+    assert all(Path(os.environ[name]) == expected for name in CA_BUNDLE_ENV_VARS)
+    if path_type != "tilde":
+        assert config.CA_CERT_BUNDLE == path
     with curl_requests.Session() as session:
-        assert session.verify == path
+        assert session.verify == config.CA_CERT_BUNDLE
     if source == "file":
         assert stored[key] == path
+
+
+def test_explicit_ca_paths_expand_independently(load_config):
+    values = {
+        "REQUESTS_CA_BUNDLE": "~/Certificates/requests.pem",
+        "CURL_CA_BUNDLE": "relative/curl.pem",
+        "SSL_CERT_FILE": "~/Certificates/ssl.pem",
+    }
+
+    config, stored = load_config(file_values=values)
+
+    assert Path(config.CA_CERT_BUNDLE) == Path.home() / "Certificates/requests.pem"
+    assert os.environ["CURL_CA_BUNDLE"] == "relative/curl.pem"
+    assert Path(os.environ["SSL_CERT_FILE"]) == Path.home() / "Certificates/ssl.pem"
+    assert {key: stored[key] for key in values} == values
+
+
+@pytest.mark.parametrize("key", CA_BUNDLE_ENV_VARS)
+def test_process_tilde_ca_path_overrides_file(load_config, key):
+    config, stored = load_config(
+        file_values={key: "~/Certificates/file.pem"},
+        process_values={key: "~/Certificates/process.pem"},
+    )
+
+    assert Path(config.CA_CERT_BUNDLE) == Path.home() / "Certificates/process.pem"
+    assert stored[key] == "~/Certificates/file.pem"
 
 
 @pytest.mark.parametrize("key", CA_BUNDLE_ENV_VARS)

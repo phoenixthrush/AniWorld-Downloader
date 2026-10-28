@@ -153,7 +153,7 @@ class MangaFireToImage:
 
     def download(self, file_path: str | Path) -> Path:
         """Download the image to disk."""
-        return _download_file(self.image_url, Path(file_path))
+        return _download_file(self.image_url, Path(file_path).expanduser())
 
 
 # -----------------------------
@@ -208,7 +208,7 @@ class MangaFireToPage:
                 / self.chapter.folder_name
             )
         else:
-            folder = Path(folder)
+            folder = Path(folder).expanduser()
 
         file_path = folder / self.file_name
         progress = (
@@ -504,7 +504,7 @@ class MangaFireToChapter:
                 / self.folder_name
             )
         else:
-            folder = Path(folder)
+            folder = Path(folder).expanduser()
 
         archive_path = folder.with_name(folder.name + f".{self.mangafire_format}")
 
@@ -873,7 +873,7 @@ class MangaFireToSeries:
         if folder is None:
             folder = resolve_download_path() / _safe_name(self.title)
         else:
-            folder = Path(folder)
+            folder = Path(folder).expanduser()
 
         folder.mkdir(parents=True, exist_ok=True)
 
