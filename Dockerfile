@@ -146,6 +146,9 @@ RUN chown -R aniworld:aniworld /app/Downloads /home/aniworld/.aniworld
 
 USER aniworld
 
+# Fail the build if the runtime is missing an SSO client dependency.
+RUN python -c "from authlib.integrations.flask_client import OAuth"
+
 EXPOSE 8080
 
 # Wait for a working display before starting the app, including custom commands.

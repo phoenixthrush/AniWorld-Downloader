@@ -40,12 +40,13 @@ epub = [
 ]
 sso = [
   "authlib", # >=3.10
+  "requests", # Authlib's Flask OAuth client
 ]
 discord = [
   "discord.py", # optional Discord request bot
 ]
 test = ["pytest"]
-all = ["authlib", "discord.py", "Pillow"]
+all = ["authlib", "requests", "discord.py", "Pillow"]
 
 
 [project.urls]

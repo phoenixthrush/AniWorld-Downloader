@@ -28,11 +28,13 @@ from . import apikeys, db
 
 logger = get_logger(__name__)
 
+_SSO_IMPORT_ERROR = None
 try:
     from authlib.integrations.flask_client import OAuth
 
     SSO_AVAILABLE = True
-except ImportError:  # authlib is an optional extra
+except ImportError as exc:  # authlib and its client dependencies are optional
+    _SSO_IMPORT_ERROR = exc
 
     class OAuth:  # type: ignore[no-redef]
         def init_app(self, app):
@@ -107,11 +109,13 @@ def init_oidc(app, force_sso=False):
         return
 
     if not SSO_AVAILABLE:
-        if force_sso:
-            raise RuntimeError("SSO login is forced, but authlib is not installed.")
-        logger.error(
-            "SSO enabled but authlib is not installed, SSO login is unavailable"
+        message = (
+            f"Could not import Authlib's Flask client: {_SSO_IMPORT_ERROR}. "
+            "Install or reinstall aniworld[sso]."
         )
+        if force_sso:
+            raise RuntimeError(f"SSO login is forced. {message}") from _SSO_IMPORT_ERROR
+        logger.error("SSO login is unavailable. %s", message)
         _disable_oidc(app)
         return
 
