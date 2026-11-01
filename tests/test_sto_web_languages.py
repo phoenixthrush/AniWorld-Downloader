@@ -66,3 +66,20 @@ def test_missing_season_flags_probe_only_one_episode(monkeypatch):
 
     assert provider_calls == [1]
     assert all(result["available_languages"] == ["German Dub"] for result in results)
+
+
+def test_subtitle_only_row_does_not_inherit_dubs_from_another_episode(monkeypatch):
+    provider_calls = []
+    season = SimpleNamespace(
+        episodes=[FakeEpisode(1, provider_calls), FakeEpisode(2, provider_calls)],
+        episode_languages={1: ("English Dub",), 2: ()},
+    )
+    monkeypatch.setattr(api_media, "_resolve_series", lambda *args: None)
+
+    results = api_media._season_episodes(_provider(season), "season-url", None)
+
+    assert provider_calls == []
+    assert [result["available_languages"] for result in results] == [
+        ["English Dub"],
+        [],
+    ]

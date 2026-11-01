@@ -177,12 +177,14 @@ class SerienstreamSeason:
             if not match:
                 continue
             labels = []
-            lowered = row.lower()
-            if "svg-flag-german" in lowered:
+            flags = set(re.findall(r"\bsvg-flag-[\w-]+", row.lower()))
+            if "svg-flag-german" in flags:
                 labels.append("German Dub")
-            if "svg-flag-english" in lowered:
+            if "svg-flag-english" in flags:
                 labels.append("English Dub")
-            if labels:
+            # Subtitle-only rows have flags, but no supported dub. Keep them
+            # empty so the UI does not borrow another episode's languages.
+            if flags:
                 languages[int(match.group(1))] = tuple(labels)
         return languages
 

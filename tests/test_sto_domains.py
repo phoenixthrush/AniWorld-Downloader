@@ -75,3 +75,31 @@ def test_episode_languages_are_read_from_season_rows():
         1: ("German Dub", "English Dub"),
         2: ("German Dub",),
     }
+
+
+@pytest.mark.parametrize(
+    ("dub_flags", "expected"),
+    [
+        ("", ()),
+        ('<i class="svg-flag-german"></i>', ("German Dub",)),
+        ('<i class="svg-flag-english"></i>', ("English Dub",)),
+    ],
+)
+def test_subtitle_flag_does_not_advertise_an_english_dub(dub_flags, expected):
+    season = SerienstreamSeason("https://serienstream.to/serie/fairy-tail/staffel-8")
+    season._SerienstreamSeason__html = f"""
+        <tr class="episode-row">
+          <td><a href="/serie/fairy-tail/staffel-8/episode-1">Episode 1</a></td>
+          <td>
+            <svg class="watch-language large svg-flag-english-german">
+              <use href="#icon-flag-english-german"></use>
+            </svg>
+            {dub_flags}
+          </td>
+        </tr>
+        <tr class="episode-row">
+          <td><a href="/serie/fairy-tail/staffel-8/episode-2">Episode 2</a></td>
+        </tr>
+    """
+
+    assert season.episode_languages == {1: expected}
