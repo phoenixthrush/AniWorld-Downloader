@@ -263,6 +263,7 @@ def _preview_episode(root, language):
         ),
         season=SimpleNamespace(season_number=1),
         episode_number=3,
+        title_en="",
         selected_path=str(root),
         selected_language=language,
     )

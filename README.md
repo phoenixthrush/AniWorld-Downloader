@@ -54,6 +54,7 @@ Prefer another installation method? Use [Docker](#docker) or download a standalo
 - Schedule Auto-Sync checks for AniWorld titles already downloaded to your library.
 - Choose available audio and subtitle languages, with fallback to other stream hosters.
 - Customize supported naming templates and output formats, including MKV/MP4 for video and JPG/CBZ/EPUB for manga; naming support varies by backend.
+- AniWorld and SerienStream use explicit episode numbers from English titles, including `[Episode N]` and `[JP Episode N]`, with seasonal numbering as fallback and existing seasonal downloads recognised.
 - Watch through external players, with AniSkip and Anime4K support where applicable.
 
 The Web UI also supports local accounts, optional OIDC SSO, custom CSS, and background shaders. SSO alongside local login requires both `--web-auth` and `--web-sso`; `--web-force-sso` enables SSO-only authentication. A JSON API and optional Discord request bot let you connect it to other tools. Features and language availability vary by site.
@@ -64,43 +65,43 @@ For CAPTCHA browser visibility, manual solving, timeouts, and debug logs, see [C
 
 AniWorld and SerienStream are the main focus of the project.
 
-See the [supported sites documentation](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/supported-sites) for live-check details and IP/VPN differences.
+See the [supported sites documentation](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/supported-sites) for accepted URLs, search capabilities and site switches. These are implemented integrations; availability depends on the source, title, hoster and connection.
 
-| Site | Content | Status | Notes |
+| Site | Content | Interfaces | Web UI default |
 | --- | --- | --- | --- |
-| AniWorld | Anime and anime movies | Stream URLs resolved | VOE, Doodstream, and Filemoon samples passed; Vidmoly failed |
-| SerienStream | Series | Stream URLs resolved | Both dub presets resolved VOE; CAPTCHA handling can block access |
-| MegaKino | Movies and series | Stream URLs resolved | Sampled title's VOE link passed; a separate MegaKino hoster sample also passed |
-| Filmo | Movies | Stream URLs resolved | VOE samples passed |
-| Moflix | Movies and series | Stream URLs resolved | MoflixClick and Vidara samples passed; verification can block title discovery |
-| MangaFire | Manga | Chapter/page URLs resolved | Two sample titles; archive creation and image downloads were not tested |
-| FilmPalast | Movies | Stream URL resolved | VOE sample passed; some requests returned no extractable source |
-| Hanime | Adult animation | Stream URL resolved | Trending feed can return HTTP 403 or require a CAPTCHA |
-| HentaiTV | Adult animation | Stream and poster URLs resolved | Optional Web UI tab; disabled by default |
-| AnimeIDHentai | Adult animation | Stream and poster URLs resolved; content unverified | Returned stream filename differed from the selected title; CLI/Python only |
-| HentaiHaven | Adult animation | Stream and poster URLs resolved | Optional Web UI tab; disabled by default |
-| Kinox | Movies and series | Blocked by verification CAPTCHA | Disabled by default |
-| BurningSeries | Series | Stream mirrors returned VPN warning pages | No usable mirror for the sample; stopped at the first blocked hoster |
+| AniWorld | Anime and anime movies | CLI, Python, Web UI | Enabled |
+| SerienStream | Series | CLI, Python, Web UI | Enabled |
+| MegaKino | Movies and series | CLI, Python, Web UI | Enabled |
+| Filmo | Movies | CLI, Python, Web UI | Enabled |
+| Moflix | Movies and series | CLI, Python, Web UI | Enabled |
+| MangaFire | Manga | CLI, Python, Web UI | Enabled |
+| FilmPalast | Movies | CLI, Python, Web UI | Enabled |
+| Hanime | Adult animation | CLI, Python, Web UI | Disabled |
+| HentaiTV | Adult animation | CLI, Python, Web UI | Disabled |
+| AnimeIDHentai | Adult animation | CLI, Python | No tab |
+| HentaiHaven | Adult animation | CLI, Python, Web UI | Disabled |
+| Kinox | Movies and series | CLI, Python, Web UI | Disabled |
+| BurningSeries | Series | CLI, Python, Web UI | Disabled |
 
 "Disabled by default" refers to Web UI visibility; direct CLI URLs remain accepted. Hanime (`hanime.tv`), HentaiTV (`hentai.tv`) and HentaiHaven (`hentaihaven.xxx`) have optional Web UI tabs, enabled with `ANIWORLD_ENABLE_HTV=1`, `ANIWORLD_ENABLE_HENTAITV=1` and `ANIWORLD_ENABLE_HENTAIHAVEN=1`. AnimeIDHentai (`animeidhentai.com`) supports direct CLI URLs and Python use. See [adult-site usage](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/usage#adult-site-backends) for examples.
 
 ### Stream Hosters
 
-Sites list the titles; stream hosters provide the video links.
+Sites list the titles; stream hosters provide the video links. The table describes implemented extraction functions.
 
 | Hoster | Stream extraction | Preview extraction |
 | --- | --- | --- |
-| VOE | Fresh source-site samples passed; saved standalone sample returned HTTP 404 | All tested previews failed |
-| Filemoon | Fresh AniWorld samples passed; saved standalone sample was inconsistent | Not implemented |
-| Doodstream | Samples passed | Not implemented |
-| MegaKino | Sample passed | Not implemented |
-| Gupload | Not checked: no saved embed or discovered sample | Not implemented |
-| MoflixClick | Moflix sample passed; no saved standalone embed | Not implemented |
-| Vidara | Moflix sample passed; Kinox remained CAPTCHA-blocked | Not implemented |
-| Vidmoly | Samples failed: no extractable script content | Samples failed |
-| Vidoza | Sample URL returned HTTP 404 | Sample URL returned HTTP 404 |
+| VOE | Implemented | Implemented |
+| Filemoon | Implemented | Not implemented |
+| Doodstream | Implemented | Not implemented |
+| MegaKino | Implemented | Not implemented |
+| Gupload | Implemented | Not implemented |
+| MoflixClick | Implemented | Not implemented |
+| Vidara | Implemented | Not implemented |
+| Vidmoly | Implemented | Implemented |
+| Vidoza | Implemented | Implemented |
 
-If a hoster fails, the downloader can try others in your configured fallback order, provided the title offers them in the selected language. It does not automatically switch languages. A failed or missing sample does not establish that a hoster has shut down. See [live provider checks](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/contributing#live-provider-checks) to repeat these checks.
+If a hoster fails, the downloader can try others in your configured fallback order, provided the title offers them in the selected language. It does not automatically switch languages. Use the [live provider checks](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/contributing#live-provider-checks) to test current source and hoster links. Those scripts resolve URLs; a complete download and playback or decoding check are needed to verify the resulting file.
 
 ## CLI Usage
 
@@ -133,7 +134,7 @@ mkdir -p Downloads
 docker compose up -d
 ```
 
-Open [localhost:8080](http://localhost:8080) when the container is ready. The image includes FFmpeg, Chromium for captcha handling, and the EPUB extra. Chromium setup runs only when an operation needs a browser and reuses an existing installation.
+Open [localhost:8080](http://localhost:8080) when the container is ready. The image includes FFmpeg, Chromium, Xvfb, and the EPUB, SSO and Discord extras. Its entrypoint starts a virtual display before launching the app, including when you supply a custom command.
 
 The terminal menu in the Docker image offers only Download and uses your configured download folder.
 

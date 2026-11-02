@@ -18,7 +18,11 @@ from ...config import logger
 def _label(episode):
     """Something short and recognisable to print when an episode fails."""
     season = getattr(episode, "season", None)
-    number = getattr(episode, "episode_number", None)
+    try:
+        number = getattr(episode, "episode_number", None)
+    except Exception:
+        # Title-based numbering may be the metadata lookup that just failed.
+        number = getattr(episode, "season_episode_number", None)
     season_number = getattr(season, "season_number", None)
     if season_number is not None and number is not None:
         return f"S{season_number:02d}E{number:02d}"

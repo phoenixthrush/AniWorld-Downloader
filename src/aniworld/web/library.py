@@ -5,12 +5,11 @@ directories exist, opening a location lists its folder names, and only opening
 a single title walks that one folder. Nothing ever scans the whole tree.
 """
 
-import re
 import shutil
 
 from ..logger import get_logger
 from . import db, paths
-from .media import EPISODE_RE
+from .media import EPISODE_RE, is_partial_download
 
 logger = get_logger(__name__)
 
@@ -107,16 +106,14 @@ def list_titles(custom_path_id=None, lang_folder=None):
 def _movie_files(target):
     """Video files with no SxxExx pattern, e.g. a standalone film. Stable order.
 
-    ".temp_" is excluded wherever it appears in the name, not just as a
-    prefix: an in-progress download can carry it as an infix (e.g.
-    "Title.temp_full.mkv"), which a prefix-only check would miss and list
-    as a finished file.
+    Temporary download and remux outputs are hidden until they are moved
+    to their final filenames.
     """
     files = [
         f
         for f in target.rglob("*")
         if f.is_file()
-        and ".temp_" not in f.name
+        and not is_partial_download(f)
         and f.suffix.lower() in VIDEO_EXTENSIONS
         and not EPISODE_RE.search(f.name)
     ]
@@ -163,7 +160,7 @@ def read_title(folder, custom_path_id=None, lang_folder=None):
     total_episodes = 0
 
     for file in target.rglob("*"):
-        if not file.is_file() or ".temp_" in file.name:
+        if not file.is_file() or is_partial_download(file):
             continue
         match = EPISODE_RE.search(file.name)
         if not match:
@@ -268,16 +265,15 @@ def delete(folder, season=None, episode=None, custom_path_id=None, lang_folder=N
             raise LibraryError("Nothing found to delete")
         return deleted
 
-    if episode is not None:
-        pattern = re.compile(
-            rf"S{int(season):02d}E{int(episode):03d}(?!\d)", re.IGNORECASE
-        )
-    else:
-        pattern = re.compile(rf"S{int(season):02d}E\d{{2,3}}", re.IGNORECASE)
-
     deleted = 0
     for file in list(target.rglob("*")):
-        if file.is_file() and pattern.search(file.name):
+        match = EPISODE_RE.search(file.name)
+        if (
+            file.is_file()
+            and match
+            and int(match.group(1)) == int(season)
+            and (episode is None or int(match.group(2)) == int(episode))
+        ):
             try:
                 file.unlink()
                 deleted += 1
