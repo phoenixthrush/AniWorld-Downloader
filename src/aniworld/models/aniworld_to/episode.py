@@ -2,7 +2,6 @@ import os
 import re
 from collections import defaultdict
 from html import unescape
-from pathlib import Path
 from urllib.parse import urlparse
 
 from ...config import (
@@ -25,6 +24,8 @@ from ..common.common import (
     watch as episode_watch,
 )
 from ..common.extraction import resolve_stream_url
+from ..common.naming import existing_numbered_episode_path
+from ..common.numbering import episode_number_from_title
 from ..common.paths import resolve_download_path
 
 
@@ -104,7 +105,8 @@ class AniworldEpisode:
 
         self.__title_de = title_de
         self.__title_en = title_en
-        self.__episode_number = episode_number
+        self.__season_episode_number = episode_number
+        self.__episode_number = None
 
         self.__selected_path_param = selected_path
         self.__selected_language_param = selected_language
@@ -121,8 +123,6 @@ class AniworldEpisode:
 
         # https://jellyfin.org/docs/general/server/media/shows/#organization
         self.__base_folder = None
-        self.__folder_path = None
-        self.__file_name = None
         self.__file_extension = None
         self.__episode_path = None
 
@@ -183,80 +183,18 @@ class AniworldEpisode:
     def stream_url(self):
         return resolve_stream_url(self)
 
-    # TODO: add this into a common base class
     @property
     def _base_folder(self):
-        if self.__base_folder is None:
-            naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-            parts = naming_template.split("/")
-            if len(parts) <= 1:
-                self.__base_folder = Path(self.selected_path)
-            else:
-                folder_str = parts[0].format(
-                    title=self.series.title_cleaned,
-                    year=self.series.release_year,
-                    imdbid=self.series.imdb,
-                    season=f"{self.season.season_number:02d}",
-                    episode=f"{self.episode_number:03d}",
-                    language=self.selected_language,
-                    resolution=getattr(self, "_resolution", "unknown"),
-                )
-                self.__base_folder = Path(self.selected_path) / folder_str
+        _ = self._episode_path
         return self.__base_folder
 
     @property
     def _folder_path(self):
-        if self.__folder_path is None:
-            naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-            parts = naming_template.split("/")
-            if len(parts) <= 2:
-                # No season subfolder (template is "file" or "folder/file")
-                self.__folder_path = self._base_folder
-            else:
-                folder_str = parts[1].format(
-                    title=self.series.title_cleaned,
-                    year=self.series.release_year,
-                    imdbid=self.series.imdb,
-                    season=f"{self.season.season_number:02d}",
-                    episode=f"{self.episode_number:03d}",
-                    language=self.selected_language,
-                    resolution=getattr(self, "_resolution", "unknown"),
-                )
-                self.__folder_path = self._base_folder / folder_str
-        return self.__folder_path
+        return self._episode_path.parent
 
     @property
     def _file_name(self):
-        if self.__file_name is None:
-            naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-            try:
-                file_template = naming_template.split("/")[-1]
-            except IndexError:
-                file_template = f"{self.series.title_cleaned} S{self.season.season_number:02d}E{self.episode_number:03d}.mkv"
-
-            # Remove extension
-            if "." in file_template:
-                file_template = ".".join(file_template.split(".")[:-1])
-
-            # Replace %style% with {style} for compatibility
-            file_template = file_template.replace("%title%", "{title}")
-            file_template = file_template.replace("%year%", "{year}")
-            file_template = file_template.replace("%imdbid%", "{imdbid}")
-            file_template = file_template.replace("%season%", "{season}")
-            file_template = file_template.replace("%episode%", "{episode}")
-            file_template = file_template.replace("%language%", "{language}")
-            file_template = file_template.replace("%resolution%", "{resolution}")
-
-            self.__file_name = file_template.format(
-                title=self.series.title_cleaned,
-                year=self.series.release_year,
-                imdbid=self.series.imdb,
-                season=f"{self.season.season_number:02d}",
-                episode=f"{self.episode_number:03d}",
-                language=self.selected_language,
-                resolution=getattr(self, "_resolution", "unknown"),
-            )
-        return self.__file_name
+        return self._episode_path.stem
 
     @property
     def _file_extension(self):
@@ -276,8 +214,8 @@ class AniworldEpisode:
     @property
     def _episode_path(self):
         if self.__episode_path is None:
-            self.__episode_path = (
-                self._folder_path / f"{self._file_name}.{self._file_extension}"
+            self.__base_folder, self.__episode_path = existing_numbered_episode_path(
+                self
             )
         return self.__episode_path
 
@@ -297,9 +235,20 @@ class AniworldEpisode:
 
     @property
     def episode_number(self):
+        """Number from the English title, falling back to the season's index."""
         if self.__episode_number is None:
-            self.__episode_number = self.__extract_episode_number()
+            number = None if self.is_movie else episode_number_from_title(self.title_en)
+            self.__episode_number = (
+                number if number is not None else self.season_episode_number
+            )
         return self.__episode_number
+
+    @property
+    def season_episode_number(self):
+        """Original season index used by URLs and season-specific metadata."""
+        if self.__season_episode_number is None:
+            self.__season_episode_number = self.__extract_episode_number()
+        return self.__season_episode_number
 
     @property
     def season(self):
@@ -380,8 +329,8 @@ class AniworldEpisode:
     def selected_path(self, value):
         self.__selected_path_param = value
         self.__selected_path = None
+        self.__is_downloaded = None
         self.__base_folder = None
-        self.__folder_path = None
         self.__episode_path = None
 
     @property
@@ -400,9 +349,7 @@ class AniworldEpisode:
         self.__provider_url = None
         self.__is_downloaded = None
         self.__base_folder = None
-        self.__folder_path = None
         self.__episode_path = None
-        self.__file_name = None
 
     @property
     def selected_provider(self):
@@ -736,7 +683,7 @@ class AniworldEpisode:
         season_number = self.season.season_number - 1
         logger.debug(f"Using season number: {season_number + 1}")
 
-        episode_number = self.episode_number
+        episode_number = self.season_episode_number
         logger.debug(f"Using episode number: {episode_number}")
 
         return get_skip_times(mal_id[season_number], episode_number)

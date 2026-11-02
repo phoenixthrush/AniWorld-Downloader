@@ -6,6 +6,7 @@ fixed list and series objects are stand-ins.
 
 import json
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 
 import pytest
 
@@ -423,7 +424,7 @@ def german_folder(monkeypatch, downloads):
 
 def _on_disk(monkeypatch, *pairs):
     """What this one copy already holds. Scoped per folder, not per library."""
-    monkeypatch.setattr(autosync, "episodes_in_folder", lambda folder: set(pairs))
+    monkeypatch.setattr(autosync, "episode_files_in_folder", lambda folder: set(pairs))
 
 
 def test_parsing_the_numbers_out_of_an_episode_url():
@@ -497,7 +498,7 @@ def test_an_announced_episode_already_on_disk_is_not_requeued(
 
 
 def test_new_only_never_walks_the_series_page(monkeypatch, new_only, german_folder):
-    """The whole point of reading the numbers off the URL: no extra requests."""
+    """Resolve announced seasons without filling gaps across the whole series."""
     _on_disk(monkeypatch)
 
     def explode(series):
@@ -578,6 +579,17 @@ class _FakeProvider:
 
     def series_cls(self, url):
         return _FakeSeries(self._title)
+
+    def season_cls(self, url):
+        return SimpleNamespace(episodes=[], season_number=int(url.rsplit("-", 1)[1]))
+
+    def episode_cls(self, url, season=None):
+        season_number, number = autosync._numbers(url)
+        return SimpleNamespace(
+            url=url,
+            episode_number=number,
+            season=season or SimpleNamespace(season_number=season_number),
+        )
 
 
 # ---------------------------------------------------------------------------
