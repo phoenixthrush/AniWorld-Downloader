@@ -34,6 +34,17 @@ def model(request):
     return SerienstreamEpisode, "https://serienstream.to/serie/example"
 
 
+@pytest.fixture(params=["Linux", "Windows"])
+def download_platform(request, monkeypatch):
+    """Exercise both download preflights without installing media binaries."""
+    monkeypatch.setattr(
+        common, "platform", SimpleNamespace(system=lambda: request.param)
+    )
+    monkeypatch.setattr(
+        common.DependencyManager, "fetch_binary", lambda self, name: name
+    )
+
+
 def make_episode(
     model, tmp_path, *, number=1, title="Title [Episode 062]", season=None
 ):
@@ -226,7 +237,7 @@ def test_resolution_naming_finds_a_seasonal_file(model, tmp_path, monkeypatch):
 
 
 def test_downloading_complete_legacy_file_skips_stream_extraction(
-    model, tmp_path, monkeypatch
+    model, tmp_path, monkeypatch, download_platform
 ):
     monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "{title} S{season}E{episode}.mkv")
     old = tmp_path / "Example S02E001.mkv"
@@ -500,7 +511,9 @@ def test_an_unchanged_number_cannot_reuse_another_episodes_file(
     assert file.read_bytes() == b"first episode"
 
 
-def test_full_download_records_its_source_episode(model, tmp_path, monkeypatch):
+def test_full_download_records_its_source_episode(
+    model, tmp_path, monkeypatch, download_platform
+):
     monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "{title} S{season}E{episode}.mkv")
     episode = make_episode(model, tmp_path)
     monkeypatch.setattr(type(episode), "provider_attempt_order", lambda self: ("VOE",))
@@ -519,7 +532,7 @@ def test_full_download_records_its_source_episode(model, tmp_path, monkeypatch):
 
 
 def test_adding_audio_to_a_legacy_file_keeps_its_path_and_records_source(
-    model, tmp_path, monkeypatch
+    model, tmp_path, monkeypatch, download_platform
 ):
     from pathlib import Path
 
