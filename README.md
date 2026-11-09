@@ -182,16 +182,23 @@ Keys have read, read-and-download, or full-access permissions. They cannot manag
 
 Bug reports, fixes, provider updates, and documentation improvements are welcome. Please check existing [issues](https://github.com/phoenixthrush/AniWorld-Downloader/issues) first. For a bug report, include your operating system, installation method, app and Python versions, the command or steps you used, and relevant logs.
 
-To work on the current development branch:
+To work on the current development branch, install [uv](https://docs.astral.sh/uv/getting-started/installation/) and run:
 
 ```bash
 git clone --branch models https://github.com/phoenixthrush/AniWorld-Downloader.git
 cd AniWorld-Downloader
-python -m pip install -e ".[all,test]"
-pytest
+uv sync --extra all --extra test
+uv run pytest
 ```
 
-Automated tests run offline. See the [testing guide](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/contributing) for automated tests and live provider checks. CI also runs Ruff checks. Keep pull requests focused and explain what changed and how you tested it.
+Run the same checks as CI with:
+
+```bash
+uvx ruff check
+uvx ruff format --check
+```
+
+If you change dependencies, run `uv lock` and commit the updated `uv.lock`. Automated tests run offline. See the [testing guide](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/contributing) for automated tests and live provider checks. Keep pull requests focused and explain what changed and how you tested it.
 
 ### Contributors
 
