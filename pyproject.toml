@@ -81,6 +81,11 @@ aniworld = [
 [project.scripts]
 aniworld = "aniworld.__main__:main"
 
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # Manual test_providers_*.py scripts are excluded in tests/conftest.py.
