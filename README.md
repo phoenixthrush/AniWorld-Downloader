@@ -31,6 +31,13 @@ python -m pip install -U aniworld
 aniworld -w
 ```
 
+Or with [uv](https://docs.astral.sh/uv/):
+
+```bash
+uv tool install -U aniworld
+aniworld -w
+```
+
 Open [localhost:8080](http://localhost:8080) to use the Web UI. To start the interactive terminal menu instead:
 
 ```bash
@@ -41,6 +48,12 @@ To install the latest development version from the `models` branch:
 
 ```bash
 pip install --upgrade git+https://github.com/phoenixthrush/AniWorld-Downloader.git@models
+```
+
+Or with uv:
+
+```bash
+uv tool install -U "aniworld @ git+https://github.com/phoenixthrush/AniWorld-Downloader.git@models"
 ```
 
 Video downloads need **FFmpeg**. Watching uses **mpv**, or **IINA** on macOS. Synchronized playback requires **Syncplay and mpv**. The app can offer portable FFmpeg, mpv, and Syncplay installation on Windows, and player installation through supported package managers on macOS/Linux. Install FFmpeg yourself on macOS/Linux; unattended deployments should provide the required tools in advance.
