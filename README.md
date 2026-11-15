@@ -16,7 +16,7 @@ Find, download, and watch anime, movies, and series, or save manga chapters to r
 
 It runs on **Windows, macOS, and Linux**, with **Docker** and standalone builds available too. Free and open source, with no ads, tracking, or paid-only features.
 
-[Getting started](#quick-start) · [Supported sites](#supported-sites) · [Docker](#docker) · [Documentation](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/) · [Python examples](examples)
+[Getting started](#quick-start) · [Supported sites](#supported-sites) · [Docker](#docker) · [Documentation](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/) · [Python examples](https://github.com/phoenixthrush/AniWorld-Downloader/tree/models/examples)
 
 ![Interactive terminal menu](https://github.com/phoenixthrush/AniWorld-Downloader/blob/models/.github/assets/demo.png?raw=true)
 
@@ -30,6 +30,8 @@ With **Python 3.11 or newer** installed:
 python -m pip install -U aniworld
 aniworld -w
 ```
+
+If `pip` reports `externally-managed-environment`, create and activate a virtual environment before running the commands above. [Python Packaging Guide](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/#create-and-use-virtual-environments)
 
 Open [localhost:8080](http://localhost:8080) to use the Web UI. To start the interactive terminal menu instead:
 
@@ -127,7 +129,7 @@ aniworld --version
 
 ## Docker
 
-Save [`docker-compose.yaml`](docker-compose.yaml) in a folder on your machine. From that folder, create the download directory and start the app:
+Save [`docker-compose.yaml`](https://github.com/phoenixthrush/AniWorld-Downloader/blob/models/docker-compose.yaml) in a folder on your machine. From that folder, create the download directory and start the app:
 
 ```bash
 mkdir -p Downloads
@@ -153,7 +155,7 @@ The Compose file includes configuration examples. Set persistent options in its 
 
 ## Configuration and Integrations
 
-Configuration lives in `~/.aniworld/.env` by default. Set `ANIWORLD_INSTALL_FOLDER` to change the app data directory. See [`src/aniworld/.env.example`](src/aniworld/.env.example) for available settings and defaults.
+Configuration lives in `~/.aniworld/.env` by default. Set `ANIWORLD_INSTALL_FOLDER` to change the app data directory. See [`src/aniworld/.env.example`](https://github.com/phoenixthrush/AniWorld-Downloader/blob/models/src/aniworld/.env.example) for available settings and defaults.
 
 Many settings can be changed in the Web UI. Those marked *resets after restart* must also be set in your `.env` or deployment environment to persist. Saved themes, database records, and Discord bot settings are stored separately and survive restarts when the app data is retained.
 
@@ -175,9 +177,9 @@ curl -H "X-API-Key: YOUR_API_KEY" http://localhost:8080/api/queue
 
 Keys have read, read-and-download, or full-access permissions. They cannot manage other API keys. The settings page includes an endpoint reference with examples.
 
-**Appearance:** use **Settings → Appearance** for custom CSS and background shaders. The [`themes/`](themes) directory contains a light theme and a documented CSS template. For community themes and installation instructions, see [aniworld-themes](https://github.com/SiroxCW/aniworld-themes) by SiroxCW. To recover from a theme that hides controls, open `/settings?nocss=1`.
+**Appearance:** use **Settings → Appearance** for custom CSS and background shaders. The [`themes/`](https://github.com/phoenixthrush/AniWorld-Downloader/tree/models/themes) directory contains a light theme and a documented CSS template. For community themes and installation instructions, see [aniworld-themes](https://github.com/SiroxCW/aniworld-themes) by SiroxCW. To recover from a theme that hides controls, open `/settings?nocss=1`.
 
-**Python:** all public site models are available from `aniworld` or `aniworld.models`. Search and genre functions share `aniworld.search`; see [Genre Search](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/genre-search) for supported filters and site limits. The [`examples/`](examples) directory demonstrates models, metadata, downloads, and genre queries.
+**Python:** all public site models are available from `aniworld` or `aniworld.models`. Search and genre functions share `aniworld.search`; see [Genre Search](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/genre-search) for supported filters and site limits. The [`examples/`](https://github.com/phoenixthrush/AniWorld-Downloader/tree/models/examples) directory demonstrates models, metadata, downloads, and genre queries.
 
 ## Contributing
 
@@ -208,11 +210,15 @@ AniWorld Downloader uses [mpv](https://github.com/mpv-player/mpv), [IINA](https:
 
 ### Other Cool Projects
 
+> [!NOTE]
+> These projects were created by other developers. I don’t track or routinely review changes to their source code, so please use them with care.
+
 - [Jellyfin-AniWorld-Downloader](https://github.com/SiroxCW/Jellyfin-AniWorld-Downloader) by SiroxCW — browse and download AniWorld content from Jellyfin.
 - [aniworld-themes](https://github.com/SiroxCW/aniworld-themes) by SiroxCW — community themes and background shaders for the Web UI.
 - [AniSeerr](https://github.com/Yezun-hikari/AniSeerr) by Yezun-hikari — connect Seerr requests to AniWorld Downloader.
 - [AniBridge](https://github.com/Zzackllack/AniBridge) by Zzackllack — connect supported catalogues to automation tools through FastAPI.
 - [AniLoader](https://github.com/WimWamWom/AniLoader) by WimWamWom — a web-based download manager with automation.
+- [anidl-renamer](https://github.com/e1erman/anidl-renamer) by e1erman — a Tampermonkey userscript that generates scripts to rename downloaded files using episode titles from the Web UI.
 
 ## Support and Community
 
@@ -240,4 +246,4 @@ Questions about content hosted by another service should be directed to that ser
 
 ## License
 
-AniWorld Downloader is available under the [MIT License](LICENSE).
+AniWorld Downloader is available under the [MIT License](https://github.com/phoenixthrush/AniWorld-Downloader/blob/models/LICENSE).
