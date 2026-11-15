@@ -93,6 +93,7 @@ def test_resolution_placeholder_is_used_in_aniworld_filename(monkeypatch, tmp_pa
         series=SimpleNamespace(title_cleaned="Seriesname", release_year="", imdb=""),
         season=SimpleNamespace(season_number=1),
         episode_number=1,
+        title_en="",
         selected_path=tmp_path,
         selected_language="English Dub",
     )
@@ -112,6 +113,7 @@ def test_pending_resolution_is_hidden_from_progress(monkeypatch, tmp_path):
         series=SimpleNamespace(title_cleaned="Seriesname", release_year="", imdb=""),
         season=SimpleNamespace(season_number=1),
         episode_number=2,
+        title_en="",
         selected_path=tmp_path,
         selected_language="English Dub",
     )
@@ -130,6 +132,7 @@ def test_finished_download_is_renamed_with_its_resolution(monkeypatch, tmp_path)
         series=SimpleNamespace(title_cleaned="Seriesname", release_year="", imdb=""),
         season=SimpleNamespace(season_number=1),
         episode_number=1,
+        title_en="",
         selected_path=tmp_path,
         selected_language="English Dub",
     )

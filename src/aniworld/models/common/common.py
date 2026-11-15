@@ -16,6 +16,7 @@ import ffmpeg
 import niquests
 
 from ...autodeps import DependencyManager
+from .numbering import EPISODE_URL_PREFIX
 
 try:
     from ...autodeps import get_player_path, get_syncplay_path
@@ -113,8 +114,20 @@ def _prepare_resolution_naming(self):
 
     marker = "__ANIWORLD_RESOLUTION__"
     _set_naming_resolution(self, marker)
-    pattern = glob.escape(str(self._episode_path)).replace(marker, "*")
-    candidates = [Path(path) for path in glob.glob(pattern)]
+    patterns = [self._episode_path]
+    if getattr(self, "season_episode_number", None) is not None:
+        from .naming import numbered_episode_path
+
+        patterns.extend(
+            numbered_episode_path(self, number, padding=padding)[1]
+            for number in {self.episode_number, self.season_episode_number}
+            for padding in (3, 2)
+        )
+    candidates = {
+        Path(path)
+        for pattern in patterns
+        for path in glob.glob(glob.escape(str(pattern)).replace(marker, "*"))
+    }
     for candidate in candidates:
         resolution = _read_container_resolution(candidate)
         _set_naming_resolution(self, resolution)
@@ -128,9 +141,26 @@ def _finalize_resolution_naming(self):
     if not _naming_template_uses_resolution():
         return
     old_path = self._episode_path
+    variant = None
+    if hasattr(self, "season_episode_number"):
+        from .naming import numbered_episode_path
+
+        for number in (self.episode_number, self.season_episode_number):
+            for padding in (3, 2):
+                if numbered_episode_path(self, number, padding=padding)[1] == old_path:
+                    variant = number, padding
+                    break
+            if variant is not None:
+                break
     _set_naming_resolution(self, _read_container_resolution(old_path))
-    new_path = self._episode_path
+    new_path = (
+        numbered_episode_path(self, variant[0], padding=variant[1])[1]
+        if variant is not None
+        else self._episode_path
+    )
     if new_path != old_path:
+        if new_path.exists():
+            raise ValueError(f"Resolution output path already exists: {new_path}")
         new_path.parent.mkdir(parents=True, exist_ok=True)
         os.replace(old_path, new_path)
 
@@ -705,6 +735,10 @@ def _finalize_episode(temp_path, episode_path, label="", owner=None):
     file honest. Stream copy is tried first; only a codec the target container
     cannot hold forces a re-encode.
     """
+    if owner is not None:
+        for name in vars(owner):
+            if name.endswith("__is_downloaded"):
+                setattr(owner, name, None)
     source_ext = temp_path.suffix.lower().lstrip(".")
     target_ext = episode_path.suffix.lower().lstrip(".")
 
@@ -715,7 +749,7 @@ def _finalize_episode(temp_path, episode_path, label="", owner=None):
         return
 
     converted = episode_path.with_suffix(f".convert.{target_ext}")
-    output_kwargs = {"c": "copy"}
+    output_kwargs = {"c": "copy", "map": "0"}
     if target_ext == "mp4":
         output_kwargs["movflags"] = "+faststart"
 
@@ -735,6 +769,7 @@ def _finalize_episode(temp_path, episode_path, label="", owner=None):
         _run_ffmpeg_with_progress(
             ffmpeg.input(str(temp_path)).output(
                 str(converted),
+                map="0",
                 vcodec="libx264",
                 preset="veryfast",
                 crf=20,
@@ -1182,6 +1217,9 @@ def download(self):
     provider_order = _get_provider_attempt_order(self)
     provider_errors = {}
     _prepare_resolution_naming(self)
+    episode_metadata = {}
+    if hasattr(self, "season_episode_number"):
+        episode_metadata["metadata"] = f"comment={EPISODE_URL_PREFIX}{self.url}"
 
     for provider_index, provider_name in enumerate(provider_order):
         _set_selected_provider(self, provider_name)
@@ -1195,7 +1233,6 @@ def download(self):
         for attempt in range(1, provider_retries + 1):
             try:
                 _reset_provider_resolution_cache(self)
-                stream_url = self.stream_url
                 headers = PROVIDER_HEADERS_D.get(provider_name, {})
                 check = check_downloaded(self._episode_path)
                 input_kwargs = {
@@ -1203,12 +1240,6 @@ def download(self):
                     "reconnect_streamed": 1,
                     "reconnect_delay_max": 30,  # wait up to 30s for connection recovery
                 }
-                # Some hosters disguise their HLS segments with
-                # non-.ts extensions like .jpg; ffmpeg 7+ refuses those by default
-                # ("not in allowed_segment_extensions"), so allow every segment
-                # extension for m3u8 inputs.
-                if ".m3u8" in (stream_url or "").split("?", 1)[0].lower():
-                    input_kwargs["allowed_extensions"] = "ALL"
                 if headers:
                     header_list = [f"{k}: {v}" for k, v in headers.items()]
                     input_kwargs["headers"] = "\r\n".join(header_list) + "\r\n"
@@ -1254,6 +1285,12 @@ def download(self):
                     logger.debug(f"[SKIPPED] {self._file_name}")
                     return
 
+                stream_url = self.stream_url
+                # Some hosters disguise HLS segments as images. FFmpeg needs
+                # these extensions allowed when fetching an m3u8 source.
+                if ".m3u8" in (stream_url or "").split("?", 1)[0].lower():
+                    input_kwargs["allowed_extensions"] = "ALL"
+
                 os.makedirs(self._folder_path, exist_ok=True)
 
                 ep_label = _progress_file_name(self)
@@ -1275,7 +1312,10 @@ def download(self):
                         f"[DOWNLOADING] full preset (audio + video together) via {provider_name}"
                     )
 
-                    stream_metadata = {"metadata:s:a:0": f"language={audio_code}"}
+                    stream_metadata = {
+                        **episode_metadata,
+                        "metadata:s:a:0": f"language={audio_code}",
+                    }
                     if (not wants_clean_video) and sub_video_code:
                         stream_metadata["metadata:s:v:0"] = f"language={sub_video_code}"
 
@@ -1331,7 +1371,9 @@ def download(self):
                         ]
                         output_path = self._episode_path.with_suffix(".new.mkv")
                         _run_ffmpeg_with_progress(
-                            ffmpeg.output(*inputs, str(output_path), c="copy")
+                            ffmpeg.output(
+                                *inputs, str(output_path), c="copy", **episode_metadata
+                            )
                         )
                         _finalize_episode(
                             output_path, self._episode_path, ep_label, owner=self
@@ -1415,7 +1457,9 @@ def download(self):
 
                 output_path = self._episode_path.with_suffix(".new.mkv")
                 _run_ffmpeg_with_progress(
-                    ffmpeg.output(*inputs, str(output_path), c="copy")
+                    ffmpeg.output(
+                        *inputs, str(output_path), c="copy", **episode_metadata
+                    )
                 )
                 _finalize_episode(output_path, self._episode_path, ep_label, owner=self)
 
@@ -1597,6 +1641,13 @@ def syncplay(self):
 
     room = "AniWorld"
     file_name = self._file_name.replace(" ", "_")
+    if hasattr(self, "season_episode_number"):
+        from .naming import numbered_episode_path
+
+        # Keep room IDs stable across title numbering and existing file names.
+        file_name = numbered_episode_path(self, self.season_episode_number)[
+            1
+        ].stem.replace(" ", "_")
 
     if syncplay_password:
         room += (

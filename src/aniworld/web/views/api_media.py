@@ -385,8 +385,6 @@ def _season_episodes(provider, url, series_url):
     else:
         season = provider.season_cls(url=url, series=found)
 
-    downloaded = media.downloaded_episodes(found) if found else set()
-
     override_languages = SEASON_LANGUAGE_OVERRIDES.get(provider.name)
     season_languages = list(override_languages) if override_languages else None
     episode_languages = {}
@@ -401,12 +399,16 @@ def _season_episodes(provider, url, series_url):
             logger.warning("%s language detection failed: %s", provider.name, exc)
             season_languages = ["German Dub"]
 
+    episodes = season.episodes
+    downloaded_urls = media.downloaded_episode_urls(found, episodes) if found else set()
     results = []
-    for episode in season.episodes:
+    for episode in episodes:
         if season_languages is not None:
             languages = season_languages
         elif provider.name == "SerienStream":
-            row_languages = episode_languages.get(episode.episode_number)
+            row_languages = episode_languages.get(
+                getattr(episode, "season_episode_number", episode.episode_number)
+            )
             if row_languages is not None:
                 languages = list(row_languages)
             else:
@@ -436,8 +438,7 @@ def _season_episodes(provider, url, series_url):
                 "episode_number": episode.episode_number,
                 "title_de": getattr(episode, "title_de", ""),
                 "title_en": getattr(episode, "title_en", ""),
-                "downloaded": (episode.season.season_number, episode.episode_number)
-                in downloaded,
+                "downloaded": episode.url in downloaded_urls,
                 "available_languages": languages,
                 "page_count": 0,
             }

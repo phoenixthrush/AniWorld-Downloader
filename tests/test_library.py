@@ -144,6 +144,28 @@ def test_partial_downloads_are_hidden(episode_file, downloads):
     assert library.read_title("Naruto")["total_episodes"] == 1
 
 
+@pytest.mark.parametrize("suffix", [".new.mkv", ".convert.mp4", ".seg.ts"])
+def test_remux_outputs_are_hidden_from_episode_lists(episode_file, suffix):
+    complete = episode_file("Naruto", 1, 1, size=100)
+    episode_file("Naruto", 1, 2, suffix=suffix, size=400)
+    result = library.read_title("Naruto")
+    assert result["total_episodes"] == 1
+    assert result["total_size"] == 100
+    assert [entry["file"] for entry in result["seasons"]["1"]] == [complete.name]
+
+
+@pytest.mark.parametrize("suffix", [".new.mkv", ".convert.mp4", ".seg.ts"])
+def test_remux_outputs_are_hidden_from_movie_lists(downloads, suffix):
+    folder = downloads / "Movie"
+    folder.mkdir()
+    (folder / "Movie.mkv").write_bytes(b"finished")
+    (folder / f"Movie{suffix}").write_bytes(b"partial")
+    result = library.read_title("Movie")
+    assert result["total_episodes"] == 1
+    assert result["total_size"] == len(b"finished")
+    assert [entry["file"] for entry in result["seasons"]["movie"]] == ["Movie.mkv"]
+
+
 def test_files_without_an_episode_marker_are_ignored(episode_file, downloads):
     episode_file("Naruto", 1, 1)
     (downloads / "Naruto" / "poster.jpg").write_bytes(b"x")

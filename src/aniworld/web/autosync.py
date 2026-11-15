@@ -22,10 +22,11 @@ from datetime import UTC, datetime, timedelta
 
 from ..config import LANG_CODE_MAP, LANG_KEY_MAP, LANG_LABELS
 from ..logger import get_logger
+from ..models.common.numbering import downloaded_episode_owners, episode_is_downloaded
 from ..providers import normalize_url, resolve_provider
 from ..search import fetch_new_episodes
 from . import db, paths, schedule
-from .media import BADGE_ORDER, folder_matches_title
+from .media import BADGE_ORDER, episode_files_in_folder, folder_matches_title
 from .settings_store import (
     autosync_cron_schedule,
     autosync_enabled,
@@ -297,32 +298,17 @@ def episodes_in_folder(folder):
     look complete because the English copy next to it has the episode, and would
     then never be filled in.
     """
-    from .media import EPISODE_RE
-
-    found = set()
-    try:
-        files = folder.rglob("*")
-    except OSError:
-        return found
-
-    for file in files:
-        try:
-            if not file.is_file():
-                continue
-        except OSError:
-            continue
-        match = EPISODE_RE.search(file.name)
-        if match:
-            found.add((int(match.group(1)), int(match.group(2))))
-    return found
+    return set(episode_files_in_folder(folder))
 
 
 def _missing_episodes(series, have):
     """Episode URLs of a series that are not in this copy yet."""
     missing = []
     for season in series.seasons:
-        for episode in season.episodes:
-            if (season.season_number, episode.episode_number) not in have:
+        episodes = season.episodes
+        downloaded_urls = set(downloaded_episode_owners(episodes, have).values())
+        for episode in episodes:
+            if episode.url not in downloaded_urls:
                 missing.append(episode.url)
     return missing
 
@@ -330,14 +316,25 @@ def _missing_episodes(series, have):
 def _announced_episodes(episode_urls, have):
     """Only the episodes the feed announced, minus whatever this copy has.
 
-    The season and episode number come off the URL, so unlike the fill mode this
-    never has to walk the series page for every season.
+    Resolve only the announced episodes, including their English title markers;
+    the URL alone always contains the seasonal index.
     """
-    return [
-        url
-        for url in episode_urls
-        if (numbers := _numbers(url)) is not None and numbers not in have
-    ]
+    missing = []
+    seasons = {}
+    for url in episode_urls:
+        if _numbers(url) is None:
+            continue
+        provider = resolve_provider(url)
+        season_url = url.rsplit("/episode-", 1)[0]
+        if season_url not in seasons:
+            seasons[season_url] = provider.season_cls(url=season_url)
+        season = seasons[season_url]
+        episode = next((entry for entry in season.episodes if entry.url == url), None)
+        if episode is None:
+            episode = provider.episode_cls(url=url, season=season)
+        if not episode_is_downloaded(episode, have):
+            missing.append(url)
+    return missing
 
 
 def _handle(candidate, provider_name):
@@ -381,7 +378,7 @@ def _handle(candidate, provider_name):
             "reason": "This copy is already in the queue.",
         }
 
-    have = episodes_in_folder(candidate["folder"])
+    have = episode_files_in_folder(candidate["folder"])
     series = resolve_provider(series_url).series_cls(url=series_url)
     if autosync_new_only():
         valid_urls = [

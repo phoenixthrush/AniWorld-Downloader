@@ -2,7 +2,6 @@ import os
 import re
 from enum import Enum
 from html import unescape
-from pathlib import Path
 
 from ...config import (
     NAMING_TEMPLATE,
@@ -21,6 +20,8 @@ from ..common.common import (
     watch as episode_watch,
 )
 from ..common.extraction import resolve_stream_url
+from ..common.naming import existing_numbered_episode_path
+from ..common.numbering import episode_number_from_title
 from ..common.paths import resolve_download_path
 from .http import response_text, sto_get, sto_host
 
@@ -134,7 +135,8 @@ class SerienstreamEpisode:
         self._series = series
         self._season = season
 
-        self.__episode_number = episode_number
+        self.__season_episode_number = episode_number
+        self.__episode_number = None
         self.__title_de = title_de
         self.__title_en = title_en
 
@@ -153,8 +155,6 @@ class SerienstreamEpisode:
 
         # https://jellyfin.org/docs/general/server/media/shows/#organization
         self.__base_folder = None
-        self.__folder_path = None
-        self.__file_name = None
         self.__file_extension = None
         self.__episode_path = None
 
@@ -196,9 +196,20 @@ class SerienstreamEpisode:
 
     @property
     def episode_number(self):
+        """Number from the English title, falling back to the season's index."""
         if self.__episode_number is None:
-            self.__episode_number = self.__extract_episode_number()
+            number = episode_number_from_title(self.title_en)
+            self.__episode_number = (
+                number if number is not None else self.season_episode_number
+            )
         return self.__episode_number
+
+    @property
+    def season_episode_number(self):
+        """Original season index used by URLs and season-specific metadata."""
+        if self.__season_episode_number is None:
+            self.__season_episode_number = self.__extract_episode_number()
+        return self.__season_episode_number
 
     @property
     def title_de(self):
@@ -230,8 +241,8 @@ class SerienstreamEpisode:
     def selected_path(self, value):
         self.__selected_path_param = value
         self.__selected_path = None
+        self.__is_downloaded = None
         self.__base_folder = None
-        self.__folder_path = None
         self.__episode_path = None
 
     @property
@@ -250,9 +261,7 @@ class SerienstreamEpisode:
         self.__provider_url = None
         self.__is_downloaded = None
         self.__base_folder = None
-        self.__folder_path = None
         self.__episode_path = None
-        self.__file_name = None
 
     @property
     def selected_provider(self):
@@ -327,79 +336,18 @@ class SerienstreamEpisode:
     def stream_url(self):
         return resolve_stream_url(self)
 
-    # TODO: add this into a common base class
     @property
     def _base_folder(self):
-        if self.__base_folder is None:
-            naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-            parts = naming_template.split("/")
-            if len(parts) <= 1:
-                self.__base_folder = Path(self.selected_path)
-            else:
-                folder_str = parts[0].format(
-                    title=self.series.title_cleaned,
-                    year=self.series.release_year,
-                    imdbid=self.series.imdb,
-                    season=f"{self.season.season_number:02d}",
-                    episode=f"{self.episode_number:03d}",
-                    language=self.selected_language,
-                    resolution=getattr(self, "_resolution", "unknown"),
-                )
-                self.__base_folder = Path(self.selected_path) / folder_str
+        _ = self._episode_path
         return self.__base_folder
 
     @property
     def _folder_path(self):
-        if self.__folder_path is None:
-            naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-            parts = naming_template.split("/")
-            if len(parts) <= 2:
-                self.__folder_path = self._base_folder
-            else:
-                folder_str = parts[1].format(
-                    title=self.series.title_cleaned,
-                    year=self.series.release_year,
-                    imdbid=self.series.imdb,
-                    season=f"{self.season.season_number:02d}",
-                    episode=f"{self.episode_number:03d}",
-                    language=self.selected_language,
-                    resolution=getattr(self, "_resolution", "unknown"),
-                )
-                self.__folder_path = self._base_folder / folder_str
-        return self.__folder_path
+        return self._episode_path.parent
 
     @property
     def _file_name(self):
-        if self.__file_name is None:
-            naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-            try:
-                file_template = naming_template.split("/")[-1]
-            except IndexError:
-                file_template = f"{self.series.title_cleaned} S{self.season.season_number:02d}E{self.episode_number:03d}.mkv"
-
-            # Remove extension
-            if "." in file_template:
-                file_template = ".".join(file_template.split(".")[:-1])
-
-            # Replace %style% with {style} for compatibility
-            file_template = file_template.replace("%title%", "{title}")
-            file_template = file_template.replace("%year%", "{year}")
-            file_template = file_template.replace("%imdbid%", "{imdbid}")
-            file_template = file_template.replace("%season%", "{season}")
-            file_template = file_template.replace("%episode%", "{episode}")
-            file_template = file_template.replace("%language%", "{language}")
-            file_template = file_template.replace("%resolution%", "{resolution}")
-
-            self.__file_name = file_template.format(
-                title=self.series.title_cleaned,
-                year=self.series.release_year,
-                imdbid=self.series.imdb,
-                season=f"{self.season.season_number:02d}",
-                episode=f"{self.episode_number:03d}",
-                language=self.selected_language,
-                resolution=getattr(self, "_resolution", "unknown"),
-            )
-        return self.__file_name
+        return self._episode_path.stem
 
     @property
     def _file_extension(self):
@@ -419,8 +367,8 @@ class SerienstreamEpisode:
     @property
     def _episode_path(self):
         if self.__episode_path is None:
-            self.__episode_path = (
-                self._folder_path / f"{self._file_name}.{self._file_extension}"
+            self.__base_folder, self.__episode_path = existing_numbered_episode_path(
+                self
             )
         return self.__episode_path
 
@@ -455,37 +403,32 @@ class SerienstreamEpisode:
             raise ValueError("Episode URL is missing for episode number extraction.")
         return int(self.url.rstrip("/").split("-")[-1])
 
+    def __extract_titles(self):
+        """Split the trailing English title, preserving parentheses inside titles."""
+        match = re.search(
+            r"<h2\b[^>]*>\s*S\d+E\d+:\s*([^<]*)</h2>",
+            self._html or "",
+            re.DOTALL,
+        )
+        if not match:
+            return "", ""
+        title = unescape(match.group(1)).strip()
+        if title.endswith(")"):
+            depth = 0
+            for index in range(len(title) - 1, -1, -1):
+                if title[index] == ")":
+                    depth += 1
+                elif title[index] == "(":
+                    depth -= 1
+                    if depth == 0:
+                        return title[:index].strip(), title[index + 1 : -1].strip()
+        return title, ""
+
     def __extract_title_de(self):
-        """
-        <h2 class="h4 mb-1">S01E01: Neuanfang (Pilot) </h2>
-
-        without parantheses
-        """
-
-        pattern = r"S\d{2}E\d{2}:\s(.*?)(\s\(|</h2>)"
-        html = self._html
-        if not html:
-            return ""
-        match = re.search(pattern, html)
-        if match:
-            return unescape(match.group(1).strip())
-        return ""
+        return self.__extract_titles()[0]
 
     def __extract_title_en(self):
-        """
-        <h2 class="h4 mb-1">S01E01: Neuanfang (Pilot) </h2>
-
-        in parantheses
-        """
-
-        pattern = r"S\d{2}E\d{2}:\s.*\((.*?)\)"
-        html = self._html
-        if not html:
-            return ""
-        match = re.search(pattern, html)
-        if match:
-            return unescape(match.group(1).strip())
-        return ""
+        return self.__extract_titles()[1]
 
     def __extract_provider_data(self):
         """

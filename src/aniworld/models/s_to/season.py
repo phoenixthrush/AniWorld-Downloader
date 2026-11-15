@@ -1,5 +1,6 @@
 import re
-from urllib.parse import urljoin
+from html import unescape
+from urllib.parse import urljoin, urlsplit
 
 from ...config import SERIENSTREAM_SEASON_PATTERN, STO_HOST_PATTERN, logger
 from ..common import run_each
@@ -123,16 +124,17 @@ class SerienstreamSeason:
                     [...]
         """
 
-        # Support both absolute and relative links.
-        pattern = (
-            rf'<a\s+href="(?:https?://{STO_HOST_PATTERN})?/serie/.+/staffel-'
-            + str(self.season_number)
-            + r'/episode-\d+"'
+        return len({urljoin(self.url, url) for url in self.__episode_urls(self._html)})
+
+    def __episode_urls(self, html):
+        # Support links on older pages and onclick rows on current pages.
+        season_path = re.escape(urlsplit(self.url).path.rstrip("/"))
+        return re.findall(
+            rf"(?:href|window\.location)\s*=\s*[\"']((?:https?://{STO_HOST_PATTERN})?"
+            rf"{season_path}/episode-\d+)[\"']",
+            html,
+            re.IGNORECASE,
         )
-
-        matches = re.findall(pattern, self._html)
-
-        return len(matches)
 
     def __extract_episodes(self):
         """
@@ -143,14 +145,23 @@ class SerienstreamSeason:
         """
         from .episode import SerienstreamEpisode
 
-        pattern = (
-            rf'<a\s+href="(?P<href>(?:https?://{STO_HOST_PATTERN})?/serie/.+/staffel-'
-            + str(self.season_number)
-            + r'/episode-\d+)"'
-        )
-
-        matches = re.findall(pattern, self._html)
+        matches = self.__episode_urls(self._html)
         episode_list = []
+
+        titles = {}
+        for row in re.findall(r"<tr\b[^>]*>.*?</tr>", self._html, re.DOTALL):
+            urls = self.__episode_urls(row)
+            if not urls:
+                continue
+            values = []
+            for tag, name in (("strong", "ger"), ("span", "eng")):
+                title = re.search(
+                    rf'<{tag}\b[^>]*class=["\'][^"\']*\bepisode-title-{name}\b[^"\']*["\'][^>]*>(.*?)</{tag}>',
+                    row,
+                    re.DOTALL,
+                )
+                values.append(unescape(title.group(1)).strip() if title else None)
+            titles[urljoin(self.url, urls[0])] = values
 
         seen = set()
         for match in matches:
@@ -158,8 +169,15 @@ class SerienstreamSeason:
             if full_url in seen:
                 continue
             seen.add(full_url)
+            title_de, title_en = titles.get(full_url, (None, None))
             episode_list.append(
-                SerienstreamEpisode(full_url, season=self, series=self.series)
+                SerienstreamEpisode(
+                    full_url,
+                    season=self,
+                    series=self.series,
+                    title_de=title_de,
+                    title_en=title_en,
+                )
             )
 
         return episode_list

@@ -580,6 +580,7 @@ def test_the_preview_is_built_by_the_downloader_itself(monkeypatch, tmp_path):
         ),
         season=SimpleNamespace(season_number=1),
         episode_number=3,
+        title_en="",
         selected_path=str(tmp_path),
         selected_language="German Dub",
     )

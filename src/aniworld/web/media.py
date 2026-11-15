@@ -211,7 +211,7 @@ def language_labels(provider_data):
 # ---------------------------------------------------------------------------
 # Matched on the filename rather than the naming template so files keep being
 # recognised after the template changes.
-EPISODE_RE = re.compile(r"S(\d{2})E(\d{2,3})", re.IGNORECASE)
+EPISODE_RE = re.compile(r"S(\d{2,})E(\d{2,})(?!\d)", re.IGNORECASE)
 
 
 # clean_title strips these from a folder name, so a title still carrying them
@@ -277,23 +277,57 @@ def _title_folders(base, title):
             yield entry
 
 
-def downloaded_episodes(series):
-    """Set of (season, episode) numbers already on disk for a series."""
+def is_partial_download(path):
+    return ".temp_" in path.name or path.stem.endswith((".new", ".convert", ".seg"))
+
+
+def episode_files_in_folder(folder):
+    """Completed video files keyed by their season and episode markers."""
+    from .library import VIDEO_EXTENSIONS
+
+    found = {}
+    for file in folder.rglob("*"):
+        try:
+            if (
+                not file.is_file()
+                or is_partial_download(file)
+                or file.suffix.lower() not in VIDEO_EXTENSIONS
+            ):
+                continue
+        except OSError:
+            continue
+        match = EPISODE_RE.search(file.name)
+        if match:
+            key = int(match.group(1)), int(match.group(2))
+            found.setdefault(key, []).append(file)
+    return found
+
+
+def _downloaded_episode_copies(series):
+    """Keep each root and language copy separate while resolving numbering."""
     title = (
         getattr(series, "title_cleaned", None) or getattr(series, "title", "") or ""
     ).lower()
     if not title:
-        return set()
+        return
 
-    found = set()
     for base in paths.scan_bases():
         for folder in _title_folders(base, title):
-            for file in folder.rglob("*"):
-                if not file.is_file():
-                    continue
-                match = EPISODE_RE.search(file.name)
-                if match:
-                    found.add((int(match.group(1)), int(match.group(2))))
+            yield episode_files_in_folder(folder)
+
+
+def downloaded_episodes(series):
+    """Set of (season, episode) numbers already on disk for a series."""
+    return set().union(*_downloaded_episode_copies(series))
+
+
+def downloaded_episode_urls(series, episodes):
+    """Resolve old/new file numbers per copy before merging downloaded badges."""
+    from ..models.common.numbering import downloaded_episode_owners
+
+    found = set()
+    for downloaded in _downloaded_episode_copies(series):
+        found.update(downloaded_episode_owners(episodes, downloaded).values())
     return found
 
 
