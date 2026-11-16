@@ -218,7 +218,7 @@ AniWorld Downloader uses [mpv](https://github.com/mpv-player/mpv), [IINA](https:
 - [AniSeerr](https://github.com/Yezun-hikari/AniSeerr) by Yezun-hikari — connect Seerr requests to AniWorld Downloader.
 - [AniBridge](https://github.com/Zzackllack/AniBridge) by Zzackllack — connect supported catalogues to automation tools through FastAPI.
 - [AniLoader](https://github.com/WimWamWom/AniLoader) by WimWamWom — a web-based download manager with automation.
-- [anidl-renamer](https://github.com/e1erman/anidl-renamer) by e1erman — a Tampermonkey userscript that generates scripts to rename downloaded files using episode titles from the Web UI.
+- [anidl-renamer](https://github.com/eierman324/anidl-renamer) by eierman324 — a Tampermonkey userscript that generates scripts to rename downloaded files using episode titles from the Web UI.
 
 ## Support and Community
 
