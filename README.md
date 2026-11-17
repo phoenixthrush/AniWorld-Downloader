@@ -78,7 +78,7 @@ See the [supported sites documentation](https://www.phoenixthrush.com/AniWorld-D
 | Moflix | Movies and series | CLI, Python, Web UI | Enabled |
 | MangaFire | Manga | CLI, Python, Web UI | Enabled |
 | FilmPalast | Movies | CLI, Python, Web UI | Enabled |
-| Mediathek | Public broadcasters' media libraries (ARD, ZDF, Arte, 3sat, ORF, SRF and more) | CLI, Python, Web UI | Enabled |
+| Mediathek | Public broadcasters (ARD, ZDF, Arte, ORF, SRF, ...) | CLI, Python, Web UI | Enabled |
 | Hanime | Adult animation | CLI, Python, Web UI | Disabled |
 | HentaiTV | Adult animation | CLI, Python, Web UI | Disabled |
 | AnimeIDHentai | Adult animation | CLI, Python | No tab |
@@ -88,21 +88,7 @@ See the [supported sites documentation](https://www.phoenixthrush.com/AniWorld-D
 
 "Disabled by default" refers to Web UI visibility; direct CLI URLs remain accepted. Hanime (`hanime.tv`), HentaiTV (`hentai.tv`) and HentaiHaven (`hentaihaven.xxx`) have optional Web UI tabs, enabled with `ANIWORLD_ENABLE_HTV=1`, `ANIWORLD_ENABLE_HENTAITV=1` and `ANIWORLD_ENABLE_HENTAIHAVEN=1`. AnimeIDHentai (`animeidhentai.com`) supports direct CLI URLs and Python use. See [adult-site usage](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/usage#adult-site-backends) for examples.
 
-### Mediathek
-
-The Mediathek tab searches the media libraries of the German, Austrian and Swiss public broadcasters through [MediathekView](https://mediathekviewweb.de/). Every stream comes directly from the broadcaster; there is no hoster to resolve.
-
-- **Channels:** all 30 that MediathekView indexes: ARD with its regional channels (BR, HR, MDR, NDR, Radio Bremen, RBB, SR, SWR, WDR), ARD-alpha, ONE, tagesschau24, ZDF, ZDFinfo, ZDFneo, ZDFtivi, 3sat, Arte (DE, EN, ES, FR, IT, PL), KiKA, phoenix, funk, DW, ORF and SRF. The channel is shown where other sites show the hoster.
-- **Search and browse:** search results are shows (one topic on one channel), those named after the search first. Without a search, the tab lists **New Episodes** (series with a new numbered episode) and **New in the Mediathek** (new programmes of 40 minutes and more).
-- **Seasons:** episodes are sorted into seasons where the broadcaster numbers them: `(S26/E04)`, `(Staffel 1, Folge 12)`, ORF's `… Staffel 2` topics and Arte's programme ids. Arte series appear under their own name (e.g. *Impulse*) instead of Arte's category. Everything else is listed by broadcast date.
-- **Languages and versions:** the language menu works like on the other sites and lists the versions an episode has: `German Dub`, `English Dub`, `French Sub` (original audio with French subtitles) and so on, plus `Original`, `Sign Language` and `Audio Description`. Arte's language channels count as languages of the same programme; their titles are looked up through Arte's public player API.
-- **Files:** numbered episodes follow the naming template like any series (`In aller Freundschaft/Season 26/In aller Freundschaft S26E004.mkv`); other programmes are saved as `<show>/<title> (<date>).mkv`. Any version other than the listed one adds its label, e.g. `… S26E004 (Sign Language).mkv`. The audio track is tagged with the version's language.
-- **Quality and subtitles:** the series dialog lists the show's actual resolutions (1080p, 720p …) and a subtitle switch next to the download buttons; the defaults are in **Settings → Downloads** (`ANIWORLD_MEDIATHEK_QUALITY`, `ANIWORLD_MEDIATHEK_SUBTITLES`). Subtitles are saved as `<video>.<lang>.srt`.
-- **Incomplete streams:** a download that comes back shorter than listed is retried in another quality, lower ones first. Short files are never deleted: if no quality comes out whole, the longest one is kept and the download reports it.
-- **Covers:** show posters from [TVmaze](https://www.tvmaze.com/) where the show is known there, otherwise the broadcaster's preview image.
-- **CLI and Python:** pass a broadcaster page, e.g. `aniworld "https://www.ardmediathek.de/video/…"`; the models are `MediathekEpisode`, `MediathekSeason` and `MediathekSeries`.
-
-Programmes leave the media libraries after a while. Some ORF programmes are only licensed for Austria: they are marked `AT only`, and outside Austria the download stops with a message instead of saving ORF's notice.
+The Mediathek searches the public broadcasters' media libraries through [MediathekView](https://mediathekviewweb.de/) and downloads directly from the broadcasters. Quality and subtitle defaults are set in **Settings → Downloads** or with `ANIWORLD_MEDIATHEK_QUALITY` and `ANIWORLD_MEDIATHEK_SUBTITLES`.
 
 ### Stream Hosters
 
@@ -223,7 +209,7 @@ Thank you to everyone who reports issues, shares ideas, and contributes code.
 
 ### Credits
 
-AniWorld Downloader uses [mpv](https://github.com/mpv-player/mpv), [IINA](https://github.com/iina/iina), [Syncplay](https://github.com/Syncplay/syncplay), [Anime4K](https://github.com/bloc97/Anime4K), [AniSkip](https://api.aniskip.com/api-docs), [flag-icons](https://github.com/lipis/flag-icons), [new-domain-check](https://github.com/Yezun-hikari/new-domain-check), [fake-useragent](https://github.com/fake-useragent/fake-useragent), and [MediathekView](https://github.com/mediathekview/mediathekviewweb) for the Mediathek search. Mediathek show posters come from [TVmaze](https://www.tvmaze.com/), whose data is licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+AniWorld Downloader uses [mpv](https://github.com/mpv-player/mpv), [IINA](https://github.com/iina/iina), [Syncplay](https://github.com/Syncplay/syncplay), [Anime4K](https://github.com/bloc97/Anime4K), [AniSkip](https://api.aniskip.com/api-docs), [flag-icons](https://github.com/lipis/flag-icons), [new-domain-check](https://github.com/Yezun-hikari/new-domain-check), [fake-useragent](https://github.com/fake-useragent/fake-useragent), [MediathekView](https://github.com/mediathekview/mediathekviewweb), and [TVmaze](https://www.tvmaze.com/) ([CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)).
 
 ### Other Cool Projects
 
