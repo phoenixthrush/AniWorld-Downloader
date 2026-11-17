@@ -88,8 +88,6 @@ See the [supported sites documentation](https://www.phoenixthrush.com/AniWorld-D
 
 "Disabled by default" refers to Web UI visibility; direct CLI URLs remain accepted. Hanime (`hanime.tv`), HentaiTV (`hentai.tv`) and HentaiHaven (`hentaihaven.xxx`) have optional Web UI tabs, enabled with `ANIWORLD_ENABLE_HTV=1`, `ANIWORLD_ENABLE_HENTAITV=1` and `ANIWORLD_ENABLE_HENTAIHAVEN=1`. AnimeIDHentai (`animeidhentai.com`) supports direct CLI URLs and Python use. See [adult-site usage](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/usage#adult-site-backends) for examples.
 
-The Mediathek searches the public broadcasters' media libraries through [MediathekView](https://mediathekviewweb.de/) and downloads directly from the broadcasters. Quality and subtitle defaults are set in **Settings → Downloads** or with `ANIWORLD_MEDIATHEK_QUALITY` and `ANIWORLD_MEDIATHEK_SUBTITLES`.
-
 ### Stream Hosters
 
 Sites list the titles; stream hosters provide the video links. The table describes implemented extraction functions.
