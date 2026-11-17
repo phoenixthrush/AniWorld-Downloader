@@ -906,6 +906,7 @@ class MegaKinoEpisode:
         normalized = language.strip().lower()
         if normalized in {"german", "deutsch", "german dub"}:
             return "German Dub"
+        # MegaKino only serves German audio; English requests map to it on purpose (27acb93).
         if normalized in {"english", "englisch", "english dub"}:
             return "German Dub"
 
@@ -989,14 +990,7 @@ class MegaKinoEpisode:
         if provider_data is None:
             return None
 
-        if isinstance(provider_data, ProviderData):
-            provider_dict = provider_data.get((Audio.GERMAN, Subtitles.NONE))
-            if language == "English Dub":
-                provider_dict = (
-                    provider_data.get((Audio.ENGLISH, Subtitles.NONE)) or provider_dict
-                )
-        else:
-            provider_dict = provider_data.get((Audio.GERMAN, Subtitles.NONE))
+        provider_dict = provider_data.get((Audio.GERMAN, Subtitles.NONE))
 
         if not provider_dict:
             return None
@@ -1015,12 +1009,7 @@ class MegaKinoEpisode:
         if provider_data is None:
             return ()
 
-        if isinstance(provider_data, ProviderData):
-            provider_dict = provider_data.get((Audio.ENGLISH, Subtitles.NONE))
-            if language != "English Dub":
-                provider_dict = provider_data.get((Audio.GERMAN, Subtitles.NONE))
-        else:
-            provider_dict = provider_data.get((Audio.GERMAN, Subtitles.NONE))
+        provider_dict = provider_data.get((Audio.GERMAN, Subtitles.NONE))
 
         return tuple(provider_dict.keys()) if provider_dict else ()
 
