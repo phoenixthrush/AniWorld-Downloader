@@ -1,8 +1,11 @@
 """Search, browse and the series/season/episode endpoints."""
 
+import ipaddress
 import re
+import socket
 import time
 from types import SimpleNamespace
+from urllib.parse import urlsplit
 
 from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
 from curl_cffi.requests.exceptions import RequestException as CurlRequestException
@@ -567,9 +570,24 @@ def random_title():
     return jsonify({"error": "Failed to fetch random anime"}), 500
 
 
+def _is_public_host(url):
+    """True when every address the URL's host resolves to is a public one."""
+    host = urlsplit(url).hostname
+    if not host:
+        return False
+    try:
+        infos = socket.getaddrinfo(host, None)
+        addresses = [ipaddress.ip_address(info[4][0]) for info in infos]
+    except (OSError, ValueError):
+        return False
+    return bool(addresses) and all(
+        ip.is_global and not ip.is_multicast for ip in addresses
+    )
+
+
 def proxy_image():
     target = request.args.get("url", "").strip()
-    if not target.startswith(("http://", "https://")):
+    if not target.startswith(("http://", "https://")) or not _is_public_host(target):
         return "", 400
     try:
         # Without a brotli module installed the body would come back still
@@ -577,11 +595,17 @@ def proxy_image():
         headers = {"User-Agent": DEFAULT_USER_AGENT, "Accept-Encoding": "gzip, deflate"}
         if "hanime" in target:
             headers["Referer"] = "https://hanime.tv/"
-        response = GLOBAL_SESSION.get(target, headers=headers, timeout=10)
+        # No redirects: the next hop would skip the public-host check above
+        response = GLOBAL_SESSION.get(
+            target, headers=headers, timeout=10, allow_redirects=False
+        )
         response.raise_for_status()
+        content_type = response.headers.get("Content-Type", "")
+        if not content_type.lower().startswith("image/"):
+            return "", 502
         return Response(
             response.content,
-            content_type=response.headers.get("Content-Type", "image/jpeg"),
+            content_type=content_type,
             headers={"Cache-Control": "public, max-age=3600"},
         )
     except Exception as exc:
