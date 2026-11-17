@@ -14,7 +14,7 @@ def get_direct_link_from_megakino(embeded_megakino_link, headers=None):
     page_html = _fetch_megakino_player_page(embeded_megakino_link, headers=headers)
     stream_parts = _extract_megakino_stream_parts(page_html)
     if not stream_parts:
-        return None
+        raise ValueError("No Megakino stream parts found")
 
     uid, md5, video_id = stream_parts
 
