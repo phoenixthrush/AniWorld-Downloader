@@ -90,14 +90,6 @@ def _episode_sort_key(slug):
     return (int(match.group(1)) if match else 0, slug or "")
 
 
-def _slug_to_title(slug):
-    """Turn a video slug into a franchise title."""
-    if not slug:
-        return ""
-    title = re.sub(r"-\d+$", "", slug).replace("-", " ").strip()
-    return title.title()
-
-
 def _slug_to_video_title(slug):
     if not slug:
         return ""
