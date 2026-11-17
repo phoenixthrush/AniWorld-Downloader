@@ -810,6 +810,31 @@ def test_status_describes_the_schedule_in_the_ui_language(monkeypatch):
     assert autosync.status()["schedule"] == "Jeden Montag um 22:00"
 
 
+def test_the_worker_waits_for_a_manual_sync(monkeypatch):
+    """A manual sync holds the lock; the worker skips the tick quietly."""
+
+    class Stop(Exception):
+        pass
+
+    def stop(seconds):
+        raise Stop
+
+    ran = []
+    monkeypatch.setattr(autosync, "autosync_enabled", lambda: True)
+    monkeypatch.setattr(autosync, "run_cycle", lambda: ran.append(True))
+    monkeypatch.setattr(autosync.time, "sleep", stop)
+    assert autosync._due() is True
+
+    with autosync._run_lock, pytest.raises(Stop):
+        autosync._loop()
+    assert ran == []
+    assert autosync._due() is True, "still due once the manual sync is done"
+
+    with pytest.raises(Stop):
+        autosync._loop()
+    assert ran == [True]
+
+
 def test_a_full_cycle_with_nothing_to_do(feed, downloads):
     feed([])
     report = autosync.run_cycle()
