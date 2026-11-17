@@ -74,3 +74,21 @@ def test_pages_ignore_hosters_without_a_registered_extractor(
     monkeypatch.delitem(provider_functions, "get_direct_link_from_doodstream")
 
     assert megakino_page("https://dood.watch/e/video").provider_data is None
+
+
+def test_gxplayer_stream_url_uses_m3u8_extension(monkeypatch):
+    from aniworld.extractors.provider import megakino
+
+    monkeypatch.setattr(
+        megakino,
+        "_fetch_megakino_player_page",
+        lambda link, headers=None: '{"id":"11407","uid":"3","md5":"abc123"}',
+    )
+
+    url = megakino.get_direct_link_from_megakino("https://watch.gxplayer.xyz/watch?v=X")
+
+    # FFmpeg rejects the text/plain playlist under a ".txt" name and the
+    # downloader only takes its HLS path for ".m3u8" URLs.
+    assert url == (
+        "https://watch.gxplayer.xyz/m3u8/3/abc123/master.m3u8?s=1&id=11407&cache=1"
+    )

@@ -18,7 +18,9 @@ def get_direct_link_from_megakino(embeded_megakino_link, headers=None):
 
     uid, md5, video_id = stream_parts
 
-    stream_link = f"https://watch.gxplayer.xyz/m3u8/{uid}/{md5}/master.txt?s=1&id={video_id}&cache=1"
+    # The player requests master.txt, but the server serves the same playlist
+    # as master.m3u8; FFmpeg only detects HLS by that extension (text/plain).
+    stream_link = f"https://watch.gxplayer.xyz/m3u8/{uid}/{md5}/master.m3u8?s=1&id={video_id}&cache=1"
     return stream_link
 
 
