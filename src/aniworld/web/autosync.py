@@ -306,7 +306,9 @@ def _missing_episodes(series, have):
     missing = []
     for season in series.seasons:
         episodes = season.episodes
-        downloaded_urls = set(downloaded_episode_owners(episodes, have).values())
+        downloaded_urls = set(
+            downloaded_episode_owners(episodes, have, strict=False).values()
+        )
         for episode in episodes:
             if episode.url not in downloaded_urls:
                 missing.append(episode.url)
