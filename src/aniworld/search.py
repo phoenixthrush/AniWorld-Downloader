@@ -1189,6 +1189,77 @@ def query_filmpalast(keyword="", *, genre=None, limit=None):
     return results
 
 
+def query_mediathek(keyword="", *, limit=30):
+    """Search the public broadcasters' media libraries through MediathekView.
+
+    Every hit is one show (a topic on one channel), like a series page on the
+    other sites. Covers load per card afterwards, see /api/series.
+    """
+    from .models.mediathek import api
+
+    validate_limit(limit)
+    return [_mediathek_card(show) for show in api.search_shows(keyword, limit=limit)]
+
+
+def _mediathek_card(show, poster=""):
+    """A show as a search or browse card: title, link, channel and date."""
+    from .models.mediathek import api
+    from .models.mediathek.episode import channel_label
+
+    channel = channel_label(show["channel"])
+    newest = api.broadcast_date(show["newest"])
+    details = [channel, newest.strftime("%d.%m.%Y") if newest else ""]
+    return {
+        "title": show.get("name") or show["topic"],
+        "url": api.show_url(
+            show["channel"],
+            show["topic"],
+            family=show.get("family"),
+            name=show.get("name"),
+        ),
+        "poster_url": poster,
+        # Shown under the title, the way other sites show a genre.
+        "genre": " · ".join(part for part in details if part),
+        "channel": channel,
+    }
+
+
+def _mediathek_browse(kind, *, show_posters):
+    """A browse row of the newest Mediathek shows, covers included.
+
+    Browse rows don't fetch covers per card the way search results do, so
+    they come with the row: the show's TVmaze poster where `show_posters`
+    (series), else the newest programme's preview image.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    from .models.mediathek import api
+
+    def cover(show):
+        name = show.get("name") or show["topic"]
+        poster = api.show_poster(name) if show_posters else ""
+        return poster or api.cover_url(show["newest"].get("url_website"))
+
+    try:
+        shows = api.newest_shows(kind)
+    except Exception as exc:
+        logger.debug(f"Mediathek browse ({kind}) failed: {exc}")
+        return None
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        covers = list(pool.map(cover, shows))
+    return [_mediathek_card(show, poster) for show, poster in zip(shows, covers)]
+
+
+def fetch_mediathek_new_episodes():
+    """Series whose newest episode just aired, for the browse grid."""
+    return _mediathek_browse("episodes", show_posters=True)
+
+
+def fetch_mediathek_new_programmes():
+    """New films, documentaries and features (40 min and more)."""
+    return _mediathek_browse("programmes", show_posters=False)
+
+
 def fetch_filmo_genres():
     """Fetch Filmo's current genre IDs and names from the browse filters.
 

@@ -47,6 +47,9 @@ from .models import (
     KinoxSeries,
     MangaFireToChapter,
     MangaFireToSeries,
+    MediathekEpisode,
+    MediathekSeason,
+    MediathekSeries,
     MegaKinoEpisode,
     MoflixEpisode,
     MoflixSeason,
@@ -55,6 +58,11 @@ from .models import (
     SerienstreamSeries,
 )
 from .models.filmo_to.episode import FILMO_EPISODE_PATTERN
+from .models.mediathek.api import (
+    MEDIATHEK_EPISODE_PATTERN,
+    MEDIATHEK_SEASON_PATTERN,
+    MEDIATHEK_SERIES_PATTERN,
+)
 from .models.moflix_stream.http import normalize_url as normalize_moflix_url
 
 
@@ -172,6 +180,18 @@ PROVIDERS = [
         series_cls=MoflixEpisode,
         season_cls=MoflixSeason,
         episode_cls=MoflixEpisode,
+    ),
+    Provider(
+        # Public broadcasters' media libraries, through MediathekView. A show
+        # is a mediathekviewweb.de search link, an episode is the broadcaster's
+        # own page for the programme.
+        name="Mediathek",
+        series_pattern=MEDIATHEK_SERIES_PATTERN,
+        season_pattern=MEDIATHEK_SEASON_PATTERN,
+        episode_pattern=MEDIATHEK_EPISODE_PATTERN,
+        series_cls=MediathekSeries,
+        season_cls=MediathekSeason,
+        episode_cls=MediathekEpisode,
     ),
 ]
 

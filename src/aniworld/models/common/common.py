@@ -1246,8 +1246,17 @@ def download(self):
 
                 # Covers every host in config.STO_DOMAINS/STO_IP
                 is_serienstream = is_sto_host(getattr(self, "url", "") or "")
+                # A site can name its audio language outright, for languages
+                # the four labels below don't cover (the Mediathek's French,
+                # Polish or unknown "und" tracks). Its one stream is the whole
+                # programme, so there's no separate subtitled picture to fetch.
+                site_audio = getattr(self, "audio_language", None)
 
-                if is_serienstream and hasattr(self, "_normalize_language"):
+                if site_audio:
+                    audio_code = site_audio
+                    wants_clean_video = True
+                    sub_video_code = None
+                elif is_serienstream and hasattr(self, "_normalize_language"):
                     audio_enum, sub_enum = self._normalize_language(
                         self.selected_language
                     )

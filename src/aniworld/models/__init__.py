@@ -16,6 +16,7 @@ from .hentai_tv import HentaiTVEpisode
 from .hentaihaven import HentaiHavenEpisode, HentaiHavenSeries
 from .kinox import KinoxEpisode, KinoxSeason, KinoxSeries
 from .mangafire_to.series import MangaFireToChapter, MangaFireToPage, MangaFireToSeries
+from .mediathek import MediathekEpisode, MediathekSeason, MediathekSeries
 from .megakino import MegaKinoEpisode
 from .moflix_stream import MoflixEpisode, MoflixSeason
 from .s_to import SerienstreamEpisode, SerienstreamSeason, SerienstreamSeries
@@ -42,6 +43,9 @@ __all__ = [
     "MangaFireToChapter",
     "MangaFireToPage",
     "MangaFireToSeries",
+    "MediathekEpisode",
+    "MediathekSeason",
+    "MediathekSeries",
     "MegaKinoEpisode",
     "MoflixEpisode",
     "MoflixSeason",
