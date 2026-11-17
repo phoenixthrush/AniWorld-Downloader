@@ -160,6 +160,29 @@ def test_changing_selected_root_updates_complete_video_path(
     assert episode._episode_path != old_path
 
 
+@pytest.mark.parametrize(
+    "kwargs,season,folder,name",
+    [
+        ({}, 0, "Season 00", "Example S00E01"),
+        ({"season_number": 0}, 0, "Season 00", "Example S00E01"),
+        ({"season_number": 2}, 2, "Season 02", "Example S02E01"),
+    ],
+)
+def test_burningseries_season_zero_is_not_season_one(
+    home, monkeypatch, kwargs, season, folder, name
+):
+    series = SimpleNamespace(title_cleaned="Example")
+    monkeypatch.setattr(
+        BurningSeriesEpisode, "series", property(lambda self: series), raising=False
+    )
+    monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "{title}.mkv")
+    episode = BurningSeriesEpisode(
+        "https://bs.to/serie/example/0/1-example/de", selected_path="~/M", **kwargs
+    )
+    assert episode.season_number == season
+    assert episode._episode_path == home / "M" / "Example" / folder / f"{name}.mkv"
+
+
 def test_relative_cli_output_stays_beneath_working_directory(model, home, monkeypatch):
     monkeypatch.setattr(sys, "argv", ["aniworld", "--output", "./downloads"])
     arguments.parse_args()
