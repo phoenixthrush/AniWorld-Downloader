@@ -440,6 +440,9 @@ def parse_args():
             logger.error(f"Failed to read episode file: {e}")
             sys.exit(1)
 
+    if args.provider_url and not args.provider:
+        parser.error("--provider-url requires --provider")
+
     if args.provider_url and args.provider:
         import ffmpeg
 
