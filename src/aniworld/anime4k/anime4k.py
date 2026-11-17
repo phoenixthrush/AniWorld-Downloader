@@ -224,6 +224,7 @@ def anime4k(mode="high"):
         for conf_name in ("mpv.conf", "input.conf"):
             remove_anime4k_lines(MPV_CONFIG_DIR / conf_name)
 
+        download_anime4k(mode="remove")
         logger.debug("Anime4K assets, shaders, and configs removed successfully.")
         return
 

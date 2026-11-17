@@ -157,6 +157,8 @@ def aniworld():
         from .search import search
 
         url = args.url[0] if args.url else search()
+        if not url:
+            return 1
 
         # FIX: replace s.to with serienstream.to to avoid issues with s.to being down
         url = url.replace("://s.to", "://serienstream.to")
