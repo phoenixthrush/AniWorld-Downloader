@@ -14,7 +14,7 @@ from aniworld.extractors.common import (
     extract_video_metadata,
     unpack_js,
 )
-from aniworld.extractors.provider import filemoon
+from aniworld.extractors.provider import doodstream, filemoon
 from aniworld.models import (
     AniworldEpisode,
     BurningSeriesEpisode,
@@ -222,3 +222,24 @@ def test_packed_player_preserves_unknown_or_empty_tokens():
 def test_filemoon_legacy_packed_player_uses_the_shared_unpacker():
     html = """eval(function(p,a,c,k,e,d){return p;}('0:[{1:"2"}]',36,3,'sources|file|https://media.example/video.m3u8'.split('|')))"""
     assert filemoon._try_extract_from_html(html) == "https://media.example/video.m3u8"
+
+
+def test_doodstream_requests_verify_tls_and_time_out(monkeypatch):
+    calls = []
+    embed = "$.get('/pass_md5/abc', function(){}); token=tok123"
+
+    def fake_get(url, **kwargs):
+        calls.append(kwargs)
+        text = embed if "/e/" in url else "https://cdn.example/video"
+        return SimpleNamespace(text=text, raise_for_status=lambda: None)
+
+    monkeypatch.setattr(doodstream.niquests, "get", fake_get)
+
+    link = doodstream.get_direct_link_from_doodstream("https://dood.li/e/x")
+
+    assert link.startswith("https://cdn.example/video")
+    assert "token=tok123" in link
+    assert len(calls) == 2
+    for kwargs in calls:
+        assert kwargs.get("verify", True) is True
+        assert kwargs["timeout"]

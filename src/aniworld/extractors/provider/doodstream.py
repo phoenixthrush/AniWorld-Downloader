@@ -3,18 +3,15 @@ import random
 import re
 import sys
 import time
-import warnings
 from urllib.parse import urljoin
 
 import niquests
-from urllib3.exceptions import InsecureRequestWarning
 
 try:
     from ...config import DEFAULT_USER_AGENT
 except ImportError:
     from aniworld.config import DEFAULT_USER_AGENT
 
-warnings.simplefilter("ignore", InsecureRequestWarning)
 logger = logging.getLogger(__name__)
 
 # -----------------------------
@@ -53,7 +50,7 @@ def _generate_random_string(length=10):
 def _get_embed_page(embed_url, headers=None):
     """Fetch HTML content of the embed page."""
     headers = headers or _get_headers()
-    resp = niquests.get(embed_url, headers=headers, verify=False)
+    resp = niquests.get(embed_url, headers=headers, timeout=15)
     resp.raise_for_status()
     return resp.text
 
@@ -88,7 +85,7 @@ def get_direct_link_from_doodstream(embed_url):
     pass_md5_url = _get_pass_md5_url(embed_html, embed_url)
     token = _get_token(embed_html, embed_url)
 
-    md5_resp = niquests.get(pass_md5_url, headers=headers, verify=False)
+    md5_resp = niquests.get(pass_md5_url, headers=headers, timeout=15)
     md5_resp.raise_for_status()
     video_base_url = md5_resp.text.strip()
     if not video_base_url:
