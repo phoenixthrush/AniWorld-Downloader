@@ -22,10 +22,7 @@ from urllib.parse import urljoin
 
 import niquests
 
-try:
-    from ...config import DEFAULT_USER_AGENT, logger
-except ImportError:
-    from aniworld.config import DEFAULT_USER_AGENT, logger
+from ...config import DEFAULT_USER_AGENT, logger
 
 
 class HLSUnsupported(Exception):

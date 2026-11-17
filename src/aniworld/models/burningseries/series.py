@@ -16,42 +16,23 @@ import time
 from pathlib import Path
 from urllib.parse import urlparse
 
-try:
-    from ...config import (
-        BS_HOST_PATTERN,
-        DEFAULT_USER_AGENT,
-        Audio,
-        Subtitles,
-        build_provider_attempt_order,
-        logger,
-    )
-    from ..common import check_downloaded, run_each
-    from ..common.common import clean_title
-    from ..common.common import download as episode_download
-    from ..common.common import syncplay as episode_syncplay
-    from ..common.common import watch as episode_watch
-    from ..common.extraction import resolve_stream_url
-    from ..common.http import get_html, get_session
-    from ..common.paths import resolve_download_path
-    from ..common.provider_map import host_to_provider
-except ImportError:
-    from aniworld.config import (
-        BS_HOST_PATTERN,
-        DEFAULT_USER_AGENT,
-        Audio,
-        Subtitles,
-        build_provider_attempt_order,
-        logger,
-    )
-    from aniworld.models.common import check_downloaded, run_each
-    from aniworld.models.common.common import clean_title
-    from aniworld.models.common.common import download as episode_download
-    from aniworld.models.common.common import syncplay as episode_syncplay
-    from aniworld.models.common.common import watch as episode_watch
-    from aniworld.models.common.extraction import resolve_stream_url
-    from aniworld.models.common.http import get_html, get_session
-    from aniworld.models.common.paths import resolve_download_path
-    from aniworld.models.common.provider_map import host_to_provider
+from ...config import (
+    BS_HOST_PATTERN,
+    DEFAULT_USER_AGENT,
+    Audio,
+    Subtitles,
+    build_provider_attempt_order,
+    logger,
+)
+from ..common import check_downloaded, run_each
+from ..common.common import clean_title
+from ..common.common import download as episode_download
+from ..common.common import syncplay as episode_syncplay
+from ..common.common import watch as episode_watch
+from ..common.extraction import resolve_stream_url
+from ..common.http import get_html, get_session
+from ..common.paths import resolve_download_path
+from ..common.provider_map import host_to_provider
 
 # Official domains for search / browse / episode listings. bs.cine.to answers
 # reliably for these. The first domain that answers is remembered.

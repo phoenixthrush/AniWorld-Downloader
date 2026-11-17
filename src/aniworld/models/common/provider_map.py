@@ -6,12 +6,8 @@ The German mirror sites label the same hoster in slightly different ways
 so the download pipeline can find the matching extractor.
 """
 
-try:
-    from ...config import SUPPORTED_PROVIDERS
-    from ...extractors import provider_functions
-except ImportError:
-    from aniworld.config import SUPPORTED_PROVIDERS
-    from aniworld.extractors import provider_functions
+from ...config import SUPPORTED_PROVIDERS
+from ...extractors import provider_functions
 
 # Substrings checked against the lower-cased host/provider label.
 # First match wins, so order the more specific entries first.

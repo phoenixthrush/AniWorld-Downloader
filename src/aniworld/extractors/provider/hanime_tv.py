@@ -17,24 +17,13 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from curl_cffi import requests as curl_requests
 
 from ...common.search import limit_results, validate_limit
-
-try:
-    from ...config import DEFAULT_USER_AGENT, GLOBAL_SESSION, logger
-    from ...playwright.captcha import (
-        is_captcha_page,
-        playwright_get_hanime_manifest_token,
-        solve_captcha,
-    )
-    from ..common import decode_base64url, extract_video_metadata
-except ImportError:
-    from aniworld.config import DEFAULT_USER_AGENT, GLOBAL_SESSION, logger
-    from aniworld.extractors.common import decode_base64url, extract_video_metadata
-    from aniworld.playwright.captcha import (
-        is_captcha_page,
-        playwright_get_hanime_manifest_token,
-        solve_captcha,
-    )
-
+from ...config import DEFAULT_USER_AGENT, GLOBAL_SESSION, logger
+from ...playwright.captcha import (
+    is_captcha_page,
+    playwright_get_hanime_manifest_token,
+    solve_captcha,
+)
+from ..common import decode_base64url, extract_video_metadata
 
 HANIME_BASE_URL = "https://hanime.tv"
 HANIME_VIDEO_URL = f"{HANIME_BASE_URL}/videos/hentai/{{slug}}"

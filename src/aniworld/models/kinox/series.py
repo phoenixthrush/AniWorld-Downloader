@@ -13,40 +13,20 @@ import re
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-try:
-    from ...config import (
-        Audio,
-        Subtitles,
-        build_provider_attempt_order,
-    )
-    from ..common import check_downloaded, movie_folder_enabled, run_each
-    from ..common.common import clean_title
-    from ..common.common import download as episode_download
-    from ..common.common import syncplay as episode_syncplay
-    from ..common.common import watch as episode_watch
-    from ..common.extraction import resolve_stream_url
-    from ..common.http import get_html, get_session
-    from ..common.paths import resolve_download_path
-    from ..common.provider_map import host_to_provider
-except ImportError:
-    from aniworld.config import (
-        Audio,
-        Subtitles,
-        build_provider_attempt_order,
-    )
-    from aniworld.models.common import (
-        check_downloaded,
-        movie_folder_enabled,
-        run_each,
-    )
-    from aniworld.models.common.common import clean_title
-    from aniworld.models.common.common import download as episode_download
-    from aniworld.models.common.common import syncplay as episode_syncplay
-    from aniworld.models.common.common import watch as episode_watch
-    from aniworld.models.common.extraction import resolve_stream_url
-    from aniworld.models.common.http import get_html, get_session
-    from aniworld.models.common.paths import resolve_download_path
-    from aniworld.models.common.provider_map import host_to_provider
+from ...config import (
+    Audio,
+    Subtitles,
+    build_provider_attempt_order,
+)
+from ..common import check_downloaded, movie_folder_enabled, run_each
+from ..common.common import clean_title
+from ..common.common import download as episode_download
+from ..common.common import syncplay as episode_syncplay
+from ..common.common import watch as episode_watch
+from ..common.extraction import resolve_stream_url
+from ..common.http import get_html, get_session
+from ..common.paths import resolve_download_path
+from ..common.provider_map import host_to_provider
 
 KINOX_DOMAIN = os.getenv("ANIWORLD_KINOX_DOMAIN", "").strip() or "kinox.to"
 

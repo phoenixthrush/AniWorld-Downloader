@@ -4,11 +4,7 @@ import sys
 import zipfile
 from pathlib import Path
 
-try:
-    from ..config import GLOBAL_SESSION
-except ImportError:
-    from aniworld.config import GLOBAL_SESSION
-
+from ..config import GLOBAL_SESSION
 
 GITHUB_BASE_URL = "https://github.com"
 

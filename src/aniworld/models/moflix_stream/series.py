@@ -3,51 +3,23 @@ import re
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-try:
-    from ...config import (
-        NAMING_TEMPLATE,
-        Audio,
-        Subtitles,
-        build_provider_attempt_order,
-    )
-    from ..common import ProviderData, check_downloaded, movie_folder_enabled
-    from ..common.common import clean_title
-    from ..common.common import download as episode_download
-    from ..common.common import syncplay as episode_syncplay
-    from ..common.common import watch as episode_watch
-    from ..common.extraction import resolve_stream_url
-    from ..common.naming import template_path
-    from ..common.paths import resolve_download_path
-    from ..common.provider_map import host_to_provider
-    from .http import MoflixError, normalize_url, parse_csrf_token, parse_json
-    from .http import get_response as _fetch_moflix
-except ImportError:
-    from aniworld.config import (
-        NAMING_TEMPLATE,
-        Audio,
-        Subtitles,
-        build_provider_attempt_order,
-    )
-    from aniworld.models.common import (
-        ProviderData,
-        check_downloaded,
-        clean_title,
-        movie_folder_enabled,
-    )
-    from aniworld.models.common import download as episode_download
-    from aniworld.models.common import syncplay as episode_syncplay
-    from aniworld.models.common import watch as episode_watch
-    from aniworld.models.common.extraction import resolve_stream_url
-    from aniworld.models.common.naming import template_path
-    from aniworld.models.common.paths import resolve_download_path
-    from aniworld.models.common.provider_map import host_to_provider
-    from aniworld.models.moflix_stream.http import (
-        MoflixError,
-        normalize_url,
-        parse_csrf_token,
-        parse_json,
-    )
-    from aniworld.models.moflix_stream.http import get_response as _fetch_moflix
+from ...config import (
+    NAMING_TEMPLATE,
+    Audio,
+    Subtitles,
+    build_provider_attempt_order,
+)
+from ..common import ProviderData, check_downloaded, movie_folder_enabled
+from ..common.common import clean_title
+from ..common.common import download as episode_download
+from ..common.common import syncplay as episode_syncplay
+from ..common.common import watch as episode_watch
+from ..common.extraction import resolve_stream_url
+from ..common.naming import template_path
+from ..common.paths import resolve_download_path
+from ..common.provider_map import host_to_provider
+from .http import MoflixError, normalize_url, parse_csrf_token, parse_json
+from .http import get_response as _fetch_moflix
 
 
 class MoflixEpisode:

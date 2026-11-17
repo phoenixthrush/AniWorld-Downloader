@@ -6,10 +6,7 @@ check that raises a readable error instead of silently parsing a challenge
 page.
 """
 
-try:
-    from ...config import GLOBAL_SESSION
-except ImportError:
-    from aniworld.config import GLOBAL_SESSION
+from ...config import GLOBAL_SESSION
 
 _CAPTCHA_HINTS = (
     "cf-challenge",
