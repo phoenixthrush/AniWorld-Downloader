@@ -127,7 +127,9 @@ class AniworldSeason:
                 otherwise False.
         """
         return (
-            re.fullmatch(r"https://aniworld\.to/anime/stream/[^/]+/filme", self.url)
+            re.fullmatch(
+                r"https?://(?:www\.)?aniworld\.to/anime/stream/[^/]+/filme", self.url
+            )
             is not None
         )
 
