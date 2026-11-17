@@ -262,7 +262,11 @@ def delete(folder, season=None, episode=None, custom_path_id=None, lang_folder=N
         raise LibraryError("Nothing found to delete")
 
     if season is None:
-        shutil.rmtree(target, ignore_errors=True)
+        try:
+            shutil.rmtree(target)
+        except OSError as exc:
+            logger.warning("Could not delete %s: %s", target, exc)
+            raise LibraryError("Could not delete the folder") from exc
         return 1
 
     if str(season) == "movie":

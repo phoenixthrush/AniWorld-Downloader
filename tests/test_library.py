@@ -210,6 +210,21 @@ def test_deleting_a_whole_title(episode_file, downloads):
     assert not (downloads / "Naruto").exists()
 
 
+def test_a_title_that_cannot_be_deleted_is_an_error(
+    episode_file, downloads, monkeypatch
+):
+    """A locked file must not be reported as deleted."""
+    episode_file("Naruto", 1, 1)
+
+    def refuse(path):
+        raise PermissionError("in use")
+
+    monkeypatch.setattr(library.shutil, "rmtree", refuse)
+    with pytest.raises(library.LibraryError):
+        library.delete("Naruto")
+    assert (downloads / "Naruto").exists()
+
+
 def test_deleting_one_season_keeps_the_others(episode_file, downloads):
     episode_file("Naruto", 1, 1)
     episode_file("Naruto", 2, 1)
