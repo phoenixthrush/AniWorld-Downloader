@@ -532,6 +532,10 @@ def _queue_filter(status=None, search=None):
     return where, params
 
 
+# The most rows one page may hold; the view reports this cap back to the pager.
+QUEUE_PAGE_MAX = 200
+
+
 def get_queue_page(status=None, search=None, sort="smart", limit=25, offset=0):
     """One page of the queue, plus how many rows the filter matches in total.
 
@@ -540,7 +544,7 @@ def get_queue_page(status=None, search=None, sort="smart", limit=25, offset=0):
     """
     order = _QUEUE_SORTS.get(sort or "smart", _QUEUE_ORDER)
     where, params = _queue_filter(status, search)
-    limit = max(1, min(int(limit), 200))
+    limit = max(1, min(int(limit), QUEUE_PAGE_MAX))
     offset = max(0, int(offset))
 
     with session() as conn:

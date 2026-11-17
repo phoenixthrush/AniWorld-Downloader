@@ -1,5 +1,7 @@
 """Settings, custom paths and Discord bot status."""
 
+import sqlite3
+
 from flask import Response, jsonify, request
 
 from ...logger import get_logger
@@ -220,7 +222,7 @@ def add_custom_path():
         path_id = db.add_custom_path(
             name, path, normalize_default_sites(data.get("default_sites"))
         )
-    except Exception:
+    except sqlite3.IntegrityError:
         return jsonify({"error": "A path with that name already exists"}), 409
     return jsonify({"ok": True, "id": path_id})
 

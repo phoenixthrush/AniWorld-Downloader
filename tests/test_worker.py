@@ -84,6 +84,32 @@ def test_a_missing_format_falls_back_to_the_setting(monkeypatch):
     assert extra["_format"] == "png"
 
 
+def test_a_plain_mangafire_url_gets_the_configured_format(monkeypatch):
+    """A bare URL string carries no extras, MangaFire still needs a format."""
+    monkeypatch.setenv("ANIWORLD_MANGAFIRE_FORMAT", "png")
+    built = {}
+
+    class Provider:
+        name = "MangaFire"
+
+        @staticmethod
+        def series_cls(url):
+            return None
+
+        @staticmethod
+        def episode_cls(**kwargs):
+            built.update(kwargs)
+
+    monkeypatch.setattr(worker, "resolve_provider", lambda url: Provider)
+    url, extra = worker._episode_request(
+        "https://mangafire.to/title/z9w-velvet-kisss/chapter/1"
+    )
+    worker._build_episode(
+        url, extra, {"language": "German Dub", "provider": "VOE"}, None
+    )
+    assert built["format"] == "png"
+
+
 def test_page_zero_is_still_passed_along():
     _, extra = worker._episode_request({"url": "x", "selected_pages": []})
     assert extra["selected_pages"] == []

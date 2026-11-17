@@ -7,6 +7,7 @@ import math
 import os
 import re
 import secrets
+import sqlite3
 import time
 from functools import wraps
 
@@ -387,7 +388,7 @@ def admin_create_user():
 
     try:
         user_id = db.create_user(username, password, role)
-    except Exception:
+    except sqlite3.IntegrityError:
         return jsonify({"error": "That username is already taken"}), 409
     return jsonify({"id": user_id, "username": username, "role": role})
 
