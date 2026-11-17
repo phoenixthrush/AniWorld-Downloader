@@ -316,14 +316,11 @@ class FilmPalastEpisode:
     def _file_extension(self):
         if self.__file_extension is None:
             naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-            try:
-                file_part = naming_template.split("/")[-1]
-                if "." in file_part:
-                    ext = file_part.rsplit(".", 1)[-1]
-                    self.__file_extension = ext if ext else "mkv"
-                else:
-                    self.__file_extension = "mkv"
-            except IndexError:
+            file_part = naming_template.split("/")[-1]
+            if "." in file_part:
+                ext = file_part.rsplit(".", 1)[-1]
+                self.__file_extension = ext if ext else "mkv"
+            else:
                 self.__file_extension = "mkv"
         return self.__file_extension
 
