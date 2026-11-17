@@ -494,8 +494,6 @@ _QUEUE_SORTS = {
     "title": "ORDER BY title COLLATE NOCASE ASC, id ASC",
 }
 
-_QUEUE_STATUSES = ("queued", "running", "completed", "failed", "cancelled")
-
 # Filters that are not a single status value.
 _STATUS_GROUPS = {
     "active": ("queued", "running"),
@@ -563,7 +561,7 @@ def queue_counts():
             "SELECT status, COUNT(*) AS n FROM download_queue GROUP BY status"
         ).fetchall()
 
-    counts = {status: 0 for status in _QUEUE_STATUSES}
+    counts = {status: 0 for status in QUEUE_STATUSES}
     for row in rows:
         counts[row["status"]] = row["n"]
     counts["active"] = counts["queued"] + counts["running"]

@@ -15,6 +15,7 @@ is enough to pull the rest in. The "only new episodes" setting narrows that to
 the episodes the feed actually announced, for people who have gaps on purpose.
 """
 
+import json
 import re
 import threading
 import time
@@ -290,17 +291,6 @@ def _default_provider():
     return order[0] if order else "VOE"
 
 
-def episodes_in_folder(folder):
-    """(season, episode) numbers sitting in this one copy.
-
-    media.downloaded_episodes() unions every root and language folder, which is
-    right for the "already downloaded" badge but wrong here: a German copy would
-    look complete because the English copy next to it has the episode, and would
-    then never be filled in.
-    """
-    return set(episode_files_in_folder(folder))
-
-
 def _missing_episodes(series, have):
     """Episode URLs of a series that are not in this copy yet."""
     missing = []
@@ -378,6 +368,9 @@ def _handle(candidate, provider_name):
             "reason": "This copy is already in the queue.",
         }
 
+    # Only this one copy: media.downloaded_episodes() unions every root and
+    # language folder, so a German copy would look complete because the English
+    # copy next to it has the episode, and would then never be filled in.
     have = episode_files_in_folder(candidate["folder"])
     series = resolve_provider(series_url).series_cls(url=series_url)
     if autosync_new_only():
@@ -439,7 +432,7 @@ def run_cycle():
                 "results": [],
             }
             db.set_autosync_state(
-                last_run=started.isoformat(), last_report=_dump(report)
+                last_run=started.isoformat(), last_report=json.dumps(report)
             )
             return report
 
@@ -465,7 +458,9 @@ def run_cycle():
             "queued": sum(1 for row in rows if row["status"] == "queued"),
             "results": rows,
         }
-        db.set_autosync_state(last_run=started.isoformat(), last_report=_dump(report))
+        db.set_autosync_state(
+            last_run=started.isoformat(), last_report=json.dumps(report)
+        )
         logger.info(
             "AutoSync finished: %d matched, %d queued",
             report["checked"],
@@ -479,12 +474,6 @@ def run_cycle():
         return report
     finally:
         _run_lock.release()
-
-
-def _dump(report):
-    import json
-
-    return json.dumps(report)
 
 
 def is_running():

@@ -471,7 +471,10 @@ def test_four_digit_numbers_work_through_detection_library_and_deletion(episode_
         (2, 110),
         (2, 1100),
     }
-    assert autosync.episodes_in_folder(removed.parent.parent) == {(2, 110), (2, 1100)}
+    assert set(media.episode_files_in_folder(removed.parent.parent)) == {
+        (2, 110),
+        (2, 1100),
+    }
     assert [
         row["episode"] for row in library.read_title("Example")["seasons"]["2"]
     ] == [110, 1100]
@@ -515,7 +518,7 @@ def test_incomplete_downloads_and_subtitles_are_not_counted_as_video(episode_fil
     partial = episode_file("Example", 2, 1100, suffix=".temp_full.mkv")
     episode_file("Example", 2, 1101, suffix=".srt")
     assert media.downloaded_episodes(SimpleNamespace(title_cleaned="Example")) == set()
-    assert autosync.episodes_in_folder(partial.parent.parent) == set()
+    assert set(media.episode_files_in_folder(partial.parent.parent)) == set()
 
 
 def test_new_only_checks_only_the_announced_season_once(model, tmp_path, monkeypatch):

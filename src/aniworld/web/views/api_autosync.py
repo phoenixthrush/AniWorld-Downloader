@@ -21,7 +21,7 @@ def register(bp):
         view_func=delete_exclusion,
         methods=["DELETE"],
     )
-    # Used by the download modal, so it stays available to non-admins
+    # Used by the download modal; admin-only like the rest (see ADMIN_ENDPOINTS)
     bp.add_url_rule("/autosync/excluded", view_func=exclusion_state)
     bp.add_url_rule(
         "/autosync/excluded", view_func=set_exclusion_state, methods=["POST"]

@@ -39,22 +39,6 @@ _PROVIDER_BY_LOWER = {p.lower(): p for p in WORKING_PROVIDERS}
 # ---------------------------------------------------------------------------
 # Sites
 # ---------------------------------------------------------------------------
-# Site keys the front-end uses. Custom paths can be the default for any of them.
-SITE_KEYS = (
-    "aniworld",
-    "sto",
-    "megakino",
-    "mangafire",
-    "htv",
-    "hentaitv",
-    "hentaihaven",
-    "kinox",
-    "burningseries",
-    "filmpalast",
-    "filmo",
-    "moflix",
-)
-
 SITE_LABELS = {
     "aniworld": "AniWorld",
     "sto": "SerienStream",
@@ -70,22 +54,8 @@ SITE_LABELS = {
     "moflix": "Moflix",
 }
 
-# The order the tabs appear in on the home page, which is not the order the
-# keys happen to be declared in above.
-SITE_ORDER = (
-    "aniworld",
-    "sto",
-    "burningseries",
-    "megakino",
-    "moflix",
-    "kinox",
-    "filmpalast",
-    "filmo",
-    "htv",
-    "hentaitv",
-    "hentaihaven",
-    "mangafire",
-)
+# Site keys the front-end uses. Custom paths can be the default for any of them.
+SITE_KEYS = tuple(SITE_LABELS)
 
 # Sites nobody gets unless they ask: adult content, or a site that cannot be
 # used without work on the user's side. Every other site starts on.
