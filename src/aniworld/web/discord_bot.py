@@ -362,6 +362,8 @@ def _build_client(config):
             )
 
     async def do_enqueue(interaction, ctx):
+        # Resolving the series can outlast Discord's 3 s answer window
+        await interaction.response.defer()
         try:
             await run_blocking(
                 _enqueue,
@@ -429,6 +431,7 @@ def _build_client(config):
             label=t(config, "btn_accept"), style=discord.ButtonStyle.success
         )
         async def accept(self, interaction, button):
+            await interaction.response.defer()
             try:
                 await run_blocking(
                     _enqueue,
@@ -441,12 +444,10 @@ def _build_client(config):
                     self.ctx["requester_id"],
                 )
             except Exception as exc:
-                await interaction.response.edit_message(
-                    content=t(config, "queue_failed_short", error=exc), view=None
-                )
+                await edit(interaction, t(config, "queue_failed_short", error=exc))
                 return
-            await interaction.response.edit_message(
-                content=t(config, "accepted_owner", title=self.ctx["title"]), view=None
+            await edit(
+                interaction, t(config, "accepted_owner", title=self.ctx["title"])
             )
             await dm_requester(
                 self.ctx, t(config, "accepted_dm", title=self.ctx["title"])
@@ -554,12 +555,9 @@ def _build_client(config):
 def _run_bot(config):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    with _lock:
-        _state["loop"] = loop
-
     client = _build_client(config)
     with _lock:
-        _state["client"] = client
+        _state.update(loop=loop, client=client)
 
     try:
         loop.run_until_complete(client.start(config["token"]))
@@ -574,7 +572,9 @@ def _run_bot(config):
             pass
         loop.close()
         with _lock:
-            _state.update(running=False, loop=None, client=None, user=None)
+            # A restart may already have registered a newer bot
+            if _state["client"] is client:
+                _state.update(running=False, loop=None, client=None, user=None)
 
 
 async def _clear_commands(client):
@@ -601,17 +601,23 @@ def _stop_locked():
         except Exception as exc:
             logger.warning("Discord: clearing commands on stop failed: %s", exc)
         asyncio.run_coroutine_threadsafe(client.close(), loop)
-    if thread and thread.is_alive():
-        thread.join(timeout=10)
     _state.update(thread=None, running=False, config=None)
+    return thread
 
 
 def reconcile():
     """Start, stop or restart the bot so it matches the current configuration."""
+    # Join outside the lock: the bot thread needs it in its finally block
+    while thread := _reconcile_once():
+        thread.join(timeout=10)
+
+
+def _reconcile_once():
+    """Return the stopped bot thread to join, then run again; None when done."""
     if not DISCORD_AVAILABLE:
         with _lock:
             _state["error"] = "discord.py not installed"
-        return
+        return None
 
     config = read_config()
     with _lock:
@@ -619,15 +625,13 @@ def reconcile():
         should_run = config["enabled"] and bool(config["token"])
 
         if not should_run:
-            if running:
-                _stop_locked()
             _state["error"] = None
-            return
+            return _stop_locked() if running else None
 
         if running and _state["config"] == config:
-            return
+            return None
         if running:
-            _stop_locked()
+            return _stop_locked()
 
         _state["config"] = config
         _state["error"] = None
