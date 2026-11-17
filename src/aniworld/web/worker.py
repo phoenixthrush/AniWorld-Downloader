@@ -79,6 +79,10 @@ def _episode_request(entry):
     if entry.get("series_url"):
         extra["_series_url"] = entry["series_url"]
     extra["_format"] = entry.get("mangafire_format", mangafire_format())
+    if "mediathek_quality" in entry:
+        extra["_quality"] = entry["mediathek_quality"]
+    if "mediathek_subtitles" in entry:
+        extra["_subtitles"] = bool(entry["mediathek_subtitles"])
     return url, extra
 
 
@@ -106,6 +110,11 @@ def _build_episode(url, extra, item, selected_path):
         kwargs["series"] = series
     if "selected_pages" in extra:
         kwargs["selected_pages"] = extra["selected_pages"]
+    if provider.name == "Mediathek":
+        if "_quality" in extra:
+            kwargs["quality"] = extra["_quality"]
+        if "_subtitles" in extra:
+            kwargs["subtitles"] = extra["_subtitles"]
     if selected_path:
         kwargs["selected_path"] = selected_path
 

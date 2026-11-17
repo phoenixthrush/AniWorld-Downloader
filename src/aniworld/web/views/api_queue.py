@@ -5,7 +5,7 @@ from flask import Response, current_app, jsonify, request
 from ...logger import get_logger
 from .. import db, worker
 from ..media import SELF_HOSTED_LANGUAGES, mangafire_format
-from ..settings_store import english_sub_disabled
+from ..settings_store import MEDIATHEK_QUALITIES, english_sub_disabled
 
 logger = get_logger(__name__)
 
@@ -61,6 +61,13 @@ def start_download():
 
     if provider == "MangaFire":
         episodes = _tag_mangafire(episodes, data.get("mangafire_format"))
+    if "mediathek_quality" in data or "mediathek_subtitles" in data:
+        try:
+            episodes = _tag_mediathek(
+                episodes, data.get("mediathek_quality"), data.get("mediathek_subtitles")
+            )
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
 
     queue_id = db.add_to_queue(
         title=data.get("title", "Unknown"),
@@ -85,6 +92,22 @@ def _tag_mangafire(episodes, requested_format):
         else:
             tagged.append({"url": entry, "mangafire_format": output})
     return tagged
+
+
+def _tag_mediathek(episodes, quality, subtitles):
+    """The Mediathek's quality and subtitle choice, kept per queued episode."""
+    options = {}
+    if quality is not None:
+        quality = str(quality).strip().lower()
+        if quality not in MEDIATHEK_QUALITIES:
+            raise ValueError(f"Invalid mediathek_quality: {quality}")
+        options["mediathek_quality"] = quality
+    if subtitles is not None:
+        options["mediathek_subtitles"] = bool(subtitles)
+    return [
+        {**entry, **options} if isinstance(entry, dict) else {"url": entry, **options}
+        for entry in episodes
+    ]
 
 
 # What ?status= accepts: a real status, or one of the two groups.

@@ -33,6 +33,9 @@
       {% if sites.filmo %}
       <button class="segmented-btn" data-site="filmo">Filmo</button>
       {% endif %}
+      {% if sites.mediathek %}
+      <button class="segmented-btn" data-site="mediathek">Mediathek</button>
+      {% endif %}
       {% if sites.htv %}
       <button class="segmented-btn" data-site="htv">Hanime</button>
       {% endif %}
@@ -127,6 +130,16 @@
       <div class="browse-grid"></div>
     </section>
     {% endif %}
+    {% if sites.mediathek %}
+    <section class="browse-section" data-row="mediathek_episodes" data-sites="mediathek">
+      <h2 class="browse-heading" data-i18n="browse.new_episodes">New Episodes</h2>
+      <div class="browse-grid"></div>
+    </section>
+    <section class="browse-section" data-row="mediathek_programmes" data-sites="mediathek">
+      <h2 class="browse-heading" data-i18n="browse.new_in_mediathek">New in the Mediathek</h2>
+      <div class="browse-grid"></div>
+    </section>
+    {% endif %}
     {% if sites.mangafire %}
     <section class="browse-section" data-row="mangafire_trending" data-sites="mangafire">
       <h2 class="browse-heading" data-i18n="browse.trending_manga">Trending Manga</h2>
@@ -194,7 +207,7 @@
           </select>
         </label>
         <label class="field">
-          <span class="field-label" data-i18n="index.provider">Provider</span>
+          <span class="field-label" id="providerLabel" data-i18n="index.provider">Provider</span>
           <select id="providerSelect">
             {% for provider in supported_providers %}
             <option value="{{ provider }}">{{ provider }}</option>
@@ -249,6 +262,22 @@
           Download Selected
         </button>
         <button class="btn btn-secondary" id="downloadAllBtn" data-i18n="index.download_all">Download All</button>
+        {# Mediathek only: per-download options, defaults from the settings #}
+        <div class="download-options" id="mediathekOptions" hidden>
+          <label class="field field-compact">
+            <span class="field-label" data-i18n="index.quality">Quality</span>
+            {# Relabelled with the show's real resolutions once they are read #}
+            <select id="mediathekQuality">
+              <option value="hd" data-i18n="index.quality_hd">Highest</option>
+              <option value="sd" data-i18n="index.quality_sd">Medium</option>
+              <option value="low" data-i18n="index.quality_low">Lowest</option>
+            </select>
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" id="mediathekSubtitles" />
+            <span data-i18n="index.subtitles">Subtitles</span>
+          </label>
+        </div>
       </div>
     </div>
   </div>
@@ -264,11 +293,14 @@
       "burningseries": ["German Dub", "English Dub"],
       "filmpalast": ["German Dub", "English Dub"],
       "moflix": ["German Dub"],
-      "filmo": ["German Dub", "English Dub"]
+      "filmo": ["German Dub", "English Dub"],
+      "mediathek": mediathek_languages | list
     },
     "DEFAULT_LANGUAGE": default_language,
     "SHOW_ALL_LANGUAGES": show_all_languages,
     "ENGLISH_SUB_DISABLED": english_sub_disabled,
+    "MEDIATHEK_QUALITY": mediathek_quality,
+    "MEDIATHEK_SUBTITLES": mediathek_subtitles,
     "GENRE_SITES": genre_sites | list,
     "AUTOSYNC_ENABLED": autosync_enabled and is_admin,
     "STATIC_PROVIDERS": supported_providers | list

@@ -28,6 +28,7 @@ from ..search import (
     query_hentaihaven,
     query_kinox,
     query_mangafire,
+    query_mediathek,
     query_megakino,
     query_moflix,
     query_s_to,
@@ -48,6 +49,7 @@ SITE_SEARCH = {
     "htv": query_hanime,
     "hentaitv": query_hentai_tv,
     "hentaihaven": query_hentaihaven,
+    "mediathek": query_mediathek,
 }
 
 # aniworld/serienstream return relative `/.../<slug>` links, everything else
@@ -78,6 +80,9 @@ def sites_for(media_type):
     return MOVIE_SITES if media_type == "movie" else SERIES_SITES
 
 
+_CARD_EXTRAS = ("genre", "channel")
+
+
 def _clean_title(value, fallback=""):
     title = value or fallback or "Unknown"
     return title.replace("<em>", "").replace("</em>", "").strip()
@@ -103,13 +108,14 @@ def _normalise(site, raw, fallback=""):
         url = _resolve_url(site, item)
         if not url:
             continue
-        results.append(
-            {
-                "title": _clean_title(item.get("title") or item.get("name"), fallback),
-                "url": url,
-                "poster": _poster(item),
-            }
-        )
+        result = {
+            "title": _clean_title(item.get("title") or item.get("name"), fallback),
+            "url": url,
+            "poster": _poster(item),
+        }
+        # Optional card details some sites have (the Mediathek's channel/date).
+        result.update({key: item[key] for key in _CARD_EXTRAS if item.get(key)})
+        results.append(result)
     return results
 
 

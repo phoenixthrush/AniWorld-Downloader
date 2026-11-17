@@ -13,6 +13,7 @@ from flask import (
 )
 
 from ...config import ANIWORLD_CONFIG_DIR, LANG_LABELS
+from ...models.mediathek.versions import LABELS as MEDIATHEK_LANGUAGES
 from .. import paths, settings_store, sitesearch, theming
 from ..media import WORKING_PROVIDERS
 
@@ -69,6 +70,9 @@ def index():
         default_language=settings_store.default_language(),
         show_all_languages=settings_store.show_all_languages(),
         english_sub_disabled=settings_store.english_sub_disabled(),
+        mediathek_quality=settings_store.mediathek_quality(),
+        mediathek_languages=MEDIATHEK_LANGUAGES,
+        mediathek_subtitles=settings_store.mediathek_subtitles(),
         sites=settings_store.enabled_sites(),
         genre_sites=sitesearch.GENRE_SITES,
     )

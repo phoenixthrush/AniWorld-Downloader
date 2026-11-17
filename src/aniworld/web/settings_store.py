@@ -24,6 +24,8 @@ logger = get_logger(__name__)
 
 UI_LANGUAGES = ("en", "de")
 OUTPUT_FORMATS = ("mkv", "mp4")
+# Mediathek video qualities, best first (models/mediathek/api.py QUALITIES).
+MEDIATHEK_QUALITIES = ("hd", "sd", "low")
 
 # How Auto-Sync decides when to run: every so often, or at fixed times
 AUTOSYNC_MODES = ("interval", "cron")
@@ -72,6 +74,17 @@ def library_enabled():
 
 def autosync_enabled():
     return _flag("ANIWORLD_ENABLE_AUTOSYNC")
+
+
+def mediathek_quality():
+    """Default video quality for Mediathek downloads."""
+    value = os.environ.get("ANIWORLD_MEDIATHEK_QUALITY", "hd").strip().lower()
+    return value if value in MEDIATHEK_QUALITIES else "hd"
+
+
+def mediathek_subtitles():
+    """Whether Mediathek downloads save the subtitles by default."""
+    return _flag("ANIWORLD_MEDIATHEK_SUBTITLES", "1")
 
 
 def autosync_new_only():
@@ -392,6 +405,9 @@ def read_settings():
         "movie_folder": _flag("ANIWORLD_MOVIE_FOLDER", "1"),
         "ui_language": ui_language(),
         "output_format": output_format(),
+        "mediathek_quality": mediathek_quality(),
+        "mediathek_subtitles": mediathek_subtitles(),
+        "available_mediathek_qualities": list(MEDIATHEK_QUALITIES),
         "provider_fallback_order": list(get_provider_fallback_order(WORKING_PROVIDERS)),
         "available_providers": list(WORKING_PROVIDERS),
         "available_ui_languages": list(UI_LANGUAGES),
@@ -417,6 +433,7 @@ _BOOL_SETTINGS = {
     "enable_autosync": "ANIWORLD_ENABLE_AUTOSYNC",
     "autosync_new_only": "ANIWORLD_AUTOSYNC_NEW_ONLY",
     "movie_folder": "ANIWORLD_MOVIE_FOLDER",
+    "mediathek_subtitles": "ANIWORLD_MEDIATHEK_SUBTITLES",
     **{f"enable_{site}": site_env_key(site) for site in SITE_KEYS},
 }
 
@@ -512,6 +529,12 @@ def update_settings(data):
             raise SettingsError(f"Invalid output_format: {fmt}")
         updates["ANIWORLD_NAMING_TEMPLATE"] = _template_with_extension(fmt)
 
+    if "mediathek_quality" in data:
+        quality = str(data["mediathek_quality"]).strip().lower()
+        if quality not in MEDIATHEK_QUALITIES:
+            raise SettingsError(f"Invalid mediathek_quality: {quality}")
+        updates["ANIWORLD_MEDIATHEK_QUALITY"] = quality
+
     if "provider_fallback_order" in data:
         _collect_provider_order(data["provider_fallback_order"], updates)
 
@@ -571,6 +594,8 @@ def _env_sections():
                     "ANIWORLD_MOVIE_FOLDER",
                     _one_or_zero(_flag("ANIWORLD_MOVIE_FOLDER", "1")),
                 ),
+                ("ANIWORLD_MEDIATHEK_QUALITY", mediathek_quality()),
+                ("ANIWORLD_MEDIATHEK_SUBTITLES", _one_or_zero(mediathek_subtitles())),
             ],
         ),
         (

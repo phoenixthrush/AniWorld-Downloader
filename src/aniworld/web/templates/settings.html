@@ -152,6 +152,28 @@
           <p class="hint" data-i18n="settings.movie_folder_hint">
             When off, a movie is saved straight into the download path instead of a "Title (Year)" folder.
           </p>
+
+          <h3 data-i18n="settings.mediathek">Mediathek</h3>
+          <div class="control-row">
+            <label class="field field-compact">
+              <span class="field-label" data-i18n="settings.mediathek_quality">Default quality</span>
+              <select id="mediathekQuality">
+                <option value="hd" data-i18n="settings.quality_hd">Highest (usually 1080p)</option>
+                <option value="sd" data-i18n="settings.quality_sd">Medium (usually 720p)</option>
+                <option value="low" data-i18n="settings.quality_low">Lowest (usually 360p)</option>
+              </select>
+            </label>
+          </div>
+          <label class="checkbox">
+            <input type="checkbox" id="mediathekSubtitles" data-setting="mediathek_subtitles" />
+            <span data-i18n="settings.mediathek_subtitles">Download subtitles</span>
+          </label>
+          <p class="hint" data-i18n="settings.mediathek_hint">
+            Preset for every Mediathek download; each download can still change both next to its download buttons,
+            where the show's actual resolutions are listed. Broadcasters differ (KiKA's highest is 720p), and a missing
+            quality falls back to the next lower one. Subtitles are saved as an SRT file beside the video, where the
+            broadcaster offers them.
+          </p>
         </section>
       </section>
 
@@ -315,6 +337,20 @@
               </span>
               <input type="checkbox" class="site-switch" id="enableFilmo" data-setting="enable_filmo" data-reload="1"
                 role="switch" aria-label="Filmo" />
+            </label>
+            <label class="site-row">
+              <span class="site-row-text">
+                <span class="site-row-top">
+                  <span class="site-row-name">Mediathek</span>
+                  <span class="site-row-kind" data-i18n="settings.kind.mixed">Movies & series</span>
+                </span>
+                <span class="site-row-hint" data-i18n="settings.enable_mediathek_hint">
+                  Public broadcasters' media libraries (ARD, ZDF, Arte, 3sat, ORF, SRF and the ARD regional
+                  channels), through MediathekView.
+                </span>
+              </span>
+              <input type="checkbox" class="site-switch" id="enableMediathek" data-setting="enable_mediathek"
+                data-reload="1" role="switch" aria-label="Mediathek" />
             </label>
             <label class="site-row">
               <span class="site-row-text">

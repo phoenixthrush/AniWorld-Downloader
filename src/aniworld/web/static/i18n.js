@@ -38,6 +38,20 @@
       "index.select_all": "Alle auswählen",
       "index.language": "Sprache",
       "index.provider": "Anbieter",
+      "index.channel": "Sender",
+      "index.quality": "Qualität",
+      "index.quality_hd": "Höchste",
+      "index.quality_sd": "Mittlere",
+      "index.quality_low": "Niedrigste",
+      "settings.quality_hd": "Höchste (meist 1080p)",
+      "settings.quality_sd": "Mittlere (meist 720p)",
+      "settings.quality_low": "Niedrigste (meist 360p)",
+      "index.subtitles": "Untertitel",
+      "settings.mediathek": "Mediathek",
+      "settings.mediathek_quality": "Standard-Qualität",
+      "settings.mediathek_subtitles": "Untertitel herunterladen",
+      "settings.mediathek_hint":
+        "Voreinstellung für jeden Mediathek-Download; beides lässt sich pro Download neben den Download-Buttons ändern, dort stehen die tatsächlichen Auflösungen der Sendung. Die Sender unterscheiden sich (bei KiKA ist die höchste 720p), und fehlt eine Qualität, wird die nächstniedrigere genommen. Untertitel werden als SRT-Datei neben dem Video gespeichert, wenn der Sender welche anbietet.",
       "index.format": "Format",
       "index.volume": "Band",
       "index.manga_format_hint":
@@ -72,6 +86,8 @@
       "browse.popular_movies": "Beliebte Filme",
       "browse.new_movies": "Neue Filme",
       "browse.recent_series": "Kürzlich aktualisiert",
+      "browse.new_episodes": "Neue Folgen",
+      "browse.new_in_mediathek": "Neu in der Mediathek",
       "browse.trending_movies": "Angesagte Filme",
       "browse.trending_manga": "Angesagte Manga",
       "browse.trending_hentai": "Angesagt",
@@ -182,6 +198,8 @@
       "settings.enable_moflix_hint": "Filme und Serien auf Deutsch.",
       "settings.enable_filmpalast_hint": "Filme auf Deutsch.",
       "settings.enable_filmo_hint": "Filme auf Deutsch und Englisch.",
+      "settings.enable_mediathek_hint":
+        "Mediatheken der öffentlich-rechtlichen Sender (ARD, ZDF, Arte, 3sat, ORF, SRF und die ARD-Landesrundfunkanstalten), über MediathekView.",
       "settings.enable_mangafire_hint":
         "Manga, gespeichert als einzelne Bilder oder als CBZ- oder EPUB-Dateien für verfügbare Bände, sonst Kapitel.",
       "settings.nav.downloads": "Downloads",

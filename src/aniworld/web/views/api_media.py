@@ -23,6 +23,8 @@ from ...search import (
     fetch_filmpalast_movies,
     fetch_genre_animes,
     fetch_kinox_movies,
+    fetch_mediathek_new_episodes,
+    fetch_mediathek_new_programmes,
     fetch_moflix_movies,
     fetch_new_animes,
     fetch_new_series,
@@ -70,6 +72,7 @@ def register(bp):
     bp.add_url_rule("/seasons", view_func=seasons)
     bp.add_url_rule("/episodes", view_func=episodes)
     bp.add_url_rule("/providers", view_func=providers)
+    bp.add_url_rule("/mediathek/qualities", view_func=mediathek_qualities)
     bp.add_url_rule("/random", view_func=random_title)
     bp.add_url_rule("/proxy-image", view_func=proxy_image)
     bp.add_url_rule("/downloaded-folders", view_func=downloaded_folders)
@@ -102,6 +105,7 @@ def search():
                     "title": item["title"],
                     "url": item["url"],
                     "poster_url": media.proxy_image(item["poster"]),
+                    **{key: item[key] for key in ("genre", "channel") if item.get(key)},
                 }
                 for item in sitesearch.search(site, keyword, raise_errors=True)
             ]
@@ -265,6 +269,9 @@ def seasons():
                         "are_movies": getattr(season, "are_movies", False),
                         "chapter_type": getattr(season, "chapter_type", ""),
                         "is_volume": getattr(season, "is_volume", False),
+                        # Overrides "Season N", e.g. the Mediathek's unnumbered
+                        # programmes.
+                        "label": getattr(season, "label", ""),
                     }
                     for season in listed
                 ]
@@ -400,7 +407,14 @@ def _season_episodes(provider, url, series_url):
             season_languages = ["German Dub"]
 
     episodes = season.episodes
-    downloaded_urls = media.downloaded_episode_urls(found, episodes) if found else set()
+    # Mediathek files are named per programme (a dated name when unnumbered),
+    # so each episode checks its own path instead of the S/E scan.
+    own_paths = provider.name == "Mediathek"
+    downloaded_urls = (
+        media.downloaded_episode_urls(found, episodes)
+        if found and not own_paths
+        else set()
+    )
     results = []
     for episode in episodes:
         if season_languages is not None:
@@ -427,6 +441,16 @@ def _season_episodes(provider, url, series_url):
                         fallback_languages = ["German Dub"]
                     fallback_languages_resolved = True
                 languages = fallback_languages
+        elif provider.name == "Mediathek":
+            # Every version of the episode, labelled like the other sites'
+            # languages, and a badge for programmes licensed for one country.
+            languages = [
+                language
+                for language in episode.languages
+                if not (english_sub_disabled() and language == "English Sub")
+            ]
+            if episode.geo_restriction:
+                languages.append(f"{episode.geo_restriction} only")
         else:
             languages = media.language_labels(episode.provider_data)
         if provider.name == "HanimeTV" and not languages:
@@ -438,7 +462,11 @@ def _season_episodes(provider, url, series_url):
                 "episode_number": episode.episode_number,
                 "title_de": getattr(episode, "title_de", ""),
                 "title_en": getattr(episode, "title_en", ""),
-                "downloaded": episode.url in downloaded_urls,
+                "downloaded": (
+                    episode.is_downloaded["exists"]
+                    if own_paths
+                    else episode.url in downloaded_urls
+                ),
                 "available_languages": languages,
                 "page_count": 0,
             }
@@ -529,6 +557,33 @@ def _mangafire_pages(provider, url, series_url):
     ]
 
 
+def mediathek_qualities():
+    """The resolutions a Mediathek show offers, read from its newest episode.
+
+    {"qualities": [{"value": "hd", "height": 1080, "label": "1080p"}, ...]}
+    """
+    from ...models.mediathek import MediathekSeries
+    from ...models.mediathek import api as mediathek_api
+
+    url = _requested_url()
+    if not url:
+        return jsonify({"error": "url is required"}), 400
+    try:
+        entries = MediathekSeries(url=normalize_url(url)).entries
+    except Exception as exc:
+        logger.warning("Mediathek qualities failed for %s: %s", url, exc)
+        return jsonify({"error": str(exc)}), 500
+    # The newest episode can already be gone from the CDN, or be blocked here
+    # (ORF's Austria-only streams are a notice). Prefer unrestricted episodes,
+    # then try a few.
+    ordered = sorted(entries, key=lambda e: bool(mediathek_api.geo_restriction(e)))
+    for entry in ordered[:2]:
+        options = mediathek_api.quality_options(entry)
+        if options:
+            return jsonify({"qualities": options})
+    return jsonify({"qualities": []})
+
+
 def providers():
     url = _requested_url()
     if not url:
@@ -541,6 +596,12 @@ def providers():
             return jsonify({"providers": {}})
 
         episode = provider.episode_cls(url=url, **_build_kwargs(provider))
+        if provider.name == "Mediathek":
+            # {language: [channel]}: Arte's languages are channels of their own.
+            offered = dict(episode.language_providers)
+            if english_sub_disabled():
+                offered.pop("English Sub", None)
+            return jsonify({"providers": offered})
         return jsonify(
             {
                 "providers": media.provider_map(
@@ -750,6 +811,8 @@ _BROWSE_ROWS = (
     ("/filmo-movies", "filmo_movies", fetch_filmo_movies),
     ("/burningseries-series", "burningseries_series", fetch_burningseries_series),
     ("/moflix-movies", "moflix_movies", fetch_moflix_movies),
+    ("/mediathek-episodes", "mediathek_episodes", fetch_mediathek_new_episodes),
+    ("/mediathek-programmes", "mediathek_programmes", fetch_mediathek_new_programmes),
     ("/htv-trending", "htv_trending", _fetch_hanime_trending),
     ("/mangafire-trending", "mangafire_trending", _fetch_mangafire_trending),
 )

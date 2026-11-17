@@ -48,6 +48,7 @@
     kinox: "Search Kinox...",
     filmpalast: "Search FilmPalast...",
     filmo: "Search Filmo...",
+    mediathek: "Search Mediathek...",
     htv: "Search Hanime...",
     hentaitv: "Search HentaiTV...",
     hentaihaven: "Search HentaiHaven...",
@@ -61,6 +62,27 @@
     "English Sub": { flags: ["jp", "gb"], text: "Sub", css: "badge-english-sub" },
     Japanese: { flags: ["jp"], text: "Dub", css: "badge-german-dub" }
   };
+
+  // The Mediathek's versions: "X Dub" is audio in X, "X Sub" the original
+  // audio with X subtitles (whose original language isn't known), plus
+  // versions that aren't a language of their own.
+  const MEDIATHEK_FLAGS = {
+    German: "de",
+    English: "gb",
+    French: "fr",
+    Spanish: "es",
+    Italian: "it",
+    Polish: "pl"
+  };
+  const MEDIATHEK_BADGES = Object.fromEntries(
+    Object.entries(MEDIATHEK_FLAGS).flatMap(([language, flag]) => [
+      [`${language} Dub`, { flags: [flag], text: "Dub", css: "badge-german-dub" }],
+      [`${language} Sub`, { flags: [flag], text: "Sub", css: "badge-german-sub" }]
+    ])
+  );
+  MEDIATHEK_BADGES.Original = { flags: [], text: "OV", css: "badge-english-dub" };
+  MEDIATHEK_BADGES["Sign Language"] = { flags: ["de"], text: "DGS", css: "badge-english-sub" };
+  MEDIATHEK_BADGES["Audio Description"] = { flags: ["de"], text: "AD", css: "badge-english-sub" };
 
   // Any site can be switched off in the settings, so the page opens on the
   // first tab that is actually there rather than on a fixed one
@@ -114,6 +136,12 @@
     moveThumb();
     searchInput.placeholder = SEARCH_PLACEHOLDERS[site] || "Search...";
     randomBtn.hidden = site !== "aniworld";
+    // The Mediathek lists the broadcasting channel where other sites list a hoster.
+    const providerLabel = el("providerLabel");
+    if (providerLabel) {
+      providerLabel.textContent =
+        site === "mediathek" ? t("index.channel", "Channel") : t("index.provider", "Provider");
+    }
     resultsGrid.innerHTML = "";
     searchInput.value = "";
     resetGenre();
@@ -230,7 +258,9 @@
         return `
           <div class="poster-card" data-url="${esc(item.url)}">
             ${badge}
-            <img src="${esc(item.poster_url || "")}" alt="" loading="lazy" />
+            ${!item.poster_url && item.channel
+              ? `<div class="poster-fallback">${esc(item.channel)}</div><img src="" alt="" hidden />`
+              : `<img src="${esc(item.poster_url || "")}" alt="" loading="lazy" />`}
             <div class="info">
               <div class="title" title="${esc(title)}">${esc(title)}</div>
               ${subtitle}
@@ -397,20 +427,38 @@
   // genre's "Load more" re-renders every card that is already on screen.
   const posterCache = {};
 
+  // Cards waiting behind a placeholder (the Mediathek's channel name) swap it
+  // out once the cover has actually loaded. Their <img> is not lazy: a hidden
+  // lazy image never starts loading.
+  function showPoster(card, image, src) {
+    const fallback = card.querySelector(".poster-fallback");
+    if (fallback) {
+      image.addEventListener(
+        "load",
+        () => {
+          image.hidden = false;
+          fallback.remove();
+        },
+        { once: true }
+      );
+    }
+    image.src = src;
+  }
+
   function loadMissingPosters() {
     resultsGrid.querySelectorAll(".poster-card").forEach(async (card) => {
       const image = card.querySelector("img");
-      if (image.getAttribute("src")) return;
+      if (!image || image.getAttribute("src")) return;
       const url = card.dataset.url;
       if (posterCache[url]) {
-        image.src = posterCache[url];
+        showPoster(card, image, posterCache[url]);
         return;
       }
       try {
         const data = await apiFetch(`/api/series?url=${encodeURIComponent(url)}`);
         if (data.poster_url) {
           posterCache[url] = data.poster_url;
-          image.src = data.poster_url;
+          showPoster(card, image, data.poster_url);
         }
       } catch (e) {
         /* a missing poster is not worth reporting */
@@ -512,7 +560,7 @@
     const forLanguage = availableProviders && availableProviders[languageSelect.value];
     if (forLanguage && forLanguage.length) {
       fillProviderSelect(forLanguage);
-    } else if (!["megakino", "moflix"].includes(currentSite)) {
+    } else if (!["megakino", "moflix", "mediathek"].includes(currentSite)) {
       fillProviderSelect(window.STATIC_PROVIDERS);
     } else {
       providerSelect.innerHTML = "";
@@ -550,6 +598,53 @@
 
   languageSelect.addEventListener("change", updateProviderSelect);
 
+  // Quality and subtitles for Mediathek downloads, preset from the settings
+  // each time a show opens.
+  const GENERIC_QUALITIES = [
+    ["hd", "index.quality_hd", "Highest"],
+    ["sd", "index.quality_sd", "Medium"],
+    ["low", "index.quality_low", "Lowest"]
+  ];
+
+  function fillQualities(options) {
+    const select = el("mediathekQuality");
+    select.innerHTML = options
+      .map((option) => `<option value="${esc(option.value)}">${esc(option.label)}</option>`)
+      .join("");
+    const wanted = window.MEDIATHEK_QUALITY || "hd";
+    const values = options.map((option) => option.value);
+    // The setting, or the next lower quality the show has.
+    const order = ["hd", "sd", "low"];
+    const fallback = order.slice(order.indexOf(wanted)).find((q) => values.includes(q));
+    select.value = fallback || values[0] || "";
+  }
+
+  // Quality and subtitles for Mediathek downloads, preset from the settings
+  // each time a show opens. The resolutions follow once the server has read
+  // them from the show's newest episode.
+  function resetMediathekOptions(show, url) {
+    el("mediathekOptions").hidden = !show;
+    if (!show) return;
+    el("mediathekSubtitles").checked = Boolean(window.MEDIATHEK_SUBTITLES);
+    fillQualities(
+      GENERIC_QUALITIES.map(([value, key, label]) => ({ value, label: t(key, label) }))
+    );
+    const token = openToken;
+    apiFetch(`/api/mediathek/qualities?url=${encodeURIComponent(url)}`)
+      .then((data) => {
+        if (token !== openToken || !(data.qualities || []).length) return;
+        fillQualities(
+          data.qualities.map((option) => ({
+            value: option.value,
+            label: option.height ? option.label : t(`index.quality_${option.value}`, option.label)
+          }))
+        );
+      })
+      .catch(() => {
+        /* the generic labels still work */
+      });
+  }
+
   async function openSeries(url) {
     const token = ++openToken;
     seriesUrl = url;
@@ -562,9 +657,10 @@
     const manga = isMangaFire(url);
     languageProviderRow.hidden = Boolean(fixed) || manga;
     mangaFireRow.hidden = !manga;
+    resetMediathekOptions(currentSite === "mediathek", url);
     if (!fixed && !manga) {
       rebuildLanguageOptions();
-      fillProviderSelect(["megakino", "moflix"].includes(currentSite) ? [] : window.STATIC_PROVIDERS);
+      fillProviderSelect(["megakino", "moflix", "mediathek"].includes(currentSite) ? [] : window.STATIC_PROVIDERS);
     }
     loadCustomPaths();
     loadAutosyncExclusion(url);
@@ -654,9 +750,11 @@
       const label = season.is_volume ? t("index.volume", "Volume") : t("index.chapter", "Chapter");
       return `${label} ${season.season_number}`;
     }
-    const name = season.are_movies
-      ? t("index.movies", "Movies")
-      : `${t("index.season", "Season")} ${season.season_number}`;
+    const name = season.label
+      ? t(`index.${season.label.toLowerCase()}`, season.label)
+      : season.are_movies
+        ? t("index.movies", "Movies")
+        : `${t("index.season", "Season")} ${season.season_number}`;
     return typeof shown === "number" ? `${name} (${shown})` : name;
   }
 
@@ -729,9 +827,10 @@
 
   function renderBadges(labels) {
     if (!labels || !labels.length) return "";
+    const known = currentSite === "mediathek" ? MEDIATHEK_BADGES : LANGUAGE_BADGES;
     const badges = labels
       .map((label) => {
-        const badge = LANGUAGE_BADGES[label];
+        const badge = known[label];
         if (!badge) {
           return `<span class="lang-badge">${esc(label)}</span>`;
         }
@@ -898,6 +997,10 @@
       provider: fixed ? fixed.provider : manga ? "MangaFire" : providerSelect.value
     };
     if (manga) body.mangafire_format = el("mangaFireFormat").value;
+    if (!el("mediathekOptions").hidden) {
+      body.mediathek_quality = el("mediathekQuality").value;
+      body.mediathek_subtitles = el("mediathekSubtitles").checked;
+    }
     if (customPathSelect.value) body.custom_path_id = Number(customPathSelect.value);
 
     downloadAllBtn.disabled = true;

@@ -12,6 +12,7 @@
     ["kinox", "Kinox"],
     ["filmpalast", "FilmPalast"],
     ["filmo", "Filmo"],
+    ["mediathek", "Mediathek"],
     ["htv", "Hanime"],
     ["hentaitv", "HentaiTV"],
     ["hentaihaven", "HentaiHaven"],
@@ -99,6 +100,7 @@
     el("downloadPath").value = settings.download_path || "";
     el("uiLanguage").value = settings.ui_language;
     el("outputFormat").value = settings.output_format;
+    el("mediathekQuality").value = settings.mediathek_quality;
 
     document.querySelectorAll("[data-setting]").forEach((box) => {
       box.checked = Boolean(settings[box.dataset.setting]);
@@ -174,6 +176,10 @@
     if (await save({ ui_language: el("uiLanguage").value })) {
       setTimeout(() => window.location.reload(), 400);
     }
+  });
+
+  el("mediathekQuality").addEventListener("change", () => {
+    save({ mediathek_quality: el("mediathekQuality").value });
   });
 
   el("outputFormat").addEventListener("change", () => {

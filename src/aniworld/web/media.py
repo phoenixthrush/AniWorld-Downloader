@@ -7,6 +7,7 @@ from urllib.parse import quote, urlparse
 from ..config import LANG_KEY_MAP, LANG_LABELS, SUPPORTED_PROVIDERS
 from ..extractors import provider_functions
 from ..logger import get_logger
+from ..models.mediathek import MEDIATHEK_CHANNELS
 from . import paths
 
 logger = get_logger(__name__)
@@ -53,6 +54,7 @@ SITE_KEYS = (
     "filmpalast",
     "filmo",
     "moflix",
+    "mediathek",
 )
 
 SITE_LABELS = {
@@ -68,6 +70,7 @@ SITE_LABELS = {
     "filmpalast": "FilmPalast",
     "filmo": "Filmo",
     "moflix": "Moflix",
+    "mediathek": "Mediathek",
 }
 
 # The order the tabs appear in on the home page, which is not the order the
@@ -81,6 +84,7 @@ SITE_ORDER = (
     "kinox",
     "filmpalast",
     "filmo",
+    "mediathek",
     "htv",
     "hentaitv",
     "hentaihaven",
@@ -181,9 +185,9 @@ def provider_map(provider_data, drop_english_sub=False):
             if not label or (drop_english_sub and label == "English Sub"):
                 continue
             usable = [
-                _PROVIDER_BY_LOWER[name.lower()]
+                name if name in MEDIATHEK_CHANNELS else _PROVIDER_BY_LOWER[name.lower()]
                 for name in providers
-                if name.lower() in _PROVIDER_BY_LOWER
+                if name in MEDIATHEK_CHANNELS or name.lower() in _PROVIDER_BY_LOWER
             ]
             if usable:
                 result[label] = usable
@@ -192,7 +196,13 @@ def provider_map(provider_data, drop_english_sub=False):
             label = _PLAIN_LABELS.get((audio.value, subtitles.value))
             if not label or (drop_english_sub and label == "English Sub"):
                 continue
-            usable = [name for name in providers if name in WORKING_PROVIDERS]
+            # The Mediathek lists the broadcasting channel where other sites
+            # list a hoster; its streams need no extractor.
+            usable = [
+                name
+                for name in providers
+                if name in WORKING_PROVIDERS or name in MEDIATHEK_CHANNELS
+            ]
             if usable:
                 result[label] = usable
     return result
