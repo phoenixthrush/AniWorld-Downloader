@@ -5,6 +5,7 @@ through, or two features disagree about the same state.
 """
 
 import json
+import sqlite3
 
 import pytest
 
@@ -316,6 +317,19 @@ def test_a_duplicate_username_is_a_conflict(signed_in_admin):
     )
     assert response.status_code == 409
     assert len(db.list_users()) == 1
+
+
+def test_other_database_errors_are_not_a_username_conflict(
+    signed_in_admin, monkeypatch
+):
+    def broken(*_args):
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(db, "create_user", broken)
+    with pytest.raises(sqlite3.OperationalError):
+        signed_in_admin.post(
+            "/admin/api/users", json={"username": "bob", "password": "hunter2hunter2"}
+        )
 
 
 def test_a_new_user_can_sign_in_straight_away(signed_in_admin, auth_app):

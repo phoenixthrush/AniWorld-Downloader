@@ -99,7 +99,7 @@ def _build_episode(url, extra, item, selected_path):
             series = provider.series_cls(url=series_url)
         except Exception:
             series = None
-        kwargs["format"] = extra["_format"]
+        kwargs["format"] = extra.get("_format") or mangafire_format()
 
     # MegaKino episodes build their own series context internally
     if series is not None and provider.name != "MegaKino":
