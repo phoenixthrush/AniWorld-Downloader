@@ -255,7 +255,19 @@ class MediathekEpisode:
 
     @property
     def selected_language(self):
-        return self.__selected_language or self.primary_language
+        """The version to download.
+
+        The one asked for; otherwise the default language (ANIWORLD_LANGUAGE,
+        set by the settings or `--language`) when the episode comes in it;
+        otherwise the version the URL points at.
+        """
+        if self.__selected_language:
+            return self.__selected_language
+        preferred = os.getenv("ANIWORLD_LANGUAGE", "").strip()
+        primary = self.primary_language
+        if preferred and preferred != primary and preferred in self.versions:
+            return preferred
+        return primary
 
     @selected_language.setter
     def selected_language(self, value):

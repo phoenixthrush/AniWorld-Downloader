@@ -426,3 +426,43 @@ def test_the_mediathek_tab_has_browse_rows(client, mvw, monkeypatch):
     [card] = response.get_json()["results"]
     assert card["title"] == "Die Kanzlei"
     assert card["channel"] == "ZDFneo"
+
+
+# -----------------------------
+# Default language
+# -----------------------------
+
+
+def test_the_default_language_picks_the_version(mvw, tmp_path, monkeypatch):
+    mvw.extend([GERMAN, ENGLISH])
+    monkeypatch.setenv("ANIWORLD_LANGUAGE", "English Dub")
+    episode = MediathekEpisode(api.entry_url(GERMAN), selected_path=str(tmp_path))
+    assert episode.selected_language == "English Dub"
+    assert episode.stream_url.endswith("en-hd.mp4")
+
+
+def test_without_that_version_the_listed_one_stays(mvw, tmp_path, monkeypatch):
+    mvw.extend([GERMAN, SIGNED])
+    monkeypatch.setenv("ANIWORLD_LANGUAGE", "English Dub")
+    episode = MediathekEpisode(api.entry_url(GERMAN), selected_path=str(tmp_path))
+    assert episode.selected_language == "German Dub"
+
+
+def test_an_explicit_language_beats_the_default(mvw, tmp_path, monkeypatch):
+    mvw.extend([GERMAN, ENGLISH, SIGNED])
+    monkeypatch.setenv("ANIWORLD_LANGUAGE", "English Dub")
+    episode = MediathekEpisode(
+        api.entry_url(GERMAN),
+        selected_path=str(tmp_path),
+        selected_language="Sign Language",
+    )
+    assert episode.selected_language == "Sign Language"
+
+
+def test_no_default_needs_no_version_lookup(tmp_path, monkeypatch):
+    monkeypatch.delenv("ANIWORLD_LANGUAGE", raising=False)
+    monkeypatch.setattr(versions, "versions_of", lambda entry: pytest.fail("looked up"))
+    episode = MediathekEpisode(
+        api.entry_url(GERMAN), selected_path=str(tmp_path), entry=GERMAN
+    )
+    assert episode.selected_language == "German Dub"
