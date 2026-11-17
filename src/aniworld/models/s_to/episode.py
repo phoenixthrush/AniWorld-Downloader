@@ -442,8 +442,6 @@ class SerienstreamEpisode:
         """
         if isinstance(language, tuple) and len(language) == 2:
             return language
-        if isinstance(language, tuple) and len(language) == 2:
-            return language
         if language in ["German Dub", "German", "Deutsch"]:
             return (Audio.GERMAN, Subtitles.NONE)
         if language in ["English Dub", "English", "Englisch"]:
