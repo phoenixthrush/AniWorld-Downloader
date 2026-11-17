@@ -31,6 +31,8 @@ def get_direct_link_from_vidoza(embeded_vidoza_link):
     except niquests.RequestException as err:
         raise ValueError(f"Failed to fetch Vidoza page: {err}") from err
 
+    raise ValueError("No Vidoza stream URL found")
+
 
 def get_preview_image_link_from_vidoza(embeded_vidoza_link):
     """Get Vidoza preview image URL."""

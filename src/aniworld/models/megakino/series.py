@@ -81,7 +81,7 @@ def get_megakino_domain():
 class MegaKinoEpisode:
     def __init__(
         self,
-        url=str,
+        url,
         selected_path=None,
         selected_language=None,
         selected_provider=None,
@@ -1022,7 +1022,7 @@ class MegaKinoEpisode:
     @property
     def provider_url(self):
         if self.__provider_url is None:
-            self.__provider_url = GLOBAL_SESSION.get(self.redirect_url).url
+            self.__provider_url = GLOBAL_SESSION.get(self.redirect_url, timeout=30).url
         return self.__provider_url
 
     @property
