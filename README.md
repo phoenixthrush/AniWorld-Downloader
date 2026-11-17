@@ -93,12 +93,16 @@ See the [supported sites documentation](https://www.phoenixthrush.com/AniWorld-D
 The Mediathek tab searches the media libraries of the German, Austrian and Swiss public broadcasters through [MediathekView](https://mediathekviewweb.de/). Every stream comes directly from the broadcaster; there is no hoster to resolve.
 
 - **Channels:** all 30 that MediathekView indexes: ARD with its regional channels (BR, HR, MDR, NDR, Radio Bremen, RBB, SR, SWR, WDR), ARD-alpha, ONE, tagesschau24, ZDF, ZDFinfo, ZDFneo, ZDFtivi, 3sat, Arte (DE, EN, ES, FR, IT, PL), KiKA, phoenix, funk, DW, ORF and SRF. The channel is shown where other sites show the hoster.
-- **Shows and seasons:** search results are shows (one topic on one channel). Episodes are sorted into seasons where the broadcaster numbers them, e.g. `(S26/E04)`, `(Staffel 1, Folge 12)`, or ORF's `… Staffel 2` topics; the rest are listed by broadcast date.
-- **Files:** numbered episodes follow the naming template like any series (`In aller Freundschaft/Season 26/In aller Freundschaft S26E004.mkv`); other programmes are saved as `<show>/<title> (<date>).mkv`.
-- **Quality and subtitles:** the series dialog lists the show's actual resolutions and a subtitle switch next to the download buttons; the defaults are in **Settings → Downloads** (`ANIWORLD_MEDIATHEK_QUALITY`, `ANIWORLD_MEDIATHEK_SUBTITLES`). Subtitles are saved as `<video>.<lang>.srt`. A download that comes back shorter than listed is retried in the next quality.
-- **CLI:** pass a broadcaster page, e.g. `aniworld "https://www.ardmediathek.de/video/…"`.
+- **Search and browse:** search results are shows (one topic on one channel), those named after the search first. Without a search, the tab lists **New Episodes** (series with a new numbered episode) and **New in the Mediathek** (new programmes of 40 minutes and more).
+- **Seasons:** episodes are sorted into seasons where the broadcaster numbers them: `(S26/E04)`, `(Staffel 1, Folge 12)`, ORF's `… Staffel 2` topics and Arte's programme ids. Arte series appear under their own name (e.g. *Impulse*) instead of Arte's category. Everything else is listed by broadcast date.
+- **Languages and versions:** the language menu works like on the other sites and lists the versions an episode has: `German Dub`, `English Dub`, `French Sub` (original audio with French subtitles) and so on, plus `Original`, `Sign Language` and `Audio Description`. Arte's language channels count as languages of the same programme; their titles are looked up through Arte's public player API.
+- **Files:** numbered episodes follow the naming template like any series (`In aller Freundschaft/Season 26/In aller Freundschaft S26E004.mkv`); other programmes are saved as `<show>/<title> (<date>).mkv`. Any version other than the listed one adds its label, e.g. `… S26E004 (Sign Language).mkv`. The audio track is tagged with the version's language.
+- **Quality and subtitles:** the series dialog lists the show's actual resolutions (1080p, 720p …) and a subtitle switch next to the download buttons; the defaults are in **Settings → Downloads** (`ANIWORLD_MEDIATHEK_QUALITY`, `ANIWORLD_MEDIATHEK_SUBTITLES`). Subtitles are saved as `<video>.<lang>.srt`.
+- **Incomplete streams:** a download that comes back shorter than listed is retried in another quality, lower ones first. Short files are never deleted: if no quality comes out whole, the longest one is kept and the download reports it.
+- **Covers:** show posters from [TVmaze](https://www.tvmaze.com/) where the show is known there, otherwise the broadcaster's preview image.
+- **CLI and Python:** pass a broadcaster page, e.g. `aniworld "https://www.ardmediathek.de/video/…"`; the models are `MediathekEpisode`, `MediathekSeason` and `MediathekSeries`.
 
-Programmes leave the media libraries after a while, and some are only available in the broadcaster's country.
+Programmes leave the media libraries after a while. Some ORF programmes are only licensed for Austria: they are marked `AT only`, and outside Austria the download stops with a message instead of saving ORF's notice.
 
 ### Stream Hosters
 
