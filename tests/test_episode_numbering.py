@@ -303,6 +303,26 @@ def test_overlapping_ranges_do_not_count_one_file_as_two_episodes(model, tmp_pat
             downloaded_episode_owners(episodes, have)
 
 
+def test_read_only_checks_read_an_ambiguous_untagged_file_as_seasonal(model, tmp_path):
+    season = SimpleNamespace(season_number=2)
+    episodes = [
+        make_episode(
+            model, tmp_path, number=n, title=f"Title [Episode {n + 1}]", season=season
+        )
+        for n in (1, 2)
+    ]
+    season.episodes = episodes
+    have = {(2, 2)}
+    assert downloaded_episode_owners(episodes, have, strict=False) == {
+        (2, 2): episodes[1].url
+    }
+    assert episode_is_downloaded(episodes[1], have)
+    assert not episode_is_downloaded(episodes[0], have)
+    assert autosync._missing_episodes(SimpleNamespace(seasons=[season]), have) == [
+        episodes[0].url
+    ]
+
+
 def test_a_conflicting_old_filename_is_not_overwritten(model, tmp_path, monkeypatch):
     monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "{title} S{season}E{episode}.mkv")
     season = SimpleNamespace(season_number=2)

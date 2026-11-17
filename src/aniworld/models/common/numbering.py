@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 
 import ffmpeg
 
-from ...config import is_sto_host
+from ...config import is_sto_host, logger
 
 EPISODE_URL_PREFIX = "aniworld_episode_url="
 
@@ -67,14 +67,18 @@ def _episode_identity(url):
     return host, parsed.path.rstrip("/")
 
 
-def downloaded_episode_owners(episodes, downloaded):
+def downloaded_episode_owners(episodes, downloaded, *, strict=True):
     """Use recorded source URLs first, with unambiguous file numbers as fallback."""
     episodes = list(episodes)
     use_sources = any(hasattr(episode, "season_episode_number") for episode in episodes)
     identities = {_episode_identity(episode.url): episode.url for episode in episodes}
     candidates = defaultdict(set)
+    seasonal = {}
     for episode in episodes:
         season = episode.season.season_number
+        seasonal[
+            season, getattr(episode, "season_episode_number", episode.episode_number)
+        ] = episode.url
         for number in {
             episode.episode_number,
             getattr(episode, "season_episode_number", episode.episode_number),
@@ -104,6 +108,18 @@ def downloaded_episode_owners(episodes, downloaded):
             matches = urls
             if len(matches) != 1:
                 season, number = key
+                # Read-only callers fall back to the pre-English seasonal naming.
+                if not strict:
+                    logger.warning(
+                        "Ambiguous episode numbering at S%02dE%03d without source "
+                        "metadata, assuming the seasonal index: %s",
+                        season,
+                        number,
+                        file,
+                    )
+                    if key in seasonal:
+                        owners[file] = seasonal[key]
+                    continue
                 raise ValueError(
                     f"Ambiguous episode numbering at S{season:02d}E{number:03d}: "
                     "the file could be a seasonal or English-title episode number "
@@ -122,7 +138,8 @@ def episode_is_downloaded(episode, downloaded):
     if not any(sn == season for sn, _ in downloaded):
         return False
     episodes = season_episode_context(episode)
-    return episode.url in downloaded_episode_owners(episodes, downloaded).values()
+    owners = downloaded_episode_owners(episodes, downloaded, strict=False)
+    return episode.url in owners.values()
 
 
 def season_episode_context(episode):
