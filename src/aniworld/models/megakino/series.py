@@ -123,35 +123,11 @@ class MegaKinoEpisode:
 
         self.__title = None
         self.__title_cleaned = None
-        self.__original_title = None
         self.__description = None
         self.__genres = None
-        self.__country = None
         self.__release_year = None
-        self.__duration_minutes = None
         self.__poster_url = None
-        self.__backdrop_url = None
-        self.__directors = None
-        self.__actors = None
-        self.__producer = None
-        self.__age_rating = None
-        self.__quality_label = None
-        self.__kinopoisk_rating = None
-        self.__site_rating_score = None
-        self.__site_rating_votes = None
-        self.__likes = None
-        self.__dislikes = None
-        self.__trailer_url = None
-        self.__post_id = None
-        self.__canonical_url = None
-        self.__og_image = None
-        self.__created_at = None
-        self.__published_at = None
         self.__player_sources = None
-        self.__default_player = None
-        self.__stream_label = None
-        self.__available_hosts = None
-        self.__recommended_entries = None
         self.__html = None
 
         logger.debug(f"Initialized {self.url}")
@@ -199,12 +175,6 @@ class MegaKinoEpisode:
         return self.__title_cleaned
 
     @property
-    def original_title(self):
-        if self.__original_title is None:
-            self.__extract_original_title()
-        return self.__original_title
-
-    @property
     def description(self):
         if self.__description is None:
             self.__extract_description()
@@ -217,22 +187,10 @@ class MegaKinoEpisode:
         return self.__genres
 
     @property
-    def country(self):
-        if self.__country is None:
-            self.__extract_country()
-        return self.__country
-
-    @property
     def release_year(self):
         if self.__release_year is None:
             self.__extract_release_year()
         return self.__release_year
-
-    @property
-    def duration_minutes(self):
-        if self.__duration_minutes is None:
-            self.__extract_duration_minutes()
-        return self.__duration_minutes
 
     @property
     def poster_url(self):
@@ -241,136 +199,10 @@ class MegaKinoEpisode:
         return self.__poster_url
 
     @property
-    def backdrop_url(self):
-        if self.__backdrop_url is None:
-            self.__extract_backdrop_url()
-        return self.__backdrop_url
-
-    @property
-    def directors(self):
-        if self.__directors is None:
-            self.__extract_directors()
-        return self.__directors
-
-    @property
-    def actors(self):
-        if self.__actors is None:
-            self.__extract_actors()
-        return self.__actors
-
-    @property
-    def producer(self):
-        if self.__producer is None:
-            self.__extract_producer()
-        return self.__producer
-
-    @property
-    def age_rating(self):
-        if self.__age_rating is None:
-            self.__extract_age_rating()
-        return self.__age_rating
-
-    @property
-    def quality_label(self):
-        if self.__quality_label is None:
-            self.__extract_quality_label()
-        return self.__quality_label
-
-    @property
-    def kinopoisk_rating(self):
-        if self.__kinopoisk_rating is None:
-            self.__extract_kinopoisk_rating()
-        return self.__kinopoisk_rating
-
-    @property
-    def site_rating_score(self):
-        if self.__site_rating_score is None:
-            self.__extract_site_rating_score()
-        return self.__site_rating_score
-
-    @property
-    def site_rating_votes(self):
-        if self.__site_rating_votes is None:
-            self.__extract_site_rating_votes()
-        return self.__site_rating_votes
-
-    @property
-    def likes(self):
-        if self.__likes is None:
-            self.__extract_likes()
-        return self.__likes
-
-    @property
-    def dislikes(self):
-        if self.__dislikes is None:
-            self.__extract_dislikes()
-        return self.__dislikes
-
-    @property
-    def trailer_url(self):
-        if self.__trailer_url is None:
-            self.__extract_trailer_url()
-        return self.__trailer_url
-
-    @property
-    def post_id(self):
-        if self.__post_id is None:
-            self.__extract_post_id()
-        return self.__post_id
-
-    @property
-    def canonical_url(self):
-        if self.__canonical_url is None:
-            self.__extract_canonical_url()
-        return self.__canonical_url
-
-    @property
-    def og_image(self):
-        if self.__og_image is None:
-            self.__extract_og_image()
-        return self.__og_image
-
-    @property
-    def created_at(self):
-        if self.__created_at is None:
-            self.__extract_created_at()
-        return self.__created_at
-
-    @property
-    def published_at(self):
-        if self.__published_at is None:
-            self.__extract_published_at()
-        return self.__published_at
-
-    @property
     def player_sources(self):
         if self.__player_sources is None:
             self.__extract_player_sources()
         return self.__player_sources
-
-    @property
-    def default_player(self):
-        if self.__default_player is None:
-            self.__extract_default_player()
-        return self.__default_player
-
-    @property
-    def stream_label(self):
-        if self.__stream_label is None:
-            self.__extract_stream_label()
-        return self.__stream_label
-
-    @property
-    def available_hosts(self):
-        if self.__available_hosts is None:
-            self.__extract_available_hosts()
-        return self.__available_hosts
-
-    @property
-    def recommended_entries(self):
-        if self.__recommended_entries is None:
-            self.__extract_recommended_entries()
-        return self.__recommended_entries
 
     @property
     def _html(self):
@@ -392,19 +224,6 @@ class MegaKinoEpisode:
     # -----------------------------
     # private helpers
     # -----------------------------
-
-    def __extract_links_from_span(self, itemprop: str):
-        match = re.search(
-            rf'<span\s+itemprop=["\']{itemprop}["\']\s*>(.+?)</span>',
-            self._html,
-            re.DOTALL,
-        )
-        if not match:
-            return None
-
-        values = re.findall(r"<a[^>]*>(.*?)</a>", match.group(1), re.DOTALL)
-        values = [value.strip() for value in values if value.strip()]
-        return values or None
 
     def __absolute_url(self, value: str):
         if not value:
@@ -453,13 +272,6 @@ class MegaKinoEpisode:
     def __extract_title_cleaned(self):
         self.__title_cleaned = clean_title(self.title) if self.title else None
 
-    def __extract_original_title(self):
-        match = re.search(
-            r'<div\s+class=["\']pmovie__original-title["\']\s+itemprop=["\']alternativeHeadline["\']\s*>([^<]*)<',
-            self._html,
-        )
-        self.__original_title = unescape(match.group(1).strip()) if match else None
-
     def __extract_description(self):
         match = re.search(
             r'<div\s+class=["\']page__text[^"\']*["\']\s+itemprop=["\']description["\']\s+[^>]*>(.*?)</div>',
@@ -488,13 +300,6 @@ class MegaKinoEpisode:
             genre for genre in genres if genre and genre.lower() != "filme"
         ]
 
-    def __extract_country(self):
-        match = re.search(
-            r'<span\s+itemprop=["\']countryOfOrigin["\']\s*>([^<]+)<',
-            self._html,
-        )
-        self.__country = match.group(1).strip() if match else None
-
     def __extract_release_year(self):
         match = re.search(
             r'<span\s+itemprop=["\']dateCreated["\']\s*>.*?<a[^>]*>(\d{4})<',
@@ -502,14 +307,6 @@ class MegaKinoEpisode:
             re.DOTALL,
         )
         self.__release_year = match.group(1) if match else None
-
-    def __extract_duration_minutes(self):
-        match = re.search(
-            r'<div\s+class=["\']pmovie__year["\']>.*?,\s*(\d+)\s*min\s*</div>',
-            self._html,
-            re.DOTALL,
-        )
-        self.__duration_minutes = int(match.group(1)) if match else None
 
     def __extract_poster_url(self):
         match = re.search(
@@ -525,125 +322,6 @@ class MegaKinoEpisode:
             )
 
         self.__poster_url = self.__absolute_url(match.group(1)) if match else None
-
-    def __extract_backdrop_url(self):
-        match = re.search(
-            r'<div\s+class=["\']pmovie__btn-trailer[^"\']*["\'].*?<img[^>]*data-src=["\']([^"\']+)["\']',
-            self._html,
-            re.DOTALL,
-        )
-        if not match:
-            match = re.search(
-                r'<div\s+class=["\']pmovie__btn-trailer[^"\']*["\'].*?<img[^>]*src=["\']([^"\']+)["\']',
-                self._html,
-                re.DOTALL,
-            )
-
-        self.__backdrop_url = self.__absolute_url(match.group(1)) if match else None
-
-    def __extract_directors(self):
-        self.__directors = self.__extract_links_from_span("directors")
-
-    def __extract_actors(self):
-        self.__actors = self.__extract_links_from_span("actors")
-
-    def __extract_producer(self):
-        match = re.search(
-            r'<span\s+itemprop=["\']productionCompany["\']\s*>(.+?)</span>',
-            self._html,
-            re.DOTALL,
-        )
-        if not match:
-            self.__producer = None
-            return
-
-        self.__producer = re.sub(r"\s+", " ", match.group(1)).strip()
-
-    def __extract_age_rating(self):
-        match = re.search(
-            r'<div\s+class=["\']pmovie__age\s+order-first["\']\s*><div>([^<]+)<',
-            self._html,
-        )
-        self.__age_rating = match.group(1).strip() if match else None
-
-    def __extract_quality_label(self):
-        match = re.search(
-            r'<div\s+class=["\']poster__label["\']>([^<]+)<',
-            self._html,
-        )
-        self.__quality_label = match.group(1).strip() if match else None
-
-    def __extract_kinopoisk_rating(self):
-        match = re.search(
-            r'<div\s+class=["\'][^"\']*pmovie__subrating--kp[^"\']*["\'][^>]*>.*?([0-9]+,[0-9]+)\s*</div>',
-            self._html,
-            re.DOTALL,
-        )
-        self.__kinopoisk_rating = match.group(1).replace(",", ".") if match else None
-
-    def __extract_site_rating_score(self):
-        match = re.search(
-            r'<span\s+class=["\']ratingtypeplusminus\s+ratingplus["\']\s*>\+?(\d+)<',
-            self._html,
-        )
-        self.__site_rating_score = int(match.group(1)) if match else None
-
-    def __extract_site_rating_votes(self):
-        match = re.search(
-            r'<span\s+id=["\']vote-num-id-\d+["\']>(\d+)<',
-            self._html,
-        )
-        self.__site_rating_votes = int(match.group(1)) if match else None
-
-    def __extract_likes(self):
-        match = re.search(r'<span\s+id=["\']likes-id-\d+["\']>(\d+)<', self._html)
-        self.__likes = int(match.group(1)) if match else None
-
-    def __extract_dislikes(self):
-        match = re.search(r'<span\s+id=["\']dislikes-id-\d+["\']>(\d+)<', self._html)
-        self.__dislikes = int(match.group(1)) if match else None
-
-    def __extract_trailer_url(self):
-        match = re.search(
-            r'<link\s+itemprop=["\']embedUrl["\']\s+href=["\']([^"\']+)["\']',
-            self._html,
-        )
-        self.__trailer_url = match.group(1).strip() if match else None
-
-    def __extract_post_id(self):
-        match = re.search(
-            r'<input\s+type=["\']hidden["\']\s+name=["\']post_id["\']\s+id=["\']post_id["\']\s+value=["\'](\d+)["\']',
-            self._html,
-        )
-        self.__post_id = int(match.group(1)) if match else None
-
-    def __extract_canonical_url(self):
-        match = re.search(
-            r'<link\s+rel=["\']canonical["\']\s+href=["\']([^"\']+)["\']',
-            self._html,
-        )
-        self.__canonical_url = match.group(1).strip() if match else None
-
-    def __extract_og_image(self):
-        match = re.search(
-            r'<meta\s+property=["\']og:image["\']\s+content=["\']([^"\']+)["\']',
-            self._html,
-        )
-        self.__og_image = self.__absolute_url(match.group(1)) if match else None
-
-    def __extract_created_at(self):
-        match = re.search(
-            r'<meta\s+itemprop=["\']dateCreated["\']\s+content=["\']([^"\']+)["\']',
-            self._html,
-        )
-        self.__created_at = match.group(1).strip() if match else None
-
-    def __extract_published_at(self):
-        match = re.search(
-            r'<meta\s+itemprop=["\']datePublished["\']\s+content=["\']([^"\']+)["\']',
-            self._html,
-        )
-        self.__published_at = match.group(1).strip() if match else None
 
     def __extract_player_sources(self):
         blocks = re.findall(
@@ -683,41 +361,6 @@ class MegaKinoEpisode:
             f"MegaKino stream URLs found: {[source['url'] for source in sources]}"
         )
         self.__player_sources = sources or None
-
-    def __extract_default_player(self):
-        match = re.search(
-            r'<div\s+class=["\']tabs-block__select[^"\']*["\'][^>]*>\s*<span>([^<]+)</span>',
-            self._html,
-            re.DOTALL,
-        )
-        self.__default_player = match.group(1).strip() if match else None
-
-    def __extract_stream_label(self):
-        spans = re.findall(
-            r'<div\s+class=["\']tabs-block__select[^"\']*["\'][^>]*>.*?</div>',
-            self._html,
-            re.DOTALL,
-        )
-        if not spans:
-            self.__stream_label = None
-            return
-
-        labels = re.findall(r"<span>([^<]+)</span>", spans[0], re.DOTALL)
-        labels = [label.strip() for label in labels if label.strip()]
-        self.__stream_label = labels[1] if len(labels) > 1 else None
-
-    def __extract_available_hosts(self):
-        if self.player_sources is None:
-            self.__available_hosts = None
-            return
-
-        hosts = []
-        for source in self.player_sources:
-            host = source.get("host")
-            if host and host not in hosts:
-                hosts.append(host)
-
-        self.__available_hosts = hosts or None
 
     @property
     def is_series(self):
@@ -822,71 +465,6 @@ class MegaKinoEpisode:
             return None
 
         return ProviderData({(Audio.GERMAN, Subtitles.NONE): providers})
-
-    def __extract_recommended_entries(self):
-        section_match = re.search(
-            r'<section\s+class=["\']sect\s+pmovie__related["\'].*?<div\s+class=["\']sect__content\s+d-grid["\']>(.*?)</div>\s*</section>',
-            self._html,
-            re.DOTALL,
-        )
-        if not section_match:
-            self.__recommended_entries = None
-            return
-
-        section_html = section_match.group(1)
-        items = re.findall(
-            r'<a\s+class=["\']poster[^"\']*["\']\s+href=["\']([^"\']+)["\']>(.*?)</a>',
-            section_html,
-            re.DOTALL,
-        )
-
-        entries = []
-
-        for href, item_html in items:
-            title_match = re.search(
-                r'<h3\s+class=["\']poster__title[^"\']*["\']>([^<]+)<',
-                item_html,
-            )
-            li_matches = re.findall(r"<li>([^<]+)</li>", item_html, re.DOTALL)
-            img_match = re.search(
-                r'<img[^>]*data-src=["\']([^"\']+)["\']',
-                item_html,
-                re.DOTALL,
-            )
-            if not img_match:
-                img_match = re.search(
-                    r'<img[^>]*src=["\']([^"\']+)["\']',
-                    item_html,
-                    re.DOTALL,
-                )
-
-            year = None
-            genres = None
-
-            if li_matches:
-                if re.fullmatch(r"\d{4}", li_matches[0].strip()):
-                    year = li_matches[0].strip()
-
-                if len(li_matches) > 1:
-                    genres = [
-                        genre.strip()
-                        for genre in li_matches[1].split("/")
-                        if genre.strip()
-                    ]
-
-            entries.append(
-                {
-                    "title": title_match.group(1).strip() if title_match else None,
-                    "url": self.__absolute_url(href),
-                    "year": year,
-                    "genres": genres,
-                    "poster_url": self.__absolute_url(img_match.group(1))
-                    if img_match
-                    else None,
-                }
-            )
-
-        self.__recommended_entries = entries or None
 
     ### metadata stuff
 
@@ -1116,44 +694,3 @@ class MegaKinoEpisode:
     download = episode_download
     watch = episode_watch
     syncplay = episode_syncplay
-
-
-if __name__ == "__main__":
-    test_url = "https://megakino8.com/films/205-deadpool.html"
-    movie = MegaKinoEpisode(test_url)
-
-    print("Title:", movie.title)
-    print("Cleaned Title:", movie.title_cleaned)
-    print("Original Title:", movie.original_title)
-    print("Description:", movie.description)
-    print("Genres:", movie.genres)
-    print("Country:", movie.country)
-    print("Release Year:", movie.release_year)
-    print("Duration (minutes):", movie.duration_minutes)
-    print("Poster URL:", movie.poster_url)
-    print("Backdrop URL:", movie.backdrop_url)
-    print("Directors:", movie.directors)
-    print("Actors:", movie.actors)
-    print("Producer:", movie.producer)
-    print("Age Rating:", movie.age_rating)
-    print("Quality Label:", movie.quality_label)
-    print("Kinopoisk Rating:", movie.kinopoisk_rating)
-    print("Site Rating Score:", movie.site_rating_score)
-    print("Site Rating Votes:", movie.site_rating_votes)
-    print("Likes:", movie.likes)
-    print("Dislikes:", movie.dislikes)
-    print("Trailer URL:", movie.trailer_url)
-    print("Post ID:", movie.post_id)
-    print("Canonical URL:", movie.canonical_url)
-    print("OG Image URL:", movie.og_image)
-    print("Created At:", movie.created_at)
-    print("Published At:", movie.published_at)
-    print("Player Sources:", movie.player_sources)
-    print("Default Player:", movie.default_player)
-    print("Stream Label:", movie.stream_label)
-    print("Available Hosts:", movie.available_hosts)
-    print("Recommended Entries:")
-    for entry in movie.recommended_entries or []:
-        print(entry)
-
-    movie.download()

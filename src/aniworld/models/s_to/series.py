@@ -23,11 +23,6 @@ class SerienstreamSeries:
         genres:         ['Horror']
         release_year:   "2011"
         poster_url:     "https://serienstream.to/media/images/channel/desktop/hannibal-z64ax0l0?format=jpg"
-        directors:      ['Bradley Buecker', 'Alfonso Gomez-Rejon', 'Michael Uppendahl', ...]
-        actors:         ['Evan Peters', 'Sarah Paulson', 'Denis O`Hare', ...]
-        producer:       ['Bradley Buecker', 'Brad Falchuk', 'Ryan Murphy', ...]
-        country:        "USA"
-        age_rating:     "16"
         imdb:           "tt1844624"
         seasons:        [<aniworld.models.s_to.season.SerienstreamSeason object at 0x106d427b0>, ...]
         season_count:   13
@@ -39,7 +34,7 @@ class SerienstreamSeries:
         syncplay()
 
     Attributes That Do Not Exists as on Aniworld:
-        rating, mal_id, has_movies
+        mal_id, has_movies
     """
 
     def __init__(self, url: str):
@@ -54,11 +49,6 @@ class SerienstreamSeries:
         self.__genres = None
         self.__release_year = None
         self.__poster_url = None
-        self.__directors = None
-        self.__actors = None
-        self.__producer = None
-        self.__country = None
-        self.__age_rating = None
         self.__imdb = None
         self.__seasons = None
         self.__season_count = None
@@ -114,36 +104,6 @@ class SerienstreamSeries:
         if self.__poster_url is None:
             self.__poster_url = self.__extract_poster_url()
         return self.__poster_url
-
-    @property
-    def directors(self):
-        if self.__directors is None:
-            self.__directors = self.__extract_directors()
-        return self.__directors
-
-    @property
-    def actors(self):
-        if self.__actors is None:
-            self.__actors = self.__extract_actors()
-        return self.__actors
-
-    @property
-    def producer(self):
-        if self.__producer is None:
-            self.__producer = self.__extract_producer()
-        return self.__producer
-
-    @property
-    def country(self):
-        if self.__country is None:
-            self.__country = self.__extract_country()
-        return self.__country
-
-    @property
-    def age_rating(self):
-        if self.__age_rating is None:
-            self.__age_rating = self.__extract_age_rating()
-        return self.__age_rating
 
     @property
     def imdb(self):
@@ -308,219 +268,6 @@ class SerienstreamSeries:
             else:
                 query = ""
             return f"http://186.2.175.5{path}" + query
-
-        return None
-
-    def __extract_directors(self):
-        """
-        <li class="series-group">
-            <strong class="me-1">Regisseur:</strong>
-
-            <a href="https://serienstream.to/regisseur/bradley-buecker" class="link-light">Bradley Buecker</a>, <a href="https://serienstream.to/regisseur/alfonso-gomez-rejon" class="link-light">Alfonso Gomez-Rejon</a>, <a href="https://serienstream.to/regisseur/michael-uppendahl" class="link-light">Michael Uppendahl</a>
-
-            <span class="extra-items d-none">
-                                                            , <a href="https://serienstream.to/regisseur/loni-peristere" class="link-light">Loni Peristere</a>
-                                                                    , <a href="https://serienstream.to/regisseur/michael-goi" class="link-light">Michael Goi</a>
-                                                                    , <a href="https://serienstream.to/regisseur/gwyneth-horder-payton" class="link-light">Gwyneth Horder-Payton</a>
-                                                                    , <a href="https://serienstream.to/regisseur/jennifer-lynch" class="link-light">Jennifer Lynch</a>
-                                                                    , <a href="https://serienstream.to/regisseur/ryan-murphy" class="link-light">Ryan Murphy</a>
-                                                                    , <a href="https://serienstream.to/regisseur/michael-lehmann" class="link-light">Michael Lehmann</a>
-                                                                    , <a href="https://serienstream.to/regisseur/david-semel" class="link-light">David Semel</a>
-                                                                    , <a href="https://serienstream.to/regisseur/howard-deutch" class="link-light">Howard Deutch</a>
-                                                                    , <a href="https://serienstream.to/regisseur/jeremy-podeswa" class="link-light">Jeremy Podeswa</a>
-                                                                    , <a href="https://serienstream.to/regisseur/michael-rymer" class="link-light">Michael Rymer</a>
-                                                                    , <a href="https://serienstream.to/regisseur/angela-bassett" class="link-light">Angela Bassett</a>
-                                                                    , <a href="https://serienstream.to/regisseur/miguel-arteta" class="link-light">Miguel Arteta</a>
-                                                                    , <a href="https://serienstream.to/regisseur/tim-hunter" class="link-light">Tim Hunter</a>
-                                                                    , <a href="https://serienstream.to/regisseur/john-scott" class="link-light">John Scott</a>
-                                                                    , <a href="https://serienstream.to/regisseur/craig-zisk" class="link-light">Craig Zisk</a>
-                                                                    , <a href="https://serienstream.to/regisseur/anthony-hemingway" class="link-light">Anthony Hemingway</a>
-                                                                    , <a href="https://serienstream.to/regisseur/nelson-cragg" class="link-light">Nelson Cragg</a>
-                                                                    , <a href="https://serienstream.to/regisseur/marita-grabiak" class="link-light">Marita Grabiak</a>
-                                                                    , <a href="https://serienstream.to/regisseur/elodie-keene" class="link-light">Elodie Keene</a>
-                                                                    , <a href="https://serienstream.to/regisseur/alexis-ostrander" class="link-light">Alexis Ostrander</a>
-                                                                    , <a href="https://serienstream.to/regisseur/barbara-brown" class="link-light">Barbara Brown</a>
-                                                                    , <a href="https://serienstream.to/regisseur/rachel-goldberg" class="link-light">Rachel Goldberg</a>
-                                                                    , <a href="https://serienstream.to/regisseur/liza-johnson" class="link-light">Liza Johnson</a>
-                                                                    , <a href="https://serienstream.to/regisseur/maggie-kiley" class="link-light">Maggie Kiley</a>
-                                                                    , <a href="https://serienstream.to/regisseur/jennifer-arnold" class="link-light">Jennifer Arnold</a>
-                                                                    , <a href="https://serienstream.to/regisseur/sheree-folkson" class="link-light">Sheree Folkson</a>
-                                                                    , <a href="https://serienstream.to/regisseur/sarah-paulson" class="link-light">Sarah Paulson</a>
-                                                    </span>
-
-            <button type="button" class="btn btn-sm text-white-50 p-0 toggle-more" data-count="27" aria-expanded="false">
-                                    &amp; 27 mehr
-                                </button>
-        </li>
-        """
-
-        pattern = re.compile(
-            r'<li class="series-group">\s*<strong class="me-1">Regisseur:</strong>(.*?)</li>',
-            re.DOTALL,
-        )
-
-        match = pattern.search(self._html)
-
-        if match:
-            directors_html = match.group(1)
-            director_pattern = re.compile(r'<a href=".*?" class="link-light">(.*?)</a>')
-            directors = director_pattern.findall(directors_html)
-            directors = [director.strip() for director in directors]
-            return directors
-
-        return []
-
-    def __extract_actors(self):
-        """
-        <li class="series-group">
-            <strong class="me-1">Besetzung:</strong>
-
-            <a href="https://serienstream.to/schauspieler/evan-peters" class="link-light">Evan Peters</a>, <a href="https://serienstream.to/schauspieler/sarah-paulson" class="link-light">Sarah Paulson</a>, <a href="https://serienstream.to/schauspieler/denis-ohare" class="link-light">Denis O`Hare</a>
-
-            <span class="extra-items d-none">
-                                                            , <a href="https://serienstream.to/schauspieler/kathy-bates" class="link-light">Kathy Bates</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/jessica-lange" class="link-light">Jessica Lange</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/frances-conroy" class="link-light">Frances Conroy</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/lily-rabe" class="link-light">Lily Rabe</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/angela-bassett" class="link-light">Angela Bassett</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/cheyenne-jackson" class="link-light">Cheyenne Jackson</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/emma-roberts" class="link-light">Emma Roberts</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/taissa-farmiga" class="link-light">Taissa Farmiga</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/adina-porter" class="link-light">Adina Porter</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/wes-bentley" class="link-light">Wes Bentley</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/finn-wittrock" class="link-light">Finn Wittrock</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/billie-lourd" class="link-light">Billie Lourd</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/gabourey-sidibe" class="link-light">Gabourey Sidibe</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/jamie-brewer" class="link-light">Jamie Brewer</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/naomi-grossman" class="link-light">Naomi Grossman</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/chlo-sevigny" class="link-light">Chloë Sevigny</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/dylan-mcdermott" class="link-light">Dylan McDermott</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/zachary-quinto" class="link-light">Zachary Quinto</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/leslie-grossman" class="link-light">Leslie Grossman</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/erika-ervin" class="link-light">Erika Ervin</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/stefani-joanne-angelina-germanotta" class="link-light">Stefani Joanne Angelina Germanotta</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/mare-winningham" class="link-light">Mare Winningham</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/joseph-fiennes" class="link-light">Joseph Fiennes</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/connie-britton" class="link-light">Connie Britton</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/michael-chiklis" class="link-light">Michael Chiklis</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/matt-bomer" class="link-light">Matt Bomer</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/lizzie-brocher" class="link-light">Lizzie Brocheré</a>
-                                                                    , <a href="https://serienstream.to/schauspieler/chaz-bono" class="link-light">Chaz Bono</a>
-                                                    </span>
-
-            <button type="button" class="btn btn-sm text-white-50 p-0 toggle-more" data-count="28" aria-expanded="false">
-                                    &amp; 28 mehr
-                                </button>
-        </li>
-        """
-
-        pattern = re.compile(
-            r'<li class="series-group">\s*<strong class="me-1">Besetzung:</strong>(.*?)</li>',
-            re.DOTALL,
-        )
-
-        match = pattern.search(self._html)
-
-        if match:
-            actors_html = match.group(1)
-            actor_pattern = re.compile(r'<a href=".*?" class="link-light">(.*?)</a>')
-            actors = actor_pattern.findall(actors_html)
-            actors = [actor.strip() for actor in actors]
-            return actors
-
-        return []
-
-    def __extract_producer(self):
-        """
-        <li class="series-group">
-            <strong class="me-1">Produzent:</strong>
-
-            <a href="https://serienstream.to/produzent/bradley-buecker" class="link-light">Bradley Buecker</a>, <a href="https://serienstream.to/produzent/brad-falchuk" class="link-light">Brad Falchuk</a>, <a href="https://serienstream.to/produzent/ryan-murphy" class="link-light">Ryan Murphy</a>
-
-            <span class="extra-items d-none">
-                                                            , <a href="https://serienstream.to/produzent/tim-minear" class="link-light">Tim Minear</a>
-                                                                    , <a href="https://serienstream.to/produzent/james-wong" class="link-light">James Wong</a>
-                                                                    , <a href="https://serienstream.to/produzent/alexis-martin-woodall" class="link-light">Alexis Martin Woodall</a>
-                                                                    , <a href="https://serienstream.to/produzent/jennifer-salt" class="link-light">Jennifer Salt</a>
-                                                                    , <a href="https://serienstream.to/produzent/dante-di-loreto" class="link-light">Dante Di Loreto</a>
-                                                                    , <a href="https://serienstream.to/produzent/robert-m-williams-jr" class="link-light">Robert M. Williams Jr.</a>
-                                                                    , <a href="https://serienstream.to/produzent/chip-vucelich" class="link-light">Chip Vucelich</a>
-                                                                    , <a href="https://serienstream.to/produzent/lou-eyrich" class="link-light">Lou Eyrich</a>
-                                                                    , <a href="https://serienstream.to/produzent/eryn-krueger-mekash" class="link-light">Eryn Krueger Mekash</a>
-                                                                    , <a href="https://serienstream.to/produzent/adam-penn" class="link-light">Adam Penn</a>
-                                                                    , <a href="https://serienstream.to/produzent/joe-incaprera" class="link-light">Joe Incaprera</a>
-                                                                    , <a href="https://serienstream.to/produzent/eric-kovtun" class="link-light">Eric Kovtun</a>
-                                                                    , <a href="https://serienstream.to/produzent/patrick-mckee" class="link-light">Patrick McKee</a>
-                                                    </span>
-
-            <button type="button" class="btn btn-sm text-white-50 p-0 toggle-more" data-count="13" aria-expanded="false">
-                                    &amp; 13 mehr
-                                </button>
-        </li>
-        """
-
-        pattern = re.compile(
-            r'<li class="series-group">\s*<strong class="me-1">Produzent:</strong>(.*?)</li>',
-            re.DOTALL,
-        )
-
-        match = pattern.search(self._html)
-
-        if match:
-            producers_html = match.group(1)
-            producer_pattern = re.compile(r'<a href=".*?" class="link-light">(.*?)</a>')
-            producers = producer_pattern.findall(producers_html)
-            producers = [producer.strip() for producer in producers]
-            return producers
-
-        return []
-
-    def __extract_country(self):
-        """
-        <li class="series-group">
-            <strong class="me-1">Land:</strong>
-
-            <a href="https://serienstream.to/land/usa" class="link-light">USA</a>
-
-        </li>
-        """
-
-        pattern = re.compile(
-            r'<li class="series-group">\s*<strong class="me-1">Land:</strong>(.*?)</li>',
-            re.DOTALL,
-        )
-
-        match = pattern.search(self._html)
-
-        if match:
-            country_html = match.group(1)
-            country_pattern = re.compile(r'<a href=".*?" class="link-light">(.*?)</a>')
-            country_match = country_pattern.search(country_html)
-            if country_match:
-                country = country_match.group(1).strip()
-                return country
-
-        return None
-
-    def __extract_age_rating(self):
-        """
-        <p class="small text-muted mb-2">
-
-            <a class="small text-muted" href="https://serienstream.to/jahr/2011">2011</a> -
-            <span class="small text-muted">NA</span> • FSK 16 •
-            <a href="https://www.imdb.com/title/tt1844624/" target="_blank" rel="noopener noreferrer" class="small text-muted text-decoration-none">
-                            IMDb
-                        </a>
-        </p>
-        """
-
-        pattern = re.compile(r"FSK (\d{1,2}|NA)")
-
-        match = pattern.search(self._html)
-
-        if match:
-            age_rating = match.group(1).strip()
-            return age_rating
 
         return None
 
