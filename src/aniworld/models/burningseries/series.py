@@ -284,8 +284,12 @@ class BurningSeriesEpisode(_BSLanguageMixin):
         # URL path: /serie/<slug>/<season>/<epslug>/<lang>
         parts = urlparse(url).path.strip("/").split("/")
         self.__slug = parts[1] if len(parts) > 1 else bs_slug_from_url(url)
-        self.__season_number = season_number or (
-            int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
+        self.__season_number = (
+            season_number
+            if season_number is not None
+            else int(parts[2])
+            if len(parts) > 2 and parts[2].isdigit()
+            else 1
         )
         self.__epslug = parts[3] if len(parts) > 3 else ""
         if episode_number is not None:
@@ -331,7 +335,8 @@ class BurningSeriesEpisode(_BSLanguageMixin):
 
     @property
     def season_number(self):
-        return self.__season_number or 1
+        # Season 0 is burning-series' movies/specials bucket; keep it distinct.
+        return self.__season_number
 
     @property
     def title_de(self):
