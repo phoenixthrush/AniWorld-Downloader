@@ -112,9 +112,6 @@ class MegaKinoEpisode:
 
         # https://jellyfin.org/docs/general/server/media/shows/#organization
         self.__base_folder = None
-        self.__folder_path = None
-        self.__file_name = None
-        self.__file_extension = None
         self.__episode_path = None
 
         self.__is_downloaded = None
@@ -410,33 +407,6 @@ class MegaKinoEpisode:
         if not value:
             return None
         return urljoin(self.url, value.strip())
-
-    @staticmethod
-    def __format_naming_part(
-        template_part,
-        *,
-        title,
-        year,
-        language,
-        imdbid="",
-        season="",
-        episode="",
-    ):
-        formatted = template_part.format(
-            title=title,
-            year=year,
-            imdbid=imdbid,
-            season=season,
-            episode=episode,
-            language=language,
-        )
-
-        if not imdbid:
-            formatted = re.sub(r"\s*\[imdbid-\]\s*", " ", formatted)
-
-        formatted = re.sub(r"\bS\s*E\b", " ", formatted)
-        formatted = re.sub(r"\s+", " ", formatted).strip()
-        return formatted
 
     # -----------------------------
     # private extractors
@@ -925,7 +895,6 @@ class MegaKinoEpisode:
         self.__selected_path_param = value
         self.__selected_path = None
         self.__base_folder = None
-        self.__folder_path = None
         self.__episode_path = None
 
     @property
@@ -945,9 +914,7 @@ class MegaKinoEpisode:
         self.__provider_url = None
         self.__is_downloaded = None
         self.__base_folder = None
-        self.__folder_path = None
         self.__episode_path = None
-        self.__file_name = None
 
     @property
     def selected_provider(self):

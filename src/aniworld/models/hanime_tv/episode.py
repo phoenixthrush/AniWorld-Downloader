@@ -63,10 +63,8 @@ class HanimeTVEpisode:
         self.__selected_provider = selected_provider or "HanimeTV"
 
         self.__title_en = None
-        self.__title_de = None
         self.__description = None
         self.__poster_url = None
-        self.__duration_ms = None
 
         self.__stream_url = None
         self.__provider_data = None
@@ -106,7 +104,6 @@ class HanimeTVEpisode:
     def _api_data(self):
         if self.__api_data is None:
             if self._series and hasattr(self._series, "_api_data"):
-                (self._series._api_data.get("hentai_franchise_hentai_videos") or [])
                 my_slug = self._slug_from_url(self.url)
                 series_slug = self._slug_from_url(self._series.url)
                 if my_slug == series_slug:
@@ -130,7 +127,7 @@ class HanimeTVEpisode:
 
     @property
     def title_de(self):
-        return self.__title_de or ""
+        return ""
 
     @staticmethod
     def _episode_number_from_slug(slug):
@@ -335,10 +332,7 @@ class HanimeTVEpisode:
     def _file_name(self):
         if self.__file_name is None:
             naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-            try:
-                file_template = naming_template.split("/")[-1]
-            except IndexError:
-                file_template = "{title} S{season}E{episode}.mkv"
+            file_template = naming_template.split("/")[-1]
 
             if "." in file_template:
                 file_template = ".".join(file_template.split(".")[:-1])
@@ -366,14 +360,11 @@ class HanimeTVEpisode:
     def _file_extension(self):
         if self.__file_extension is None:
             naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-            try:
-                file_part = naming_template.split("/")[-1]
-                if "." in file_part:
-                    ext = file_part.rsplit(".", 1)[-1]
-                    self.__file_extension = ext if ext else "mkv"
-                else:
-                    self.__file_extension = "mkv"
-            except IndexError:
+            file_part = naming_template.split("/")[-1]
+            if "." in file_part:
+                ext = file_part.rsplit(".", 1)[-1]
+                self.__file_extension = ext if ext else "mkv"
+            else:
                 self.__file_extension = "mkv"
         return self.__file_extension
 

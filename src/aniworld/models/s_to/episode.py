@@ -49,20 +49,6 @@ class Subtitles(Enum):
     NONE = "None"
 
 
-# Map UI labels to enum tuples (serienstream.to labels)
-LANG_LABEL_TO_ENUM = {
-    "Deutsch": (Audio.GERMAN, Subtitles.NONE),
-    "Englisch": (Audio.ENGLISH, Subtitles.NONE),
-}
-
-# ISO language codes for media players (IINA/mpv)
-LANG_CODE_MAP = {
-    Audio.ENGLISH: "eng",
-    Audio.GERMAN: "deu",
-    Subtitles.NONE: None,
-}
-
-
 class SerienstreamEpisode:
     """
     Represents a single episode of an Serienstream series.
@@ -281,14 +267,9 @@ class SerienstreamEpisode:
     @property
     def redirect_url(self):
         if self.__redirect_url is None:
-            link = self.provider_link(self.selected_language, self.selected_provider)
-            if link is None:
-                raise ValueError(
-                    f"Language '{self.selected_language}' with provider "
-                    f"'{self.selected_provider}' is not available for "
-                    f"episode: {self.url}"
-                )
-            self.__redirect_url = link
+            self.__redirect_url = self.provider_link(
+                self.selected_language, self.selected_provider
+            )
         return self.__redirect_url
 
     @property
@@ -353,14 +334,11 @@ class SerienstreamEpisode:
     def _file_extension(self):
         if self.__file_extension is None:
             naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-            try:
-                file_part = naming_template.split("/")[-1]
-                if "." in file_part:
-                    ext = file_part.rsplit(".", 1)[-1]
-                    self.__file_extension = ext if ext else "mkv"
-                else:
-                    self.__file_extension = "mkv"
-            except IndexError:
+            file_part = naming_template.split("/")[-1]
+            if "." in file_part:
+                ext = file_part.rsplit(".", 1)[-1]
+                self.__file_extension = ext if ext else "mkv"
+            else:
                 self.__file_extension = "mkv"
         return self.__file_extension
 

@@ -91,9 +91,6 @@ class MoflixEpisode:
         self.__provider_url = None
 
         self.__base_folder = None
-        self.__folder_path = None
-        self.__file_name = None
-        self.__file_extension = None
         self.__episode_path = None
 
         self.__is_downloaded = None
@@ -315,7 +312,6 @@ class MoflixEpisode:
         self.__selected_path_param = value
         self.__selected_path = None
         self.__base_folder = None
-        self.__folder_path = None
         self.__episode_path = None
 
     @property

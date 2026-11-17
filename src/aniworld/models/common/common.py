@@ -1049,7 +1049,7 @@ class _HLSManualUnsupported(Exception):
 _HLS_MEDIA_EXTS = (".ts", ".m4s", ".mp4", ".m4a", ".m4v", ".aac", ".mp3", ".mov")
 
 
-def _fetch_hls_segment(session, seg_url, headers, hosts, timeout=90):
+def _fetch_hls_segment(session, seg_url, headers, hosts):
     """Download one HLS segment, failing over across mirror hosts.
 
     Some hosters serve segments from a rotating pool of mirror hosts that all
@@ -1067,7 +1067,7 @@ def _fetch_hls_segment(session, seg_url, headers, hosts, timeout=90):
         for host in ordered:
             url = urlunparse(parsed._replace(netloc=host))
             try:
-                resp = session.get(url, headers=headers, timeout=timeout)
+                resp = session.get(url, headers=headers, timeout=90)
                 resp.raise_for_status()
                 return resp.content
             except Exception as exc:
