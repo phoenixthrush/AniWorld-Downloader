@@ -190,6 +190,46 @@ def test_detached_widget_cannot_make_other_solved_widgets_ready():
     assert not captcha._ChallengeSolver().ready_to_submit(page)
 
 
+@pytest.mark.parametrize(
+    "widgets,optional,ready",
+    [
+        (
+            [
+                {"kind": "turnstile", "ready": False},
+                {"kind": "altcha", "ready": False},
+            ],
+            ("turnstile",),
+            False,
+        ),
+        (
+            [
+                {"kind": "turnstile", "ready": False},
+                {"kind": "altcha", "ready": True},
+            ],
+            ("turnstile",),
+            True,
+        ),
+        ([{"kind": "turnstile", "ready": False}], ("turnstile",), True),
+        ([{"kind": "turnstile", "ready": False}], (), False),
+    ],
+)
+def test_optional_widgets_do_not_block_submission(widgets, optional, ready):
+    frame = Mock(child_frames=[])
+    frame.evaluate.side_effect = lambda script, **_: (
+        list(widgets) if script == captcha._WIDGETS_JS else False
+    )
+    page = Mock(frames=[frame])
+    solver = captcha._ChallengeSolver(optional=optional)
+    assert solver.ready_to_submit(page) is ready
+
+
+def test_sto_modal_treats_turnstile_as_optional(monkeypatch):
+    solve = Mock(return_value=PLAYER)
+    monkeypatch.setattr(captcha, "_solve", solve)
+    assert captcha.solve_sto_modal(SOURCE, "VOE", "Deutsch") == PLAYER
+    assert solve.call_args.kwargs["optional_widgets"] == ("turnstile",)
+
+
 @pytest.mark.parametrize("outcome", ["solved", "timeout", "navigation-error"])
 def test_interactive_solve_delivers_clicks_and_always_cleans_up(
     browser, monkeypatch, outcome
@@ -204,7 +244,7 @@ def test_interactive_solve_delivers_clicks_and_always_cleans_up(
     )
     solver = Mock()
     solver.ready_to_submit.return_value = False
-    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda: solver)
+    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda **_: solver)
     sessions = []
 
     def navigate(*args, **kwargs):
@@ -248,7 +288,7 @@ def test_sto_clicks_continue_without_touching_widgets(
     button = Mock()
     frame.locator.return_value.all.return_value = [button]
     solver = Mock()
-    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda: solver)
+    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda **_: solver)
     monkeypatch.setattr(
         captcha,
         "_is_captcha_page_dom",
@@ -299,7 +339,7 @@ def test_sto_solves_required_widgets_after_initial_submission(
         return True
 
     solver.ready_to_submit.side_effect = wait_for_widgets
-    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda: solver)
+    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda **_: solver)
     submissions = []
 
     def submit(page):
@@ -375,7 +415,7 @@ def test_solve_timeout_override_and_invalid_fallback(
     monkeypatch.setattr(captcha, "_is_captcha_page_dom", lambda page: True)
     solver = Mock()
     solver.ready_to_submit.return_value = False
-    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda: solver)
+    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda **_: solver)
     assert captcha._solve(SOURCE, timeout=1) is None
     assert page.wait_for_timeout.call_count == waits
     handle.close.assert_called_once()
@@ -553,7 +593,7 @@ def test_generic_solver_submits_completed_widgets_before_returning(
     monkeypatch.setattr(captcha, "_is_captcha_page_dom", lambda page: True)
     solver = Mock()
     solver.ready_to_submit.return_value = True
-    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda: solver)
+    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda **_: solver)
 
     def submit(page):
         page.url = PLAYER
