@@ -145,7 +145,8 @@ class _ChallengeSolver:
 
     def __init__(self, optional=()):
         self.clicked = {}
-        # Optional widgets are still clicked but never block submitting.
+        # Optional widgets are still clicked but never block submitting, and
+        # never count as the widget that makes a page ready on their own.
         self.optional = frozenset(optional)
 
     def ready_to_submit(self, page) -> bool:
@@ -229,7 +230,7 @@ class _ChallengeSolver:
             except Error as exc:
                 logger.debug("CAPTCHA widget changed during inspection: %s", exc)
                 return False
-        return bool(widgets) and all(
+        return any(w["kind"] not in self.optional for w in widgets) and all(
             w["ready"] or w["kind"] in self.optional for w in widgets
         )
 
