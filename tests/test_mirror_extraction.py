@@ -121,3 +121,23 @@ def test_burningseries_rejects_unrelated_absolute_links(monkeypatch):
         ),
     )
     assert show.seasons[0]._episode_rows("de") == []
+
+
+def test_burningseries_season_fetches_each_language_once(monkeypatch):
+    paths = []
+
+    def fetch(path):
+        paths.append(path)
+        return (
+            '<table class="episodes"><td><a href="serie/from/1/1-title/de">'
+            "Episode</a></td></table>"
+            if path.endswith("/de")
+            else ""
+        )
+
+    monkeypatch.setattr(bs, "bs_get_with_fallback", fetch)
+    season = bs.BurningSeriesSeason("https://bs.cine.to/serie/from/1")
+    assert season.language_labels == ["German Dub"]
+    assert season.language_labels == ["German Dub"]
+    assert len(season.episodes) == 1
+    assert paths == ["/serie/from/1/de", "/serie/from/1/en"]

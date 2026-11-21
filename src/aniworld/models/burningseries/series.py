@@ -528,6 +528,7 @@ class BurningSeriesSeason(_BSLanguageMixin):
         self.season_number = season_number
         self.are_movies = False
         self.__episodes = None
+        self.__episode_rows = {}
 
     @property
     def series(self):
@@ -537,15 +538,18 @@ class BurningSeriesSeason(_BSLanguageMixin):
         return self._series
 
     def _episode_rows(self, lang):
+        if lang in self.__episode_rows:
+            return self.__episode_rows[lang]
         slug = bs_slug_from_url(self.url) or self.series.slug
         try:
             html = bs_get_with_fallback(f"/serie/{slug}/{self.season_number}/{lang}")
         except Exception:
             return []
+        rows = []
+        self.__episode_rows[lang] = rows
         table = re.search(r'<table class="episodes">(.*?)</table>', html, re.DOTALL)
         if not table:
-            return []
-        rows = []
+            return rows
         for m in re.finditer(
             rf'<td><a href="(?:https?://{BS_HOST_PATTERN}/|/)?(serie/[^"]+?/(\d+)/([^"/]+)/[a-z]{{2}})"',
             table.group(1),
