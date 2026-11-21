@@ -612,6 +612,31 @@ def test_manual_hls_fetch_leaves_fmp4_playlists_alone(monkeypatch, tmp_path):
     assert not target.exists()
 
 
+def test_manual_hls_fetch_follows_highest_bandwidth_variant(monkeypatch, tmp_path):
+    """A master listing the best variant first must not fall back to the worst."""
+    from aniworld.models.common import common
+
+    master = (
+        "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=5000000\nhigh.m3u8\n"
+        "#EXT-X-STREAM-INF:BANDWIDTH=800000\nlow.m3u8\n"
+    )
+    fmp4 = '#EXTM3U\n#EXT-X-MAP:URI="i.mp4"\n#EXTINF:2,\nhb1.jpg\n#EXT-X-ENDLIST\n'
+    fetched = []
+
+    class Session:
+        def get(self, url, **kwargs):
+            fetched.append(url)
+            text = master if url.endswith("/v.m3u8") else fmp4
+            return SimpleNamespace(text=text, raise_for_status=lambda: None)
+
+    monkeypatch.setattr(common.niquests, "Session", Session)
+    with pytest.raises(common._HLSManualUnsupported):
+        common._download_hls_manual(
+            "https://media.example/v.m3u8", {}, tmp_path / "out.seg.ts"
+        )
+    assert fetched[1] == "https://media.example/high.m3u8"
+
+
 @pytest.mark.parametrize(
     "url,cls,title",
     [
