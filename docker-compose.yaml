@@ -37,6 +37,7 @@ services:
     #   ANIWORLD_LANG_SEPARATION: "0"                 # Separate downloads into language subfolders (german-dub/, english-sub/)
     #   ANIWORLD_MOVIE_FOLDER: "1"                    # 1 = wrap a movie in its own "Title (Year)" folder, 0 = save it directly
     #   ANIWORLD_DISABLE_ENGLISH_SUB: "0"             # Block English Sub downloads entirely
+    #   ANIWORLD_SEASON_EPISODE_NUMBERS: "0"          # 1 = name episodes S23E01 instead of S23E1157
     #   ANIWORLD_UI_LANGUAGE: "en"                    # Web UI language: en | de
     #   ANIWORLD_DEBUG_MODE: "0"                      # Enable debug logging
     #   ANIWORLD_NO_AUTO_INSTALL: "0"                 # 1 = never fetch missing dependencies at runtime

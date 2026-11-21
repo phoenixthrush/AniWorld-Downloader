@@ -6,7 +6,11 @@ from pathlib import Path
 
 from ...config import NAMING_TEMPLATE
 from .common import clean_title
-from .numbering import downloaded_episode_owners, season_episode_context
+from .numbering import (
+    downloaded_episode_owners,
+    season_episode_context,
+    season_episode_numbers_enabled,
+)
 
 
 def numbered_episode_path(episode, number, *, padding=3):
@@ -35,8 +39,9 @@ def numbered_episode_path(episode, number, *, padding=3):
 
 def existing_numbered_episode_path(episode):
     """Prefer the new path, but keep using a download at its seasonal path."""
-    base, path = numbered_episode_path(episode, episode.episode_number)
     seasonal = episode.season_episode_number
+    preferred = seasonal if season_episode_numbers_enabled() else episode.episode_number
+    base, path = numbered_episode_path(episode, preferred)
     candidates = [
         (number, *numbered_episode_path(episode, number, padding=padding))
         for number in dict.fromkeys((episode.episode_number, seasonal))
@@ -64,7 +69,7 @@ def existing_numbered_episode_path(episode):
     for number, candidate_base, candidate in existing:
         if owners.get(candidate) == episode.url:
             return candidate_base, candidate
-    if any(number == episode.episode_number for number, _, _ in existing):
+    if any(number == preferred for number, _, _ in existing):
         raise ValueError(f"Episode path belongs to a different episode: {path}")
     return base, path
 

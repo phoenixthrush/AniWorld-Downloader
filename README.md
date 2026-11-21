@@ -56,7 +56,7 @@ Prefer another installation method? Use [Docker](#docker) or download a standalo
 - Schedule Auto-Sync checks for AniWorld titles already downloaded to your library.
 - Choose available audio and subtitle languages, with fallback to other stream hosters.
 - Customize supported naming templates and output formats, including MKV/MP4 for video and JPG/CBZ/EPUB for manga; naming support varies by backend.
-- AniWorld and SerienStream use explicit episode numbers from English titles, including `[Episode N]` and `[JP Episode N]`, with seasonal numbering as fallback and existing seasonal downloads recognised.
+- AniWorld and SerienStream use explicit episode numbers from English titles, including `[Episode N]` and `[JP Episode N]`, with seasonal numbering as fallback and existing seasonal downloads recognised. Set `ANIWORLD_SEASON_EPISODE_NUMBERS=1` or use the Web UI setting to keep seasonal numbering for new downloads.
 - Watch through external players, with AniSkip and Anime4K support where applicable.
 
 The Web UI also supports local accounts, optional OIDC SSO, custom CSS, and background shaders. SSO alongside local login requires both `--web-auth` and `--web-sso`; `--web-force-sso` enables SSO-only authentication. A JSON API and optional Discord request bot let you connect it to other tools. Features and language availability vary by site.

@@ -224,6 +224,37 @@ def test_current_path_wins_if_both_names_exist(model, tmp_path, monkeypatch):
     assert make_episode(model, tmp_path)._episode_path == new
 
 
+@pytest.mark.parametrize("title", ["Title [Episode 062]", "Title [JP Episode 1218]"])
+def test_opt_in_names_new_downloads_by_season(model, tmp_path, monkeypatch, title):
+    monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "{title} S{season}E{episode}.mkv")
+    monkeypatch.setenv("ANIWORLD_SEASON_EPISODE_NUMBERS", "1")
+    episode = make_episode(model, tmp_path, title=title)
+    assert episode._episode_path == tmp_path / "Example S02E001.mkv"
+    assert episode.season_episode_number == 1
+
+
+def test_opt_in_reuses_a_title_numbered_download(model, tmp_path, monkeypatch):
+    monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "{title} S{season}E{episode}.mkv")
+    monkeypatch.setenv("ANIWORLD_SEASON_EPISODE_NUMBERS", "1")
+    old = tmp_path / "Example S02E062.mkv"
+    old.write_bytes(b"existing")
+    assert make_episode(model, tmp_path)._episode_path == old
+
+
+@pytest.mark.parametrize("have", [{(2, 2)}, {(2, 63)}])
+def test_opt_in_autosync_still_recognises_both_numbers(
+    model, tmp_path, monkeypatch, have
+):
+    monkeypatch.setenv("ANIWORLD_SEASON_EPISODE_NUMBERS", "1")
+    season = SimpleNamespace(season_number=2)
+    season.episodes = [
+        make_episode(
+            model, tmp_path, number=2, title="Title [Episode 063]", season=season
+        )
+    ]
+    assert autosync._missing_episodes(SimpleNamespace(seasons=[season]), have) == []
+
+
 def test_resolution_naming_finds_a_seasonal_file(model, tmp_path, monkeypatch):
     monkeypatch.setenv(
         "ANIWORLD_NAMING_TEMPLATE", "{title} S{season}E{episode}.{resolution}.mkv"
