@@ -137,11 +137,15 @@
           </p>
 
           <label class="checkbox">
-            <input type="checkbox" id="seasonEpisodeNumbers" data-setting="season_episode_numbers" />
+            <input type="checkbox" id="seasonEpisodeNumbers" data-setting="season_episode_numbers"
+              aria-describedby="seasonEpisodeNumbersHint seasonEpisodeNumbersMigration" />
             <span data-i18n="settings.season_episode_numbers">Number episodes per season</span>
           </label>
-          <p class="hint" data-i18n="settings.season_episode_numbers_hint">
+          <p class="hint" id="seasonEpisodeNumbersHint" data-i18n="settings.season_episode_numbers_hint">
             Name new downloads with the episode index of each season (S23E01) instead of the absolute number from the English title (S23E1157). Useful for libraries that are organised by season.
+          </p>
+          <p class="hint" id="seasonEpisodeNumbersMigration" data-i18n="settings.season_episode_numbers_migration">
+            Switching an existing library? If another episode already uses the new filename, the download stops and keeps the existing file. Check which episode that file contains, then rename it to its seasonal filename if that name is free and retry.
           </p>
 
           <label class="checkbox">

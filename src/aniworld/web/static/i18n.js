@@ -166,6 +166,8 @@
       "settings.season_episode_numbers": "Folgen pro Staffel nummerieren",
       "settings.season_episode_numbers_hint":
         "Neue Downloads bekommen die Folgennummer innerhalb der Staffel (S23E01) statt der absoluten Nummer aus dem englischen Titel (S23E1157). Praktisch für Bibliotheken, die nach Staffeln sortiert sind.",
+      "settings.season_episode_numbers_migration":
+        "Du stellst eine bestehende Bibliothek um? Wenn eine andere Folge den neuen Dateinamen bereits verwendet, stoppt der Download und die vorhandene Datei bleibt erhalten. Prüfe, welche Folge die Datei enthält. Wenn der passende Dateiname mit der Folgennummer innerhalb der Staffel frei ist, benenne sie um und starte den Download erneut.",
       "settings.show_all_languages": "Immer alle Sprachen anbieten",
       "settings.show_all_languages_hint":
         "Die Sprachauswahl zeigt normalerweise nur, was die erste Folge eines Titels hat. Schalte das ein, wenn eine spätere Folge eine Sprache dazubekommt. Folgen ohne die gewählte Sprache schlagen beim Download fehl.",
