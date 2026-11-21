@@ -390,7 +390,7 @@ def _season_episodes(provider, url, series_url):
     episode_languages = {}
     fallback_languages = None
     fallback_languages_resolved = False
-    if provider.name == "SerienStream":
+    if provider.name in ("SerienStream", "AniWorld"):
         episode_languages = dict(getattr(season, "episode_languages", {}) or {})
     if season_languages is None and provider.name in SEASON_LEVEL_LANGUAGE_SITES:
         try:
@@ -427,6 +427,8 @@ def _season_episodes(provider, url, series_url):
                         fallback_languages = ["German Dub"]
                     fallback_languages_resolved = True
                 languages = fallback_languages
+        elif provider.name == "AniWorld" and episode.url in episode_languages:
+            languages = list(episode_languages[episode.url])
         else:
             languages = media.language_labels(episode.provider_data)
         if provider.name == "HanimeTV" and not languages:
