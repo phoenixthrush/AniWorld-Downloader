@@ -637,6 +637,83 @@ def test_manual_hls_fetch_follows_highest_bandwidth_variant(monkeypatch, tmp_pat
     assert fetched[1] == "https://media.example/high.m3u8"
 
 
+@pytest.fixture
+def force_cancel(monkeypatch):
+    """Run the test as web queue item 7, which has been force-cancelled."""
+    from aniworld.playwright import captcha
+    from aniworld.web import db as web_db
+
+    monkeypatch.setattr(captcha._local, "queue_id", 7, raising=False)
+    monkeypatch.setattr(web_db, "is_queue_force_cancelled", lambda qid: qid == 7)
+
+
+@pytest.mark.parametrize("queued", [False, True])
+def test_direct_http_download_honours_force_cancel(
+    monkeypatch, tmp_path, request, queued
+):
+    from aniworld.models.common import common
+
+    if queued:
+        request.getfixturevalue("force_cancel")
+    served = []
+
+    def iter_content(chunk_size):
+        for chunk in (b"a", b"b"):
+            served.append(chunk)
+            yield chunk
+
+    resp = SimpleNamespace(
+        headers={"Content-Length": "2"},
+        raise_for_status=lambda: None,
+        iter_content=iter_content,
+    )
+    monkeypatch.setattr(common.niquests, "get", lambda *a, **k: resp)
+    target = tmp_path / "ep.mp4"
+    if not queued:
+        # CLI downloads have no queue id and must run to the end.
+        common._download_direct_http(target, "https://media.example/v.mp4", "ep")
+        assert target.read_bytes() == b"ab"
+        return
+    with pytest.raises(common.DownloadCancelled):
+        common._download_direct_http(target, "https://media.example/v.mp4", "ep")
+    assert served == [b"a"]
+    assert list(tmp_path.glob("ep*")) == []
+
+
+def test_parallel_hls_download_stops_on_force_cancel(
+    monkeypatch, tmp_path, force_cancel
+):
+    from aniworld.models.common import common, hls
+
+    playlist = "#EXTM3U\n" + "#EXTINF:2,\ns.ts\n" * 3 + "#EXT-X-ENDLIST\n"
+    monkeypatch.setattr(hls, "_fetch_text", lambda url, headers: playlist)
+    monkeypatch.setattr(hls, "_fetch_bytes", lambda url, headers: b"x")
+    with pytest.raises(common.DownloadCancelled):
+        hls.download_hls_parallel("https://media.example/v.m3u8", tmp_path / "ep.hls")
+    assert list(tmp_path.glob("ep*")) == []
+
+
+def test_manual_hls_download_stops_on_force_cancel(monkeypatch, tmp_path, force_cancel):
+    from aniworld.models.common import common
+
+    playlist = "#EXTM3U\n" + "#EXTINF:2,\nhb.jpg\n" * 3 + "#EXT-X-ENDLIST\n"
+    fetched = []
+
+    class Session:
+        def get(self, url, **kwargs):
+            fetched.append(url)
+            return SimpleNamespace(
+                text=playlist, content=b"x", raise_for_status=lambda: None
+            )
+
+    monkeypatch.setattr(common.niquests, "Session", Session)
+    target = tmp_path / "out.seg.ts"
+    with pytest.raises(common.DownloadCancelled):
+        common._download_hls_manual("https://media.example/v.m3u8", {}, target)
+    assert len(fetched) == 2  # the playlist and a single segment
+    assert not target.exists()
+
+
 @pytest.mark.parametrize(
     "url,cls,title",
     [
