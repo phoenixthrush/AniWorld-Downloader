@@ -209,7 +209,7 @@ def test_detached_widget_cannot_make_other_solved_widgets_ready():
             ("turnstile",),
             True,
         ),
-        ([{"kind": "turnstile", "ready": False}], ("turnstile",), True),
+        ([{"kind": "turnstile", "ready": False}], ("turnstile",), False),
         ([{"kind": "turnstile", "ready": False}], (), False),
     ],
 )
