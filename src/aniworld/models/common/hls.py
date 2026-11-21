@@ -356,6 +356,8 @@ class _ProgressTracker:
         self._bandwidth = ""
 
     def advance(self, chunk_size):
+        if self._common._force_cancel_requested():
+            raise self._common.DownloadCancelled("Download cancelled")
         self.done += 1
         self.bytes_written += chunk_size
 
