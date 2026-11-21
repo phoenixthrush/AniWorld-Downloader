@@ -63,7 +63,7 @@ class HentaiHavenEpisode(HentaiTVEpisode):
     def provider_url(self):
         return self.url
 
-    @property
+    @cached_property
     def stream_url(self):
         source = self._player.get("indexableSource", "")
         if urlparse(source).scheme not in ("http", "https"):
@@ -93,6 +93,7 @@ class HentaiHavenEpisode(HentaiTVEpisode):
 
     def refresh_stream_url(self):
         self.__dict__.pop("_player", None)
+        self.__dict__.pop("stream_url", None)
         self._clear_page_cache()
         return self.stream_url
 

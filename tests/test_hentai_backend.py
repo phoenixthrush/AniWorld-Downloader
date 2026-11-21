@@ -223,6 +223,29 @@ def test_haven_asks_the_stream_api_when_the_page_has_no_source(monkeypatch):
     assert episode.episode_number == 1
 
 
+def test_haven_stream_url_is_requested_once_until_refreshed(monkeypatch):
+    from aniworld.models.hentaihaven import episode as haven_module
+
+    data = {"videoId": 42, "slug": "Example-2", "indexableSource": "$undefined"}
+    monkeypatch.setattr(
+        episode_module, "get_response", lambda *a, **k: response(flight(data))
+    )
+    posted = []
+
+    def post(url, **kwargs):
+        posted.append(url)
+        source = {"src": f"https://media.example/master.m3u8?hash={len(posted)}"}
+        return response(payload={"data": {"sources": [source]}})
+
+    monkeypatch.setattr(haven_module, "post_response", post)
+    episode = HentaiHavenEpisode(HAVEN)
+    assert episode.stream_url == episode.stream_url
+    assert len(posted) == 1
+    assert episode.refresh_stream_url().endswith("hash=2")
+    assert episode.stream_url.endswith("hash=2")
+    assert len(posted) == 2
+
+
 def test_haven_series_excludes_recommendations_and_sorts(monkeypatch):
     from aniworld.models.hentaihaven import series as module
 
