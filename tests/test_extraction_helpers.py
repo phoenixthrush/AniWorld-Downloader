@@ -205,6 +205,46 @@ def test_filemoon_decrypts_unpadded_byse_playback_data():
     )
 
 
+def _encode(value):
+    return base64.urlsafe_b64encode(value).decode().rstrip("=")
+
+
+def _byse_playback(version, *, part_count=30):
+    """Byse API shape: 24-byte decoys plus the two real key halves."""
+    key = bytes(range(32))
+    iv = bytes(range(12))
+    payload = {"sources": [{"url": "https://media.example/1080.m3u8", "height": 1080}]}
+    parts = [_encode(bytes([index]) * 24) for index in range(part_count)]
+    parts[version - 1] = _encode(key[:16])
+    parts[part_count - version] = _encode(key[16:])
+    playback = {
+        "key_parts": parts,
+        "version": version,
+        "iv": _encode(iv),
+        "payload": _encode(AESGCM(key).encrypt(iv, json.dumps(payload).encode(), None)),
+    }
+    return playback, payload
+
+
+@pytest.mark.parametrize("version", [1, 4, 15, 16, 18, 20, 30])
+def test_filemoon_key_halves_follow_the_playback_version(version):
+    playback, payload = _byse_playback(version)
+    assert filemoon._decrypt_playback_data(playback) == payload
+
+
+def test_filemoon_falls_back_to_either_half_order_without_a_version():
+    playback, payload = _byse_playback(20)
+    del playback["version"]
+    assert filemoon._decrypt_playback_data(playback) == payload
+
+
+def test_filemoon_tries_the_second_payload_after_a_failed_first_one():
+    playback, payload = _byse_playback(16)
+    playback["iv2"], playback["payload2"] = playback["iv"], playback["payload"]
+    playback["payload"] = _encode(b"\0" * 64)
+    assert filemoon._decrypt_playback_data(playback) == payload
+
+
 @pytest.mark.parametrize(
     "radix,token,index",
     [(2, "10", 2), (10, "10", 10), (36, "z", 35), (62, "A", 36), (62, "Z", 61)],

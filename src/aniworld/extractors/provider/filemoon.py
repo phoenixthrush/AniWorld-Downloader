@@ -5,6 +5,7 @@ import sys
 from urllib.parse import urlparse
 
 import niquests
+from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 try:
@@ -62,33 +63,45 @@ def _decrypt_payload(playback, key, iv_prop, payload_prop):
 
     aesgcm = AESGCM(key)
     # cryptography library expects nonce + ciphertext+tag combined
-    plaintext = aesgcm.decrypt(iv, ciphertext, None)
+    try:
+        plaintext = aesgcm.decrypt(iv, ciphertext, None)
+    except InvalidTag:
+        return None
     return json.loads(plaintext.decode("utf-8"))
 
 
-def _decrypt_playback_data(playback):
-    """Decrypt AES-256-GCM encrypted playback data from the Byse API.
+def _playback_keys(key_parts, version):
+    """Candidate AES keys, the version-selected pair first.
 
-    The key is formed by base64url-decoding and concatenating key_parts.
+    The two real 16-byte halves sit at ``version - 1`` and ``len - version``,
+    so their list order flips once the version passes the middle.
     """
+    parts = [decode_base64url(part) for part in key_parts if part]
+    keys = []
+    try:
+        version = int(version)
+    except (TypeError, ValueError):
+        version = 0
+    if 0 < version <= len(parts):
+        keys.append(parts[version - 1] + parts[len(parts) - version])
+    halves = [part for part in parts if len(part) == 16]
+    if len(halves) == 2:
+        keys += [halves[0] + halves[1], halves[1] + halves[0]]
+    return [key for key in dict.fromkeys(keys) if len(key) == 32]
+
+
+def _decrypt_playback_data(playback):
+    """Decrypt AES-256-GCM encrypted playback data from the Byse API."""
     key_parts = playback.get("key_parts")
     if not key_parts or not isinstance(key_parts, list):
         return None
 
-    key_bytes = b""
-    for part in key_parts:
-        if not part:
-            continue
-        decoded = decode_base64url(part)
-        if len(decoded) == 16:
-            key_bytes += decoded
-
-    # Try primary payload first, then payload2
-    result = _decrypt_payload(playback, key_bytes, "iv", "payload")
-    if result is not None:
-        return result
-
-    return _decrypt_payload(playback, key_bytes, "iv2", "payload2")
+    for key in _playback_keys(key_parts, playback.get("version")):
+        for iv_prop, payload_prop in (("iv", "payload"), ("iv2", "payload2")):
+            result = _decrypt_payload(playback, key, iv_prop, payload_prop)
+            if result is not None:
+                return result
+    return None
 
 
 def _extract_best_source_url(data):
