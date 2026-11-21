@@ -1089,12 +1089,14 @@ def _download_hls_manual(m3u8_url, headers, temp_ts, label=""):
     if "#EXTM3U" not in playlist:
         raise _HLSManualUnsupported("not an m3u8 playlist")
 
-    # Master playlist → follow the last (usually highest-quality) variant.
+    # Master playlist → follow the highest-bandwidth variant, as hls.py does.
     if "#EXT-X-STREAM-INF" in playlist:
-        variants = _hls_uris(playlist, m3u8_url)
+        from .hls import _best_variant, _parse_master_playlist
+
+        variants, _ = _parse_master_playlist(playlist, m3u8_url)
         if not variants:
             raise _HLSManualUnsupported("master playlist with no variants")
-        m3u8_url = variants[-1]
+        m3u8_url = _best_variant(variants).uri
         resp = session.get(m3u8_url, headers=req_headers, timeout=30)
         resp.raise_for_status()
         playlist = resp.text
