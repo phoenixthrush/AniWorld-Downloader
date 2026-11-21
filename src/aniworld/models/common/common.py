@@ -921,7 +921,6 @@ def _download_hls_stream(
                 temp_full,
                 {
                     "reconnect": 1,
-                    "reconnect_streamed": 1,
                     "reconnect_delay_max": 30,
                     "allowed_extensions": "ALL",
                     "headers": "".join(
@@ -1290,6 +1289,9 @@ def download(self):
                 # these extensions allowed when fetching an m3u8 source.
                 if ".m3u8" in (stream_url or "").split("?", 1)[0].lower():
                     input_kwargs["allowed_extensions"] = "ALL"
+                    # With a chunked playlist response this makes FFmpeg
+                    # reload the playlist endlessly instead of reading segments.
+                    del input_kwargs["reconnect_streamed"]
 
                 os.makedirs(self._folder_path, exist_ok=True)
 
