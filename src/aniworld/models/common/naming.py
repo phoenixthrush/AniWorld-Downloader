@@ -15,7 +15,7 @@ from .numbering import (
 
 def numbered_episode_path(episode, number, *, padding=3):
     """Render the existing AniWorld/SerienStream template with one episode number."""
-    parts = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE).split("/")
+    template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
     values = {
         "title": episode.series.title_cleaned,
         "year": episode.series.release_year,
@@ -25,6 +25,9 @@ def numbered_episode_path(episode, number, *, padding=3):
         "language": episode.selected_language,
         "resolution": getattr(episode, "_resolution", "unknown"),
     }
+    for key in values:
+        template = template.replace(f"%{key}%", f"{{{key}}}")
+    parts = template.split("/")
     base = Path(episode.selected_path)
     if len(parts) > 1:
         base /= parts[0].format(**values)
@@ -32,8 +35,6 @@ def numbered_episode_path(episode, number, *, padding=3):
     filename = parts[-1]
     if "." in filename:
         filename = filename.rsplit(".", 1)[0]
-    for key in values:
-        filename = filename.replace(f"%{key}%", f"{{{key}}}")
     return base, folder / f"{filename.format(**values)}.{episode._file_extension}"
 
 

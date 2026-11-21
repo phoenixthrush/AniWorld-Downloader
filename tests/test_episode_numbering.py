@@ -195,6 +195,10 @@ def test_new_paths_keep_the_season(model, tmp_path, monkeypatch):
             "001/Season 02/Example E001.mp4",
         ),
         ("%title%.S%season%E%episode%.mkv", "Example.S02E001.mkv"),
+        (
+            "%title%/Season %season%/%title% S%season%E%episode%.mkv",
+            "Example/Season 02/Example S02E001.mkv",
+        ),
     ],
 )
 def test_existing_seasonal_path_is_reused(
