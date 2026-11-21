@@ -1,5 +1,6 @@
 """English episode markers used by AniWorld and SerienStream."""
 
+import os
 import re
 from collections import defaultdict
 from collections.abc import Mapping
@@ -12,11 +13,17 @@ import ffmpeg
 from ...config import is_sto_host
 
 EPISODE_URL_PREFIX = "aniworld_episode_url="
+SEASON_EPISODE_NUMBERS_ENV = "ANIWORLD_SEASON_EPISODE_NUMBERS"
 
 _EPISODE_MARKER = re.compile(
     r"\[\s*(?:JP\s+)?Episode\s+([0-9]+)\s*\]|^\s*(?:JP\s+)?Episode\s+([0-9]+)\s*$",
     re.IGNORECASE,
 )
+
+
+def season_episode_numbers_enabled():
+    """Opt-in: keep the site's per-season index instead of title markers."""
+    return os.environ.get(SEASON_EPISODE_NUMBERS_ENV, "0") == "1"
 
 
 def episode_number_from_title(title):

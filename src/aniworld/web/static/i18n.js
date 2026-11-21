@@ -163,6 +163,9 @@
       "settings.disable_english_sub": "English-Sub-Downloads deaktivieren",
       "settings.disable_english_sub_hint":
         "English Sub wird aus der Sprachauswahl ausgeblendet und kann nicht heruntergeladen werden.",
+      "settings.season_episode_numbers": "Folgen pro Staffel nummerieren",
+      "settings.season_episode_numbers_hint":
+        "Neue Downloads bekommen die Folgennummer innerhalb der Staffel (S23E01) statt der absoluten Nummer aus dem englischen Titel (S23E1157). Praktisch für Bibliotheken, die nach Staffeln sortiert sind.",
       "settings.show_all_languages": "Immer alle Sprachen anbieten",
       "settings.show_all_languages_hint":
         "Die Sprachauswahl zeigt normalerweise nur, was die erste Folge eines Titels hat. Schalte das ein, wenn eine spätere Folge eine Sprache dazubekommt. Folgen ohne die gewählte Sprache schlagen beim Download fehl.",

@@ -17,6 +17,7 @@ def test_defaults_of_a_fresh_install():
     assert settings["ui_language"] == "en"
     assert settings["lang_separation"] is False
     assert settings["disable_english_sub"] is False
+    assert settings["season_episode_numbers"] is False
     assert settings["show_all_languages"] is False
     assert settings["enable_htv"] is False
     assert settings["enable_burningseries"] is False
@@ -50,6 +51,7 @@ def test_read_settings_never_leaks_the_discord_token(monkeypatch):
     [
         ("lang_separation", "ANIWORLD_LANG_SEPARATION"),
         ("disable_english_sub", "ANIWORLD_DISABLE_ENGLISH_SUB"),
+        ("season_episode_numbers", "ANIWORLD_SEASON_EPISODE_NUMBERS"),
         ("show_all_languages", "ANIWORLD_SHOW_ALL_LANGUAGES"),
         ("enable_htv", "ANIWORLD_ENABLE_HTV"),
         ("enable_burningseries", "ANIWORLD_ENABLE_BURNINGSERIES"),
