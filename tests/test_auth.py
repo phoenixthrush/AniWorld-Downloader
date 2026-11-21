@@ -247,6 +247,14 @@ def test_a_deleted_user_is_signed_out(auth_client, plain_user):
     assert "/login" in response.headers["Location"]
 
 
+def test_admin_api_refuses_form_encoded_writes(auth_client, admin):
+    """The admin API is CSRF-exempt, so it must insist on JSON like /api/."""
+    login(auth_client)
+    account = {"username": "bob", "password": "hunter2hunter2"}
+    assert auth_client.post("/admin/api/users", data=account).status_code == 415
+    assert auth_client.post("/admin/api/users", json=account).status_code == 200
+
+
 # ---------------------------------------------------------------------------
 # Security headers
 # ---------------------------------------------------------------------------

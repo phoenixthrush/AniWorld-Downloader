@@ -202,7 +202,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         """Block form-encoded writes to the API so they can't bypass CSRF."""
         if request.method not in ("POST", "PUT", "DELETE"):
             return None
-        if not request.path.startswith("/api/"):
+        if not request.path.startswith(("/api/", "/admin/api/")):
             return None
         if not request.content_length:
             return None
