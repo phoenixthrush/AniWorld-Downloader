@@ -5,6 +5,14 @@ from ...config import ANIWORLD_SEASON_PATTERN, GLOBAL_SESSION, logger
 from ..common import run_each
 from .episode import AniworldEpisode
 
+# Flag images in an episode row, in the order the web UI shows the badges.
+FLAG_LABELS = (
+    ("german", "German Dub"),
+    ("japanese-german", "German Sub"),
+    ("english", "English Dub"),
+    ("japanese-english", "English Sub"),
+)
+
 
 class AniworldSeason:
     """
@@ -44,6 +52,7 @@ class AniworldSeason:
         self.__season_number = None
         self.__episode_count = None
         self.__episodes = None
+        self.__episode_languages = None
 
         self.__html = None
 
@@ -101,6 +110,13 @@ class AniworldSeason:
         return self.__episodes
 
     @property
+    def episode_languages(self):
+        """Language badges keyed by episode URL, read from this page's rows."""
+        if self.__episode_languages is None:
+            self.__episode_languages = self.__extract_episode_languages()
+        return self.__episode_languages
+
+    @property
     def episode_count(self):
         if self.__episode_count is None:
             # If episodes are already extracted, use that count
@@ -156,6 +172,27 @@ class AniworldSeason:
             return int(match.group(1))
 
         raise ValueError(f"Could not extract season number from URL: {self.url}")
+
+    def __extract_episode_languages(self):
+        """Read each row's flags without fetching every episode page."""
+        rows = re.findall(
+            r'<tr\b[^>]*itemtype="http://schema\.org/Episode".*?</tr>',
+            self._html,
+            re.DOTALL,
+        )
+        languages = {}
+        for row in rows:
+            href = re.search(r'href="([^"]*/(?:episode|film)-\d+)"', row)
+            if not href:
+                continue
+            url = href.group(1)
+            if url.startswith("/"):
+                url = "https://aniworld.to" + url
+            flags = set(re.findall(r"/public/img/([\w-]+)\.svg", row))
+            languages[url] = tuple(
+                label for flag, label in FLAG_LABELS if flag in flags
+            )
+        return languages
 
     def __extract_episodes(self):
         """
