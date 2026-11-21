@@ -225,8 +225,14 @@ def _safe_child(base, folder):
     name = str(folder or "")
     if not name or "/" in name or "\\" in name or "\x00" in name or ".." in name:
         return None
+    # A root holds whole language folders, which are never titles themselves.
+    if base.name not in paths.ALL_LANG_FOLDERS and name in paths.ALL_LANG_FOLDERS:
+        return None
     child = base / name
     try:
+        # "." passes the containment check but is the root itself
+        if child.resolve() == base.resolve():
+            return None
         child.resolve().relative_to(base.resolve())
     except (ValueError, OSError):
         return None

@@ -269,6 +269,18 @@ def test_delete_refuses_traversal(folder):
         library.delete(folder)
 
 
+@pytest.mark.parametrize("folder", [".", "german-dub", "english-sub"])
+def test_delete_never_removes_the_root_or_a_language_folder(
+    folder, episode_file, downloads
+):
+    episode_file("Naruto", 1, 1)
+    (downloads / "german-dub").mkdir(exist_ok=True)
+    with pytest.raises(library.LibraryError):
+        library.delete(folder)
+    assert (downloads / "Naruto").exists()
+    assert (downloads / "german-dub").exists()
+
+
 def test_deleting_from_a_custom_path(episode_file, tmp_path):
     other = tmp_path / "other"
     other.mkdir()
