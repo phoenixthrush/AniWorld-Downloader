@@ -831,6 +831,44 @@ def test_serienstream_parentheses_in_titles_keep_the_english_number(german, engl
     assert episode.episode_number == 62
 
 
+@pytest.mark.parametrize("action", ["watch", "syncplay"])
+def test_a_conflicting_old_filename_does_not_block_streaming(
+    model, tmp_path, monkeypatch, action
+):
+    monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "{title} S{season}E{episode}.mkv")
+    season = SimpleNamespace(season_number=2)
+    episodes = [
+        make_episode(
+            model, tmp_path, number=n, title=f"Title [Episode {n + 2}]", season=season
+        )
+        for n in range(1, 4)
+    ]
+    season.episodes = episodes
+    for n in (2, 3):
+        (tmp_path / f"Example S02E{n:03d}.mkv").write_bytes(b"old episode")
+    monkeypatch.setattr(type(episodes[0]), "stream_url", "https://example.test/video")
+    monkeypatch.setattr(common, "_get_provider_attempt_order", lambda self: ["VOE"])
+    monkeypatch.setattr(common, "_set_selected_provider", lambda *args: None)
+    monkeypatch.setattr(common, "_reset_provider_resolution_cache", lambda self: None)
+    monkeypatch.setattr(
+        common,
+        "_resolve_stream_url_with_fallback",
+        lambda *args: ("https://example.test/video", "VOE"),
+    )
+    monkeypatch.setattr(common, "get_syncplay_path", lambda: "syncplay")
+    monkeypatch.setattr(common, "get_player_path", lambda **kwargs: "mpv")
+    commands = []
+    monkeypatch.setattr(
+        common.subprocess,
+        "run",
+        lambda command, **kwargs: (
+            commands.append(command) or SimpleNamespace(returncode=0)
+        ),
+    )
+    getattr(episodes[0], action)()
+    assert "--force-media-title=Example S02E003" in commands[0]
+
+
 @pytest.mark.parametrize("password", [None, "room-key"])
 def test_syncplay_room_stays_the_same_with_old_and_new_numbering(
     model, tmp_path, monkeypatch, password

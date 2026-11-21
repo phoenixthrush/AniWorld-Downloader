@@ -165,6 +165,24 @@ def _finalize_resolution_naming(self):
         os.replace(old_path, new_path)
 
 
+def _media_title(self):
+    """Player label; a conflicting old file only has to stop downloads."""
+    try:
+        return self._file_name
+    except ValueError:
+        if not hasattr(self, "season_episode_number"):
+            raise
+        from .naming import numbered_episode_path
+        from .numbering import season_episode_numbers_enabled
+
+        number = (
+            self.season_episode_number
+            if season_episode_numbers_enabled()
+            else self.episode_number
+        )
+        return numbered_episode_path(self, number)[1].stem
+
+
 def _progress_file_name(self):
     """Hide post-processed resolution metadata from the live progress label."""
     name = self._file_name or ""
@@ -1541,7 +1559,8 @@ def download(self):
 def watch(self):
     """Watch the current episode with provider headers."""
 
-    print(f"[WATCHING] {self._file_name}")
+    title = _media_title(self)
+    print(f"[WATCHING] {title}")
 
     player_path = str(get_player_path())
     provider_order = _get_provider_attempt_order(self)
@@ -1567,7 +1586,7 @@ def watch(self):
         "--no-ytdl",
         "--fs",
         "--quiet",
-        f"--force-media-title={self._file_name}",
+        f"--force-media-title={title}",
     ]
 
     for provider_index, provider_name in enumerate(provider_order):
@@ -1623,7 +1642,8 @@ def watch(self):
 def syncplay(self):
     """Syncplay an episode (AniWorld + serienstream.to)."""
 
-    print(f"[Syncplaying] {self._file_name}")
+    title = _media_title(self)
+    print(f"[Syncplaying] {title}")
 
     stream_url, provider_name = _resolve_stream_url_with_fallback(self, "Syncplay")
 
@@ -1640,7 +1660,7 @@ def syncplay(self):
             syncplay_username = "AniWorld-Downloader"
 
     room = "AniWorld"
-    file_name = self._file_name.replace(" ", "_")
+    file_name = title.replace(" ", "_")
     if hasattr(self, "season_episode_number"):
         from .naming import numbered_episode_path
 
@@ -1694,9 +1714,7 @@ def syncplay(self):
         cmd.extend(skip_flags)
         logger.debug(f"[SKIP TIMES FOUND]: {skip_flags}")
 
-    cmd.extend(
-        ["--no-ytdl", "--fs", "--quiet", f"--force-media-title={self._file_name}"]
-    )
+    cmd.extend(["--no-ytdl", "--fs", "--quiet", f"--force-media-title={title}"])
 
     headers = PROVIDER_HEADERS_W.get(provider_name, {})
 
