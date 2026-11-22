@@ -547,6 +547,43 @@ def ensure_patchright_chromium():
         _log.warning(f"patchright chromium install failed: {e}")
 
 
+def ensure_ublock_lite() -> str | None:
+    """Return the unpacked uBlock Origin Lite folder when ANIWORLD_UBLOCK=1."""
+    if os.getenv("ANIWORLD_UBLOCK", "0").strip() != "1":
+        return None
+    _log = get_logger(__name__)
+    target = Path(ANIWORLD_CONFIG_DIR).expanduser().resolve() / "ublock-lite"
+    # shortcut: an installed copy never auto-updates, delete the folder to update.
+    if (target / "manifest.json").is_file():
+        return str(target)
+    if auto_install_disabled():
+        _log.debug("ANIWORLD_NO_AUTO_INSTALL=1 — skipping uBlock Origin Lite setup")
+        return None
+
+    try:
+        url = fetch_github_asset_urls(
+            "uBlockOrigin/uBOL-home", r"uBOLite_[\d.]+\.chromium\.zip$"
+        )[0]
+        target.parent.mkdir(parents=True, exist_ok=True)
+        archive = target.parent / Path(url).name
+        staging = target.with_name("ublock-lite.tmp")
+        resp = GLOBAL_SESSION.get(url, stream=True)
+        resp.raise_for_status()
+        with open(archive, "wb") as f:
+            f.writelines(resp.iter_content(chunk_size=8192))
+        shutil.rmtree(staging, ignore_errors=True)
+        with zipfile.ZipFile(archive) as zf:
+            zf.extractall(staging)
+        archive.unlink()
+        # Rename last so a half-extracted folder never counts as installed.
+        shutil.rmtree(target, ignore_errors=True)
+        staging.rename(target)
+        return str(target)
+    except Exception as e:
+        _log.warning(f"uBlock Origin Lite setup failed: {e}")
+        return None
+
+
 if __name__ == "__main__":
     print(get_player_path())
     print(get_syncplay_path())

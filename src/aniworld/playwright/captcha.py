@@ -3,6 +3,8 @@
 import os
 import queue
 import random
+import shutil
+import tempfile
 import threading
 import time
 from contextlib import contextmanager
@@ -294,12 +296,19 @@ class _ChallengeSolver:
 
 
 class _BrowserHandle:
-    def __init__(self, browser, context):
+    def __init__(self, browser, context, user_data_dir=None):
         self.browser = browser
         self.context = context
+        self.user_data_dir = user_data_dir
 
     def close(self):
-        self.browser.close()
+        if self.browser is None:
+            try:
+                self.context.close()
+            finally:
+                shutil.rmtree(self.user_data_dir, ignore_errors=True)
+        else:
+            self.browser.close()
 
 
 def _launch_browser_context(runtime, offscreen=False):
@@ -315,6 +324,24 @@ def _launch_browser_context(runtime, offscreen=False):
     args = ["--disable-dev-shm-usage"]
     if offscreen:
         args.append("--window-position=-32000,-32000")
+    from ..autodeps import ensure_ublock_lite
+
+    extension = ensure_ublock_lite()
+    if extension:
+        # Extensions need a persistent context; a fresh profile keeps nothing between runs.
+        user_data_dir = tempfile.mkdtemp(prefix="aniworld-chromium-")
+        args += [
+            f"--disable-extensions-except={extension}",
+            f"--load-extension={extension}",
+        ]
+        try:
+            context = runtime.chromium.launch_persistent_context(
+                user_data_dir, headless=False, args=args, no_viewport=True
+            )
+        except Exception:
+            shutil.rmtree(user_data_dir, ignore_errors=True)
+            raise
+        return _BrowserHandle(None, context, user_data_dir)
     browser = runtime.chromium.launch(headless=False, args=args)
     try:
         context = browser.new_context(no_viewport=True)
