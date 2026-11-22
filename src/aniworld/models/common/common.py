@@ -116,13 +116,14 @@ def _prepare_resolution_naming(self):
     _set_naming_resolution(self, marker)
     patterns = [self._episode_path]
     if getattr(self, "season_episode_number", None) is not None:
-        from .naming import numbered_episode_path
+        from .naming import legacy_numbered_episode_paths, numbered_episode_path
 
         patterns.extend(
             numbered_episode_path(self, number, padding=padding)[1]
             for number in {self.episode_number, self.season_episode_number}
             for padding in (3, 2)
         )
+        patterns.extend(path for _, path in legacy_numbered_episode_paths(self))
     candidates = {
         Path(path)
         for pattern in patterns
@@ -145,24 +146,51 @@ def _finalize_resolution_naming(self):
     if hasattr(self, "season_episode_number"):
         from .naming import numbered_episode_path
 
-        for number in (self.episode_number, self.season_episode_number):
-            for padding in (3, 2):
-                if numbered_episode_path(self, number, padding=padding)[1] == old_path:
-                    variant = number, padding
-                    break
-            if variant is not None:
-                break
+        numbers = dict.fromkeys((self.episode_number, self.season_episode_number))
+        variant = next(
+            (
+                (number, padding, legacy_folders)
+                for legacy_folders in (False, True)
+                for number in numbers
+                for padding in (3, 2)
+                if numbered_episode_path(
+                    self, number, padding=padding, legacy_folders=legacy_folders
+                )[1]
+                == old_path
+            ),
+            None,
+        )
     _set_naming_resolution(self, _read_container_resolution(old_path))
-    new_path = (
-        numbered_episode_path(self, variant[0], padding=variant[1])[1]
-        if variant is not None
-        else self._episode_path
-    )
+    if variant is None:
+        new_path = self._episode_path
+    else:
+        number, padding, legacy_folders = variant
+        _, new_path = numbered_episode_path(
+            self, number, padding=padding, legacy_folders=legacy_folders
+        )
     if new_path != old_path:
         if new_path.exists():
             raise ValueError(f"Resolution output path already exists: {new_path}")
         new_path.parent.mkdir(parents=True, exist_ok=True)
         os.replace(old_path, new_path)
+
+
+def _media_title(self):
+    """Player label; a conflicting old file only has to stop downloads."""
+    try:
+        return self._file_name
+    except ValueError:
+        if not hasattr(self, "season_episode_number"):
+            raise
+        from .naming import numbered_episode_path
+        from .numbering import season_episode_numbers_enabled
+
+        number = (
+            self.season_episode_number
+            if season_episode_numbers_enabled()
+            else self.episode_number
+        )
+        return numbered_episode_path(self, number)[1].stem
 
 
 def _progress_file_name(self):
@@ -1541,7 +1569,8 @@ def download(self):
 def watch(self):
     """Watch the current episode with provider headers."""
 
-    print(f"[WATCHING] {self._file_name}")
+    title = _media_title(self)
+    print(f"[WATCHING] {title}")
 
     player_path = str(get_player_path())
     provider_order = _get_provider_attempt_order(self)
@@ -1567,7 +1596,7 @@ def watch(self):
         "--no-ytdl",
         "--fs",
         "--quiet",
-        f"--force-media-title={self._file_name}",
+        f"--force-media-title={title}",
     ]
 
     for provider_index, provider_name in enumerate(provider_order):
@@ -1623,7 +1652,8 @@ def watch(self):
 def syncplay(self):
     """Syncplay an episode (AniWorld + serienstream.to)."""
 
-    print(f"[Syncplaying] {self._file_name}")
+    title = _media_title(self)
+    print(f"[Syncplaying] {title}")
 
     stream_url, provider_name = _resolve_stream_url_with_fallback(self, "Syncplay")
 
@@ -1640,7 +1670,7 @@ def syncplay(self):
             syncplay_username = "AniWorld-Downloader"
 
     room = "AniWorld"
-    file_name = self._file_name.replace(" ", "_")
+    file_name = title.replace(" ", "_")
     if hasattr(self, "season_episode_number"):
         from .naming import numbered_episode_path
 
@@ -1694,9 +1724,7 @@ def syncplay(self):
         cmd.extend(skip_flags)
         logger.debug(f"[SKIP TIMES FOUND]: {skip_flags}")
 
-    cmd.extend(
-        ["--no-ytdl", "--fs", "--quiet", f"--force-media-title={self._file_name}"]
-    )
+    cmd.extend(["--no-ytdl", "--fs", "--quiet", f"--force-media-title={title}"])
 
     headers = PROVIDER_HEADERS_W.get(provider_name, {})
 

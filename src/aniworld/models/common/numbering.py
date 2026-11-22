@@ -74,6 +74,12 @@ def _episode_identity(url):
     return host, parsed.path.rstrip("/")
 
 
+def episode_file_matches_source(path, url):
+    """Check a recorded source URL, including SerienStream's mirror domains."""
+    source = episode_url_from_file(path)
+    return bool(source and _episode_identity(source) == _episode_identity(url))
+
+
 def downloaded_episode_owners(episodes, downloaded):
     """Use recorded source URLs first, with unambiguous file numbers as fallback."""
     episodes = list(episodes)
