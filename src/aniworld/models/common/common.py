@@ -519,18 +519,6 @@ class DownloadCancelled(Exception):
     """Raised when we killed the download ourselves, not when it failed."""
 
 
-def _force_cancel_requested():
-    """Whether the web queue force-cancelled the download on this thread."""
-    try:
-        from ...playwright.captcha import _local
-        from ...web.db import is_queue_force_cancelled
-
-        qid = getattr(_local, "queue_id", None)
-        return qid is not None and is_queue_force_cancelled(qid)
-    except Exception:
-        return False
-
-
 def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
     """Run an ffmpeg node and stream its progress output cleanly.
 
@@ -701,11 +689,18 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
                     process.kill()
                     break
 
-                if _force_cancel_requested():
-                    logger.info("[FFmpeg] Force cancel requested, stopping.")
-                    cancelled = True
-                    process.kill()
-                    break
+                try:
+                    from ...playwright.captcha import _local
+                    from ...web.db import is_queue_force_cancelled
+
+                    qid = getattr(_local, "queue_id", None)
+                    if qid is not None and is_queue_force_cancelled(qid):
+                        logger.info("[FFmpeg] Force cancel requested, stopping.")
+                        cancelled = True
+                        process.kill()
+                        break
+                except Exception:
+                    pass
             elif line_str:
                 # Try to capture total duration from ffmpeg header
                 if total_duration == 0.0:
@@ -850,8 +845,6 @@ def _download_direct_http(episode_path, stream_url, file_name):
             for chunk in resp.iter_content(chunk_size=1024 * 1024):
                 f.write(chunk)
                 downloaded += len(chunk)
-                if _force_cancel_requested():
-                    raise DownloadCancelled("Download cancelled")
 
                 if total:
                     pct = downloaded / total * 100
@@ -1096,14 +1089,12 @@ def _download_hls_manual(m3u8_url, headers, temp_ts, label=""):
     if "#EXTM3U" not in playlist:
         raise _HLSManualUnsupported("not an m3u8 playlist")
 
-    # Master playlist → follow the highest-bandwidth variant, as hls.py does.
+    # Master playlist → follow the last (usually highest-quality) variant.
     if "#EXT-X-STREAM-INF" in playlist:
-        from .hls import _best_variant, _parse_master_playlist
-
-        variants, _ = _parse_master_playlist(playlist, m3u8_url)
+        variants = _hls_uris(playlist, m3u8_url)
         if not variants:
             raise _HLSManualUnsupported("master playlist with no variants")
-        m3u8_url = _best_variant(variants).uri
+        m3u8_url = variants[-1]
         resp = session.get(m3u8_url, headers=req_headers, timeout=30)
         resp.raise_for_status()
         playlist = resp.text
@@ -1143,8 +1134,6 @@ def _download_hls_manual(m3u8_url, headers, temp_ts, label=""):
         with open(temp_ts, "wb") as out:
             for index, seg_url in enumerate(segments, start=1):
                 out.write(_fetch_hls_segment(session, seg_url, req_headers, seg_hosts))
-                if _force_cancel_requested():
-                    raise DownloadCancelled("Download cancelled")
                 percent = round(index / total * 100, 1)
                 with _ffmpeg_progress_lock:
                     _ffmpeg_progress.update(
