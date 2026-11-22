@@ -190,6 +190,258 @@ def test_detached_widget_cannot_make_other_solved_widgets_ready():
     assert not captcha._ChallengeSolver().ready_to_submit(page)
 
 
+@pytest.mark.parametrize(
+    "widgets_by_poll",
+    [
+        pytest.param(
+            [[{"kind": "turnstile", "ready": False, "pending": True, "modal": True}]],
+            id="pending-turnstile-only",
+        ),
+        pytest.param(
+            [[{"kind": "turnstile", "ready": False, "modal": True}]],
+            id="failed-turnstile-only",
+        ),
+        pytest.param(
+            [
+                [
+                    {"kind": "turnstile", "ready": True},
+                    {"kind": "altcha", "ready": False, "pending": True},
+                ],
+                [
+                    {"kind": "turnstile", "ready": True},
+                    {"kind": "altcha", "ready": False},
+                ],
+                [
+                    {"kind": "turnstile", "ready": True},
+                    {"kind": "altcha", "ready": True},
+                ],
+            ],
+            id="late-altcha",
+        ),
+        pytest.param(
+            [
+                [
+                    {"kind": "turnstile", "ready": False, "modal": True},
+                    {"kind": "altcha", "ready": False, "pending": True},
+                ],
+                [
+                    {"kind": "turnstile", "ready": False, "modal": True},
+                    {"kind": "altcha", "ready": False},
+                ],
+                [
+                    {"kind": "turnstile", "ready": False, "modal": True},
+                    {"kind": "altcha", "ready": True},
+                ],
+            ],
+            id="altcha-with-failed-turnstile",
+        ),
+    ],
+)
+def test_sto_submits_only_after_active_verification_completes(
+    browser, monkeypatch, widgets_by_poll
+):
+    handle, page = browser
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_MANUAL", "1")
+    page.evaluate.side_effect = lambda script, *args: bool(args)
+    frame = Mock(url=SOURCE, child_frames=[])
+
+    def render_widgets(script, **kwargs):
+        assert script == captcha._WIDGETS_JS
+        poll = min(page.wait_for_timeout.call_count, len(widgets_by_poll) - 1)
+        return list(widgets_by_poll[poll])
+
+    frame.evaluate.side_effect = render_widgets
+    page.frames = [frame]
+
+    def submit(page):
+        assert page.wait_for_timeout.call_count == len(widgets_by_poll) - 1
+        page.url = PLAYER
+        return True
+
+    submit_button = Mock(side_effect=submit)
+    monkeypatch.setattr(captcha, "_click_submit_button", submit_button)
+    assert captcha.solve_sto_modal(SOURCE, "VOE", "Deutsch") == PLAYER
+    submit_button.assert_called_once_with(page)
+    handle.close.assert_called_once()
+
+
+def test_sto_waits_for_a_new_required_widget_after_verified_submission(
+    browser, monkeypatch
+):
+    handle, page = browser
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_MANUAL", "1")
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_TIMEOUT", "4")
+    page.evaluate.side_effect = lambda script, *args: bool(args)
+    frame = Mock(url=SOURCE, child_frames=[])
+    page.frames = [frame]
+
+    def render_widgets(script, **kwargs):
+        assert script == captcha._WIDGETS_JS
+        poll = page.wait_for_timeout.call_count
+        widgets = [{"kind": "turnstile", "ready": False, "modal": True}]
+        if poll >= 3:
+            widgets.append({"kind": "altcha", "ready": poll >= 5, "pending": poll == 3})
+        return widgets
+
+    frame.evaluate.side_effect = render_widgets
+    submissions = []
+
+    def submit(page):
+        submissions.append(page.wait_for_timeout.call_count)
+        if len(submissions) == 2:
+            page.url = PLAYER
+        return True
+
+    monkeypatch.setattr(captcha, "_click_submit_button", submit)
+    assert captcha.solve_sto_modal(SOURCE, "VOE", "Deutsch") == PLAYER
+    assert submissions == [0, 5]
+    handle.close.assert_called_once()
+
+
+def test_sto_failed_turnstile_alone_does_not_repeat_weiter(browser, monkeypatch):
+    handle, page = browser
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_MANUAL", "1")
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_TIMEOUT", "4")
+    page.evaluate.side_effect = lambda script, *args: bool(args)
+    frame = Mock(url=SOURCE, child_frames=[])
+    frame.evaluate.return_value = [{"kind": "turnstile", "ready": False, "modal": True}]
+    page.frames = [frame]
+    submissions = []
+
+    def submit(page):
+        submissions.append(page.wait_for_timeout.call_count)
+        return True
+
+    monkeypatch.setattr(captcha, "_click_submit_button", submit)
+    assert captcha.solve_sto_modal(SOURCE, "VOE", "Deutsch") is None
+    assert submissions == [0]
+    handle.close.assert_called_once()
+
+
+@pytest.mark.parametrize("verified_at,submissions", [(3, [3]), (None, [])])
+def test_sto_waits_for_full_page_turnstile(
+    browser, monkeypatch, verified_at, submissions
+):
+    handle, page = browser
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_MANUAL", "1")
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_TIMEOUT", "4")
+    page.evaluate.side_effect = lambda script, *args: bool(args)
+    frame = Mock(url=SOURCE, child_frames=[])
+    page.frames = [frame]
+
+    def render_widgets(script, **kwargs):
+        poll = page.wait_for_timeout.call_count
+        ready = verified_at is not None and poll >= verified_at
+        return [{"kind": "turnstile", "ready": ready, "modal": False}]
+
+    frame.evaluate.side_effect = render_widgets
+    calls = []
+
+    def submit(page):
+        calls.append(page.wait_for_timeout.call_count)
+        page.url = PLAYER
+        return True
+
+    monkeypatch.setattr(captcha, "_click_submit_button", submit)
+    expected = PLAYER if verified_at is not None else None
+    assert captcha.solve_sto_modal(SOURCE, "VOE", "Deutsch") == expected
+    assert calls == submissions
+    handle.close.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "verified_at,disabled_at,expected",
+    [
+        (3, None, [0, 3]),
+        (1, None, [0, 1]),
+        (0, None, [0]),
+        pytest.param(3, 3, [0, 3, 4], id="weiter-temporarily-disabled"),
+    ],
+)
+def test_sto_resubmits_once_after_manual_turnstile_success(
+    browser, monkeypatch, verified_at, disabled_at, expected
+):
+    handle, page = browser
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_MANUAL", "1")
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_TIMEOUT", "4")
+    page.evaluate.side_effect = lambda script, *args: bool(args)
+    frame = Mock(url=SOURCE, child_frames=[])
+    page.frames = [frame]
+
+    def render_widgets(script, **kwargs):
+        ready = page.wait_for_timeout.call_count >= verified_at
+        return [{"kind": "turnstile", "ready": ready, "modal": True}]
+
+    frame.evaluate.side_effect = render_widgets
+    attempts = []
+
+    def submit(page):
+        poll = page.wait_for_timeout.call_count
+        attempts.append(poll)
+        return poll != disabled_at
+
+    monkeypatch.setattr(captcha, "_click_submit_button", submit)
+    # The modal never closes, so a click loop would show up as extra attempts.
+    assert captcha.solve_sto_modal(SOURCE, "VOE", "Deutsch") is None
+    assert attempts == expected
+    handle.close.assert_called_once()
+
+
+@pytest.mark.parametrize("verified_at,submissions", [(2, [2]), (None, [])])
+def test_sto_waits_for_turnstile_frame_outside_modal(
+    browser, monkeypatch, verified_at, submissions
+):
+    handle, page = browser
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_MANUAL", "1")
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_TIMEOUT", "4")
+    page.evaluate.side_effect = lambda script, *args: bool(args)
+    # The outside Turnstile sits in a closed shadow root, hidden from _WIDGETS_JS.
+    outside = Mock(url="https://challenges.cloudflare.com/widget")
+    outside.is_detached.return_value = False
+
+    def frame_state(script, name):
+        assert (script, name) == (captcha._FRAME_WIDGET_JS, "cf-turnstile-response")
+        poll = page.wait_for_timeout.call_count
+        return {
+            "modal": False,
+            "ready": verified_at is not None and poll >= verified_at,
+        }
+
+    outside.frame_element.return_value.evaluate.side_effect = frame_state
+    frame = Mock(url=SOURCE, child_frames=[outside])
+    frame.evaluate.side_effect = lambda *a, **kw: [
+        {"kind": "turnstile", "ready": False, "modal": True}
+    ]
+    page.frames = [frame]
+    calls = []
+
+    def submit(page):
+        calls.append(page.wait_for_timeout.call_count)
+        page.url = PLAYER
+        return True
+
+    monkeypatch.setattr(captcha, "_click_submit_button", submit)
+    expected = PLAYER if verified_at is not None else None
+    assert captcha.solve_sto_modal(SOURCE, "VOE", "Deutsch") == expected
+    assert calls == submissions
+    handle.close.assert_called_once()
+
+
+def test_generic_solver_still_requires_turnstile(browser, monkeypatch):
+    handle, page = browser
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_MANUAL", "1")
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_TIMEOUT", "4")
+    page.evaluate.return_value = False
+    frame = Mock(url=SOURCE, child_frames=[])
+    frame.evaluate.return_value = [{"kind": "turnstile", "ready": False}]
+    page.frames = [frame]
+    submit = Mock(return_value=True)
+    monkeypatch.setattr(captcha, "_click_submit_button", submit)
+    assert captcha.solve_captcha(SOURCE) is None
+    submit.assert_not_called()
+    handle.close.assert_called_once()
+
+
 @pytest.mark.parametrize("outcome", ["solved", "timeout", "navigation-error"])
 def test_interactive_solve_delivers_clicks_and_always_cleans_up(
     browser, monkeypatch, outcome
@@ -204,7 +456,7 @@ def test_interactive_solve_delivers_clicks_and_always_cleans_up(
     )
     solver = Mock()
     solver.ready_to_submit.return_value = False
-    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda: solver)
+    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda **_: solver)
     sessions = []
 
     def navigate(*args, **kwargs):
@@ -248,12 +500,8 @@ def test_sto_clicks_continue_without_touching_widgets(
     button = Mock()
     frame.locator.return_value.all.return_value = [button]
     solver = Mock()
-    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda: solver)
-    monkeypatch.setattr(
-        captcha,
-        "_is_captcha_page_dom",
-        Mock(side_effect=AssertionError("S.to must skip widgets")),
-    )
+    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda **_: solver)
+    monkeypatch.setattr(captcha, "_is_captcha_page_dom", Mock(return_value=False))
     ad = Mock(url="https://ads.example/")
 
     def prepare(*args):
@@ -288,7 +536,7 @@ def test_sto_solves_required_widgets_after_initial_submission(
 ):
     handle, page = browser
     monkeypatch.setenv("ANIWORLD_CAPTCHA_MANUAL", manual)
-    page.evaluate.return_value = True
+    page.evaluate.side_effect = lambda script, *args: bool(args)
     solver = Mock()
     ad = Mock(url="https://ads.example/")
 
@@ -299,7 +547,7 @@ def test_sto_solves_required_widgets_after_initial_submission(
         return True
 
     solver.ready_to_submit.side_effect = wait_for_widgets
-    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda: solver)
+    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda **_: solver)
     submissions = []
 
     def submit(page):
@@ -375,7 +623,7 @@ def test_solve_timeout_override_and_invalid_fallback(
     monkeypatch.setattr(captcha, "_is_captcha_page_dom", lambda page: True)
     solver = Mock()
     solver.ready_to_submit.return_value = False
-    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda: solver)
+    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda **_: solver)
     assert captcha._solve(SOURCE, timeout=1) is None
     assert page.wait_for_timeout.call_count == waits
     handle.close.assert_called_once()
@@ -515,8 +763,35 @@ def test_navigation_ignores_old_child_frames():
     detached.is_detached.return_value = True
     active = Mock(url="https://challenges.cloudflare.com/widget")
     active.is_detached.return_value = False
+    active.frame_element.return_value.evaluate.return_value = {
+        "modal": False,
+        "ready": False,
+    }
     owner.child_frames = [detached, active]
-    assert captcha._widgets(owner) == [{"kind": "turnstile", "ready": False}]
+    assert captcha._widgets(owner) == [
+        {"kind": "turnstile", "ready": False, "modal": False}
+    ]
+
+
+@pytest.mark.parametrize(
+    "placement,modal",
+    [
+        ({"modal": True, "ready": False}, True),
+        ({"modal": False, "ready": False}, False),
+        (Error("detached"), False),
+    ],
+)
+def test_challenge_frame_is_optional_only_inside_sto_modal(placement, modal):
+    owner = Mock()
+    owner.evaluate.return_value = []
+    child = Mock(url="https://challenges.cloudflare.com/widget")
+    child.is_detached.return_value = False
+    child.frame_element.return_value.evaluate.side_effect = [placement]
+    owner.child_frames = [child]
+    widgets = captcha._widgets(owner)
+    assert widgets == [{"kind": "turnstile", "ready": False, "modal": modal}]
+    solver = captcha._ChallengeSolver(optional=("turnstile",))
+    assert solver.blocks(widgets[0]) is not modal
 
 
 def test_checkbox_is_not_clicked_again_during_image_task(monkeypatch):
@@ -553,7 +828,7 @@ def test_generic_solver_submits_completed_widgets_before_returning(
     monkeypatch.setattr(captcha, "_is_captcha_page_dom", lambda page: True)
     solver = Mock()
     solver.ready_to_submit.return_value = True
-    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda: solver)
+    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda **_: solver)
 
     def submit(page):
         page.url = PLAYER

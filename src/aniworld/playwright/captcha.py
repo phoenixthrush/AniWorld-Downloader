@@ -42,6 +42,7 @@ _PROVIDER_HOSTS = (
 )
 _WIDGETS_JS = """() => {
     const widgets = [];
+    const inModal = el => Boolean(el.closest('#playerPrepareModal'));
     const types = {
         turnstile: ['cf-turnstile-response', 'cloudflare.com', 'cf-turnstile'],
         hcaptcha: ['h-captcha-response', 'hcaptcha.com', 'h-captcha'],
@@ -49,25 +50,58 @@ _WIDGETS_JS = """() => {
     };
     for (const [kind, [name, source, css]] of Object.entries(types)) {
         const inputs = [...document.querySelectorAll(`[name="${name}"]`)];
-        const present = inputs.length || document.querySelector(
+        const found = [...inputs, ...document.querySelectorAll(
             `iframe[src*="${source}"], .${css}`
-        );
-        if (present) widgets.push({kind, ready: inputs.length > 0 &&
-            inputs.every(input => Boolean(input.value.trim()))});
+        )];
+        if (found.length) widgets.push({kind, ready: inputs.length > 0 &&
+            inputs.every(input => Boolean(input.value.trim())),
+            modal: found.every(inModal)});
     }
     for (const input of document.querySelectorAll('input[type="checkbox"]')) {
         const label = [...(input.labels || [])].map(el => el.textContent).join(' ');
         if (!input.disabled && /robot|roboter|human|mensch|captcha/i.test(label)) {
-            widgets.push({kind: 'checkbox', ready: input.checked});
+            widgets.push({kind: 'checkbox', ready: input.checked, modal: inModal(input)});
         }
     }
     for (const widget of document.querySelectorAll('altcha-widget')) {
         const payload = widget.querySelector('[name="altcha"]') || document.querySelector('[name="altcha"]');
         widgets.push({kind: 'altcha', ready: widget.getState?.() === 'verified' ||
-            Boolean(payload?.value)});
+            Boolean(payload?.value), modal: inModal(widget)});
+    }
+    // S.to activates verification areas before their widgets mount. The
+    // inline display flag tracks activation even with Bootstrap's d-flex.
+    const modal = document.querySelector('#playerPrepareModal');
+    const modalWidgets = {
+        turnstile: '.cf-turnstile, [name="cf-turnstile-response"], iframe[src*="cloudflare.com"]',
+        altcha: 'altcha-widget'
+    };
+    for (const [kind, selector] of Object.entries(modalWidgets)) {
+        const area = modal?.querySelector(`#player-prepare-${kind}`);
+        if (area && !area.hidden && area.style.display !== 'none' &&
+                area.getClientRects().length && !area.querySelector(selector)) {
+            widgets.push({kind, ready: false, pending: true, modal: true});
+        }
     }
     return widgets;
 }"""
+# Challenge iframes can sit inside closed shadow roots, which closest() and
+# document queries cannot cross, so placement and token are read from the iframe.
+_FRAME_WIDGET_JS = """(el, name) => {
+    let modal = false;
+    for (let node = el; node; node = node.parentElement || node.getRootNode().host) {
+        if (node.id === 'playerPrepareModal') { modal = true; break; }
+    }
+    const root = el.getRootNode();
+    const inputs = [root, root.host].flatMap(node =>
+        node ? [...node.querySelectorAll(`[name="${name}"]`)] : []);
+    return {modal, ready: inputs.length > 0 &&
+        inputs.every(input => Boolean(input.value.trim()))};
+}"""
+_RESPONSE_INPUTS = {
+    "turnstile": "cf-turnstile-response",
+    "hcaptcha": "h-captcha-response",
+    "recaptcha": "g-recaptcha-response",
+}
 
 
 def _captcha_timeout(default):
@@ -116,14 +150,26 @@ def _challenge_kind(url):
 def _widgets(frame):
     widgets = frame.evaluate(_WIDGETS_JS, isolated_context=False)
     kinds = {widget["kind"] for widget in widgets}
+    # A modal widget must not hide an outside one of the same kind.
+    required = {widget["kind"] for widget in widgets if not widget.get("modal")}
     # Chromium exposes frames inside closed shadow roots through child_frames.
     for child in frame.child_frames:
         if child.is_detached():
             continue
         kind = _challenge_kind(child.url)
-        if kind and kind not in kinds:
-            widgets.append({"kind": kind, "ready": False})
-            kinds.add(kind)
+        if kind and kind not in required:
+            try:
+                state = child.frame_element().evaluate(
+                    _FRAME_WIDGET_JS, _RESPONSE_INPUTS[kind]
+                )
+                modal, ready = bool(state["modal"]), bool(state["ready"])
+            except Error:
+                # Unknown placement stays required.
+                modal = ready = False
+            # A ready modal frame still reports a token hidden from document queries.
+            if kind not in kinds or not modal or ready:
+                widgets.append({"kind": kind, "ready": ready, "modal": modal})
+                kinds.add(kind)
     return widgets
 
 
@@ -143,8 +189,22 @@ def _is_captcha_page_dom(page) -> bool:
 class _ChallengeSolver:
     """Click checkbox widgets and leave image challenges available to the user."""
 
-    def __init__(self):
+    def __init__(self, optional=()):
         self.clicked = {}
+        # Optional widgets are still clicked but never block submitting.
+        self.optional = frozenset(optional)
+
+    def blocks(self, widget) -> bool:
+        # Only widgets inside S.to's player modal can be optional.
+        return not widget["ready"] and not (
+            widget["kind"] in self.optional and widget.get("modal")
+        )
+
+    def optional_verified(self, widgets) -> bool:
+        return any(
+            w["ready"] and w["kind"] in self.optional and w.get("modal")
+            for w in widgets
+        )
 
     def ready_to_submit(self, page) -> bool:
         manual = os.getenv("ANIWORLD_CAPTCHA_MANUAL", "0").strip() == "1"
@@ -154,6 +214,8 @@ class _ChallengeSolver:
                 current = _widgets(frame)
                 widgets.extend(current)
                 for widget in current:
+                    if widget.get("pending"):
+                        continue
                     kind = widget["kind"]
                     key = (frame, kind)
                     if widget["ready"]:
@@ -227,7 +289,8 @@ class _ChallengeSolver:
             except Error as exc:
                 logger.debug("CAPTCHA widget changed during inspection: %s", exc)
                 return False
-        return bool(widgets) and all(widget["ready"] for widget in widgets)
+        self.widgets = widgets
+        return bool(widgets) and not any(self.blocks(w) for w in widgets)
 
 
 class _BrowserHandle:
@@ -500,7 +563,7 @@ def _click_submit_button(page):
     return False
 
 
-def _solve(url, prepare=None, timeout=300):
+def _solve(url, prepare=None, timeout=300, optional_widgets=()):
     timeout = _captcha_timeout(timeout)
     with (
         _solving(url) as session,
@@ -509,6 +572,8 @@ def _solve(url, prepare=None, timeout=300):
         page.goto(url, wait_until="domcontentloaded", timeout=30000)
         submitted = False
         challenge_submitted = False
+        # Whether an optional modal widget was verified at the last Weiter or recheck.
+        optional_verified = None
         clicking_widget = False
         existing_frames = set()
 
@@ -520,7 +585,7 @@ def _solve(url, prepare=None, timeout=300):
         if prepare:
             prepare(page)
         deadline = time.monotonic() + timeout
-        solver = _ChallengeSolver()
+        solver = _ChallengeSolver(optional=optional_widgets)
         while time.monotonic() < deadline:
             if session:
                 session.update(page)
@@ -533,11 +598,29 @@ def _solve(url, prepare=None, timeout=300):
                     session.result_url = result
                 return result
             try:
+                retry = False
+                if prepare and challenge_submitted:
+                    widgets = [w for frame in page.frames for w in _widgets(frame)]
+                    # The modal can start another verification after a submission.
+                    challenge_submitted = not any(solver.blocks(w) for w in widgets)
+                    verified = solver.optional_verified(widgets)
+                    # A manually verified Turnstile needs one more Weiter.
+                    retry = (
+                        challenge_submitted and verified and optional_verified is False
+                    )
+                    # Keep the verified retry pending until Weiter is clicked.
+                    if not retry:
+                        optional_verified = verified
+                initial_continue = (
+                    prepare is not None
+                    and not submitted
+                    and not _is_captcha_page_dom(page)
+                )
                 ready = False
-                if not challenge_submitted and (not prepare or submitted):
+                if not challenge_submitted and not initial_continue:
                     clicking_widget = True
                     ready = solver.ready_to_submit(page)
-                if (prepare and not submitted) or ready:
+                if initial_continue or ready or retry:
                     clicking_widget = False
                     existing_frames = {frame.url for frame in page.frames}
                     # A popup may open synchronously inside the click handler.
@@ -546,6 +629,9 @@ def _solve(url, prepare=None, timeout=300):
                         submitted = _click_submit_button(page)
                         if ready:
                             challenge_submitted = submitted
+                            optional_verified = solver.optional_verified(solver.widgets)
+                        elif retry and submitted:
+                            optional_verified = True
                     except Error:
                         submitted = False
                         raise
@@ -562,7 +648,7 @@ def solve_captcha(url: str):
 
 
 def solve_sto_modal(episode_url, provider_name, language_label, redirect_url=None):
-    """Try S.to's Weiter first, then solve widgets if the player stays blocked."""
+    """Open S.to's player modal and wait for any active verification."""
 
     def prepare(page):
         clicked = page.evaluate(
@@ -588,7 +674,10 @@ def solve_sto_modal(episode_url, provider_name, language_label, redirect_url=Non
                 f"S.to player button not found for {provider_name} ({language_label})"
             )
 
-    return _solve(episode_url, prepare=prepare, timeout=90)
+    # S.to accepts Weiter without a solved Turnstile; ALTCHA still has to pass.
+    return _solve(
+        episode_url, prepare=prepare, timeout=90, optional_widgets=("turnstile",)
+    )
 
 
 def playwright_get_page_url(url: str) -> str:
