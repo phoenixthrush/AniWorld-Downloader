@@ -149,7 +149,7 @@ def test_existing_clearance_does_not_finish_active_challenge(handshake, monkeypa
     solver = Mock()
     solver.ready_to_submit.return_value = False
     monkeypatch.setattr(captcha, "_is_captcha_page_dom", dom)
-    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda **_: solver)
+    monkeypatch.setattr(captcha, "_ChallengeSolver", lambda: solver)
     assert captcha.solve_captcha(page.url) == page.url
     assert dom.call_count == 2
     solver.ready_to_submit.assert_called_once()
