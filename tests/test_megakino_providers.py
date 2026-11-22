@@ -68,9 +68,37 @@ def test_pages_ignore_unknown_hosts(megakino_page, url):
     assert megakino_page(url).provider_data is None
 
 
+def test_english_selection_returns_the_german_links(megakino_page):
+    episode = megakino_page("https://voe.sx/e/video")
+
+    assert episode.available_providers("English") == ("VOE",)
+    assert episode.provider_link("English Dub", "VOE") == "https://voe.sx/e/video"
+    assert episode.provider_link((Audio.GERMAN, Subtitles.NONE), "VOE") == (
+        "https://voe.sx/e/video"
+    )
+
+
 def test_pages_ignore_hosters_without_a_registered_extractor(
     megakino_page, monkeypatch
 ):
     monkeypatch.delitem(provider_functions, "get_direct_link_from_doodstream")
 
     assert megakino_page("https://dood.watch/e/video").provider_data is None
+
+
+def test_gxplayer_stream_url_uses_m3u8_extension(monkeypatch):
+    from aniworld.extractors.provider import megakino
+
+    monkeypatch.setattr(
+        megakino,
+        "_fetch_megakino_player_page",
+        lambda link, headers=None: '{"id":"11407","uid":"3","md5":"abc123"}',
+    )
+
+    url = megakino.get_direct_link_from_megakino("https://watch.gxplayer.xyz/watch?v=X")
+
+    # FFmpeg rejects the text/plain playlist under a ".txt" name and the
+    # downloader only takes its HLS path for ".m3u8" URLs.
+    assert url == (
+        "https://watch.gxplayer.xyz/m3u8/3/abc123/master.m3u8?s=1&id=11407&cache=1"
+    )
