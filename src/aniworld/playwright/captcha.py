@@ -157,8 +157,10 @@ def _is_captcha_page_dom(page) -> bool:
 class _ChallengeSolver:
     """Click checkbox widgets and leave image challenges available to the user."""
 
-    def __init__(self):
+    def __init__(self, optional=()):
         self.clicked = {}
+        # Optional widgets are still clicked but never block submitting.
+        self.optional = frozenset(optional)
 
     def ready_to_submit(self, page) -> bool:
         manual = os.getenv("ANIWORLD_CAPTCHA_MANUAL", "0").strip() == "1"
@@ -243,7 +245,9 @@ class _ChallengeSolver:
             except Error as exc:
                 logger.debug("CAPTCHA widget changed during inspection: %s", exc)
                 return False
-        return bool(widgets) and all(widget["ready"] for widget in widgets)
+        return bool(widgets) and all(
+            w["ready"] or w["kind"] in self.optional for w in widgets
+        )
 
 
 class _BrowserHandle:
@@ -516,7 +520,7 @@ def _click_submit_button(page):
     return False
 
 
-def _solve(url, prepare=None, timeout=300):
+def _solve(url, prepare=None, timeout=300, optional_widgets=()):
     timeout = _captcha_timeout(timeout)
     with (
         _solving(url) as session,
@@ -536,7 +540,7 @@ def _solve(url, prepare=None, timeout=300):
         if prepare:
             prepare(page)
         deadline = time.monotonic() + timeout
-        solver = _ChallengeSolver()
+        solver = _ChallengeSolver(optional=optional_widgets)
         while time.monotonic() < deadline:
             if session:
                 session.update(page)
@@ -552,7 +556,7 @@ def _solve(url, prepare=None, timeout=300):
                 if prepare and challenge_submitted:
                     # The modal can start another verification after a submission.
                     challenge_submitted = not any(
-                        not widget["ready"]
+                        not widget["ready"] and widget["kind"] not in solver.optional
                         for frame in page.frames
                         for widget in _widgets(frame)
                     )
@@ -616,7 +620,10 @@ def solve_sto_modal(episode_url, provider_name, language_label, redirect_url=Non
                 f"S.to player button not found for {provider_name} ({language_label})"
             )
 
-    return _solve(episode_url, prepare=prepare, timeout=90)
+    # S.to accepts Weiter without a solved Turnstile; ALTCHA still has to pass.
+    return _solve(
+        episode_url, prepare=prepare, timeout=90, optional_widgets=("turnstile",)
+    )
 
 
 def playwright_get_page_url(url: str) -> str:
