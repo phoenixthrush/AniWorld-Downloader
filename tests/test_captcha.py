@@ -194,11 +194,11 @@ def test_detached_widget_cannot_make_other_solved_widgets_ready():
     "widgets_by_poll",
     [
         pytest.param(
-            [[{"kind": "turnstile", "ready": False, "pending": True}]],
+            [[{"kind": "turnstile", "ready": False, "pending": True, "modal": True}]],
             id="pending-turnstile-only",
         ),
         pytest.param(
-            [[{"kind": "turnstile", "ready": False}]],
+            [[{"kind": "turnstile", "ready": False, "modal": True}]],
             id="failed-turnstile-only",
         ),
         pytest.param(
@@ -221,15 +221,15 @@ def test_detached_widget_cannot_make_other_solved_widgets_ready():
         pytest.param(
             [
                 [
-                    {"kind": "turnstile", "ready": False},
+                    {"kind": "turnstile", "ready": False, "modal": True},
                     {"kind": "altcha", "ready": False, "pending": True},
                 ],
                 [
-                    {"kind": "turnstile", "ready": False},
+                    {"kind": "turnstile", "ready": False, "modal": True},
                     {"kind": "altcha", "ready": False},
                 ],
                 [
-                    {"kind": "turnstile", "ready": False},
+                    {"kind": "turnstile", "ready": False, "modal": True},
                     {"kind": "altcha", "ready": True},
                 ],
             ],
@@ -278,7 +278,7 @@ def test_sto_waits_for_a_new_required_widget_after_verified_submission(
     def render_widgets(script, **kwargs):
         assert script == captcha._WIDGETS_JS
         poll = page.wait_for_timeout.call_count
-        widgets = [{"kind": "turnstile", "ready": False}]
+        widgets = [{"kind": "turnstile", "ready": False, "modal": True}]
         if poll >= 3:
             widgets.append({"kind": "altcha", "ready": poll >= 5, "pending": poll == 3})
         return widgets
@@ -304,7 +304,7 @@ def test_sto_failed_turnstile_alone_does_not_repeat_weiter(browser, monkeypatch)
     monkeypatch.setenv("ANIWORLD_CAPTCHA_TIMEOUT", "4")
     page.evaluate.side_effect = lambda script, *args: bool(args)
     frame = Mock(url=SOURCE, child_frames=[])
-    frame.evaluate.return_value = [{"kind": "turnstile", "ready": False}]
+    frame.evaluate.return_value = [{"kind": "turnstile", "ready": False, "modal": True}]
     page.frames = [frame]
     submissions = []
 
@@ -315,6 +315,63 @@ def test_sto_failed_turnstile_alone_does_not_repeat_weiter(browser, monkeypatch)
     monkeypatch.setattr(captcha, "_click_submit_button", submit)
     assert captcha.solve_sto_modal(SOURCE, "VOE", "Deutsch") is None
     assert submissions == [0]
+    handle.close.assert_called_once()
+
+
+@pytest.mark.parametrize("verified_at,submissions", [(3, [3]), (None, [])])
+def test_sto_waits_for_full_page_turnstile(
+    browser, monkeypatch, verified_at, submissions
+):
+    handle, page = browser
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_MANUAL", "1")
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_TIMEOUT", "4")
+    page.evaluate.side_effect = lambda script, *args: bool(args)
+    frame = Mock(url=SOURCE, child_frames=[])
+    page.frames = [frame]
+
+    def render_widgets(script, **kwargs):
+        poll = page.wait_for_timeout.call_count
+        ready = verified_at is not None and poll >= verified_at
+        return [{"kind": "turnstile", "ready": ready, "modal": False}]
+
+    frame.evaluate.side_effect = render_widgets
+    calls = []
+
+    def submit(page):
+        calls.append(page.wait_for_timeout.call_count)
+        page.url = PLAYER
+        return True
+
+    monkeypatch.setattr(captcha, "_click_submit_button", submit)
+    expected = PLAYER if verified_at is not None else None
+    assert captcha.solve_sto_modal(SOURCE, "VOE", "Deutsch") == expected
+    assert calls == submissions
+    handle.close.assert_called_once()
+
+
+def test_sto_resubmits_once_after_manual_turnstile_success(browser, monkeypatch):
+    handle, page = browser
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_MANUAL", "1")
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_TIMEOUT", "4")
+    page.evaluate.side_effect = lambda script, *args: bool(args)
+    frame = Mock(url=SOURCE, child_frames=[])
+    page.frames = [frame]
+
+    def render_widgets(script, **kwargs):
+        ready = page.wait_for_timeout.call_count >= 3
+        return [{"kind": "turnstile", "ready": ready, "modal": True}]
+
+    frame.evaluate.side_effect = render_widgets
+    submissions = []
+
+    def submit(page):
+        submissions.append(page.wait_for_timeout.call_count)
+        return True
+
+    monkeypatch.setattr(captcha, "_click_submit_button", submit)
+    # The modal never closes, so a click loop would show up as extra submissions.
+    assert captcha.solve_sto_modal(SOURCE, "VOE", "Deutsch") is None
+    assert submissions == [0, 3]
     handle.close.assert_called_once()
 
 
@@ -654,8 +711,27 @@ def test_navigation_ignores_old_child_frames():
     detached.is_detached.return_value = True
     active = Mock(url="https://challenges.cloudflare.com/widget")
     active.is_detached.return_value = False
+    active.frame_element.return_value.evaluate.return_value = False
     owner.child_frames = [detached, active]
-    assert captcha._widgets(owner) == [{"kind": "turnstile", "ready": False}]
+    assert captcha._widgets(owner) == [
+        {"kind": "turnstile", "ready": False, "modal": False}
+    ]
+
+
+@pytest.mark.parametrize(
+    "placement,modal", [(True, True), (False, False), (Error("detached"), False)]
+)
+def test_challenge_frame_is_optional_only_inside_sto_modal(placement, modal):
+    owner = Mock()
+    owner.evaluate.return_value = []
+    child = Mock(url="https://challenges.cloudflare.com/widget")
+    child.is_detached.return_value = False
+    child.frame_element.return_value.evaluate.side_effect = [placement]
+    owner.child_frames = [child]
+    widgets = captcha._widgets(owner)
+    assert widgets == [{"kind": "turnstile", "ready": False, "modal": modal}]
+    solver = captcha._ChallengeSolver(optional=("turnstile",))
+    assert solver.blocks(widgets[0]) is not modal
 
 
 def test_checkbox_is_not_clicked_again_during_image_task(monkeypatch):

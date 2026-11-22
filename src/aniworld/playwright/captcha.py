@@ -42,6 +42,7 @@ _PROVIDER_HOSTS = (
 )
 _WIDGETS_JS = """() => {
     const widgets = [];
+    const inModal = el => Boolean(el.closest('#playerPrepareModal'));
     const types = {
         turnstile: ['cf-turnstile-response', 'cloudflare.com', 'cf-turnstile'],
         hcaptcha: ['h-captcha-response', 'hcaptcha.com', 'h-captcha'],
@@ -49,22 +50,23 @@ _WIDGETS_JS = """() => {
     };
     for (const [kind, [name, source, css]] of Object.entries(types)) {
         const inputs = [...document.querySelectorAll(`[name="${name}"]`)];
-        const present = inputs.length || document.querySelector(
+        const found = [...inputs, ...document.querySelectorAll(
             `iframe[src*="${source}"], .${css}`
-        );
-        if (present) widgets.push({kind, ready: inputs.length > 0 &&
-            inputs.every(input => Boolean(input.value.trim()))});
+        )];
+        if (found.length) widgets.push({kind, ready: inputs.length > 0 &&
+            inputs.every(input => Boolean(input.value.trim())),
+            modal: found.every(inModal)});
     }
     for (const input of document.querySelectorAll('input[type="checkbox"]')) {
         const label = [...(input.labels || [])].map(el => el.textContent).join(' ');
         if (!input.disabled && /robot|roboter|human|mensch|captcha/i.test(label)) {
-            widgets.push({kind: 'checkbox', ready: input.checked});
+            widgets.push({kind: 'checkbox', ready: input.checked, modal: inModal(input)});
         }
     }
     for (const widget of document.querySelectorAll('altcha-widget')) {
         const payload = widget.querySelector('[name="altcha"]') || document.querySelector('[name="altcha"]');
         widgets.push({kind: 'altcha', ready: widget.getState?.() === 'verified' ||
-            Boolean(payload?.value)});
+            Boolean(payload?.value), modal: inModal(widget)});
     }
     // S.to activates verification areas before their widgets mount. The
     // inline display flag tracks activation even with Bootstrap's d-flex.
@@ -77,10 +79,17 @@ _WIDGETS_JS = """() => {
         const area = modal?.querySelector(`#player-prepare-${kind}`);
         if (area && !area.hidden && area.style.display !== 'none' &&
                 area.getClientRects().length && !area.querySelector(selector)) {
-            widgets.push({kind, ready: false, pending: true});
+            widgets.push({kind, ready: false, pending: true, modal: true});
         }
     }
     return widgets;
+}"""
+# Challenge iframes can sit inside closed shadow roots, which closest() cannot cross.
+_IN_MODAL_JS = """el => {
+    for (let node = el; node; node = node.parentElement || node.getRootNode().host) {
+        if (node.id === 'playerPrepareModal') return true;
+    }
+    return false;
 }"""
 
 
@@ -136,7 +145,12 @@ def _widgets(frame):
             continue
         kind = _challenge_kind(child.url)
         if kind and kind not in kinds:
-            widgets.append({"kind": kind, "ready": False})
+            try:
+                modal = bool(child.frame_element().evaluate(_IN_MODAL_JS))
+            except Error:
+                # Unknown placement stays required.
+                modal = False
+            widgets.append({"kind": kind, "ready": False, "modal": modal})
             kinds.add(kind)
     return widgets
 
@@ -161,6 +175,12 @@ class _ChallengeSolver:
         self.clicked = {}
         # Optional widgets are still clicked but never block submitting.
         self.optional = frozenset(optional)
+
+    def blocks(self, widget) -> bool:
+        # Only widgets inside S.to's player modal can be optional.
+        return not widget["ready"] and not (
+            widget["kind"] in self.optional and widget.get("modal")
+        )
 
     def ready_to_submit(self, page) -> bool:
         manual = os.getenv("ANIWORLD_CAPTCHA_MANUAL", "0").strip() == "1"
@@ -245,9 +265,7 @@ class _ChallengeSolver:
             except Error as exc:
                 logger.debug("CAPTCHA widget changed during inspection: %s", exc)
                 return False
-        return bool(widgets) and all(
-            w["ready"] or w["kind"] in self.optional for w in widgets
-        )
+        return bool(widgets) and not any(self.blocks(w) for w in widgets)
 
 
 class _BrowserHandle:
@@ -529,6 +547,8 @@ def _solve(url, prepare=None, timeout=300, optional_widgets=()):
         page.goto(url, wait_until="domcontentloaded", timeout=30000)
         submitted = False
         challenge_submitted = False
+        # Whether an optional modal widget was verified at the last recheck.
+        optional_verified = None
         clicking_widget = False
         existing_frames = set()
 
@@ -553,13 +573,20 @@ def _solve(url, prepare=None, timeout=300, optional_widgets=()):
                     session.result_url = result
                 return result
             try:
+                retry = False
                 if prepare and challenge_submitted:
+                    widgets = [w for frame in page.frames for w in _widgets(frame)]
                     # The modal can start another verification after a submission.
-                    challenge_submitted = not any(
-                        not widget["ready"] and widget["kind"] not in solver.optional
-                        for frame in page.frames
-                        for widget in _widgets(frame)
+                    challenge_submitted = not any(solver.blocks(w) for w in widgets)
+                    verified = any(
+                        w["ready"] and w["kind"] in solver.optional and w.get("modal")
+                        for w in widgets
                     )
+                    # A manually verified Turnstile needs one more Weiter.
+                    retry = (
+                        challenge_submitted and verified and optional_verified is False
+                    )
+                    optional_verified = verified
                 initial_continue = (
                     prepare is not None
                     and not submitted
@@ -569,7 +596,7 @@ def _solve(url, prepare=None, timeout=300, optional_widgets=()):
                 if not challenge_submitted and not initial_continue:
                     clicking_widget = True
                     ready = solver.ready_to_submit(page)
-                if initial_continue or ready:
+                if initial_continue or ready or retry:
                     clicking_widget = False
                     existing_frames = {frame.url for frame in page.frames}
                     # A popup may open synchronously inside the click handler.
@@ -578,6 +605,7 @@ def _solve(url, prepare=None, timeout=300, optional_widgets=()):
                         submitted = _click_submit_button(page)
                         if ready:
                             challenge_submitted = submitted
+                            optional_verified = None
                     except Error:
                         submitted = False
                         raise
