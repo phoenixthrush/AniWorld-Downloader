@@ -201,6 +201,11 @@ def _parse_master_playlist(text, base_url):
     return variants, renditions
 
 
+def _best_variant(variants):
+    """Pick the highest-bandwidth variant of a master playlist."""
+    return max(variants, key=lambda item: item.bandwidth)
+
+
 def _select_audio_rendition(renditions, group_id, preferred_lang):
     """Pick the audio rendition matching `preferred_lang`, else the default.
 
@@ -351,6 +356,8 @@ class _ProgressTracker:
         self._bandwidth = ""
 
     def advance(self, chunk_size):
+        if self._common._force_cancel_requested():
+            raise self._common.DownloadCancelled("Download cancelled")
         self.done += 1
         self.bytes_written += chunk_size
 
@@ -488,7 +495,7 @@ def download_hls_parallel(
         if not variants:
             raise HLSUnsupported("master playlist has no variants")
 
-        variant = max(variants, key=lambda item: item.bandwidth)
+        variant = _best_variant(variants)
         video_playlist = variant.uri
 
         rendition = _select_audio_rendition(
