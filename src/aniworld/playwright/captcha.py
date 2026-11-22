@@ -84,13 +84,24 @@ _WIDGETS_JS = """() => {
     }
     return widgets;
 }"""
-# Challenge iframes can sit inside closed shadow roots, which closest() cannot cross.
-_IN_MODAL_JS = """el => {
+# Challenge iframes can sit inside closed shadow roots, which closest() and
+# document queries cannot cross, so placement and token are read from the iframe.
+_FRAME_WIDGET_JS = """(el, name) => {
+    let modal = false;
     for (let node = el; node; node = node.parentElement || node.getRootNode().host) {
-        if (node.id === 'playerPrepareModal') return true;
+        if (node.id === 'playerPrepareModal') { modal = true; break; }
     }
-    return false;
+    const root = el.getRootNode();
+    const inputs = [root, root.host].flatMap(node =>
+        node ? [...node.querySelectorAll(`[name="${name}"]`)] : []);
+    return {modal, ready: inputs.length > 0 &&
+        inputs.every(input => Boolean(input.value.trim()))};
 }"""
+_RESPONSE_INPUTS = {
+    "turnstile": "cf-turnstile-response",
+    "hcaptcha": "h-captcha-response",
+    "recaptcha": "g-recaptcha-response",
+}
 
 
 def _captcha_timeout(default):
@@ -139,19 +150,26 @@ def _challenge_kind(url):
 def _widgets(frame):
     widgets = frame.evaluate(_WIDGETS_JS, isolated_context=False)
     kinds = {widget["kind"] for widget in widgets}
+    # A modal widget must not hide an outside one of the same kind.
+    required = {widget["kind"] for widget in widgets if not widget.get("modal")}
     # Chromium exposes frames inside closed shadow roots through child_frames.
     for child in frame.child_frames:
         if child.is_detached():
             continue
         kind = _challenge_kind(child.url)
-        if kind and kind not in kinds:
+        if kind and kind not in required:
             try:
-                modal = bool(child.frame_element().evaluate(_IN_MODAL_JS))
+                state = child.frame_element().evaluate(
+                    _FRAME_WIDGET_JS, _RESPONSE_INPUTS[kind]
+                )
+                modal, ready = bool(state["modal"]), bool(state["ready"])
             except Error:
                 # Unknown placement stays required.
-                modal = False
-            widgets.append({"kind": kind, "ready": False, "modal": modal})
-            kinds.add(kind)
+                modal = ready = False
+            # A ready modal frame still reports a token hidden from document queries.
+            if kind not in kinds or not modal or ready:
+                widgets.append({"kind": kind, "ready": ready, "modal": modal})
+                kinds.add(kind)
     return widgets
 
 
@@ -180,6 +198,12 @@ class _ChallengeSolver:
         # Only widgets inside S.to's player modal can be optional.
         return not widget["ready"] and not (
             widget["kind"] in self.optional and widget.get("modal")
+        )
+
+    def optional_verified(self, widgets) -> bool:
+        return any(
+            w["ready"] and w["kind"] in self.optional and w.get("modal")
+            for w in widgets
         )
 
     def ready_to_submit(self, page) -> bool:
@@ -265,6 +289,7 @@ class _ChallengeSolver:
             except Error as exc:
                 logger.debug("CAPTCHA widget changed during inspection: %s", exc)
                 return False
+        self.widgets = widgets
         return bool(widgets) and not any(self.blocks(w) for w in widgets)
 
 
@@ -547,7 +572,7 @@ def _solve(url, prepare=None, timeout=300, optional_widgets=()):
         page.goto(url, wait_until="domcontentloaded", timeout=30000)
         submitted = False
         challenge_submitted = False
-        # Whether an optional modal widget was verified at the last recheck.
+        # Whether an optional modal widget was verified at the last Weiter or recheck.
         optional_verified = None
         clicking_widget = False
         existing_frames = set()
@@ -578,10 +603,7 @@ def _solve(url, prepare=None, timeout=300, optional_widgets=()):
                     widgets = [w for frame in page.frames for w in _widgets(frame)]
                     # The modal can start another verification after a submission.
                     challenge_submitted = not any(solver.blocks(w) for w in widgets)
-                    verified = any(
-                        w["ready"] and w["kind"] in solver.optional and w.get("modal")
-                        for w in widgets
-                    )
+                    verified = solver.optional_verified(widgets)
                     # A manually verified Turnstile needs one more Weiter.
                     retry = (
                         challenge_submitted and verified and optional_verified is False
@@ -605,7 +627,7 @@ def _solve(url, prepare=None, timeout=300, optional_widgets=()):
                         submitted = _click_submit_button(page)
                         if ready:
                             challenge_submitted = submitted
-                            optional_verified = None
+                            optional_verified = solver.optional_verified(solver.widgets)
                     except Error:
                         submitted = False
                         raise

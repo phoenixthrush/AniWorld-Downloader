@@ -349,7 +349,10 @@ def test_sto_waits_for_full_page_turnstile(
     handle.close.assert_called_once()
 
 
-def test_sto_resubmits_once_after_manual_turnstile_success(browser, monkeypatch):
+@pytest.mark.parametrize("verified_at,expected", [(3, [0, 3]), (1, [0, 1]), (0, [0])])
+def test_sto_resubmits_once_after_manual_turnstile_success(
+    browser, monkeypatch, verified_at, expected
+):
     handle, page = browser
     monkeypatch.setenv("ANIWORLD_CAPTCHA_MANUAL", "1")
     monkeypatch.setenv("ANIWORLD_CAPTCHA_TIMEOUT", "4")
@@ -358,7 +361,7 @@ def test_sto_resubmits_once_after_manual_turnstile_success(browser, monkeypatch)
     page.frames = [frame]
 
     def render_widgets(script, **kwargs):
-        ready = page.wait_for_timeout.call_count >= 3
+        ready = page.wait_for_timeout.call_count >= verified_at
         return [{"kind": "turnstile", "ready": ready, "modal": True}]
 
     frame.evaluate.side_effect = render_widgets
@@ -371,7 +374,47 @@ def test_sto_resubmits_once_after_manual_turnstile_success(browser, monkeypatch)
     monkeypatch.setattr(captcha, "_click_submit_button", submit)
     # The modal never closes, so a click loop would show up as extra submissions.
     assert captcha.solve_sto_modal(SOURCE, "VOE", "Deutsch") is None
-    assert submissions == [0, 3]
+    assert submissions == expected
+    handle.close.assert_called_once()
+
+
+@pytest.mark.parametrize("verified_at,submissions", [(2, [2]), (None, [])])
+def test_sto_waits_for_turnstile_frame_outside_modal(
+    browser, monkeypatch, verified_at, submissions
+):
+    handle, page = browser
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_MANUAL", "1")
+    monkeypatch.setenv("ANIWORLD_CAPTCHA_TIMEOUT", "4")
+    page.evaluate.side_effect = lambda script, *args: bool(args)
+    # The outside Turnstile sits in a closed shadow root, hidden from _WIDGETS_JS.
+    outside = Mock(url="https://challenges.cloudflare.com/widget")
+    outside.is_detached.return_value = False
+
+    def frame_state(script, name):
+        assert (script, name) == (captcha._FRAME_WIDGET_JS, "cf-turnstile-response")
+        poll = page.wait_for_timeout.call_count
+        return {
+            "modal": False,
+            "ready": verified_at is not None and poll >= verified_at,
+        }
+
+    outside.frame_element.return_value.evaluate.side_effect = frame_state
+    frame = Mock(url=SOURCE, child_frames=[outside])
+    frame.evaluate.side_effect = lambda *a, **kw: [
+        {"kind": "turnstile", "ready": False, "modal": True}
+    ]
+    page.frames = [frame]
+    calls = []
+
+    def submit(page):
+        calls.append(page.wait_for_timeout.call_count)
+        page.url = PLAYER
+        return True
+
+    monkeypatch.setattr(captcha, "_click_submit_button", submit)
+    expected = PLAYER if verified_at is not None else None
+    assert captcha.solve_sto_modal(SOURCE, "VOE", "Deutsch") == expected
+    assert calls == submissions
     handle.close.assert_called_once()
 
 
@@ -711,7 +754,10 @@ def test_navigation_ignores_old_child_frames():
     detached.is_detached.return_value = True
     active = Mock(url="https://challenges.cloudflare.com/widget")
     active.is_detached.return_value = False
-    active.frame_element.return_value.evaluate.return_value = False
+    active.frame_element.return_value.evaluate.return_value = {
+        "modal": False,
+        "ready": False,
+    }
     owner.child_frames = [detached, active]
     assert captcha._widgets(owner) == [
         {"kind": "turnstile", "ready": False, "modal": False}
@@ -719,7 +765,12 @@ def test_navigation_ignores_old_child_frames():
 
 
 @pytest.mark.parametrize(
-    "placement,modal", [(True, True), (False, False), (Error("detached"), False)]
+    "placement,modal",
+    [
+        ({"modal": True, "ready": False}, True),
+        ({"modal": False, "ready": False}, False),
+        (Error("detached"), False),
+    ],
 )
 def test_challenge_frame_is_optional_only_inside_sto_modal(placement, modal):
     owner = Mock()
