@@ -221,29 +221,42 @@ def read_title(folder, custom_path_id=None, lang_folder=None):
 
 
 def _safe_child(base, folder):
-    """Resolve `folder` inside `base`, refusing traversal and separators."""
+    """Return a child within `base`, excluding the base itself."""
     name = str(folder or "")
     if not name or "/" in name or "\\" in name or "\x00" in name or ".." in name:
         return None
-    # A root holds whole language folders, which are never titles themselves.
-    if base.name not in paths.ALL_LANG_FOLDERS and name in paths.ALL_LANG_FOLDERS:
-        return None
     child = base / name
     try:
-        # "." passes the containment check but is the root itself
-        if child.resolve() == base.resolve():
+        resolved_base = base.resolve()
+        resolved_child = child.resolve()
+        if resolved_child == resolved_base:
             return None
-        child.resolve().relative_to(base.resolve())
+        resolved_child.relative_to(resolved_base)
     except (ValueError, OSError):
         return None
     return child
+
+
+def _is_language_folder(base, target):
+    """Recognize a reserved language directory and any alias to it."""
+    if target.name in paths.ALL_LANG_FOLDERS:
+        return True
+    for folder in paths.ALL_LANG_FOLDERS:
+        try:
+            if target.samefile(base / folder):
+                return True
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            raise LibraryError("Could not verify the folder to delete") from exc
+    return False
 
 
 def delete(folder, season=None, episode=None, custom_path_id=None, lang_folder=None):
     """Delete a whole title, one season, a single episode, or one movie file."""
     base = _resolve_base(custom_path_id, lang_folder)
     target = _safe_child(base, folder)
-    if target is None:
+    if target is None or (not lang_folder and _is_language_folder(base, target)):
         raise LibraryError("Invalid folder name")
     if not target.is_dir():
         raise LibraryError("Nothing found to delete")
