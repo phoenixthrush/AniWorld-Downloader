@@ -8,12 +8,13 @@ from ...config import NAMING_TEMPLATE
 from .common import clean_title
 from .numbering import (
     downloaded_episode_owners,
+    episode_file_matches_source,
     season_episode_context,
     season_episode_numbers_enabled,
 )
 
 
-def numbered_episode_path(episode, number, *, padding=3):
+def numbered_episode_path(episode, number, *, padding=3, legacy_folders=False):
     """Render the existing AniWorld/SerienStream template with one episode number."""
     template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
     values = {
@@ -25,21 +26,41 @@ def numbered_episode_path(episode, number, *, padding=3):
         "language": episode.selected_language,
         "resolution": getattr(episode, "_resolution", "unknown"),
     }
+    folders, _, filename = template.rpartition("/")
     for key in values:
-        template = template.replace(f"%{key}%", f"{{{key}}}")
-    parts = template.split("/")
+        placeholder = f"%{key}%"
+        replacement = f"{{{key}}}"
+        filename = filename.replace(placeholder, replacement)
+        if not legacy_folders:
+            folders = folders.replace(placeholder, replacement)
+    parts = folders.split("/") if "/" in template else []
     base = Path(episode.selected_path)
-    if len(parts) > 1:
+    if parts:
         base /= parts[0].format(**values)
-    folder = base / parts[1].format(**values) if len(parts) > 2 else base
-    filename = parts[-1]
+    folder = base / parts[1].format(**values) if len(parts) > 1 else base
     if "." in filename:
         filename = filename.rsplit(".", 1)[0]
     return base, folder / f"{filename.format(**values)}.{episode._file_extension}"
 
 
+def legacy_numbered_episode_paths(episode):
+    """Yield the paths rendered before percent placeholders worked in folders."""
+    template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
+    if "%" not in template.rpartition("/")[0]:
+        return
+    for number in dict.fromkeys(
+        (episode.episode_number, episode.season_episode_number)
+    ):
+        for padding in (3, 2):
+            legacy = numbered_episode_path(
+                episode, number, padding=padding, legacy_folders=True
+            )
+            if legacy != numbered_episode_path(episode, number, padding=padding):
+                yield legacy
+
+
 def existing_numbered_episode_path(episode):
-    """Prefer the new path, but keep using a download at its seasonal path."""
+    """Keep using existing downloads at their seasonal or legacy template paths."""
     seasonal = episode.season_episode_number
     preferred = seasonal if season_episode_numbers_enabled() else episode.episode_number
     base, path = numbered_episode_path(episode, preferred)
@@ -49,26 +70,29 @@ def existing_numbered_episode_path(episode):
         for padding in (3, 2)
     ]
     existing = [entry for entry in candidates if entry[2].is_file()]
-    if not existing:
-        return base, path
-    episodes = season_episode_context(episode)
-    numbers = {
-        number
-        for entry in episodes
-        for number in (entry.episode_number, entry.season_episode_number)
-    }
-    have = {}
-    for number in numbers:
-        files = {
-            numbered_episode_path(episode, number, padding=padding)[1]
-            for padding in (3, 2)
+    if existing:
+        episodes = season_episode_context(episode)
+        numbers = {
+            number
+            for entry in episodes
+            for number in (entry.episode_number, entry.season_episode_number)
         }
-        have[episode.season.season_number, number] = [
-            file for file in files if file.is_file()
-        ]
-    owners = downloaded_episode_owners(episodes, have)
-    for number, candidate_base, candidate in existing:
-        if owners.get(candidate) == episode.url:
+        have = {}
+        for number in numbers:
+            files = {
+                numbered_episode_path(episode, number, padding=padding)[1]
+                for padding in (3, 2)
+            }
+            have[episode.season.season_number, number] = [
+                file for file in files if file.is_file()
+            ]
+        owners = downloaded_episode_owners(episodes, have)
+        for _, candidate_base, candidate in existing:
+            if owners.get(candidate) == episode.url:
+                return candidate_base, candidate
+    # Literal folders could be shared across series, so numbering alone is unsafe.
+    for candidate_base, candidate in legacy_numbered_episode_paths(episode):
+        if candidate.is_file() and episode_file_matches_source(candidate, episode.url):
             return candidate_base, candidate
     if any(number == preferred for number, _, _ in existing):
         raise ValueError(f"Episode path belongs to a different episode: {path}")

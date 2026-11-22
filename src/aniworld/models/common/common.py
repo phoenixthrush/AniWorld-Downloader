@@ -116,13 +116,14 @@ def _prepare_resolution_naming(self):
     _set_naming_resolution(self, marker)
     patterns = [self._episode_path]
     if getattr(self, "season_episode_number", None) is not None:
-        from .naming import numbered_episode_path
+        from .naming import legacy_numbered_episode_paths, numbered_episode_path
 
         patterns.extend(
             numbered_episode_path(self, number, padding=padding)[1]
             for number in {self.episode_number, self.season_episode_number}
             for padding in (3, 2)
         )
+        patterns.extend(path for _, path in legacy_numbered_episode_paths(self))
     candidates = {
         Path(path)
         for pattern in patterns
@@ -145,19 +146,28 @@ def _finalize_resolution_naming(self):
     if hasattr(self, "season_episode_number"):
         from .naming import numbered_episode_path
 
-        for number in (self.episode_number, self.season_episode_number):
-            for padding in (3, 2):
-                if numbered_episode_path(self, number, padding=padding)[1] == old_path:
-                    variant = number, padding
-                    break
-            if variant is not None:
-                break
+        numbers = dict.fromkeys((self.episode_number, self.season_episode_number))
+        variant = next(
+            (
+                (number, padding, legacy_folders)
+                for legacy_folders in (False, True)
+                for number in numbers
+                for padding in (3, 2)
+                if numbered_episode_path(
+                    self, number, padding=padding, legacy_folders=legacy_folders
+                )[1]
+                == old_path
+            ),
+            None,
+        )
     _set_naming_resolution(self, _read_container_resolution(old_path))
-    new_path = (
-        numbered_episode_path(self, variant[0], padding=variant[1])[1]
-        if variant is not None
-        else self._episode_path
-    )
+    if variant is None:
+        new_path = self._episode_path
+    else:
+        number, padding, legacy_folders = variant
+        _, new_path = numbered_episode_path(
+            self, number, padding=padding, legacy_folders=legacy_folders
+        )
     if new_path != old_path:
         if new_path.exists():
             raise ValueError(f"Resolution output path already exists: {new_path}")

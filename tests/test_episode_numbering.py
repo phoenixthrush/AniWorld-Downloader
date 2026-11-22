@@ -228,6 +228,35 @@ def test_current_path_wins_if_both_names_exist(model, tmp_path, monkeypatch):
     assert make_episode(model, tmp_path)._episode_path == new
 
 
+@pytest.mark.parametrize("source", ["same episode", "other series", "untagged"])
+def test_literal_percent_folders_require_matching_source(
+    model, tmp_path, monkeypatch, source
+):
+    monkeypatch.setenv(
+        "ANIWORLD_NAMING_TEMPLATE",
+        "%title%/Season %season%/%title% S%season%E%episode%.mkv",
+    )
+    episode = make_episode(model, tmp_path)
+    old = tmp_path / "%title%" / "Season %season%" / "Example S02E01.mkv"
+    old.parent.mkdir(parents=True)
+    old.write_bytes(b"existing")
+    sources = {
+        "same episode": episode.url.replace("serienstream.to", "serienstream.cx"),
+        "other series": episode.url.replace("/example/", "/another/"),
+        "untagged": None,
+    }
+    monkeypatch.setattr(
+        "aniworld.models.common.numbering.episode_url_from_file",
+        lambda path: sources[source],
+    )
+    expected = (
+        old
+        if source == "same episode"
+        else tmp_path / "Example" / "Season 02" / "Example S02E062.mkv"
+    )
+    assert episode._episode_path == expected
+
+
 @pytest.mark.parametrize("title", ["Title [Episode 062]", "Title [JP Episode 1218]"])
 def test_opt_in_names_new_downloads_by_season(model, tmp_path, monkeypatch, title):
     monkeypatch.setenv("ANIWORLD_NAMING_TEMPLATE", "{title} S{season}E{episode}.mkv")
@@ -259,14 +288,22 @@ def test_opt_in_autosync_still_recognises_both_numbers(
     assert autosync._missing_episodes(SimpleNamespace(seasons=[season]), have) == []
 
 
-def test_resolution_naming_finds_a_seasonal_file(model, tmp_path, monkeypatch):
+@pytest.mark.parametrize("folder", ["", "%title%/"])
+def test_resolution_naming_finds_a_seasonal_file(model, tmp_path, monkeypatch, folder):
     monkeypatch.setenv(
-        "ANIWORLD_NAMING_TEMPLATE", "{title} S{season}E{episode}.{resolution}.mkv"
+        "ANIWORLD_NAMING_TEMPLATE",
+        f"{folder}{{title}} S{{season}}E{{episode}}.{{resolution}}.mkv",
     )
-    old = tmp_path / "Example S02E001.720p.mkv"
+    old = tmp_path / folder / "Example S02E001.720p.mkv"
+    old.parent.mkdir(parents=True, exist_ok=True)
     old.touch()
     monkeypatch.setattr(common, "_read_container_resolution", lambda path: "720p")
     episode = make_episode(model, tmp_path)
+    if folder:
+        monkeypatch.setattr(
+            "aniworld.models.common.numbering.episode_url_from_file",
+            lambda path: episode.url,
+        )
     common._prepare_resolution_naming(episode)
     assert episode._episode_path == old
 
@@ -599,15 +636,23 @@ def test_adding_audio_to_a_legacy_file_keeps_its_path_and_records_source(
 
 
 @pytest.mark.parametrize("padding", [2, 3])
+@pytest.mark.parametrize("folder", ["", "%title%/"])
 def test_resolution_finalization_keeps_existing_seasonal_number(
-    model, tmp_path, monkeypatch, padding
+    model, tmp_path, monkeypatch, padding, folder
 ):
     monkeypatch.setenv(
-        "ANIWORLD_NAMING_TEMPLATE", "{title} S{season}E{episode}.{resolution}.mkv"
+        "ANIWORLD_NAMING_TEMPLATE",
+        f"{folder}{{title}} S{{season}}E{{episode}}.{{resolution}}.mkv",
     )
-    old = tmp_path / f"Example S02E{1:0{padding}d}.unknown.mkv"
+    old = tmp_path / folder / f"Example S02E{1:0{padding}d}.unknown.mkv"
+    old.parent.mkdir(parents=True, exist_ok=True)
     old.write_bytes(b"video")
     episode = make_episode(model, tmp_path)
+    if folder:
+        monkeypatch.setattr(
+            "aniworld.models.common.numbering.episode_url_from_file",
+            lambda path: episode.url,
+        )
     monkeypatch.setattr(common, "_read_container_resolution", lambda path: "720p")
     common._finalize_resolution_naming(episode)
     expected = old.with_name(old.name.replace("unknown", "720p"))
