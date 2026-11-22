@@ -12,6 +12,7 @@ from ...config import (
     NAMING_TEMPLATE,
     build_provider_attempt_order,
     logger,
+    normalize_aniworld_url,
 )
 from ..common import ProviderData, check_downloaded
 from ..common.common import (
@@ -99,7 +100,7 @@ class AniworldEpisode:
         if not self.is_valid_aniworld_episode_url(url):
             raise ValueError(f"Invalid AniWorld episode URL: {url}")
 
-        self.url = url
+        self.url = normalize_aniworld_url(url)
         self._series = series
         self._season = season
 
@@ -143,9 +144,9 @@ class AniworldEpisode:
         # or
         # https://aniworld.to/anime/stream/highschool-dxd/filme/film-1
 
-        url = url.strip()
-
-        return bool(ANIWORLD_EPISODE_PATTERN.match(url))
+        return isinstance(url, str) and bool(
+            ANIWORLD_EPISODE_PATTERN.fullmatch(url.strip())
+        )
 
     @property
     def redirect_url(self):
@@ -255,27 +256,7 @@ class AniworldEpisode:
         if self._season is None:
             from .season import AniworldSeason
 
-            if self.is_movie:
-                # https://aniworld.to/anime/stream/masamune-kuns-revenge/filme
-                movie_match = re.search(
-                    r"^(https?://(?:www\.)?aniworld\.to/anime/stream/[^/]+/filme)",
-                    self.url,
-                )
-                if not movie_match:
-                    raise ValueError(
-                        f"Could not extract movie season from URL: {self.url}"
-                    )
-                season_url = movie_match.group(1)
-            else:
-                # https://aniworld.to/anime/stream/masamune-kuns-revenge/staffel-1
-                season_match = re.search(
-                    r"^(https?://(?:www\.)?aniworld\.to/anime/stream/[^/]+/staffel-\d+)",
-                    self.url,
-                )
-                if not season_match:
-                    raise ValueError(f"Could not extract season from URL: {self.url}")
-                season_url = season_match.group(1)
-
+            season_url = self.url.rsplit("/", 1)[0]
             self._season = AniworldSeason(season_url, series=self._series)
 
         return self._season
@@ -284,20 +265,8 @@ class AniworldEpisode:
     def series(self):
         if self._series is None:
             from .series import AniworldSeries
-            # Example URLs:
-            # https://aniworld.to/anime/stream/highschool-dxd/staffel-1/episode-1
-            # https://aniworld.to/anime/stream/highschool-dxd/filme/film-1
 
-            # Regex to match up to /stream/<series-name>
-            match = re.match(
-                r"(https?://(?:www\.)?aniworld\.to/anime/stream/[^/]+)", self.url
-            )
-            if match:
-                series_url = match.group(1)
-            else:
-                # fallback to full URL if regex fails
-                series_url = self.url
-
+            series_url = self.url.rsplit("/", 2)[0]
             self._series = AniworldSeries(series_url)
 
         return self._series
@@ -670,28 +639,21 @@ class AniworldEpisode:
         Returns:
             bool: True if the URL matches the movie pattern, otherwise False.
         """
-        pattern = (
-            r"^https?://(?:www\.)?aniworld\.to/anime/stream/[^/]+/filme/film-\d+/?$"
-        )
-        return re.match(pattern, self.url) is not None
+        return self.url.rsplit("/", 2)[-2] == "filme"
 
     def __extract_skip_times(self):
         if self.is_movie:
             return None
 
+        season_index = self.season.season_number - 1
+        if season_index < 0:
+            return None
+
         from ...aniskip import get_skip_times
 
         mal_id = self.series.mal_id
-        logger.debug(f"Fetching MAL IDs for series: {mal_id}")
-
-        season_number = self.season.season_number - 1
-        logger.debug(f"Using season number: {season_number + 1}")
-
-        episode_number = self.season_episode_number
-        logger.debug(f"Using episode number: {episode_number}")
-
-        if not mal_id or not 0 <= season_number < len(mal_id):
+        if not mal_id or season_index >= len(mal_id):
             logger.debug("No MAL ID for this season, skipping AniSkip")
             return None
 
-        return get_skip_times(mal_id[season_number], episode_number)
+        return get_skip_times(mal_id[season_index], self.season_episode_number)

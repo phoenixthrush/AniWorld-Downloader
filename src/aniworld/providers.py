@@ -25,6 +25,7 @@ from .config import (
     SERIENSTREAM_EPISODE_PATTERN,
     SERIENSTREAM_SEASON_PATTERN,
     SERIENSTREAM_SERIES_PATTERN,
+    normalize_aniworld_url,
 )
 from .models import (
     AnimeIDHentaiEpisode,
@@ -181,6 +182,15 @@ def normalize_url(url: str) -> str:
         return url
 
     url = url.strip()
+    if any(
+        pattern.fullmatch(url)
+        for pattern in (
+            ANIWORLD_SERIES_PATTERN,
+            ANIWORLD_SEASON_PATTERN,
+            ANIWORLD_EPISODE_PATTERN,
+        )
+    ):
+        return normalize_aniworld_url(url)
     if MOFLIX_SERIES_PATTERN.fullmatch(url):
         return normalize_moflix_url(url)
 

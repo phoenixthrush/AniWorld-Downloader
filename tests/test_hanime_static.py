@@ -169,3 +169,17 @@ def test_captcha_on_last_attempt_is_requested_again(monkeypatch):
     monkeypatch.setattr(extractor.time, "sleep", lambda _seconds: None)
     assert extractor._request_hanime("https://hanime.tv/videos/x") is ok
     assert solved == ["https://hanime.tv/videos/x"]
+
+
+def test_http_200_verification_page_is_not_returned_as_hanime_data(monkeypatch):
+    challenge = SimpleNamespace(
+        text="Just a moment...", status_code=200, raise_for_status=lambda: None
+    )
+    solved = []
+    monkeypatch.setattr(extractor.GLOBAL_SESSION, "get", lambda *a, **k: challenge)
+    monkeypatch.setattr(extractor, "solve_captcha", solved.append)
+    monkeypatch.setattr(extractor.time, "sleep", lambda _seconds: None)
+    url = "https://hanime.tv/browse/trending"
+    with pytest.raises(RuntimeError, match="still requires verification"):
+        extractor._request_hanime(url)
+    assert solved == [url]

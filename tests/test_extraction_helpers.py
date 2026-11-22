@@ -276,10 +276,28 @@ def test_vidoza_and_megakino_raise_when_no_stream_is_found(monkeypatch):
         megakino.get_direct_link_from_megakino("https://megakino.example/x")
 
 
-def test_filmpalast_language_does_not_depend_on_title_access_order():
-    movie = FilmPalastEpisode("https://filmpalast.to/stream/example")
-    movie._FilmPalastEpisode__html = '<em itemprop="name">Example English</em>'
-    assert movie._is_english
+@pytest.mark.parametrize(
+    "slug,title,english",
+    [
+        ("example", "Example (English)", True),
+        ("bastille-day-englisch", "Bastille Day *ENGLISCH*", True),
+        ("example-english", "Example", True),
+        ("johnny-english", "Johnny English", False),
+        (
+            "johnny-english-man-lebt-nur-dreimal",
+            "Johnny English - Man lebt nur dreimal",
+            False,
+        ),
+    ],
+)
+def test_filmpalast_language_does_not_depend_on_title_access_order(
+    slug, title, english
+):
+    movie = FilmPalastEpisode(f"https://filmpalast.to/stream/{slug}")
+    movie._FilmPalastEpisode__html = f'<em itemprop="name">{title}</em>'
+    assert movie._is_english is english
+    assert movie.title_de == title
+    assert movie._is_english is english
 
 
 def test_filmpalast_challenge_page_is_not_parsed(monkeypatch):

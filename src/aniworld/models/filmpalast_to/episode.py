@@ -2,6 +2,7 @@ import os
 import re
 from html import unescape
 from pathlib import Path
+from urllib.parse import urlparse
 
 try:
     from ...config import (
@@ -481,8 +482,17 @@ class FilmPalastEpisode:
 
     @property
     def _is_english(self):
-        haystack = f"{self.url} {self.title_de or ''}".lower()
-        return "-english" in haystack or "english" in haystack
+        title = (self.title_de or "").casefold()
+        label = r"\s*(?:english|englisch)\s*"
+        if re.search(rf"(?:\({label}\)|\[{label}\]|\*{label}\*|\s[-–]{label})$", title):
+            return True
+
+        # A suffix added to the URL can indicate a language. A word already
+        # present in the title may just be part of the name (Johnny English).
+        suffix = re.search(
+            r"-(english|englisch)/?$", urlparse(self.url).path.casefold()
+        )
+        return bool(suffix and not re.search(rf"\b{suffix[1]}\b", title))
 
     def _normalize_language(self, language):
         """FilmPalast pages are single-language; accept the dub labels."""

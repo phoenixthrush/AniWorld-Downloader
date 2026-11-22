@@ -391,6 +391,9 @@ def _reset_provider_resolution_cache(self):
     for attr in list(vars(self)):
         if attr.endswith(("__redirect_url", "__provider_url")):
             setattr(self, attr, None)
+    clear_stream = getattr(self, "_clear_stream_url_cache", None)
+    if clear_stream is not None:
+        clear_stream()
 
 
 def _set_selected_provider(self, provider_name):

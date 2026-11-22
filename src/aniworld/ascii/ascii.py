@@ -47,7 +47,7 @@ def __random_block(blocks, fallback):
 
 
 def display_ascii_art():
-    """Return a random ASCII art string appropriate for the system."""
+    """Print a random ASCII art string appropriate for the system."""
     blocks = __parse_ascii_blocks()
     if platform.system() == "Windows" and __is_windows_legacy():
         print(__random_block(blocks["banner"], fallback=blocks["all"]), flush=True)

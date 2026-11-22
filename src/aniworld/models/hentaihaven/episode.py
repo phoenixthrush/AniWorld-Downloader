@@ -91,10 +91,13 @@ class HentaiHavenEpisode(HentaiTVEpisode):
                 return source["src"]
         return ""
 
-    def refresh_stream_url(self):
+    def _clear_stream_url_cache(self):
         self.__dict__.pop("_player", None)
         self.__dict__.pop("stream_url", None)
         self._clear_page_cache()
+
+    def refresh_stream_url(self):
+        self._clear_stream_url_cache()
         return self.stream_url
 
     @property
@@ -103,7 +106,8 @@ class HentaiHavenEpisode(HentaiTVEpisode):
 
         Newer streams carry no burned-in subtitles, the player overlays these.
         """
-        master = get_response(self.stream_url).text
+        stream_url = self.stream_url
+        master = get_response(stream_url).text
         for line in master.splitlines():
             if not line.startswith("#EXT-X-MEDIA:"):
                 continue
@@ -113,7 +117,7 @@ class HentaiHavenEpisode(HentaiTVEpisode):
                 and attrs.get("LANGUAGE", "").lower().startswith("en")
                 and attrs.get("URI", "").split("?", 1)[0].lower().endswith(".vtt")
             ):
-                return urljoin(self.stream_url, attrs["URI"])
+                return urljoin(stream_url, attrs["URI"])
         return None
 
     def _add_subtitles(self):

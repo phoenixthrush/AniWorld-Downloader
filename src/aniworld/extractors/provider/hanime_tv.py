@@ -286,7 +286,9 @@ def _request_hanime(url, *, timeout=20):
             response = GLOBAL_SESSION.get(url, headers=headers, timeout=timeout)
             response.encoding = "utf-8"
             body = response.text or ""
-            if not challenged and is_captcha_page(body, response.status_code):
+            if is_captcha_page(body, response.status_code):
+                if challenged:
+                    raise RuntimeError("Hanime still requires verification")
                 challenged = True
                 solve_captcha(url)
                 continue  # solving does not consume an attempt

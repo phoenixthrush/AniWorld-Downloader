@@ -437,18 +437,31 @@ def test_aniskip_skips_seasons_without_a_mal_id(
     fetch.assert_not_called()
 
 
-@pytest.mark.parametrize("origin", ["http://aniworld.to", "https://www.aniworld.to"])
-def test_aniworld_urls_without_canonical_origin_resolve_parents(origin):
-    base = f"{origin}/anime/stream/example"
-    episode = AniworldEpisode(f"{base}/staffel-2/episode-1")
+@pytest.mark.parametrize(
+    "origin",
+    ["http://aniworld.to", "https://www.aniworld.to", "HTTP://WWW.ANIWORLD.TO"],
+)
+def test_aniworld_aliases_share_canonical_urls(origin):
+    from aniworld.providers import normalize_url
+
+    base = "https://aniworld.to/anime/stream/staffel-9"
+    alias = f"{origin}/anime/stream/Staffel-9"
+    url = f"{alias}/staffel-2/episode-1/"
+    episode = AniworldEpisode(url)
+    assert episode.url == normalize_url(url) == f"{base}/staffel-2/episode-1"
     assert episode.is_movie is False
     assert episode.season.url == f"{base}/staffel-2"
+    assert episode.season.season_number == 2
     assert episode.series.url == base
+    assert episode.season.series.url == base
 
-    movie = AniworldEpisode(f"{base}/filme/film-1")
+    movie = AniworldEpisode(f"{alias}/Filme/Film-1/")
     assert movie.is_movie is True
     assert movie.season.url == f"{base}/filme"
     assert movie.season.are_movies is True
+    films = AniworldSeason(f"{origin}/anime/stream/filme-im-kino/filme/")
+    assert films.season_number == 0
+    assert films.series.url == "https://aniworld.to/anime/stream/filme-im-kino"
 
 
 def test_four_digit_numbers_work_through_detection_library_and_deletion(episode_file):

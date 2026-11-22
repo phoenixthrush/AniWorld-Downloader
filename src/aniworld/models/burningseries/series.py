@@ -546,15 +546,14 @@ class BurningSeriesSeason(_BSLanguageMixin):
         except Exception:
             return []
         rows = []
-        self.__episode_rows[lang] = rows
         table = re.search(r'<table class="episodes">(.*?)</table>', html, re.DOTALL)
-        if not table:
-            return rows
-        for m in re.finditer(
-            rf'<td><a href="(?:https?://{BS_HOST_PATTERN}/|/)?(serie/[^"]+?/(\d+)/([^"/]+)/[a-z]{{2}})"',
-            table.group(1),
-        ):
-            rows.append((m.group(1), int(m.group(2)), m.group(3)))
+        if table:
+            for m in re.finditer(
+                rf'<td><a href="(?:https?://{BS_HOST_PATTERN}/|/)?(serie/[^"]+?/(\d+)/([^"/]+)/[a-z]{{2}})"',
+                table.group(1),
+            ):
+                rows.append((m.group(1), int(m.group(2)), m.group(3)))
+        self.__episode_rows[lang] = rows
         return rows
 
     @property
@@ -585,7 +584,10 @@ class BurningSeriesSeason(_BSLanguageMixin):
                         season_number=self.season_number,
                     )
                 )
-            self.__episodes = episodes
+            # Retry a failed language request on the next access.
+            if "de" in self.__episode_rows and lang in self.__episode_rows:
+                self.__episodes = episodes
+            return episodes
         return self.__episodes
 
     @property

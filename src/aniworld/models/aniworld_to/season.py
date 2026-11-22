@@ -1,7 +1,12 @@
 import re
 from html import unescape
 
-from ...config import ANIWORLD_SEASON_PATTERN, GLOBAL_SESSION, logger
+from ...config import (
+    ANIWORLD_SEASON_PATTERN,
+    GLOBAL_SESSION,
+    logger,
+    normalize_aniworld_url,
+)
 from ..common import run_each
 from .episode import AniworldEpisode
 
@@ -44,7 +49,7 @@ class AniworldSeason:
         if not self.is_valid_aniworld_season_url(url):
             raise ValueError(f"Invalid AniWorld season URL: {url}")
 
-        self.url = url
+        self.url = normalize_aniworld_url(url)
 
         self._series = series
 
@@ -66,18 +71,14 @@ class AniworldSeason:
         # or
         # https://aniworld.to/anime/stream/highschool-dxd/filme
 
-        url = url.strip()
-
-        return bool(ANIWORLD_SEASON_PATTERN.match(url))
+        return isinstance(url, str) and bool(
+            ANIWORLD_SEASON_PATTERN.fullmatch(url.strip())
+        )
 
     @property
     def series(self):
         if self._series is None:
-            # Extract series URL from season URL by removing /staffel-X or /filme part
-            if self.are_movies:
-                series_url = self.url.split("/filme")[0]
-            else:
-                series_url = self.url.split("/staffel-")[0]
+            series_url = self.url.rsplit("/", 1)[0]
             from .series import AniworldSeries
 
             self._series = AniworldSeries(series_url)
@@ -142,12 +143,7 @@ class AniworldSeason:
             bool: True if the URL matches the movie collection pattern,
                 otherwise False.
         """
-        return (
-            re.fullmatch(
-                r"https?://(?:www\.)?aniworld\.to/anime/stream/[^/]+/filme", self.url
-            )
-            is not None
-        )
+        return self.url.endswith("/filme")
 
     def __extract_season_number(self):
         """
@@ -169,7 +165,7 @@ class AniworldSeason:
         if self.are_movies:
             return 0
 
-        match = re.search(r"staffel-(\d+)", self.url)
+        match = re.fullmatch(r"staffel-(\d+)", self.url.rsplit("/", 1)[-1])
         if match:
             return int(match.group(1))
 
