@@ -608,7 +608,9 @@ def _solve(url, prepare=None, timeout=300, optional_widgets=()):
                     retry = (
                         challenge_submitted and verified and optional_verified is False
                     )
-                    optional_verified = verified
+                    # Keep the verified retry pending until Weiter is clicked.
+                    if not retry:
+                        optional_verified = verified
                 initial_continue = (
                     prepare is not None
                     and not submitted
@@ -628,6 +630,8 @@ def _solve(url, prepare=None, timeout=300, optional_widgets=()):
                         if ready:
                             challenge_submitted = submitted
                             optional_verified = solver.optional_verified(solver.widgets)
+                        elif retry and submitted:
+                            optional_verified = True
                     except Error:
                         submitted = False
                         raise

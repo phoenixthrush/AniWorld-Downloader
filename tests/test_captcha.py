@@ -349,9 +349,17 @@ def test_sto_waits_for_full_page_turnstile(
     handle.close.assert_called_once()
 
 
-@pytest.mark.parametrize("verified_at,expected", [(3, [0, 3]), (1, [0, 1]), (0, [0])])
+@pytest.mark.parametrize(
+    "verified_at,disabled_at,expected",
+    [
+        (3, None, [0, 3]),
+        (1, None, [0, 1]),
+        (0, None, [0]),
+        pytest.param(3, 3, [0, 3, 4], id="weiter-temporarily-disabled"),
+    ],
+)
 def test_sto_resubmits_once_after_manual_turnstile_success(
-    browser, monkeypatch, verified_at, expected
+    browser, monkeypatch, verified_at, disabled_at, expected
 ):
     handle, page = browser
     monkeypatch.setenv("ANIWORLD_CAPTCHA_MANUAL", "1")
@@ -365,16 +373,17 @@ def test_sto_resubmits_once_after_manual_turnstile_success(
         return [{"kind": "turnstile", "ready": ready, "modal": True}]
 
     frame.evaluate.side_effect = render_widgets
-    submissions = []
+    attempts = []
 
     def submit(page):
-        submissions.append(page.wait_for_timeout.call_count)
-        return True
+        poll = page.wait_for_timeout.call_count
+        attempts.append(poll)
+        return poll != disabled_at
 
     monkeypatch.setattr(captcha, "_click_submit_button", submit)
-    # The modal never closes, so a click loop would show up as extra submissions.
+    # The modal never closes, so a click loop would show up as extra attempts.
     assert captcha.solve_sto_modal(SOURCE, "VOE", "Deutsch") is None
-    assert submissions == expected
+    assert attempts == expected
     handle.close.assert_called_once()
 
 
