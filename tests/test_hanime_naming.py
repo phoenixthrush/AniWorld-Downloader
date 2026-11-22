@@ -7,6 +7,8 @@ downloaded. The file is named after the video's own name now, the folder still
 uses the franchise.
 """
 
+from unittest.mock import Mock
+
 import pytest
 
 from aniworld.extractors.provider import hanime_tv as extractor
@@ -256,3 +258,23 @@ def test_a_failed_handshake_only_opens_one_browser(monkeypatch, tmp_path):
         common.download_hanime(Episode())
 
     assert calls == [15]
+
+
+def test_force_cancel_does_not_refresh_hanime_stream(monkeypatch, tmp_path):
+    class Episode:
+        _episode_path = tmp_path / "episode.mkv"
+        _folder_path = tmp_path
+        _file_name = "episode"
+        stream_url = "https://media.example/video.m3u8"
+        refresh_stream_url = Mock()
+
+    download = Mock(side_effect=common.DownloadCancelled("force cancel"))
+    monkeypatch.setattr(common.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(common, "_prepare_resolution_naming", Mock())
+    monkeypatch.setattr(common, "_download_hls_stream", download)
+    monkeypatch.setattr(common.time, "sleep", Mock())
+    with pytest.raises(common.DownloadCancelled):
+        common.download_hanime(Episode())
+
+    download.assert_called_once()
+    Episode.refresh_stream_url.assert_not_called()
