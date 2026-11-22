@@ -149,3 +149,37 @@ def test_browser_failure_after_static_failure_is_not_retried(handshake):
         extractor.fetch_hanime_manifest("example-1")
     handshake.session.get.assert_called_once()
     handshake.browser.assert_called_once()
+
+
+def test_captcha_on_last_attempt_is_requested_again(monkeypatch):
+    ok = SimpleNamespace(text="ok", status_code=200, raise_for_status=lambda: None)
+    challenge = SimpleNamespace(text="Just a moment...", status_code=403)
+    failed = niquests.ConnectionError("down")
+    responses = iter([failed, failed, challenge, ok])
+
+    def get(*_args, **_kwargs):
+        item = next(responses)
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+    solved = []
+    monkeypatch.setattr(extractor.GLOBAL_SESSION, "get", get)
+    monkeypatch.setattr(extractor, "solve_captcha", solved.append)
+    monkeypatch.setattr(extractor.time, "sleep", lambda _seconds: None)
+    assert extractor._request_hanime("https://hanime.tv/videos/x") is ok
+    assert solved == ["https://hanime.tv/videos/x"]
+
+
+def test_http_200_verification_page_is_not_returned_as_hanime_data(monkeypatch):
+    challenge = SimpleNamespace(
+        text="Just a moment...", status_code=200, raise_for_status=lambda: None
+    )
+    solved = []
+    monkeypatch.setattr(extractor.GLOBAL_SESSION, "get", lambda *a, **k: challenge)
+    monkeypatch.setattr(extractor, "solve_captcha", solved.append)
+    monkeypatch.setattr(extractor.time, "sleep", lambda _seconds: None)
+    url = "https://hanime.tv/browse/trending"
+    with pytest.raises(RuntimeError, match="still requires verification"):
+        extractor._request_hanime(url)
+    assert solved == [url]

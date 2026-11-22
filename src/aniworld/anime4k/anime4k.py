@@ -47,7 +47,6 @@ def get_anime4k_urls():
 def download_anime4k(target_dir=None, mode="high"):
     """Download Anime4K GLSL assets only if not already extracted."""
     target_dir = Path(target_dir or ANIWORLD_CONFIG_DIR).expanduser() / "Anime4K"
-    target_dir.mkdir(parents=True, exist_ok=True)
 
     if mode == "remove":
         if target_dir.exists():
@@ -59,6 +58,7 @@ def download_anime4k(target_dir=None, mode="high"):
     if mode not in urls:
         raise ValueError(f"Invalid mode '{mode}'. Use 'high', 'low', or 'remove'.")
 
+    target_dir.mkdir(parents=True, exist_ok=True)
     downloaded_files = []
     url = urls[mode]
     filename = Path(url).name
@@ -203,27 +203,30 @@ def remove_anime4k_lines(file_path):
         logger.debug(f"[REMOVED] Anime4K lines from {file_path}")
 
 
+def _remove_installed_anime4k():
+    mpv_shaders_dir = MPV_CONFIG_DIR / "shaders"
+    if mpv_shaders_dir.exists():
+        for shader in mpv_shaders_dir.iterdir():
+            if shader.is_file() and shader.name.startswith("Anime4K_"):
+                shader.unlink()
+                logger.debug(f"[REMOVED] {shader}")
+        if not any(mpv_shaders_dir.iterdir()):
+            mpv_shaders_dir.rmdir()
+            logger.debug(f"[REMOVED] Empty shaders folder: {mpv_shaders_dir}")
+
+    for conf_name in ("mpv.conf", "input.conf"):
+        remove_anime4k_lines(MPV_CONFIG_DIR / conf_name)
+
+
 def anime4k(mode="high"):
     """Main entry point for Anime4K setup and removal with mode detection."""
-    mpv_shaders_dir = MPV_CONFIG_DIR / "shaders"
 
     if mode not in ("high", "low", "remove"):
         raise ValueError(f"Invalid mode '{mode}'. Use 'high', 'low', or 'remove'.")
 
-    # Remove mode
     if mode == "remove":
-        if mpv_shaders_dir.exists():
-            for shader in mpv_shaders_dir.iterdir():
-                if shader.is_file() and shader.name.startswith("Anime4K_"):
-                    shader.unlink()
-                    logger.debug(f"[REMOVED] {shader}")
-            if not any(mpv_shaders_dir.iterdir()):
-                mpv_shaders_dir.rmdir()
-                logger.debug(f"[REMOVED] Empty shaders folder: {mpv_shaders_dir}")
-
-        for conf_name in ("mpv.conf", "input.conf"):
-            remove_anime4k_lines(MPV_CONFIG_DIR / conf_name)
-
+        _remove_installed_anime4k()
+        download_anime4k(mode="remove")
         logger.debug("Anime4K assets, shaders, and configs removed successfully.")
         return
 
@@ -232,14 +235,12 @@ def anime4k(mode="high"):
     if current_mode == mode:
         logger.debug(f"Anime4K already installed in '{mode}' mode. Skipping setup.")
         return
-    elif current_mode is not None and current_mode != mode:
-        logger.debug(f"Switching Anime4K from '{current_mode}' to '{mode}' mode...")
-        # Remove previous mode first
-        anime4k(mode="remove")
 
-    # Normal setup
     downloaded = download_anime4k(mode=mode)
     extract_anime4k(downloaded)
+    if current_mode is not None:
+        logger.debug(f"Switching Anime4K from '{current_mode}' to '{mode}' mode...")
+        _remove_installed_anime4k()
     setup_anime4k(mode=mode)
     logger.debug(f"Anime4K setup complete in '{mode}' mode.")
 

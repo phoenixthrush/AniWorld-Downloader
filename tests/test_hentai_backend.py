@@ -223,6 +223,60 @@ def test_haven_asks_the_stream_api_when_the_page_has_no_source(monkeypatch):
     assert episode.episode_number == 1
 
 
+def test_haven_stream_url_is_requested_once_until_refreshed(monkeypatch):
+    from aniworld.models.hentaihaven import episode as haven_module
+
+    data = {"videoId": 42, "slug": "Example-2", "indexableSource": "$undefined"}
+    monkeypatch.setattr(
+        episode_module, "get_response", lambda *a, **k: response(flight(data))
+    )
+    posted = []
+
+    def post(url, **kwargs):
+        posted.append(url)
+        source = {"src": f"https://media.example/master.m3u8?hash={len(posted)}"}
+        return response(payload={"data": {"sources": [source]}})
+
+    monkeypatch.setattr(haven_module, "post_response", post)
+    episode = HentaiHavenEpisode(HAVEN)
+    assert episode.stream_url == episode.stream_url
+    assert len(posted) == 1
+    assert episode.refresh_stream_url().endswith("hash=2")
+    assert episode.stream_url.endswith("hash=2")
+    assert len(posted) == 2
+
+
+def test_haven_watch_retry_fetches_a_fresh_stream(monkeypatch, tmp_path):
+    from aniworld.models.common import common
+    from aniworld.models.hentaihaven import episode as haven_module
+
+    data = {"videoId": 42, "slug": "Example-2", "indexableSource": "$undefined"}
+    monkeypatch.setattr(
+        episode_module, "get_response", lambda *a, **k: response(flight(data))
+    )
+    expired = "https://media.example/expired.m3u8"
+    fresh = "https://media.example/fresh.m3u8"
+    sources = iter([expired, fresh])
+    monkeypatch.setattr(
+        haven_module,
+        "post_response",
+        lambda *a, **k: response(
+            payload={"data": {"sources": [{"src": next(sources)}]}}
+        ),
+    )
+    attempts = []
+
+    def play(command, **_kwargs):
+        source = command[1]
+        attempts.append(source)
+        return SimpleNamespace(returncode=1 if source == expired else 0)
+
+    monkeypatch.setattr(common, "get_player_path", lambda: Path("/test/mpv"))
+    monkeypatch.setattr(common.subprocess, "run", play)
+    HentaiHavenEpisode(HAVEN, selected_path=tmp_path).watch()
+    assert attempts == [expired, fresh]
+
+
 def test_haven_series_excludes_recommendations_and_sorts(monkeypatch):
     from aniworld.models.hentaihaven import series as module
 

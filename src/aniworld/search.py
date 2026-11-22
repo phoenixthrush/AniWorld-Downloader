@@ -1813,7 +1813,10 @@ def search(is_aniworld=None):
             return None
 
     while True:
-        keyword = input("\nSearch for a series: ").strip()
+        try:
+            keyword = input("\nSearch for a series: ").strip()
+        except EOFError:
+            return None
         if not keyword:
             logger.error("No keyword entered, aborting search.")
             return None

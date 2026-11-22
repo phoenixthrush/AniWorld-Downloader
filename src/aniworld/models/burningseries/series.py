@@ -284,8 +284,12 @@ class BurningSeriesEpisode(_BSLanguageMixin):
         # URL path: /serie/<slug>/<season>/<epslug>/<lang>
         parts = urlparse(url).path.strip("/").split("/")
         self.__slug = parts[1] if len(parts) > 1 else bs_slug_from_url(url)
-        self.__season_number = season_number or (
-            int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
+        self.__season_number = (
+            season_number
+            if season_number is not None
+            else int(parts[2])
+            if len(parts) > 2 and parts[2].isdigit()
+            else 1
         )
         self.__epslug = parts[3] if len(parts) > 3 else ""
         if episode_number is not None:
@@ -331,7 +335,8 @@ class BurningSeriesEpisode(_BSLanguageMixin):
 
     @property
     def season_number(self):
-        return self.__season_number or 1
+        # Season 0 is burning-series' movies/specials bucket; keep it distinct.
+        return self.__season_number
 
     @property
     def title_de(self):
@@ -523,6 +528,7 @@ class BurningSeriesSeason(_BSLanguageMixin):
         self.season_number = season_number
         self.are_movies = False
         self.__episodes = None
+        self.__episode_rows = {}
 
     @property
     def series(self):
@@ -532,20 +538,22 @@ class BurningSeriesSeason(_BSLanguageMixin):
         return self._series
 
     def _episode_rows(self, lang):
+        if lang in self.__episode_rows:
+            return self.__episode_rows[lang]
         slug = bs_slug_from_url(self.url) or self.series.slug
         try:
             html = bs_get_with_fallback(f"/serie/{slug}/{self.season_number}/{lang}")
         except Exception:
             return []
-        table = re.search(r'<table class="episodes">(.*?)</table>', html, re.DOTALL)
-        if not table:
-            return []
         rows = []
-        for m in re.finditer(
-            rf'<td><a href="(?:https?://{BS_HOST_PATTERN}/|/)?(serie/[^"]+?/(\d+)/([^"/]+)/[a-z]{{2}})"',
-            table.group(1),
-        ):
-            rows.append((m.group(1), int(m.group(2)), m.group(3)))
+        table = re.search(r'<table class="episodes">(.*?)</table>', html, re.DOTALL)
+        if table:
+            for m in re.finditer(
+                rf'<td><a href="(?:https?://{BS_HOST_PATTERN}/|/)?(serie/[^"]+?/(\d+)/([^"/]+)/[a-z]{{2}})"',
+                table.group(1),
+            ):
+                rows.append((m.group(1), int(m.group(2)), m.group(3)))
+        self.__episode_rows[lang] = rows
         return rows
 
     @property
@@ -576,7 +584,10 @@ class BurningSeriesSeason(_BSLanguageMixin):
                         season_number=self.season_number,
                     )
                 )
-            self.__episodes = episodes
+            # Retry a failed language request on the next access.
+            if "de" in self.__episode_rows and lang in self.__episode_rows:
+                self.__episodes = episodes
+            return episodes
         return self.__episodes
 
     @property

@@ -274,7 +274,8 @@ def _build_synthetic_payload(slug, html):
 def _request_hanime(url, *, timeout=20):
     last_error = None
     challenged = False
-    for attempt in range(_HANIME_REQUEST_ATTEMPTS):
+    attempt = 0
+    while attempt < _HANIME_REQUEST_ATTEMPTS:
         try:
             headers = {
                 **_HANIME_HEADERS,
@@ -285,16 +286,19 @@ def _request_hanime(url, *, timeout=20):
             response = GLOBAL_SESSION.get(url, headers=headers, timeout=timeout)
             response.encoding = "utf-8"
             body = response.text or ""
-            if not challenged and is_captcha_page(body, response.status_code):
+            if is_captcha_page(body, response.status_code):
+                if challenged:
+                    raise RuntimeError("Hanime still requires verification")
                 challenged = True
                 solve_captcha(url)
-                continue
+                continue  # solving does not consume an attempt
             response.raise_for_status()
             return response
         except Exception as exc:
             last_error = exc
             if attempt < _HANIME_REQUEST_ATTEMPTS - 1:
                 time.sleep(0.5 * (attempt + 1))
+        attempt += 1
     raise RuntimeError(f"Hanime request failed for {url}: {last_error}") from last_error
 
 

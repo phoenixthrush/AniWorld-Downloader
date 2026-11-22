@@ -419,6 +419,51 @@ def test_aniskip_still_uses_the_season_specific_number(tmp_path, monkeypatch):
     fetch.assert_called_once_with(456, 1)
 
 
+@pytest.mark.parametrize(
+    "mal_id,season_number", [(None, 2), ([], 2), ([123], 2), ([123, 456], 0)]
+)
+def test_aniskip_skips_seasons_without_a_mal_id(
+    tmp_path, monkeypatch, mal_id, season_number
+):
+    episode = make_episode(
+        (AniworldEpisode, "https://aniworld.to/anime/stream/example"),
+        tmp_path,
+        season=SimpleNamespace(season_number=season_number),
+    )
+    episode.series.mal_id = mal_id
+    fetch = Mock()
+    monkeypatch.setattr(aniskip, "get_skip_times", fetch)
+    assert episode.skip_times is None
+    fetch.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "origin",
+    ["http://aniworld.to", "https://www.aniworld.to", "HTTP://WWW.ANIWORLD.TO"],
+)
+def test_aniworld_aliases_share_canonical_urls(origin):
+    from aniworld.providers import normalize_url
+
+    base = "https://aniworld.to/anime/stream/staffel-9"
+    alias = f"{origin}/anime/stream/Staffel-9"
+    url = f"{alias}/staffel-2/episode-1/"
+    episode = AniworldEpisode(url)
+    assert episode.url == normalize_url(url) == f"{base}/staffel-2/episode-1"
+    assert episode.is_movie is False
+    assert episode.season.url == f"{base}/staffel-2"
+    assert episode.season.season_number == 2
+    assert episode.series.url == base
+    assert episode.season.series.url == base
+
+    movie = AniworldEpisode(f"{alias}/Filme/Film-1/")
+    assert movie.is_movie is True
+    assert movie.season.url == f"{base}/filme"
+    assert movie.season.are_movies is True
+    films = AniworldSeason(f"{origin}/anime/stream/filme-im-kino/filme/")
+    assert films.season_number == 0
+    assert films.series.url == "https://aniworld.to/anime/stream/filme-im-kino"
+
+
 def test_four_digit_numbers_work_through_detection_library_and_deletion(episode_file):
     kept = episode_file("Example", 2, 110)
     removed = episode_file("Example", 2, 1100)

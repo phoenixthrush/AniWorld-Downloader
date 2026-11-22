@@ -6,6 +6,7 @@ from enum import Enum
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from urllib.error import URLError
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 import certifi
@@ -411,6 +412,13 @@ ANIWORLD_EPISODE_PATTERN = re.compile(
     r"/?$",
     re.IGNORECASE,
 )
+
+
+def normalize_aniworld_url(url: str) -> str:
+    """Canonical spelling of a validated AniWorld series, season, or episode URL."""
+    path = urlsplit(url.strip()).path.rstrip("/").lower()
+    return f"https://aniworld.to{path}"
+
 
 HANIME_TV_SERIES_PATTERN = re.compile(
     r"^https?://(?:www\.)?hanime\.tv/"

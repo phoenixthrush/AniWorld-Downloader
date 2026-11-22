@@ -2,6 +2,7 @@ import os
 import re
 from html import unescape
 from pathlib import Path
+from urllib.parse import urlparse
 
 try:
     from ...config import (
@@ -25,6 +26,7 @@ try:
         watch as episode_watch,
     )
     from ..common.extraction import resolve_stream_url
+    from ..common.http import get_html
     from ..common.paths import resolve_download_path
     from ..common.provider_map import host_to_provider
 except ImportError:
@@ -53,6 +55,7 @@ except ImportError:
         watch as episode_watch,
     )
     from aniworld.models.common.extraction import resolve_stream_url
+    from aniworld.models.common.http import get_html
     from aniworld.models.common.paths import resolve_download_path
     from aniworld.models.common.provider_map import host_to_provider
 
@@ -314,7 +317,7 @@ class FilmPalastEpisode:
     @property
     def provider_url(self):
         if self.__provider_url is None:
-            self.__provider_url = GLOBAL_SESSION.get(self.redirect_url).url
+            self.__provider_url = GLOBAL_SESSION.get(self.redirect_url, timeout=30).url
         return self.__provider_url
 
     @property
@@ -387,14 +390,9 @@ class FilmPalastEpisode:
             logger.debug(f"fetching ({self.url})...")
             # gzip/deflate only — filmpalast serves Brotli, which niquests
             # can't decode without the optional brotli package.
-            resp = GLOBAL_SESSION.get(
-                self.url,
-                headers={
-                    "Accept-Encoding": "gzip, deflate",
-                    "Referer": "https://filmpalast.to/",
-                },
+            self.__html = get_html(
+                self.url, headers={"Referer": "https://filmpalast.to/"}
             )
-            self.__html = resp.text
         return self.__html
 
     # -----------------------------
@@ -484,8 +482,17 @@ class FilmPalastEpisode:
 
     @property
     def _is_english(self):
-        haystack = f"{self.url} {self.__title_de or ''}".lower()
-        return "-english" in haystack or "english" in haystack
+        title = (self.title_de or "").casefold()
+        label = r"\s*(?:english|englisch)\s*"
+        if re.search(rf"(?:\({label}\)|\[{label}\]|\*{label}\*|\s[-–]{label})$", title):
+            return True
+
+        # A suffix added to the URL can indicate a language. A word already
+        # present in the title may just be part of the name (Johnny English).
+        suffix = re.search(
+            r"-(english|englisch)/?$", urlparse(self.url).path.casefold()
+        )
+        return bool(suffix and not re.search(rf"\b{suffix[1]}\b", title))
 
     def _normalize_language(self, language):
         """FilmPalast pages are single-language; accept the dub labels."""

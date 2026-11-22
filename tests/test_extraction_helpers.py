@@ -262,3 +262,51 @@ def test_packed_player_preserves_unknown_or_empty_tokens():
 def test_filemoon_legacy_packed_player_uses_the_shared_unpacker():
     html = """eval(function(p,a,c,k,e,d){return p;}('0:[{1:"2"}]',36,3,'sources|file|https://media.example/video.m3u8'.split('|')))"""
     assert filemoon._try_extract_from_html(html) == "https://media.example/video.m3u8"
+
+
+def test_vidoza_and_megakino_raise_when_no_stream_is_found(monkeypatch):
+    from aniworld.extractors.provider import megakino, vidoza
+
+    page = SimpleNamespace(text="<html></html>", raise_for_status=lambda: None)
+    monkeypatch.setattr(vidoza.GLOBAL_SESSION, "get", lambda *a, **k: page)
+    monkeypatch.setattr(megakino, "_fetch_megakino_player_page", lambda *a, **k: "")
+    with pytest.raises(ValueError):
+        vidoza.get_direct_link_from_vidoza("https://videzz.net/embed-x.html")
+    with pytest.raises(ValueError):
+        megakino.get_direct_link_from_megakino("https://megakino.example/x")
+
+
+@pytest.mark.parametrize(
+    "slug,title,english",
+    [
+        ("example", "Example (English)", True),
+        ("bastille-day-englisch", "Bastille Day *ENGLISCH*", True),
+        ("example-english", "Example", True),
+        ("johnny-english", "Johnny English", False),
+        (
+            "johnny-english-man-lebt-nur-dreimal",
+            "Johnny English - Man lebt nur dreimal",
+            False,
+        ),
+    ],
+)
+def test_filmpalast_language_does_not_depend_on_title_access_order(
+    slug, title, english
+):
+    movie = FilmPalastEpisode(f"https://filmpalast.to/stream/{slug}")
+    movie._FilmPalastEpisode__html = f'<em itemprop="name">{title}</em>'
+    assert movie._is_english is english
+    assert movie.title_de == title
+    assert movie._is_english is english
+
+
+def test_filmpalast_challenge_page_is_not_parsed(monkeypatch):
+    from aniworld.models.common import http
+
+    page = SimpleNamespace(
+        text="Just a moment...", status_code=200, raise_for_status=lambda: None
+    )
+    monkeypatch.setattr(http.GLOBAL_SESSION, "get", lambda *a, **k: page)
+    movie = FilmPalastEpisode("https://filmpalast.to/stream/example")
+    with pytest.raises(http.CaptchaRequired):
+        _ = movie.title_de

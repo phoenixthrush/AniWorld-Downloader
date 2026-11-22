@@ -1,7 +1,12 @@
 import re
 from html import unescape
 
-from ...config import ANIWORLD_SERIES_PATTERN, GLOBAL_SESSION, logger
+from ...config import (
+    ANIWORLD_SERIES_PATTERN,
+    GLOBAL_SESSION,
+    logger,
+    normalize_aniworld_url,
+)
 from ..common import clean_title
 from .season import AniworldSeason
 
@@ -45,7 +50,7 @@ class AniworldSeries:
         if not self.is_valid_aniworld_series_url(url):
             raise ValueError(f"Invalid AniWorld series URL: {url}")
 
-        self.url = url
+        self.url = normalize_aniworld_url(url)
 
         # Extracted from self.html
         self.__title = None
@@ -81,7 +86,9 @@ class AniworldSeries:
     def is_valid_aniworld_series_url(url):
         """Checks if the URL is a valid AniWorld series URL."""
 
-        return bool(ANIWORLD_SERIES_PATTERN.match(url))
+        return isinstance(url, str) and bool(
+            ANIWORLD_SERIES_PATTERN.fullmatch(url.strip())
+        )
 
     # -----------------------------
     # PUBLIC PROPERTIES (lazy load)

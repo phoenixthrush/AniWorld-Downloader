@@ -47,10 +47,11 @@ def __random_block(blocks, fallback):
 
 
 def display_ascii_art():
-    """Return a random ASCII art string appropriate for the system."""
+    """Print a random ASCII art string appropriate for the system."""
     blocks = __parse_ascii_blocks()
     if platform.system() == "Windows" and __is_windows_legacy():
-        return __random_block(blocks["banner"], fallback=blocks["all"])
+        print(__random_block(blocks["banner"], fallback=blocks["all"]), flush=True)
+        return
     print(__random_block(blocks["art"], fallback=blocks["all"]), flush=True)
 
 
@@ -67,4 +68,4 @@ def display_traceback_art():
 
 
 if __name__ == "__main__":
-    print(display_ascii_art())
+    display_ascii_art()
