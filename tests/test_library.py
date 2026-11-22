@@ -269,6 +269,70 @@ def test_delete_refuses_traversal(folder):
         library.delete(folder)
 
 
+@pytest.mark.parametrize("folder", [".", "german-dub", "english-sub"])
+def test_delete_never_removes_the_root_or_a_language_folder(
+    folder, episode_file, downloads
+):
+    episode_file("Naruto", 1, 1)
+    (downloads / "german-dub").mkdir(exist_ok=True)
+    with pytest.raises(library.LibraryError):
+        library.delete(folder)
+    assert (downloads / "Naruto").exists()
+    assert (downloads / "german-dub").exists()
+
+
+def test_delete_protects_language_folders_under_a_language_named_root(
+    episode_file, tmp_path
+):
+    root = tmp_path / "german-dub"
+    kept = episode_file("Naruto", 1, 1, base=root / "english-sub")
+    path_id = db.add_custom_path("Other", str(root))
+
+    with pytest.raises(library.LibraryError, match="Invalid folder name"):
+        library.delete("english-sub", custom_path_id=path_id)
+    assert kept.is_file()
+
+
+def test_delete_refuses_alternate_case_for_a_language_folder(episode_file, downloads):
+    kept = episode_file("Naruto", 1, 1, base=downloads / "german-dub")
+    alias = downloads / "German-Dub"
+    error = "Invalid folder name" if alias.is_dir() else "Nothing found to delete"
+
+    with pytest.raises(library.LibraryError, match=error):
+        library.delete(alias.name)
+    assert kept.is_file()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlinks need extra rights on Windows")
+def test_episode_delete_refuses_a_symlink_to_a_language_folder(
+    episode_file, downloads, monkeypatch
+):
+    language = downloads / "german-dub"
+    kept = episode_file("Naruto", 1, 1, base=language)
+    alias = downloads / "Shortcut"
+    alias.symlink_to(language, target_is_directory=True)
+
+    def reject_unlink(*args, **kwargs):
+        pytest.fail("A file in the language folder was selected for deletion")
+
+    monkeypatch.setattr(type(kept), "unlink", reject_unlink)
+    with pytest.raises(library.LibraryError, match="Invalid folder name"):
+        library.delete(alias.name, season=1, episode=1)
+    assert kept.is_file()
+
+
+def test_title_with_a_language_folder_name_can_be_deleted_inside_a_location(
+    episode_file, downloads
+):
+    language = downloads / "german-dub"
+    kept = episode_file("Naruto", 1, 1, base=language)
+    removed = episode_file("english-sub", 1, 1, base=language)
+
+    assert library.delete("english-sub", lang_folder="german-dub") == 1
+    assert kept.is_file()
+    assert not removed.exists()
+
+
 def test_deleting_from_a_custom_path(episode_file, tmp_path):
     other = tmp_path / "other"
     other.mkdir()
