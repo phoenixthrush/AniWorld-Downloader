@@ -522,6 +522,27 @@ class DownloadCancelled(Exception):
     """Raised when we killed the download ourselves, not when it failed."""
 
 
+def _download_queue_id():
+    from ...playwright.captcha import _local
+
+    return getattr(_local, "queue_id", None)
+
+
+def _force_cancel_requested(queue_id=None):
+    """Whether the web queue force-cancelled this download."""
+    try:
+        if queue_id is None:
+            queue_id = _download_queue_id()
+        if queue_id is None:
+            return False
+
+        from ...web.db import is_queue_force_cancelled
+
+        return is_queue_force_cancelled(queue_id)
+    except Exception:
+        return False
+
+
 def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
     """Run an ffmpeg node and stream its progress output cleanly.
 
@@ -692,18 +713,11 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
                     process.kill()
                     break
 
-                try:
-                    from ...playwright.captcha import _local
-                    from ...web.db import is_queue_force_cancelled
-
-                    qid = getattr(_local, "queue_id", None)
-                    if qid is not None and is_queue_force_cancelled(qid):
-                        logger.info("[FFmpeg] Force cancel requested, stopping.")
-                        cancelled = True
-                        process.kill()
-                        break
-                except Exception:
-                    pass
+                if _force_cancel_requested():
+                    logger.info("[FFmpeg] Force cancel requested, stopping.")
+                    cancelled = True
+                    process.kill()
+                    break
             elif line_str:
                 # Try to capture total duration from ffmpeg header
                 if total_duration == 0.0:
@@ -848,6 +862,8 @@ def _download_direct_http(episode_path, stream_url, file_name):
             for chunk in resp.iter_content(chunk_size=1024 * 1024):
                 f.write(chunk)
                 downloaded += len(chunk)
+                if _force_cancel_requested():
+                    raise DownloadCancelled("Download cancelled")
 
                 if total:
                     pct = downloaded / total * 100
@@ -1005,6 +1021,8 @@ def download_hanime(self):
                 owner=self,
             )
             return
+        except DownloadCancelled:
+            raise
         except Exception as exc:
             last_error = exc
             if attempt < 3:
@@ -1069,8 +1087,10 @@ def _hls_uris(playlist, base_url):
     ]
 
 
-def _download_hls_manual(m3u8_url, headers, temp_ts, label=""):
-    """Fetch an HLS media playlist's segments over plain HTTP into `temp_ts`.
+def _download_hls_manual(
+    m3u8_url, headers, temp_ts, label="", preferred_audio_lang=None
+):
+    """Fetch HLS segments over HTTP and return the video and optional audio paths.
 
     Some hosters disguise their segments with non-media extensions
     (`.jpg`, `.css`, `.txt`) served from rotating hosts. Strict FFmpeg builds
@@ -1092,12 +1112,38 @@ def _download_hls_manual(m3u8_url, headers, temp_ts, label=""):
     if "#EXTM3U" not in playlist:
         raise _HLSManualUnsupported("not an m3u8 playlist")
 
-    # Master playlist → follow the last (usually highest-quality) variant.
+    # Master playlist → follow the highest-bandwidth variant, as hls.py does.
     if "#EXT-X-STREAM-INF" in playlist:
-        variants = _hls_uris(playlist, m3u8_url)
+        from .hls import (
+            HLSUnsupported,
+            _best_variant,
+            _default_headers,
+            _download_hls_playlists,
+            _parse_master_playlist,
+            _select_audio_rendition,
+        )
+
+        variants, renditions = _parse_master_playlist(playlist, m3u8_url)
         if not variants:
             raise _HLSManualUnsupported("master playlist with no variants")
-        m3u8_url = variants[-1]
+        variant = _best_variant(variants)
+        audio = _select_audio_rendition(
+            renditions, variant.audio_group, preferred_audio_lang
+        )
+        if audio is not None:
+            try:
+                video_path, audio_path = _download_hls_playlists(
+                    variant.uri,
+                    audio.uri,
+                    temp_ts,
+                    _default_headers(req_headers),
+                    label,
+                )
+            except HLSUnsupported as exc:
+                raise _HLSManualUnsupported(str(exc)) from exc
+            return video_path, audio_path
+
+        m3u8_url = variant.uri
         resp = session.get(m3u8_url, headers=req_headers, timeout=30)
         resp.raise_for_status()
         playlist = resp.text
@@ -1137,6 +1183,8 @@ def _download_hls_manual(m3u8_url, headers, temp_ts, label=""):
         with open(temp_ts, "wb") as out:
             for index, seg_url in enumerate(segments, start=1):
                 out.write(_fetch_hls_segment(session, seg_url, req_headers, seg_hosts))
+                if _force_cancel_requested():
+                    raise DownloadCancelled("Download cancelled")
                 percent = round(index / total * 100, 1)
                 with _ffmpeg_progress_lock:
                     _ffmpeg_progress.update(
@@ -1157,6 +1205,7 @@ def _download_hls_manual(m3u8_url, headers, temp_ts, label=""):
             _ffmpeg_progress.update(
                 percent=0.0, time="", speed="", bandwidth="", active=False
             )
+    return temp_ts, None
 
 
 def _hls_rendition_download(stream_url, temp_prefix, headers, audio_code, ep_label):
@@ -1206,15 +1255,26 @@ def _download_full_stream(
     normal/encrypted playlists, which then take the FFmpeg path.
     """
     if ".m3u8" in stream_url.split("?", 1)[0].lower():
+        from .hls import cleanup_temp_files
+
         temp_ts = temp_full.with_suffix(".seg.ts")
         try:
-            _download_hls_manual(stream_url, headers, temp_ts, ep_label)
+            video_path, audio_path = _download_hls_manual(
+                stream_url, headers, temp_ts, ep_label, preferred_audio_lang=audio_code
+            )
         except _HLSManualUnsupported as exc:
             logger.debug(f"[HLS] manual fetch not used ({exc}); using FFmpeg")
         else:
             try:
+                video = ffmpeg.input(str(video_path))
+                inputs = (
+                    (video.video, ffmpeg.input(str(audio_path)).audio)
+                    if audio_path is not None
+                    else (video,)
+                )
                 _run_ffmpeg_with_progress(
-                    ffmpeg.input(str(temp_ts)).output(
+                    ffmpeg.output(
+                        *inputs,
                         str(temp_full),
                         vcodec=video_codec,
                         acodec="copy",
@@ -1225,6 +1285,8 @@ def _download_full_stream(
                 return
             finally:
                 temp_ts.unlink(missing_ok=True)
+                if audio_path is not None:
+                    cleanup_temp_files(temp_ts)
 
     _run_ffmpeg_with_progress(
         ffmpeg.input(stream_url, **input_kwargs).output(
