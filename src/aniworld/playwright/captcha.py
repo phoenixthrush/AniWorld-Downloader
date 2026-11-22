@@ -66,6 +66,20 @@ _WIDGETS_JS = """() => {
         widgets.push({kind: 'altcha', ready: widget.getState?.() === 'verified' ||
             Boolean(payload?.value)});
     }
+    // S.to activates verification areas before their widgets mount. The
+    // inline display flag tracks activation even with Bootstrap's d-flex.
+    const modal = document.querySelector('#playerPrepareModal');
+    const modalWidgets = {
+        turnstile: '.cf-turnstile, [name="cf-turnstile-response"], iframe[src*="cloudflare.com"]',
+        altcha: 'altcha-widget'
+    };
+    for (const [kind, selector] of Object.entries(modalWidgets)) {
+        const area = modal?.querySelector(`#player-prepare-${kind}`);
+        if (area && !area.hidden && area.style.display !== 'none' &&
+                area.getClientRects().length && !area.querySelector(selector)) {
+            widgets.push({kind, ready: false, pending: true});
+        }
+    }
     return widgets;
 }"""
 
@@ -143,11 +157,8 @@ def _is_captcha_page_dom(page) -> bool:
 class _ChallengeSolver:
     """Click checkbox widgets and leave image challenges available to the user."""
 
-    def __init__(self, optional=()):
+    def __init__(self):
         self.clicked = {}
-        # Optional widgets are still clicked but never block submitting, and
-        # never count as the widget that makes a page ready on their own.
-        self.optional = frozenset(optional)
 
     def ready_to_submit(self, page) -> bool:
         manual = os.getenv("ANIWORLD_CAPTCHA_MANUAL", "0").strip() == "1"
@@ -157,6 +168,8 @@ class _ChallengeSolver:
                 current = _widgets(frame)
                 widgets.extend(current)
                 for widget in current:
+                    if widget.get("pending"):
+                        continue
                     kind = widget["kind"]
                     key = (frame, kind)
                     if widget["ready"]:
@@ -230,9 +243,7 @@ class _ChallengeSolver:
             except Error as exc:
                 logger.debug("CAPTCHA widget changed during inspection: %s", exc)
                 return False
-        return any(w["kind"] not in self.optional for w in widgets) and all(
-            w["ready"] or w["kind"] in self.optional for w in widgets
-        )
+        return bool(widgets) and all(widget["ready"] for widget in widgets)
 
 
 class _BrowserHandle:
@@ -505,7 +516,7 @@ def _click_submit_button(page):
     return False
 
 
-def _solve(url, prepare=None, timeout=300, optional_widgets=()):
+def _solve(url, prepare=None, timeout=300):
     timeout = _captcha_timeout(timeout)
     with (
         _solving(url) as session,
@@ -525,7 +536,7 @@ def _solve(url, prepare=None, timeout=300, optional_widgets=()):
         if prepare:
             prepare(page)
         deadline = time.monotonic() + timeout
-        solver = _ChallengeSolver(optional=optional_widgets)
+        solver = _ChallengeSolver()
         while time.monotonic() < deadline:
             if session:
                 session.update(page)
@@ -538,11 +549,23 @@ def _solve(url, prepare=None, timeout=300, optional_widgets=()):
                     session.result_url = result
                 return result
             try:
+                if prepare and challenge_submitted:
+                    # The modal can start another verification after a submission.
+                    challenge_submitted = not any(
+                        not widget["ready"]
+                        for frame in page.frames
+                        for widget in _widgets(frame)
+                    )
+                initial_continue = (
+                    prepare is not None
+                    and not submitted
+                    and not _is_captcha_page_dom(page)
+                )
                 ready = False
-                if not challenge_submitted and (not prepare or submitted):
+                if not challenge_submitted and not initial_continue:
                     clicking_widget = True
                     ready = solver.ready_to_submit(page)
-                if (prepare and not submitted) or ready:
+                if initial_continue or ready:
                     clicking_widget = False
                     existing_frames = {frame.url for frame in page.frames}
                     # A popup may open synchronously inside the click handler.
@@ -567,7 +590,7 @@ def solve_captcha(url: str):
 
 
 def solve_sto_modal(episode_url, provider_name, language_label, redirect_url=None):
-    """Try S.to's Weiter first, then solve widgets if the player stays blocked."""
+    """Open S.to's player modal and wait for any active verification."""
 
     def prepare(page):
         clicked = page.evaluate(
@@ -593,11 +616,7 @@ def solve_sto_modal(episode_url, provider_name, language_label, redirect_url=Non
                 f"S.to player button not found for {provider_name} ({language_label})"
             )
 
-    # S.to accepts Weiter even when Cloudflare Turnstile is unsolved, so a
-    # failed Turnstile must not block it. ALTCHA still has to be solved.
-    return _solve(
-        episode_url, prepare=prepare, timeout=90, optional_widgets=("turnstile",)
-    )
+    return _solve(episode_url, prepare=prepare, timeout=90)
 
 
 def playwright_get_page_url(url: str) -> str:
