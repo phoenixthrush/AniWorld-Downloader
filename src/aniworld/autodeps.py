@@ -3,6 +3,8 @@ import platform
 import shutil
 import subprocess
 import sys
+import tempfile
+import threading
 import zipfile
 from pathlib import Path
 
@@ -547,41 +549,84 @@ def ensure_patchright_chromium():
         _log.warning(f"patchright chromium install failed: {e}")
 
 
+_ublock_lock = threading.Lock()
+
+
 def ensure_ublock_lite() -> str | None:
     """Return the unpacked uBlock Origin Lite folder unless ANIWORLD_UBLOCK=0."""
     if os.getenv("ANIWORLD_UBLOCK", "1").strip() != "1":
         return None
     _log = get_logger(__name__)
     target = Path(ANIWORLD_CONFIG_DIR).expanduser().resolve() / "ublock-lite"
+    manifest = target / "manifest.json"
     # shortcut: an installed copy never auto-updates, delete the folder to update.
-    if (target / "manifest.json").is_file():
+    if manifest.is_file():
         return str(target)
     if auto_install_disabled():
         _log.debug("ANIWORLD_NO_AUTO_INSTALL=1 — skipping uBlock Origin Lite setup")
         return None
 
+    # Browsers can start in parallel; only one thread downloads.
+    with _ublock_lock:
+        if manifest.is_file():
+            return str(target)
+        staging = None
+        try:
+            url = fetch_github_asset_urls(
+                "uBlockOrigin/uBOL-home", r"uBOLite_[\d.]+\.chromium\.zip$"
+            )[0]
+            target.parent.mkdir(parents=True, exist_ok=True)
+            # A unique folder per attempt, so another process cannot clobber it.
+            staging = Path(tempfile.mkdtemp(prefix="ublock-lite.", dir=target.parent))
+            archive = staging / "ublock-lite.zip"
+            # A timeout, so a stalled download cannot block every launch on the lock.
+            resp = GLOBAL_SESSION.get(url, stream=True, timeout=60)
+            resp.raise_for_status()
+            with open(archive, "wb") as f:
+                f.writelines(resp.iter_content(chunk_size=8192))
+            with zipfile.ZipFile(archive) as zf:
+                zf.extractall(staging / "extension")
+            # Installs appear only via rename, so a folder without manifest is broken.
+            if target.exists() and not manifest.is_file():
+                shutil.rmtree(target, ignore_errors=True)
+            # Rename last so a half-extracted folder never counts as installed.
+            (staging / "extension").rename(target)
+            return str(target)
+        except Exception as e:
+            # Another process may have finished the same install first.
+            if manifest.is_file():
+                return str(target)
+            _log.warning(f"uBlock Origin Lite setup failed: {e}")
+            return None
+        finally:
+            if staging:
+                shutil.rmtree(staging, ignore_errors=True)
+
+
+def launch_ublock_context(chromium, extension, **options):
+    """Launch a throwaway-profile context with uBlock; return (context, close)."""
+    # Extensions need a persistent context; a fresh profile keeps nothing.
+    user_data_dir = tempfile.mkdtemp(prefix="aniworld-chromium-")
+    args = [
+        *options.pop("args", ()),
+        f"--disable-extensions-except={extension}",
+        f"--load-extension={extension}",
+    ]
     try:
-        url = fetch_github_asset_urls(
-            "uBlockOrigin/uBOL-home", r"uBOLite_[\d.]+\.chromium\.zip$"
-        )[0]
-        target.parent.mkdir(parents=True, exist_ok=True)
-        archive = target.parent / Path(url).name
-        staging = target.with_name("ublock-lite.tmp")
-        resp = GLOBAL_SESSION.get(url, stream=True)
-        resp.raise_for_status()
-        with open(archive, "wb") as f:
-            f.writelines(resp.iter_content(chunk_size=8192))
-        shutil.rmtree(staging, ignore_errors=True)
-        with zipfile.ZipFile(archive) as zf:
-            zf.extractall(staging)
-        archive.unlink()
-        # Rename last so a half-extracted folder never counts as installed.
-        shutil.rmtree(target, ignore_errors=True)
-        staging.rename(target)
-        return str(target)
-    except Exception as e:
-        _log.warning(f"uBlock Origin Lite setup failed: {e}")
-        return None
+        context = chromium.launch_persistent_context(
+            user_data_dir, args=args, **options
+        )
+    except Exception:
+        shutil.rmtree(user_data_dir, ignore_errors=True)
+        raise
+
+    def close():
+        try:
+            context.close()
+        finally:
+            shutil.rmtree(user_data_dir, ignore_errors=True)
+
+    return context, close
 
 
 if __name__ == "__main__":

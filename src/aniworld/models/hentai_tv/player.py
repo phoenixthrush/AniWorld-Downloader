@@ -4,8 +4,6 @@ import base64
 import hashlib
 import json
 import re
-import shutil
-import tempfile
 import time
 from html.parser import HTMLParser
 from pathlib import Path
@@ -157,7 +155,11 @@ def resolve_stream_url(player_url, timeout=45):
 def _resolve_browser(player_url, timeout):
     from patchright.sync_api import sync_playwright
 
-    from ...autodeps import ensure_patchright_chromium, ensure_ublock_lite
+    from ...autodeps import (
+        ensure_patchright_chromium,
+        ensure_ublock_lite,
+        launch_ublock_context,
+    )
 
     ensure_patchright_chromium()
     extension = ensure_ublock_lite()
@@ -169,27 +171,18 @@ def _resolve_browser(player_url, timeout):
                 "Run 'python -m patchright install chromium', then try again."
             )
         # Use full Chromium: a separate headless-shell installation isn't needed.
-        user_data_dir = None
         if extension:
-            # Extensions need a persistent context; a fresh profile keeps nothing.
-            user_data_dir = tempfile.mkdtemp(prefix="aniworld-chromium-")
-            try:
-                browser = playwright.chromium.launch_persistent_context(
-                    user_data_dir,
-                    headless=True,
-                    executable_path=executable,
-                    args=[
-                        f"--disable-extensions-except={extension}",
-                        f"--load-extension={extension}",
-                    ],
-                )
-            except Exception:
-                shutil.rmtree(user_data_dir, ignore_errors=True)
-                raise
+            browser, close = launch_ublock_context(
+                playwright.chromium,
+                extension,
+                headless=True,
+                executable_path=executable,
+            )
         else:
             browser = playwright.chromium.launch(
                 headless=True, executable_path=executable
             )
+            close = browser.close
         try:
             page = browser.new_page()
             page.goto(player_url, wait_until="domcontentloaded", timeout=timeout * 1000)
@@ -215,6 +208,4 @@ def _resolve_browser(player_url, timeout):
                 page.wait_for_timeout(250)
             raise RuntimeError("Timed out waiting for the hentai.tv media URL")
         finally:
-            browser.close()
-            if user_data_dir:
-                shutil.rmtree(user_data_dir, ignore_errors=True)
+            close()

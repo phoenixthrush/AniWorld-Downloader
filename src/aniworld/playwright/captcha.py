@@ -3,8 +3,6 @@
 import os
 import queue
 import random
-import shutil
-import tempfile
 import threading
 import time
 from contextlib import contextmanager
@@ -296,19 +294,9 @@ class _ChallengeSolver:
 
 
 class _BrowserHandle:
-    def __init__(self, browser, context, user_data_dir=None):
-        self.browser = browser
+    def __init__(self, context, close):
         self.context = context
-        self.user_data_dir = user_data_dir
-
-    def close(self):
-        if self.browser is None:
-            try:
-                self.context.close()
-            finally:
-                shutil.rmtree(self.user_data_dir, ignore_errors=True)
-        else:
-            self.browser.close()
+        self.close = close
 
 
 def _launch_browser_context(runtime, offscreen=False):
@@ -324,31 +312,26 @@ def _launch_browser_context(runtime, offscreen=False):
     args = ["--disable-dev-shm-usage"]
     if offscreen:
         args.append("--window-position=-32000,-32000")
-    from ..autodeps import ensure_ublock_lite
+    from ..autodeps import ensure_ublock_lite, launch_ublock_context
 
     extension = ensure_ublock_lite()
     if extension:
-        # Extensions need a persistent context; a fresh profile keeps nothing between runs.
-        user_data_dir = tempfile.mkdtemp(prefix="aniworld-chromium-")
-        args += [
-            f"--disable-extensions-except={extension}",
-            f"--load-extension={extension}",
-        ]
-        try:
-            context = runtime.chromium.launch_persistent_context(
-                user_data_dir, headless=False, args=args, no_viewport=True
+        return _BrowserHandle(
+            *launch_ublock_context(
+                runtime.chromium,
+                extension,
+                headless=False,
+                args=args,
+                no_viewport=True,
             )
-        except Exception:
-            shutil.rmtree(user_data_dir, ignore_errors=True)
-            raise
-        return _BrowserHandle(None, context, user_data_dir)
+        )
     browser = runtime.chromium.launch(headless=False, args=args)
     try:
         context = browser.new_context(no_viewport=True)
     except Exception:
         browser.close()
         raise
-    return _BrowserHandle(browser, context)
+    return _BrowserHandle(context, browser.close)
 
 
 def _sync_session_user_agent(page):
