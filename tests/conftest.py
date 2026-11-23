@@ -82,8 +82,6 @@ def clean_env(monkeypatch, tmp_path):
         if key.startswith(_OWNED_PREFIXES):
             monkeypatch.delenv(key, raising=False)
     monkeypatch.setenv("ANIWORLD_INSTALL_FOLDER", str(_SANDBOX / "config"))
-    # uBlock is on by default; keep browser tests off the GitHub download path.
-    monkeypatch.setenv("ANIWORLD_UBLOCK", "0")
 
     downloads = tmp_path / "downloads"
     downloads.mkdir()

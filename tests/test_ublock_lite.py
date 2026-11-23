@@ -1,4 +1,4 @@
-"""uBlock Origin Lite is on by default and never needs the network once installed."""
+"""uBlock Origin Lite is opt-in and never needs the network once installed."""
 
 import threading
 import zipfile
@@ -18,16 +18,14 @@ def no_fetch(monkeypatch):
     return fetch
 
 
-def test_ublock_can_be_disabled(monkeypatch, no_fetch):
-    monkeypatch.setenv("ANIWORLD_UBLOCK", "0")
+def test_ublock_is_off_by_default(monkeypatch, no_fetch):
+    monkeypatch.delenv("ANIWORLD_UBLOCK", raising=False)
     assert autodeps.ensure_ublock_lite() is None
     no_fetch.assert_not_called()
 
 
-def test_ublock_is_on_by_default_and_uses_installed_copy(
-    tmp_path, monkeypatch, no_fetch
-):
-    monkeypatch.delenv("ANIWORLD_UBLOCK", raising=False)
+def test_ublock_uses_installed_copy(tmp_path, monkeypatch, no_fetch):
+    monkeypatch.setenv("ANIWORLD_UBLOCK", "1")
     monkeypatch.setattr(autodeps, "ANIWORLD_CONFIG_DIR", tmp_path)
     extension = tmp_path / "ublock-lite"
     extension.mkdir()

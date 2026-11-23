@@ -553,8 +553,8 @@ _ublock_lock = threading.Lock()
 
 
 def ensure_ublock_lite() -> str | None:
-    """Return the unpacked uBlock Origin Lite folder unless ANIWORLD_UBLOCK=0."""
-    if os.getenv("ANIWORLD_UBLOCK", "1").strip() != "1":
+    """Return the unpacked uBlock Origin Lite folder when ANIWORLD_UBLOCK=1."""
+    if os.getenv("ANIWORLD_UBLOCK", "0").strip() != "1":
         return None
     _log = get_logger(__name__)
     target = Path(ANIWORLD_CONFIG_DIR).expanduser().resolve() / "ublock-lite"
