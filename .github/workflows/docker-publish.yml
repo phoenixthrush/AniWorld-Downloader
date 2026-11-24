@@ -41,9 +41,7 @@ jobs:
       # Install the cosign tool
       # https://github.com/sigstore/cosign-installer
       - name: Install cosign
-        uses: sigstore/cosign-installer@v4.1.2
-        with:
-          cosign-release: 'v3.0.6'
+        uses: sigstore/cosign-installer@v4.1.4
 
       # Add QEMU for multi-platform support (REQUIRED for ARM builds on x64 runners)
       - name: Set up QEMU
@@ -95,8 +93,8 @@ jobs:
         if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.push == true) }}
         env:
           # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
-          TAGS: ${{ steps.meta.outputs.tags }}
+          IMAGE_TAG: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
-        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+        run: cosign sign --yes "${IMAGE_TAG%:*}@${DIGEST}"
