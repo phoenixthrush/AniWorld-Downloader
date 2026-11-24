@@ -671,9 +671,15 @@ def install_ublock_lite() -> str | None:
             if _ublock_installed(target):
                 return str(target)
 
-            url = fetch_github_asset_urls(
+            urls = fetch_github_asset_urls(
                 "uBlockOrigin/uBOL-home", r"uBOLite_[\d.]+\.chromium\.zip$"
-            )[0]
+            )
+            if not urls:
+                raise ValueError(
+                    "the latest uBlockOrigin/uBOL-home release has no Chromium ZIP "
+                    "(uBOLite_*.chromium.zip)"
+                )
+            url = urls[0]
             with tempfile.TemporaryDirectory(
                 prefix="ublock-lite.", dir=target.parent
             ) as temp:

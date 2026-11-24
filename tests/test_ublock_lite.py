@@ -35,6 +35,7 @@ def test_ublock_uses_installed_copy(tmp_path, monkeypatch, no_fetch):
     extension.mkdir()
     (extension / "manifest.json").write_text(MANIFEST)
     assert autodeps.ensure_ublock_lite() == str(extension.resolve())
+    no_fetch.assert_not_called()
 
 
 def test_ublock_respects_no_auto_install(tmp_path, monkeypatch, no_fetch):
@@ -43,6 +44,7 @@ def test_ublock_respects_no_auto_install(tmp_path, monkeypatch, no_fetch):
     monkeypatch.setattr(autodeps, "ANIWORLD_CONFIG_DIR", tmp_path)
     assert autodeps.ensure_ublock_lite() is None
     assert not (tmp_path / "ublock-lite").exists()
+    no_fetch.assert_not_called()
 
 
 def test_docker_copy_is_available_with_empty_config_and_no_installs(
@@ -184,6 +186,24 @@ def test_failed_download_leaves_nothing_behind(release):
     assert not list(config.glob("ublock-lite.*"))
 
 
+def test_ublock_setup_reports_a_missing_chromium_zip(release, monkeypatch):
+    config, download = release
+    logger = Mock()
+    monkeypatch.setattr(autodeps, "fetch_github_asset_urls", Mock(return_value=[]))
+    monkeypatch.setattr(autodeps, "get_logger", lambda name: logger)
+    monkeypatch.setattr(sys, "argv", ["aniworld", "--setup-ublock"])
+
+    with pytest.raises(SystemExit) as exc:
+        parse_args()
+
+    assert exc.value.code == 1
+    logger.warning.assert_called_once()
+    message = logger.warning.call_args.args[0]
+    assert "latest uBlockOrigin/uBOL-home release has no Chromium ZIP" in message
+    download.assert_not_called()
+    assert not (config / "ublock-lite").exists()
+
+
 def test_archive_without_a_manifest_is_never_installed(release, tmp_path):
     config, download = release
     archive = tmp_path / "broken.zip"
@@ -194,6 +214,26 @@ def test_archive_without_a_manifest_is_never_installed(release, tmp_path):
     assert autodeps.ensure_ublock_lite() is None
     assert not (config / "ublock-lite").exists()
     assert not list(config.glob("ublock-lite.*"))
+
+
+def test_hentai_tv_skips_ublock_setup_when_chromium_is_missing(tmp_path, monkeypatch):
+    from patchright import sync_api
+
+    from aniworld.models.hentai_tv import player
+
+    runtime = MagicMock()
+    chromium = runtime.__enter__.return_value.chromium
+    chromium.executable_path = str(tmp_path / "chromium")
+    setup_ublock = Mock()
+    monkeypatch.setattr(sync_api, "sync_playwright", lambda: runtime)
+    monkeypatch.setattr(autodeps, "ensure_patchright_chromium", lambda: None)
+    monkeypatch.setattr(autodeps, "ensure_ublock_lite", setup_ublock)
+
+    with pytest.raises(RuntimeError, match="Chromium browser is missing"):
+        player._resolve_browser("https://example.test/player", 5)
+
+    setup_ublock.assert_not_called()
+    chromium.launch.assert_not_called()
 
 
 def test_hentai_tv_browser_loads_ublock_in_temp_profile(tmp_path, monkeypatch):
