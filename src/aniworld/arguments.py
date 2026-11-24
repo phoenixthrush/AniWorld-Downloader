@@ -190,6 +190,11 @@ def parse_args():
         action="store_true",
         help="Show extended command-line examples and exit",
     )
+    general.add_argument(
+        "--setup-ublock",
+        action="store_true",
+        help="Prepare uBlock Origin Lite for use with ANIWORLD_UBLOCK=1 and exit",
+    )
 
     # =========================
     # Playback / Download options
@@ -373,6 +378,18 @@ def parse_args():
 
     if args.examples:
         print(EXAMPLES)
+        raise SystemExit(0)
+
+    if args.setup_ublock:
+        from .autodeps import install_ublock_lite
+
+        extension = install_ublock_lite()
+        if extension is None:
+            logger.error(
+                "uBlock Origin Lite is unavailable. Check the setup logs and ANIWORLD_NO_AUTO_INSTALL."
+            )
+            raise SystemExit(1)
+        print(f"[READY] uBlock Origin Lite at {extension}", flush=True)
         raise SystemExit(0)
 
     extractor = None

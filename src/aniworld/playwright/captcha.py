@@ -294,12 +294,9 @@ class _ChallengeSolver:
 
 
 class _BrowserHandle:
-    def __init__(self, browser, context):
-        self.browser = browser
+    def __init__(self, context, close):
         self.context = context
-
-    def close(self):
-        self.browser.close()
+        self.close = close
 
 
 def _launch_browser_context(runtime, offscreen=False):
@@ -315,13 +312,26 @@ def _launch_browser_context(runtime, offscreen=False):
     args = ["--disable-dev-shm-usage"]
     if offscreen:
         args.append("--window-position=-32000,-32000")
+    from ..autodeps import ensure_ublock_lite, launch_ublock_context
+
+    extension = ensure_ublock_lite()
+    if extension:
+        ublock = launch_ublock_context(
+            runtime.chromium,
+            extension,
+            headless=False,
+            args=args,
+            no_viewport=True,
+        )
+        if ublock is not None:
+            return _BrowserHandle(*ublock)
     browser = runtime.chromium.launch(headless=False, args=args)
     try:
         context = browser.new_context(no_viewport=True)
     except Exception:
         browser.close()
         raise
-    return _BrowserHandle(browser, context)
+    return _BrowserHandle(context, browser.close)
 
 
 def _sync_session_user_agent(page):
