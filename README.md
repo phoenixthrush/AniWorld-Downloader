@@ -47,6 +47,8 @@ pip install --upgrade git+https://github.com/phoenixthrush/AniWorld-Downloader.g
 
 Video downloads need **FFmpeg**. Watching uses **mpv**, or **IINA** on macOS. Synchronized playback requires **Syncplay and mpv**. The app can offer portable FFmpeg, mpv, and Syncplay installation on Windows, and player installation through supported package managers on macOS/Linux. Install FFmpeg yourself on macOS/Linux; unattended deployments should provide the required tools in advance.
 
+For optional uBlock Origin Lite in Patchright's Chromium, run `aniworld --setup-ublock` once after installing with pip and set `ANIWORLD_UBLOCK=1` in your `.env`. Docker includes the extension in the image. Set the same flag to enable it there.
+
 Prefer another installation method? Use [Docker](#docker) or download a standalone build from [GitHub Releases](https://github.com/phoenixthrush/AniWorld-Downloader/releases). See the [documentation](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/) for platform-specific setup and troubleshooting.
 
 ## Features

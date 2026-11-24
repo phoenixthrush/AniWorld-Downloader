@@ -1,11 +1,13 @@
+import json
 import os
 import platform
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
-import threading
 import zipfile
+from contextlib import closing
 from pathlib import Path
 
 PLATFORM = platform.system()
@@ -549,76 +551,104 @@ def ensure_patchright_chromium():
         _log.warning(f"patchright chromium install failed: {e}")
 
 
-_ublock_lock = threading.Lock()
+_UBLOCK_BUNDLED_DIR = Path(__file__).with_name("ublock-lite")
 
 
-def ensure_ublock_lite() -> str | None:
-    """Return the unpacked uBlock Origin Lite folder when ANIWORLD_UBLOCK=1."""
-    if os.getenv("ANIWORLD_UBLOCK", "0").strip() != "1":
-        return None
+def _ublock_installed(directory: Path) -> bool:
+    try:
+        manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(manifest, dict) and manifest.get("manifest_version") == 3
+
+
+def install_ublock_lite() -> str | None:
+    """Prepare uBlock Origin Lite in the config directory once."""
     _log = get_logger(__name__)
     target = Path(ANIWORLD_CONFIG_DIR).expanduser().resolve() / "ublock-lite"
-    manifest = target / "manifest.json"
-    # shortcut: an installed copy never auto-updates, delete the folder to update.
-    if manifest.is_file():
-        return str(target)
+    for installed in (_UBLOCK_BUNDLED_DIR, target):
+        if _ublock_installed(installed):
+            return str(installed)
     if auto_install_disabled():
         _log.debug("ANIWORLD_NO_AUTO_INSTALL=1 — skipping uBlock Origin Lite setup")
         return None
 
-    # Browsers can start in parallel; only one thread downloads.
-    with _ublock_lock:
-        if manifest.is_file():
-            return str(target)
-        staging = None
-        try:
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        # Serialize first-time setup across processes as well as browser threads.
+        with closing(
+            sqlite3.connect(target.parent / ".ublock-lite.lock", timeout=120)
+        ) as lock:
+            lock.execute("BEGIN IMMEDIATE")
+            if _ublock_installed(target):
+                return str(target)
+
             url = fetch_github_asset_urls(
                 "uBlockOrigin/uBOL-home", r"uBOLite_[\d.]+\.chromium\.zip$"
             )[0]
-            target.parent.mkdir(parents=True, exist_ok=True)
-            # A unique folder per attempt, so another process cannot clobber it.
-            staging = Path(tempfile.mkdtemp(prefix="ublock-lite.", dir=target.parent))
-            archive = staging / "ublock-lite.zip"
-            # A timeout, so a stalled download cannot block every launch on the lock.
-            resp = GLOBAL_SESSION.get(url, stream=True, timeout=60)
-            resp.raise_for_status()
-            with open(archive, "wb") as f:
-                f.writelines(resp.iter_content(chunk_size=8192))
-            with zipfile.ZipFile(archive) as zf:
-                zf.extractall(staging / "extension")
-            # Installs appear only via rename, so a folder without manifest is broken.
-            if target.exists() and not manifest.is_file():
-                shutil.rmtree(target, ignore_errors=True)
-            # Rename last so a half-extracted folder never counts as installed.
-            (staging / "extension").rename(target)
+            with tempfile.TemporaryDirectory(
+                prefix="ublock-lite.", dir=target.parent
+            ) as temp:
+                staging = Path(temp)
+                archive = staging / "ublock-lite.zip"
+                print("[DOWNLOADING] uBlock Origin Lite", flush=True)
+                with GLOBAL_SESSION.get(url, stream=True, timeout=60) as response:
+                    response.raise_for_status()
+                    with archive.open("wb") as file:
+                        file.writelines(response.iter_content(chunk_size=8192))
+                print("[EXTRACTING] uBlock Origin Lite", flush=True)
+                extension = staging / "extension"
+                with zipfile.ZipFile(archive) as zf:
+                    zf.extractall(extension)
+                if not _ublock_installed(extension):
+                    raise ValueError(
+                        "the archive has no valid Chromium extension manifest"
+                    )
+                if target.is_symlink() or target.is_file():
+                    target.unlink()
+                elif target.exists():
+                    shutil.rmtree(target)
+                extension.rename(target)
+        return str(target)
+    except Exception as e:
+        if _ublock_installed(target):
             return str(target)
-        except Exception as e:
-            # Another process may have finished the same install first.
-            if manifest.is_file():
-                return str(target)
-            _log.warning(f"uBlock Origin Lite setup failed: {e}")
-            return None
-        finally:
-            if staging:
-                shutil.rmtree(staging, ignore_errors=True)
+        _log.warning(f"uBlock Origin Lite setup failed: {e}")
+        return None
+
+
+def ensure_ublock_lite() -> str | None:
+    """Use or prepare uBlock Origin Lite when ANIWORLD_UBLOCK=1."""
+    if os.getenv("ANIWORLD_UBLOCK", "0").strip() == "1":
+        return install_ublock_lite()
+    return None
 
 
 def launch_ublock_context(chromium, extension, **options):
-    """Launch a throwaway-profile context with uBlock; return (context, close)."""
-    # Extensions need a persistent context; a fresh profile keeps nothing.
-    user_data_dir = tempfile.mkdtemp(prefix="aniworld-chromium-")
+    """Return a temporary-profile context and its closer, or None on launch failure."""
+    from patchright.sync_api import Error
+
+    options.setdefault("timeout", 30_000)
     args = [
         *options.pop("args", ()),
         f"--disable-extensions-except={extension}",
         f"--load-extension={extension}",
     ]
+    user_data_dir = None
     try:
+        user_data_dir = tempfile.mkdtemp(prefix="aniworld-chromium-")
         context = chromium.launch_persistent_context(
             user_data_dir, args=args, **options
         )
-    except Exception:
-        shutil.rmtree(user_data_dir, ignore_errors=True)
-        raise
+    except Exception as exc:
+        if user_data_dir is not None:
+            shutil.rmtree(user_data_dir, ignore_errors=True)
+        if not isinstance(exc, (Error, OSError)):
+            raise
+        get_logger(__name__).warning(
+            "Starting Chromium without uBlock Origin Lite: %s", exc
+        )
+        return None
 
     def close():
         try:

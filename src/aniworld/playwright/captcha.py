@@ -316,15 +316,15 @@ def _launch_browser_context(runtime, offscreen=False):
 
     extension = ensure_ublock_lite()
     if extension:
-        return _BrowserHandle(
-            *launch_ublock_context(
-                runtime.chromium,
-                extension,
-                headless=False,
-                args=args,
-                no_viewport=True,
-            )
+        ublock = launch_ublock_context(
+            runtime.chromium,
+            extension,
+            headless=False,
+            args=args,
+            no_viewport=True,
         )
+        if ublock is not None:
+            return _BrowserHandle(*ublock)
     browser = runtime.chromium.launch(headless=False, args=args)
     try:
         context = browser.new_context(no_viewport=True)

@@ -67,6 +67,13 @@ COPY src/ /build/src/
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install .[all]
 
+# Prepare the optional browser extension in the image, outside the user's config volume.
+RUN ANIWORLD_INSTALL_FOLDER=/tmp/aniworld-ublock-setup aniworld --setup-ublock && \
+    package_dir="$(python -c 'from sysconfig import get_path; print(get_path("purelib"))')/aniworld" && \
+    mv /tmp/aniworld-ublock-setup/ublock-lite "$package_dir/ublock-lite" && \
+    chmod -R a+rX "$package_dir/ublock-lite" && \
+    rm -rf /tmp/aniworld-ublock-setup
+
 # Clean up python bytecodes and packaging tools in builder venv
 RUN find /opt/venv -type d -name "__pycache__" -exec rm -rf {} + && \
     pip uninstall -y pip setuptools wheel
@@ -141,8 +148,9 @@ ENV PATH="/opt/venv/bin:$PATH" \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
     NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 
-# Ensure Downloads and configuration paths are writable by the unprivileged user
-RUN chown -R aniworld:aniworld /app/Downloads /home/aniworld/.aniworld
+# Chromium writes generated rules into the unpacked extension directory.
+RUN package_dir="$(python -c 'from sysconfig import get_path; print(get_path("purelib"))')/aniworld" && \
+    chown -R aniworld:aniworld /app/Downloads /home/aniworld/.aniworld "$package_dir/ublock-lite"
 
 USER aniworld
 

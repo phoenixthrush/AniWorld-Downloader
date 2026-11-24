@@ -171,18 +171,23 @@ def _resolve_browser(player_url, timeout):
                 "Run 'python -m patchright install chromium', then try again."
             )
         # Use full Chromium: a separate headless-shell installation isn't needed.
-        if extension:
-            browser, close = launch_ublock_context(
+        ublock = (
+            launch_ublock_context(
                 playwright.chromium,
                 extension,
                 headless=True,
                 executable_path=executable,
             )
-        else:
+            if extension
+            else None
+        )
+        if ublock is None:
             browser = playwright.chromium.launch(
                 headless=True, executable_path=executable
             )
             close = browser.close
+        else:
+            browser, close = ublock
         try:
             page = browser.new_page()
             page.goto(player_url, wait_until="domcontentloaded", timeout=timeout * 1000)
