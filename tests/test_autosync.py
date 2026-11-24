@@ -910,8 +910,8 @@ def test_only_this_copy_counts_as_downloaded(downloads):
     english.mkdir(parents=True)
     (german / "Naruto S01E05.mkv").write_bytes(b"x")
 
-    assert set(autosync.episode_files_in_folder(german)) == {(1, 5)}
-    assert set(autosync.episode_files_in_folder(english)) == set(), "counted per copy"
+    assert autosync.episodes_in_folder(german) == {(1, 5)}
+    assert autosync.episodes_in_folder(english) == set(), "counted per copy"
 
 
 def test_the_second_copy_still_gets_the_episode(monkeypatch, downloads, feed):

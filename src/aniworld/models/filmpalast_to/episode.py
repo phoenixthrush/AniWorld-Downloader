@@ -62,6 +62,7 @@ except ImportError:
 FILMPALAST_EPISODE_PATTERN = re.compile(r"^https?://(?:www\.)?filmpalast\.to/stream/.+")
 
 
+# TODO: update docstring with actual properties and methods of this class, and example values
 class FilmPalastEpisode:
     """
     Represents a single episode of an FilmPalast series.
@@ -72,6 +73,44 @@ class FilmPalastEpisode:
         selected_path:      Optional. The chosen path; provided in cases such as using a menu.
         selected_language:  Optional. The chosen language; provided in cases such as using a menu.
         selected_provider:  Optional. The chosen provider; provided in cases such as using a menu.
+
+    Attributes (Example):
+        url:                    "https://filmpalast.to/stream/scream-7"
+        title_de:               "Scream 7"
+        user_watched:           4006
+        release_year:           2026
+        runtime_min:            114
+        genres:                 ["Horror", "Mystery"]
+        description:            "Als in der beschaulichen Stadt, in der sich Sidney Prescott ein neues Leben aufgebaut hat, ein neuer Ghostface-Killer auftaucht, werden ihre schlimmsten Befürchtungen wahr: Ihre Tochter gerät ins Visier der Ermordung. Entschlossen, ihre Familie zu schützen, muss Sidney sich den Schrecken ihrer Vergangenheit stellen, um dem Blutvergießen ein für alle Mal ein Ende zu setzen."
+        image_url:              "/files/movies/240/scream-7.jpg"
+        director:               "Kevin Williamson"
+        actors:                 ["Neve Campbell", "Courteney Cox", "Isabel May", "Jasmin Savoy Brown", "Mason Gooding", "Roger L. Jackson"]
+        imdb_rating:            7.3
+
+        provider_data:          {('German', 'None'): {'VOE': 'https://serienstream.to/r?t=eyJpdiI6IkdVR2hyQjFXOUVLUGRqRGd1Ylo3cUE9PSIsInZhbHVlIjoiRDVIOEdHb2xOcGk3MmsrTVB2Yk9lakZoYS9YVXFsNlJ0SVJwYTNXZTM1bmQvOFpQaFJ4TWdoSHRzUEhzRTZoQVg1Zkx1OFVxZjhpNWYyR3VUd1U0SVE9PSIsIm1hYyI6IjAzOTAxNjA1YTFkMmM0OWI0MDEzNGE3NzQ5YzI0NWZmYTRiZDgxZDRiMDg0ZGYzOGE2M2JiZDQyMjgyZGE4YjMiLCJ0YWciOiIifQ%3D%3D'}, ('English', 'None'): {'VOE': 'https://serienstream.to/r?t=eyJpdiI6IitKSjl2K1EwOGcyZjNHS1VrRW0yQ0E9PSIsInZhbHVlIjoiVDRSQ01RMnpUdFZLblpLb1BGSm1LdE5RQ0U2b2h0cmdDRGRlTi82Q1VPMWJGellGQjhGZE45TldoeE9ESWNxWEhNNDBPQWl0OHM1MjJlaDNRdVY3Z0E9PSIsIm1hYyI6IjUyYjNkZjIwZGMwZWFlZjA1ZTgzNzIzNWI0M2FmZDI3NDcxNmY3OTQ3YTMxNGE0ZjFkNjcyYzFiZWM0MWE2YWUiLCJ0YWciOiIifQ%3D%3D'}}
+
+        redirect_url:           https://serienstream.to/r?t=eyJpdiI6IlNvVkFWOURJTklBT05wTiszQkF5VVE9PSIsInZhbHVlIjoiUCtoM3JETHQxbUZVMThkY1RuT2p6TTd1aXdnYW9LNzNOb2t3QU5DV2RzUGxJWFA0WUxBaUpZd0Y4dGhJazhrRjFzT1dWVTlISFRpWTE5N0t2dWFtUEE9PSIsIm1hYyI6IjhiMzIxOTljMThlN2ZiYmZlNjJmMjYxYmE5YjhhMjY1NjI0YzM4NThhYzUzMTg3YzdiZjg5Y2U0ZmRhYjU5YmYiLCJ0YWciOiIifQ%3D%3D
+        provider_url:           https://voe.sx/e/2gevxuvhffzd
+        stream_url:             https://cdn-ybrlgbugcqvfwfxm.edgeon-bandwidth.com/engine/hls2-c/01/12274/32xqoasasgio_,n,.urlset/master.m3u8?t=AyZvb2TAsfUJASynb8yS1VVvV9VLR4L6iELp5QnC5NY&s=1769786403&e=14400&f=69846104&node=5oVG/75jdb0Y5X40bYOVrWQ5Z8VHd1xf5E7nxyia+5E=&i=185.213&sp=2500&asn=39351&q=n&rq=pSN9X93FqA34kNMYDUcS0wTzZ2nLYuaQH60wgnXd
+
+        selected_path:          "Downloads"
+        selected_language:      "German Dub"
+        selected_provider:      "VOE"
+
+        self._base_folder:      Downloads/American Horror Story (2011) [imdbid-tt1844624]
+        self._folder_path:      Downloads/American Horror Story (2011) [imdbid-tt1844624]/Season 1
+        self._file_name:        American Horror Story S1E1
+        self._file_extension:   mkv
+        self._episode_path:     Downloads/American Horror Story (2011) [imdbid-tt1844624]/Season 1/American Horror Story S1E1.mkv
+
+        is_downloaded:          {'exists': False, 'video_langs': set(), 'audio_langs': set()}
+
+        _html:                  "<!doctype html>[...]"
+
+    Methods:
+        download()
+        watch()
+        syncplay()
     """
 
     def __init__(

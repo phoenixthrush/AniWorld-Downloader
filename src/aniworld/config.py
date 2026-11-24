@@ -289,8 +289,31 @@ PROVIDER_HEADERS_D = {
     "Vidara": {"Referer": "https://vidara.to/"},
 }
 
-# Watch (mpv/Syncplay) currently uses the same headers as download.
-PROVIDER_HEADERS_W = PROVIDER_HEADERS_D
+PROVIDER_HEADERS_W = {
+    "Vidmoly": {"Referer": "https://vidmoly.biz"},
+    # Doodstream signs the direct link against the requesting client, so the
+    # download must reuse the same User-Agent the extractor sent.
+    "Doodstream": {
+        "User-Agent": DEFAULT_USER_AGENT,
+        "Referer": "https://dood.li/",
+    },
+    "VOE": {
+        "User-Agent": DEFAULT_USER_AGENT,
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Accept-Encoding": "gzip, deflate",
+        "Connection": "keep-alive",
+        "Referer": "https://voe.sx/",
+        "Origin": "https://voe.sx",
+    },
+    "Filemoon": {"User-Agent": DEFAULT_USER_AGENT, "Referer": "https://filemoon.to"},
+    "Gupload": {"Referer": "https://gupload.xyz/", "Accept-Encoding": "identity"},
+    "MoflixClick": {
+        "Referer": "https://moflix-stream.click/",
+        "Accept-Encoding": "identity",
+    },
+    "Vidara": {"Referer": "https://vidara.to/"},
+}
 
 
 # -----------------------------

@@ -57,6 +57,23 @@ SITE_LABELS = {
 # Site keys the front-end uses. Custom paths can be the default for any of them.
 SITE_KEYS = tuple(SITE_LABELS)
 
+# The order the tabs appear in on the home page, which is not the order the
+# keys happen to be declared in above.
+SITE_ORDER = (
+    "aniworld",
+    "sto",
+    "burningseries",
+    "megakino",
+    "moflix",
+    "kinox",
+    "filmpalast",
+    "filmo",
+    "htv",
+    "hentaitv",
+    "hentaihaven",
+    "mangafire",
+)
+
 # Sites nobody gets unless they ask: adult content, or a site that cannot be
 # used without work on the user's side. Every other site starts on.
 SITES_OFF_BY_DEFAULT = frozenset(

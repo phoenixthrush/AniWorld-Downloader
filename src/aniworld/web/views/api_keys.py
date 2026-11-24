@@ -29,6 +29,8 @@ def _identity():
     from ..auth import get_current_user
 
     user = get_current_user()
+    if not user:
+        return {"method": "none", "name": None, "scope": "read"}
     return {
         "method": "session",
         "name": user["username"],

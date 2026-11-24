@@ -17,13 +17,24 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from curl_cffi import requests as curl_requests
 
 from ...common.search import limit_results, validate_limit
-from ...config import DEFAULT_USER_AGENT, GLOBAL_SESSION, logger
-from ...playwright.captcha import (
-    is_captcha_page,
-    playwright_get_hanime_manifest_token,
-    solve_captcha,
-)
-from ..common import decode_base64url, extract_video_metadata
+
+try:
+    from ...config import DEFAULT_USER_AGENT, GLOBAL_SESSION, logger
+    from ...playwright.captcha import (
+        is_captcha_page,
+        playwright_get_hanime_manifest_token,
+        solve_captcha,
+    )
+    from ..common import decode_base64url, extract_video_metadata
+except ImportError:
+    from aniworld.config import DEFAULT_USER_AGENT, GLOBAL_SESSION, logger
+    from aniworld.extractors.common import decode_base64url, extract_video_metadata
+    from aniworld.playwright.captcha import (
+        is_captcha_page,
+        playwright_get_hanime_manifest_token,
+        solve_captcha,
+    )
+
 
 HANIME_BASE_URL = "https://hanime.tv"
 HANIME_VIDEO_URL = f"{HANIME_BASE_URL}/videos/hentai/{{slug}}"
@@ -77,6 +88,14 @@ def _dedupe_preserve_order(values):
 def _episode_sort_key(slug):
     match = re.search(r"-(\d+)$", slug or "")
     return (int(match.group(1)) if match else 0, slug or "")
+
+
+def _slug_to_title(slug):
+    """Turn a video slug into a franchise title."""
+    if not slug:
+        return ""
+    title = re.sub(r"-\d+$", "", slug).replace("-", " ").strip()
+    return title.title()
 
 
 def _slug_to_video_title(slug):

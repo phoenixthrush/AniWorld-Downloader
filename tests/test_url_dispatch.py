@@ -248,7 +248,7 @@ def test_autosync_dispatch_normalizes_series_urls(monkeypatch, sto_provider, dow
     lookup = Mock(return_value=sto_provider.provider)
     monkeypatch.setattr(autosync, "resolve_provider", lookup)
     monkeypatch.setattr(autosync, "detect_languages", lambda *args: {"German Dub"})
-    monkeypatch.setattr(autosync, "episode_files_in_folder", lambda folder: {})
+    monkeypatch.setattr(autosync, "episodes_in_folder", lambda folder: set())
     monkeypatch.setattr(autosync, "_missing_episodes", lambda *args: [EPISODE])
     candidate = {
         "title": "Example",

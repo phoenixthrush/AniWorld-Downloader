@@ -63,8 +63,10 @@ class HanimeTVEpisode:
         self.__selected_provider = selected_provider or "HanimeTV"
 
         self.__title_en = None
+        self.__title_de = None
         self.__description = None
         self.__poster_url = None
+        self.__duration_ms = None
 
         self.__stream_url = None
         self.__provider_data = None
@@ -104,6 +106,7 @@ class HanimeTVEpisode:
     def _api_data(self):
         if self.__api_data is None:
             if self._series and hasattr(self._series, "_api_data"):
+                (self._series._api_data.get("hentai_franchise_hentai_videos") or [])
                 my_slug = self._slug_from_url(self.url)
                 series_slug = self._slug_from_url(self._series.url)
                 if my_slug == series_slug:
@@ -127,7 +130,7 @@ class HanimeTVEpisode:
 
     @property
     def title_de(self):
-        return ""
+        return self.__title_de or ""
 
     @staticmethod
     def _episode_number_from_slug(slug):
