@@ -1,19 +1,12 @@
 import logging
 import os
 import sys
-from pathlib import Path
 
 from .arguments import parse_args
-from .config import ACTION_METHODS, ANIWORLD_CONFIG_DIR, VERSION
-from .env import merge_env
+from .config import ACTION_METHODS, VERSION
 from .logger import get_logger
 from .models.common import run_each
 from .providers import normalize_url, resolve_provider
-
-merge_env(
-    Path(__file__).resolve().parent / ".env.example",
-    ANIWORLD_CONFIG_DIR / ".env",
-)
 
 logger = get_logger(__name__)
 

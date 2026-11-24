@@ -145,12 +145,6 @@ class QuitForm(npyscreen.Form):
         super().set_up_handlers()
         self.add_handlers({curses.ascii.ETX: self.exit_editing})
         self.add_handlers({ord("q"): self.exit_editing})
-        self.add_handlers({curses.KEY_RESIZE: self._handle_resize})
-
-    def _handle_resize(self, _input):
-        curses.update_lines_cols()
-        self.resize()
-        self.display()
 
 
 # ============================================================
@@ -188,8 +182,7 @@ class MenuApp(npyscreen.NPSApp):
             + 6  # spacing and bottom padding
         )
 
-        max_episode_height = max(3, terminal_height - total_reserved_height)
-        return max_episode_height, terminal_height
+        return max(3, terminal_height - total_reserved_height)
 
     def main(self):
         npyscreen.setTheme(CustomTheme)
@@ -328,7 +321,7 @@ class MenuApp(npyscreen.NPSApp):
         )
 
         # --- Episodes ---
-        max_episode_height, _ = self._calculate_layout(len(languages), len(providers))
+        max_episode_height = self._calculate_layout(len(languages), len(providers))
 
         episodes_rely = y + 6 + max(2, len(languages)) + 1 + max(2, len(providers)) + 1
         episodes_widget = F.add(
@@ -366,9 +359,7 @@ class MenuApp(npyscreen.NPSApp):
         # Set up resize handler
         def handle_resize(input):
             curses.update_lines_cols()
-            max_episode_height, _ = self._calculate_layout(
-                len(languages), len(providers)
-            )
+            max_episode_height = self._calculate_layout(len(languages), len(providers))
             if self._episodes_widget:
                 self._episodes_widget.max_height = max_episode_height
             F.resize()

@@ -335,10 +335,7 @@ class HanimeTVEpisode:
     def _file_name(self):
         if self.__file_name is None:
             naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-            try:
-                file_template = naming_template.split("/")[-1]
-            except IndexError:
-                file_template = "{title} S{season}E{episode}.mkv"
+            file_template = naming_template.split("/")[-1]
 
             if "." in file_template:
                 file_template = ".".join(file_template.split(".")[:-1])
@@ -366,14 +363,11 @@ class HanimeTVEpisode:
     def _file_extension(self):
         if self.__file_extension is None:
             naming_template = os.getenv("ANIWORLD_NAMING_TEMPLATE", NAMING_TEMPLATE)
-            try:
-                file_part = naming_template.split("/")[-1]
-                if "." in file_part:
-                    ext = file_part.rsplit(".", 1)[-1]
-                    self.__file_extension = ext if ext else "mkv"
-                else:
-                    self.__file_extension = "mkv"
-            except IndexError:
+            file_part = naming_template.split("/")[-1]
+            if "." in file_part:
+                ext = file_part.rsplit(".", 1)[-1]
+                self.__file_extension = ext if ext else "mkv"
+            else:
                 self.__file_extension = "mkv"
         return self.__file_extension
 
