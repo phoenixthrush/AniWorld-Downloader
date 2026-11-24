@@ -301,19 +301,25 @@ class _BrowserHandle:
 
 def _launch_browser_context(runtime, offscreen=False):
     """Use a fresh headed Chromium context with the browser's native viewport."""
-    if not Path(runtime.chromium.executable_path).is_file():
+    from ..autodeps import (
+        ensure_chromium_system_dependencies,
+        ensure_ublock_lite,
+        launch_ublock_context,
+    )
+
+    executable = runtime.chromium.executable_path
+    if not Path(executable).is_file():
         raise RuntimeError(
             "Patchright's Chromium browser is missing. "
             "Run 'python -m patchright install chromium', then try again."
         )
+    ensure_chromium_system_dependencies(executable)
     visible = os.getenv("ANIWORLD_CAPTCHA_VISIBLE", "auto").strip().lower()
     if visible in ("0", "1"):
         offscreen = visible == "0"
     args = ["--disable-dev-shm-usage"]
     if offscreen:
         args.append("--window-position=-32000,-32000")
-    from ..autodeps import ensure_ublock_lite, launch_ublock_context
-
     extension = ensure_ublock_lite()
     if extension:
         ublock = launch_ublock_context(

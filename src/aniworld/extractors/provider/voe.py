@@ -13,9 +13,11 @@ from curl_cffi import requests
 logger = logging.getLogger(__name__)
 
 try:
+    from ...autodeps import ChromiumDependencyError
     from ...config import DEFAULT_USER_AGENT, GLOBAL_SESSION, PROVIDER_HEADERS_D
     from ...playwright.captcha import is_captcha_page, solve_captcha
 except ImportError:
+    from aniworld.autodeps import ChromiumDependencyError
     from aniworld.config import DEFAULT_USER_AGENT, GLOBAL_SESSION, PROVIDER_HEADERS_D
     from aniworld.playwright.captcha import is_captcha_page, solve_captcha
 
@@ -207,7 +209,7 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
                     m3u8 = M3U8_URL_PATTERN.search(html2)
                     if m3u8:
                         return m3u8.group(0)
-                except _VOEUnavailable:
+                except (_VOEUnavailable, ChromiumDependencyError):
                     raise
                 except Exception as err:
                     logger.debug(f"VOE redirect fetch failed: {err}")
@@ -219,7 +221,7 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
 
             raise ValueError("No VOE video source found in page.")
 
-        except _VOEUnavailable:
+        except (_VOEUnavailable, ChromiumDependencyError):
             raise
         except (niquests.RequestException, Exception) as err:
             if attempt == max_retries - 1:

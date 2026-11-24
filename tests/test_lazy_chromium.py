@@ -204,3 +204,108 @@ def test_explicit_browser_cache_semantics_are_preserved(
 
     assert os.environ["PLAYWRIGHT_BROWSERS_PATH"] == value
     browser_install.install.assert_not_called()
+
+
+@pytest.fixture
+def linux_browser_libraries(browser_install, monkeypatch):
+    monkeypatch.setattr(autodeps, "PLATFORM", "Linux")
+    monkeypatch.setattr(autodeps.platform, "machine", lambda: "aarch64")
+    monkeypatch.setattr(autodeps.shutil, "which", lambda name: "/usr/bin/apt-get")
+    monkeypatch.setattr(
+        autodeps.platform,
+        "freedesktop_os_release",
+        lambda: {"ID": "debian", "VERSION_ID": "13"},
+    )
+    monkeypatch.setattr(autodeps.os, "geteuid", lambda: 0, raising=False)
+    missing = SimpleNamespace(
+        returncode=127,
+        stderr="chrome: error while loading shared libraries: libnspr4.so: "
+        "cannot open shared object file: No such file or directory",
+    )
+    browser_install.install.return_value = missing
+    return browser_install, missing
+
+
+@pytest.mark.parametrize(
+    ("returncode", "stderr"), [(0, ""), (1, "failed to start Chromium")]
+)
+def test_chromium_dependency_install_requires_a_loader_error(
+    linux_browser_libraries, returncode, stderr
+):
+    browser, _ = linux_browser_libraries
+    browser.install.return_value = SimpleNamespace(returncode=returncode, stderr=stderr)
+
+    autodeps.ensure_chromium_system_dependencies(str(browser.executable))
+
+    (command,), _ = browser.install.call_args
+    assert command == [str(browser.executable), "--version"]
+    assert browser.install.call_count == 1
+
+
+def test_chromium_dependency_install_repairs_and_rechecks(linux_browser_libraries):
+    browser, missing = linux_browser_libraries
+    healthy = SimpleNamespace(returncode=0, stderr="")
+    browser.install.side_effect = [missing, None, healthy, healthy]
+
+    autodeps.ensure_chromium_system_dependencies(str(browser.executable))
+    autodeps.ensure_chromium_system_dependencies(str(browser.executable))
+
+    probe = [str(browser.executable), "--version"]
+    setup = [str(browser.driver), "cli.js", "install-deps", "chromium"]
+    assert [call.args[0] for call in browser.install.call_args_list] == [
+        probe,
+        setup,
+        probe,
+        probe,
+    ]
+
+
+@pytest.mark.parametrize("reason", ["disabled", "non-interactive", "unsupported"])
+def test_chromium_dependency_install_gives_manual_instructions(
+    linux_browser_libraries, monkeypatch, reason
+):
+    browser, _ = linux_browser_libraries
+    expected_hint = "python -m patchright install-deps chromium"
+    if reason == "disabled":
+        monkeypatch.setenv("ANIWORLD_NO_AUTO_INSTALL", "1")
+    elif reason == "non-interactive":
+        monkeypatch.setattr(autodeps.os, "geteuid", lambda: 1000)
+        monkeypatch.setattr(autodeps.sys, "stdin", None)
+    else:
+        monkeypatch.setattr(
+            autodeps.platform, "freedesktop_os_release", lambda: {"ID": "arch"}
+        )
+        expected_hint = "your distribution's package manager"
+
+    with pytest.raises(RuntimeError, match=f"libnspr4.so.*{expected_hint}"):
+        autodeps.ensure_chromium_system_dependencies(str(browser.executable))
+
+    assert browser.install.call_count == 1
+
+
+def test_chromium_dependency_install_reports_a_failed_repair(linux_browser_libraries):
+    browser, missing = linux_browser_libraries
+    browser.install.side_effect = [
+        missing,
+        subprocess.CalledProcessError(1, ["install-deps", "chromium"]),
+    ]
+
+    with pytest.raises(RuntimeError, match="libnspr4.so.*Dependency setup failed"):
+        autodeps.ensure_chromium_system_dependencies(str(browser.executable))
+
+    assert browser.install.call_count == 2
+
+
+def test_chromium_dependency_install_checks_the_remaining_library(
+    linux_browser_libraries,
+):
+    browser, missing = linux_browser_libraries
+    still_missing = SimpleNamespace(
+        returncode=127, stderr=missing.stderr.replace("libnspr4.so", "libnss3.so")
+    )
+    browser.install.side_effect = [missing, None, still_missing]
+
+    with pytest.raises(RuntimeError, match=r"still cannot load libnss3\.so"):
+        autodeps.ensure_chromium_system_dependencies(str(browser.executable))
+
+    assert browser.install.call_count == 3

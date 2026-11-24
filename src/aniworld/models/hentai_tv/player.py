@@ -156,13 +156,13 @@ def _resolve_browser(player_url, timeout):
     from patchright.sync_api import sync_playwright
 
     from ...autodeps import (
+        ensure_chromium_system_dependencies,
         ensure_patchright_chromium,
         ensure_ublock_lite,
         launch_ublock_context,
     )
 
     ensure_patchright_chromium()
-    extension = ensure_ublock_lite()
     with sync_playwright() as playwright:
         executable = playwright.chromium.executable_path
         if not Path(executable).is_file():
@@ -170,6 +170,8 @@ def _resolve_browser(player_url, timeout):
                 "Patchright's Chromium browser is missing. "
                 "Run 'python -m patchright install chromium', then try again."
             )
+        ensure_chromium_system_dependencies(executable)
+        extension = ensure_ublock_lite()
         # Use full Chromium: a separate headless-shell installation isn't needed.
         ublock = (
             launch_ublock_context(

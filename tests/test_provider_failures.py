@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
+from aniworld.autodeps import ChromiumDependencyError
 from aniworld.extractors.provider import voe
 from aniworld.models.s_to import episode as sto
 from aniworld.playwright import captcha
@@ -101,6 +102,28 @@ def test_temporary_voe_failure_still_retries(monkeypatch):
         == "https://cdn.example/video.m3u8"
     )
     sleep.assert_called_once_with(2)
+
+
+@pytest.mark.parametrize("redirect", [False, True])
+def test_voe_keeps_the_chromium_dependency_error(monkeypatch, redirect):
+    source = "https://voe.example/e/start"
+    challenge = "https://mirror.example/e/episode" if redirect else source
+    responses = [("verification required", challenge, 403)]
+    if redirect:
+        responses.insert(0, (f"window.location='{challenge}'", source, 200))
+    fetch = Mock(side_effect=responses)
+    browser = Mock(
+        side_effect=ChromiumDependencyError("Chromium cannot load libnspr4.so")
+    )
+    monkeypatch.setattr(voe, "_voe_get", fetch)
+    monkeypatch.setattr(voe, "is_captcha_page", lambda html, status: status == 403)
+    monkeypatch.setattr(voe, "solve_captcha", browser)
+
+    with pytest.raises(ChromiumDependencyError, match=r"libnspr4\.so"):
+        voe.get_direct_link_from_voe(source)
+
+    browser.assert_called_once_with(challenge)
+    assert fetch.call_count == len(responses)
 
 
 def test_missing_chromium_error_survives_modal_solver(monkeypatch, tmp_path):

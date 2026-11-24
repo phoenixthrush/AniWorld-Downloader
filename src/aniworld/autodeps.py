@@ -1,11 +1,13 @@
 import json
 import os
 import platform
+import re
 import shutil
 import sqlite3
 import subprocess
 import sys
 import tempfile
+import threading
 import zipfile
 from contextlib import closing
 from pathlib import Path
@@ -549,6 +551,92 @@ def ensure_patchright_chromium():
         _log.debug("patchright chromium is ready")
     except (subprocess.CalledProcessError, OSError) as e:
         _log.warning(f"patchright chromium install failed: {e}")
+
+
+_CHROMIUM_DEPS_LOCK = threading.Lock()
+
+
+class ChromiumDependencyError(RuntimeError):
+    """Chromium cannot load one of its Linux runtime libraries."""
+
+
+def _missing_chromium_library(executable: str) -> str | None:
+    try:
+        result = subprocess.run(
+            [executable, "--version"],
+            env={**os.environ, "LC_ALL": "C"},
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None  # Let the normal browser launch diagnose other failures.
+    if result.returncode == 0:
+        return None
+    missing = re.search(
+        r"error while loading shared libraries: ([^:\s]+):", result.stderr
+    )
+    return missing[1] if missing else None
+
+
+def _supports_chromium_dependency_install() -> bool:
+    if platform.machine() not in ("x86_64", "aarch64") or not shutil.which("apt-get"):
+        return False
+    try:
+        distro = platform.freedesktop_os_release()
+    except OSError:
+        return False
+    # Patchright provides native Chromium package lists for these Linux releases.
+    versions = {"debian": ("12", "13"), "ubuntu": ("22.04", "24.04", "26.04")}
+    return distro.get("VERSION_ID") in versions.get(distro.get("ID"), ())
+
+
+def ensure_chromium_system_dependencies(executable: str) -> None:
+    """Diagnose missing Linux libraries and repair them where apt is supported."""
+    if PLATFORM != "Linux":
+        return
+
+    with _CHROMIUM_DEPS_LOCK:
+        library = _missing_chromium_library(executable)
+        if library is None:
+            return
+
+        if not _supports_chromium_dependency_install():
+            raise ChromiumDependencyError(
+                f"Chromium cannot load {library}. "
+                "Install the missing library with your distribution's package manager."
+            )
+
+        hint = "Run 'python -m patchright install-deps chromium', then try again."
+        if auto_install_disabled() or (
+            os.geteuid() != 0 and not (sys.stdin and sys.stdin.isatty())
+        ):
+            raise ChromiumDependencyError(f"Chromium cannot load {library}. {hint}")
+
+        from patchright._impl._driver import compute_driver_executable, get_driver_env
+
+        get_logger(__name__).warning(
+            "Chromium cannot load %s. Installing its Linux system dependencies.",
+            library,
+        )
+        try:
+            driver, cli = compute_driver_executable()
+            subprocess.run(
+                [driver, cli, "install-deps", "chromium"],
+                check=True,
+                env=get_driver_env(),
+            )
+        except (OSError, subprocess.CalledProcessError) as exc:
+            raise ChromiumDependencyError(
+                f"Chromium cannot load {library}. Dependency setup failed. {hint}"
+            ) from exc
+
+        library = _missing_chromium_library(executable)
+        if library is not None:
+            raise ChromiumDependencyError(
+                f"Chromium still cannot load {library}. {hint}"
+            )
 
 
 _UBLOCK_BUNDLED_DIR = Path(__file__).with_name("ublock-lite")
