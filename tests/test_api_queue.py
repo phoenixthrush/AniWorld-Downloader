@@ -80,6 +80,13 @@ def test_a_body_without_episodes_is_refused(client):
     assert client.post("/api/download", json={"title": "x"}).status_code == 400
 
 
+@pytest.mark.parametrize("episodes", ["https://x/ep1", {"url": "https://x/ep1"}])
+def test_episodes_that_are_not_a_list_are_refused(client, episodes):
+    response = client.post("/api/download", json={"episodes": episodes})
+    assert response.status_code == 400
+    assert db.get_queue() == []
+
+
 def test_english_sub_is_refused_when_disabled(client, monkeypatch):
     monkeypatch.setenv("ANIWORLD_DISABLE_ENGLISH_SUB", "1")
     response = client.post(
@@ -317,6 +324,12 @@ def test_a_click_needs_coordinates(client, queue_item):
     assert response.status_code == 400
 
 
+@pytest.mark.parametrize("payload", [{"x": "a", "y": 2}, {"x": 1, "y": [2]}])
+def test_a_click_needs_whole_number_coordinates(client, queue_item, payload):
+    response = client.post(f"/api/captcha/{queue_item()}/click", json=payload)
+    assert response.status_code == 400
+
+
 # ---------------------------------------------------------------------------
 # The queue page's view of the list
 # ---------------------------------------------------------------------------
@@ -339,6 +352,12 @@ def test_asking_for_a_page_returns_the_totals_with_it(client, queue_item):
     assert body["limit"] == 25 and body["offset"] == 0
     assert body["counts"]["queued"] == 30
     assert "episodes" not in body["items"][0]
+
+
+def test_an_oversized_limit_is_reported_as_capped(client, queue_item):
+    queue_item()
+    body = client.get(f"/api/queue?limit={db.QUEUE_PAGE_MAX + 50}").get_json()
+    assert body["limit"] == db.QUEUE_PAGE_MAX
 
 
 def test_the_second_page_holds_the_rest(client, queue_item):

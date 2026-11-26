@@ -1,5 +1,7 @@
 """Settings, custom path and API key HTTP endpoints."""
 
+import sqlite3
+
 import pytest
 
 from aniworld.web import db, settings_store
@@ -187,6 +189,15 @@ def test_a_duplicate_name_is_a_conflict(client, tmp_path):
     )
     assert response.status_code == 409
     assert len(db.get_custom_paths()) == 1
+
+
+def test_other_database_errors_are_not_a_conflict(client, tmp_path, monkeypatch):
+    def broken(*_args):
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(db, "add_custom_path", broken)
+    with pytest.raises(sqlite3.OperationalError):
+        client.post("/api/custom-paths", json={"name": "Movies", "path": str(tmp_path)})
 
 
 def test_default_sites_are_cleaned_up(client, tmp_path):

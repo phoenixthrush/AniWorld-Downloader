@@ -314,7 +314,9 @@ def downloaded_episode_urls(series, episodes):
 
     found = set()
     for downloaded in _downloaded_episode_copies(series):
-        found.update(downloaded_episode_owners(episodes, downloaded).values())
+        found.update(
+            downloaded_episode_owners(episodes, downloaded, strict=False).values()
+        )
     return found
 
 

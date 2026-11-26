@@ -46,7 +46,7 @@ def _current_username():
 def start_download():
     data = request.get_json(silent=True) or {}
     episodes = data.get("episodes") or []
-    if not episodes:
+    if not episodes or not isinstance(episodes, list):
         return jsonify({"error": "episodes list is required"}), 400
 
     language = data.get("language", "German Dub")
@@ -131,6 +131,7 @@ def list_queue():
         return jsonify(
             {"error": "limit must be positive and offset cannot be negative"}
         ), 400
+    limit = min(limit, db.QUEUE_PAGE_MAX)
 
     items, total = db.get_queue_page(
         status=status,
@@ -224,9 +225,13 @@ def captcha_click(queue_id):
     x, y = data.get("x"), data.get("y")
     if x is None or y is None:
         return jsonify({"error": "x and y are required"}), 400
+    try:
+        x, y = int(x), int(y)
+    except (TypeError, ValueError):
+        return jsonify({"error": "x and y must be whole numbers"}), 400
 
     session = _captcha_session(queue_id)
     if not session:
         return jsonify({"error": "No active captcha session"}), 404
-    session.enqueue_click(int(x), int(y))
+    session.enqueue_click(x, y)
     return jsonify({"ok": True})

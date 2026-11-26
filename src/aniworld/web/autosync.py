@@ -306,7 +306,9 @@ def _missing_episodes(series, have):
     missing = []
     for season in series.seasons:
         episodes = season.episodes
-        downloaded_urls = set(downloaded_episode_owners(episodes, have).values())
+        downloaded_urls = set(
+            downloaded_episode_owners(episodes, have, strict=False).values()
+        )
         for episode in episodes:
             if episode.url not in downloaded_urls:
                 missing.append(episode.url)
@@ -612,7 +614,8 @@ def _loop():
         try:
             # Re-read the settings every tick so a change takes effect
             if autosync_enabled():
-                if _due():
+                # A manual sync holds the lock; still due on the next tick
+                if _due() and not _run_lock.locked():
                     run_cycle()
             else:
                 _reset_anchor()
