@@ -3,8 +3,6 @@ import logging
 import os
 import sys
 
-from packaging.version import parse as parse_version
-
 from .anime4k import anime4k
 from .config import (
     ACTION_METHODS,
@@ -12,6 +10,7 @@ from .config import (
     SUPPORTED_PROVIDERS,
     VERSION,
     get_latest_version,
+    parse_version,
 )
 from .logger import get_logger
 

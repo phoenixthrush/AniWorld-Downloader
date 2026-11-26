@@ -11,7 +11,6 @@ from urllib.request import Request, urlopen
 
 import certifi
 from niquests import Session
-from packaging.version import parse as parse_version
 
 from .env import CA_BUNDLE_ENV_VARS, initialize_app_env, resolve_env_directory
 from .logger import get_logger
@@ -22,6 +21,19 @@ try:
     VERSION = version("aniworld")
 except PackageNotFoundError:
     VERSION = None
+
+
+def parse_version(text):
+    """Turn "5.6.0", "v5.6.0" or "v.5.6.0" into a comparable int tuple.
+
+    Trailing zeros are dropped so 5.6 == 5.6.0. Anything else raises ValueError.
+    """
+    parts = [
+        int(p) for p in str(text).strip().removeprefix("v").removeprefix(".").split(".")
+    ]
+    while len(parts) > 1 and parts[-1] == 0:
+        parts.pop()
+    return tuple(parts)
 
 
 def get_latest_version():

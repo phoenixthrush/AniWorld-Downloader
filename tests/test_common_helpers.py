@@ -326,20 +326,19 @@ def test_a_cancel_is_still_caught_by_a_broad_handler():
 # Version
 # ---------------------------------------------------------------------------
 def test_the_version_is_a_real_version():
-    from packaging.version import Version
-
+    from aniworld.config import parse_version
     from aniworld.web.version import get_version
 
     version = get_version()
     assert version, "the navbar would show an empty version"
-    Version(version)  # raises for anything that is not PEP 440
+    parse_version(version)  # raises for anything the update check cannot compare
 
 
 def test_pyproject_carries_a_valid_version():
     """The installed metadata can lag behind an edit, so check the source too."""
     import re
 
-    from packaging.version import Version
+    from aniworld.config import parse_version
 
     for parent in Path(__file__).resolve().parents:
         pyproject = parent / "pyproject.toml"
@@ -350,7 +349,7 @@ def test_pyproject_carries_a_valid_version():
                 re.MULTILINE,
             )
             assert match, "pyproject.toml has no version"
-            Version(match.group(1))
+            parse_version(match.group(1))
             return
     pytest.skip("running outside the source tree")
 
@@ -367,6 +366,18 @@ def test_pyproject_carries_a_valid_version():
 )
 def test_versions_compare_numerically_not_alphabetically(lower, higher):
     """4.10.0 is newer than 4.9.0, a string compare would say otherwise."""
-    from packaging.version import parse as parse_version
+    from aniworld.config import parse_version
 
     assert parse_version(lower) < parse_version(higher)
+
+
+def test_parse_version_accepts_tag_prefix_and_ignores_trailing_zeros():
+    from aniworld.config import parse_version
+
+    assert parse_version("5.6.0") == (5, 6)
+    assert parse_version("v.5.6.0") == parse_version("v5.6.0") == parse_version("5.6.0")
+    assert parse_version("5.6") == parse_version("5.6.0")
+    assert parse_version("5.6.1") > parse_version("5.6")
+    for garbage in ("", "unknown", "5.6.0rc1", "5..6"):
+        with pytest.raises(ValueError):
+            parse_version(garbage)
