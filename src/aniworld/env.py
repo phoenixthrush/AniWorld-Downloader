@@ -108,6 +108,19 @@ def merge_env(example_path: Path, env_path: Path):
     load_dotenv(env_path)
 
 
+def quote_env_value(value: str) -> str:
+    """Quote a value so python-dotenv reads back exactly this text.
+
+    Single quotes keep spaces, "#" and double quotes as they are, and
+    backslashes and single quotes are escaped, the two escapes python-dotenv
+    undoes inside them. "${...}" cannot be protected this way, python-dotenv
+    expands it even inside single quotes, so callers have to refuse it.
+    """
+    if value == "":
+        return ""
+    return "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'"
+
+
 def persist_env_values(env_path: Path, updates: dict):
     """Write specific KEY=VALUE pairs into the .env file, preserving the rest.
 

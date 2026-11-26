@@ -92,6 +92,15 @@ services:
     #   ANIWORLD_DISCORD_LANGUAGE: "en"               # Bot language: en | de
     #   ANIWORLD_DISCORD_ANNOUNCE_CHANNEL_ID: ""      # Post "now available" here when a requested download finishes
 
+    # --- Webhook when the download queue runs dry (optional) ---
+    # Easier to set in the Web UI (Settings -> Integrations, with a test button),
+    # which writes it to the .env in the config volume. A value set here wins over
+    # that one after a restart. More examples are in src/aniworld/.env.example.
+    #   ANIWORLD_WEBHOOK_URL: "http://jellyfin:8096/Library/Refresh"  # Empty = off
+    #   ANIWORLD_WEBHOOK_METHOD: "POST"               # POST | GET | PUT | PATCH
+    #   ANIWORLD_WEBHOOK_HEADERS: 'Authorization: MediaBrowser Token="YOUR_API_KEY"'  # "Name: value", several separated by "|"
+    #   ANIWORLD_WEBHOOK_BODY: ""                     # Sent as is, JSON goes out as application/json
+
     # --- CAPTCHA browser (optional overrides) ---
     #   ANIWORLD_CAPTCHA_VISIBLE: "auto"              # auto, 1 = visible, 0 = off-screen
     #   ANIWORLD_CAPTCHA_TIMEOUT: ""                  # Positive seconds; empty keeps each flow's default

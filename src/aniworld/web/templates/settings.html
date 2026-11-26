@@ -856,6 +856,69 @@
             <span id="discordStatus" class="status-pill"></span>
           </div>
         </section>
+
+        <section class="card">
+          <h2 data-i18n="settings.webhook">Webhook</h2>
+          <p class="hint" data-i18n="settings.webhook.hint">
+            Sends one request when the download queue runs dry and at least one download finished, e.g. to start a
+            Jellyfin or Plex library scan or to post a message to ntfy or Discord. Leave the URL empty to turn it off.
+          </p>
+
+          <div class="control-row">
+            <label class="field">
+              <span class="field-label" data-i18n="settings.webhook.url">URL</span>
+              <input type="text" id="webhookUrl" autocomplete="off" spellcheck="false"
+                placeholder="http://jellyfin:8096/Library/Refresh" />
+            </label>
+            <label class="field">
+              <span class="field-label" data-i18n="settings.webhook.method">Method</span>
+              <select id="webhookMethod">
+                <option value="POST">POST</option>
+                <option value="GET">GET</option>
+                <option value="PUT">PUT</option>
+                <option value="PATCH">PATCH</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="control-row">
+            <label class="field">
+              <span class="field-label" data-i18n="settings.webhook.headers">Headers (optional)</span>
+              <input type="text" id="webhookHeaders" autocomplete="off" spellcheck="false"
+                placeholder='Authorization: MediaBrowser Token="YOUR_API_KEY"' />
+            </label>
+          </div>
+          <p class="hint">
+            <span data-i18n="settings.webhook.headers_hint">Written as "Name: value", several separated by "|".
+              Jellyfin wants its API key (Dashboard, API Keys) exactly like this:</span><br />
+            <span data-i18n="settings.webhook.headers_example">Authorization: MediaBrowser Token="YOUR_API_KEY"</span>
+          </p>
+
+          <div class="control-row">
+            <label class="field">
+              <span class="field-label" data-i18n="settings.webhook.body">Body (optional)</span>
+              <input type="text" id="webhookBody" autocomplete="off" spellcheck="false"
+                placeholder='{"content": "New downloads are ready"}' />
+            </label>
+          </div>
+          <p class="hint" data-i18n="settings.webhook.body_hint">
+            Sent as it is. JSON goes out as application/json, anything else as plain text. Discord refuses a request
+            without one, ntfy shows it as the message.
+          </p>
+          <p class="hint" data-i18n="settings.webhook.secret_hint">
+            Saved to your .env, so it stays after a restart. The headers usually hold a token, so once saved they are
+            never shown again: leave the dots alone to keep them, or type over them to replace them.
+          </p>
+
+          <div class="action-row">
+            <button class="btn btn-primary" id="saveWebhookBtn" data-i18n="common.save">Save</button>
+            <button class="btn btn-secondary" id="testWebhookBtn" data-i18n="settings.webhook.test">
+              Save and send test
+            </button>
+            <span id="webhookStatus" class="status-pill"></span>
+          </div>
+          <p class="hint" id="webhookTestBody" hidden></p>
+        </section>
       </section>
 
       <section class="settings-pane" id="pane-administration" role="tabpanel" aria-labelledby="tab-administration"
@@ -868,8 +931,8 @@
             path above so it comes back on its own.
           </p>
           <p class="hint" data-i18n="settings.export_secrets">
-            Passwords and tokens are left out on purpose: the Discord bot token, the OIDC client secret and
-            any admin password stay where they are.
+            Passwords and tokens are left out on purpose: the Discord bot token, the webhook URL and headers,
+            the OIDC client secret and any admin password stay where they are.
           </p>
           <div class="action-row">
             <a class="btn btn-primary" href="{{ url_for('api.export_env') }}">

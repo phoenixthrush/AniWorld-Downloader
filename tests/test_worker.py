@@ -31,10 +31,16 @@ class FakeProvider:
     name = "VOE"
 
 
+class Calls(list):
+    """What the worker did, plus the status _process ended the item with."""
+
+    status = None
+
+
 @pytest.fixture
 def run_worker(monkeypatch):
     """Process one queue item with a scripted episode downloader."""
-    calls = []
+    calls = Calls()
 
     def factory(queue_id, behaviour=None, on_download=None):
         def build(url, extra, item, selected_path):
@@ -46,7 +52,7 @@ def run_worker(monkeypatch):
         monkeypatch.setattr(
             worker, "_notify_discord", lambda item: calls.append("discord")
         )
-        worker._process(db.get_queue_item(queue_id))
+        calls.status = worker._process(db.get_queue_item(queue_id))
         return calls
 
     return factory
@@ -408,3 +414,166 @@ def test_the_queue_order_decides_what_runs_next(queue_item):
     db.move_queue_item(second, "up")
     assert worker._claim_next()["id"] == second
     assert first is not None
+
+
+# ---------------------------------------------------------------------------
+# The webhook once the queue runs dry
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def webhook_calls(monkeypatch):
+    """Record each call with how many items had finished."""
+    calls = []
+    monkeypatch.setattr(worker.webhook, "queue_finished", calls.append)
+    return calls
+
+
+def test_process_reports_a_completed_item(queue_item, run_worker):
+    queue_id = queue_item(episodes=["https://x/ep1"])
+    db.set_queue_status(queue_id, "running")
+    assert run_worker(queue_id).status == "completed"
+
+
+def test_process_reports_a_failed_item(queue_item, run_worker):
+    queue_id = queue_item(episodes=["https://x/ep1"])
+    db.set_queue_status(queue_id, "running")
+    assert run_worker(queue_id, behaviour=RuntimeError("boom")).status == "failed"
+
+
+def test_process_reports_a_cancelled_item(queue_item, run_worker):
+    queue_id = queue_item(episodes=["https://x/ep1", "https://x/ep2"])
+    db.set_queue_status(queue_id, "running")
+    calls = run_worker(queue_id, on_download=lambda url: db.cancel_queue_item(queue_id))
+    assert calls.status == "cancelled"
+
+
+def test_process_reports_a_cancel_after_the_last_episode_as_completed(
+    queue_item, run_worker
+):
+    queue_id = queue_item(episodes=["https://x/ep1"])
+    db.set_queue_status(queue_id, "running")
+    calls = run_worker(queue_id, on_download=lambda url: db.cancel_queue_item(queue_id))
+    assert calls.status == "completed"
+
+
+def test_the_webhook_fires_when_the_last_item_completes(webhook_calls):
+    assert worker._after_item("completed", 0) == 0, "the count starts over"
+    assert webhook_calls == [1]
+
+
+def test_the_webhook_waits_while_items_are_still_queued(queue_item, webhook_calls):
+    queue_item("Next")
+    assert worker._after_item("completed", 0) == 1
+    assert webhook_calls == []
+
+
+def test_the_webhook_counts_every_item_of_the_batch(webhook_calls):
+    worker._after_item("completed", 2)
+    assert webhook_calls == [3]
+
+
+@pytest.mark.parametrize("status", ["failed", "cancelled", None])
+def test_a_queue_of_nothing_finished_sends_nothing(webhook_calls, status):
+    assert worker._after_item(status, 0) == 0
+    assert webhook_calls == []
+
+
+@pytest.mark.parametrize("status", ["failed", "cancelled", None])
+def test_a_bad_last_item_still_reports_the_ones_before(webhook_calls, status):
+    """Something new is on disk, so a library scan is still worth it."""
+    assert worker._after_item(status, 2) == 0
+    assert webhook_calls == [2]
+
+
+def test_a_database_error_keeps_the_count_and_the_worker(monkeypatch, webhook_calls):
+    def broken():
+        raise RuntimeError("database is locked")
+
+    monkeypatch.setattr(db, "get_next_queued", broken)
+    assert worker._after_item("completed", 0) == 1, "tried again after the next item"
+    assert webhook_calls == []
+
+
+def test_a_webhook_that_cannot_connect_does_not_reach_the_worker(monkeypatch):
+    def refused(*args, **kwargs):
+        raise ConnectionError("connection refused")
+
+    monkeypatch.setenv("ANIWORLD_WEBHOOK_URL", "http://jellyfin:8096/Library/Refresh")
+    monkeypatch.setattr(worker.webhook.niquests, "request", refused)
+    assert worker._after_item("completed", 0) == 0
+
+
+class Idle(BaseException):
+    """Raised by the patched sleep to leave the worker's endless loop.
+
+    A BaseException, so the loop's own `except Exception` lets it through.
+    """
+
+
+@pytest.fixture
+def run_loop(monkeypatch):
+    """Run the real worker loop until the queue is empty, then stop it."""
+
+    def sleep(seconds):
+        if db.get_next_queued() is None:
+            raise Idle
+
+    def factory(behaviour=None):
+        def build(url, extra, item, selected_path):
+            wanted = behaviour(url) if callable(behaviour) else behaviour
+            return FakeProvider(), FakeEpisode(url, wanted)
+
+        monkeypatch.setattr(worker, "_build_episode", build)
+        monkeypatch.setattr(worker.time, "sleep", sleep)
+        with pytest.raises(Idle):
+            worker._run()
+
+    return factory
+
+
+def test_the_loop_calls_the_webhook_once_for_the_whole_queue(
+    queue_item, run_loop, webhook_calls
+):
+    queue_item("A", episodes=["https://x/a1"])
+    queue_item("B", episodes=["https://x/b1"])
+    queue_item("C", episodes=["https://x/c1"])
+    run_loop()
+
+    assert webhook_calls == [3]
+    assert {item["status"] for item in db.get_queue()} == {"completed"}
+
+
+def test_the_loop_leaves_out_failed_items_from_the_count(
+    queue_item, run_loop, webhook_calls
+):
+    queue_item("A", episodes=["https://x/a1"])
+    queue_item("B", episodes=["https://x/b1"])
+    run_loop(behaviour=lambda url: RuntimeError("boom") if "a1" in url else None)
+    assert webhook_calls == [1]
+
+
+def test_the_loop_sends_nothing_when_everything_failed(
+    queue_item, run_loop, webhook_calls
+):
+    queue_item("A", episodes=["https://x/a1"])
+    run_loop(behaviour=RuntimeError("boom"))
+    assert webhook_calls == []
+
+
+def test_the_loop_survives_a_crashing_item(
+    queue_item, run_loop, webhook_calls, monkeypatch
+):
+    """An error outside the episode download still lets the batch report."""
+    crashing = queue_item("A", episodes=["https://x/a1"])
+    queue_item("B", episodes=["https://x/b1"])
+    process = worker._process
+
+    def crash_on_a(item):
+        if item["id"] == crashing:
+            raise RuntimeError("unexpected")
+        return process(item)
+
+    monkeypatch.setattr(worker, "_process", crash_on_a)
+    run_loop()
+
+    assert db.get_queue_item(crashing)["status"] == "failed"
+    assert webhook_calls == [1]

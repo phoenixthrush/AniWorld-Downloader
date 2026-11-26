@@ -10,7 +10,7 @@ import time
 
 from ..logger import get_logger
 from ..providers import normalize_url, resolve_provider
-from . import db, paths
+from . import db, paths, webhook
 from .media import mangafire_format
 
 logger = get_logger(__name__)
@@ -49,14 +49,16 @@ def _claim_next():
 
 
 def _run():
+    finished = 0
     while True:
         item = None
+        status = None
         try:
             item = _claim_next()
             if not item:
                 time.sleep(IDLE_SECONDS)
                 continue
-            _process(item)
+            status = _process(item)
         except Exception:
             logger.exception("Queue worker error")
             if item:
@@ -65,6 +67,29 @@ def _run():
                 except Exception:
                     pass
             time.sleep(IDLE_SECONDS)
+        finished = _after_item(status, finished)
+
+
+def _after_item(status, finished):
+    """Call the webhook once the queue runs dry, if anything finished on the way.
+
+    `finished` counts the items that completed since the queue was last empty.
+    A queue that only held failed or cancelled items has nothing new on disk,
+    so it does not call the webhook. Returns the new count. Never raises, the
+    worker thread must survive anything that goes wrong here.
+    """
+    if status == "completed":
+        finished += 1
+    if not finished:
+        return 0
+    try:
+        if db.get_next_queued():
+            return finished
+    except Exception:
+        logger.exception("Could not check whether the queue is empty")
+        return finished
+    webhook.queue_finished(finished)
+    return 0
 
 
 def _episode_request(entry):
@@ -128,6 +153,7 @@ def _captcha_hint(provider, error):
 
 
 def _process(item):
+    """Download every episode of a queue item. Returns its final status."""
     from ..playwright import captcha
 
     queue_id = item["id"]
@@ -174,12 +200,11 @@ def _process(item):
             db.update_queue_progress(queue_id, done, "")
             # asking to stop after the last episode still leaves everything on disk
             everything_done = not forced and done >= len(entries) and not errors
-            db.set_queue_status(
-                queue_id, "completed" if everything_done else "cancelled"
-            )
+            status = "completed" if everything_done else "cancelled"
+            db.set_queue_status(queue_id, status)
             if everything_done and item.get("source") == "discord":
                 _notify_discord(item)
-            return
+            return status
 
     db.update_queue_progress(queue_id, len(entries), "")
     status = "failed" if errors and len(errors) == len(entries) else "completed"
@@ -187,6 +212,7 @@ def _process(item):
 
     if status == "completed" and item.get("source") == "discord":
         _notify_discord(item)
+    return status
 
 
 def _notify_discord(item):

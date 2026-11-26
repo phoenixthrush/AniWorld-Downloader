@@ -111,6 +111,7 @@
     renderProviderOrder();
     applyAutosyncSchedule(settings);
     applyDiscord(settings.discord || {});
+    applyWebhook(settings.webhook || {});
   }
 
   /* ===== Simple toggles and selects ===== */
@@ -702,6 +703,77 @@
       status.textContent = "";
     }
   }
+
+  /* ===== Webhook =====
+     The headers usually hold a token, so like the Discord token they never
+     come back to the browser once saved. A placeholder stands in for them and
+     is sent back as it is when the field was left alone, which keeps them. */
+  function applyWebhook(webhook) {
+    el("webhookUrl").value = webhook.url || "";
+    el("webhookMethod").value = webhook.method || "POST";
+    el("webhookHeaders").value = webhook.headers_set ? SECRET_PLACEHOLDER : "";
+    el("webhookBody").value = webhook.body || "";
+  }
+
+  function webhookPayload() {
+    return {
+      webhook: {
+        url: el("webhookUrl").value.trim(),
+        method: el("webhookMethod").value,
+        headers: el("webhookHeaders").value.trim(),
+        body: el("webhookBody").value.trim()
+      }
+    };
+  }
+
+  async function reloadWebhook() {
+    try {
+      const settings = await apiFetch("/api/settings");
+      applyWebhook(settings.webhook || {});
+    } catch (error) {
+      // the fields keep what was typed, nothing is lost
+    }
+  }
+
+  function showWebhookResult(text, state, body) {
+    const status = el("webhookStatus");
+    status.textContent = text;
+    status.className = text ? `status-pill status-${state}` : "status-pill";
+    const detail = el("webhookTestBody");
+    detail.textContent = body || "";
+    detail.hidden = !body;
+  }
+
+  el("saveWebhookBtn").addEventListener("click", async () => {
+    showWebhookResult("");
+    if (await save(webhookPayload())) reloadWebhook();
+  });
+
+  // Saves first, so what gets sent is what is on screen
+  el("testWebhookBtn").addEventListener("click", async () => {
+    const button = el("testWebhookBtn");
+    showWebhookResult("");
+    if (!(await save(webhookPayload()))) return;
+    reloadWebhook();
+
+    button.disabled = true;
+    showWebhookResult(t("settings.webhook.sending", "Sending..."), "queued");
+    try {
+      const result = await apiSend("/api/webhook/test", "POST", {});
+      if (result.error) {
+        showWebhookResult(result.error, "failed", result.detail);
+      } else if (result.ok) {
+        showWebhookResult(result.status, "completed");
+      } else {
+        // the answer is often the only place a service says what it disliked
+        showWebhookResult(result.status, "failed", result.body);
+      }
+    } catch (error) {
+      showWebhookResult(error.message, "failed");
+    } finally {
+      button.disabled = false;
+    }
+  });
 
   /* ===== Users ===== */
   function renderUsers(users) {

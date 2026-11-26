@@ -30,6 +30,7 @@ ADMIN_ENDPOINTS = {
     "api.get_custom_shader",
     "api.update_custom_shader",
     "api.discord_status",
+    "api.send_test_webhook",
     "api.add_custom_path",
     "api.update_custom_path",
     "api.delete_custom_path",
