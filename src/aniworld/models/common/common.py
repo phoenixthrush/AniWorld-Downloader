@@ -361,6 +361,14 @@ def _remove_empty_dirs(folder_path, base_folder, protected=None):
             pass
 
 
+def _remove_episode_dirs(self):
+    _remove_empty_dirs(
+        self._folder_path,
+        self._base_folder,
+        protected=getattr(self, "selected_path", None),
+    )
+
+
 def _cleanup_episode_download(self):
     """Remove partial files left by an interrupted or failed episode download."""
     for suffix in (
@@ -494,6 +502,19 @@ def get_ffmpeg_progress():
         return dict(_ffmpeg_progress)
 
 
+def _reset_ffmpeg_progress(active):
+    with _ffmpeg_progress_lock:
+        _ffmpeg_progress.update(
+            percent=0.0, time="", speed="", bandwidth="", active=active
+        )
+
+
+def _format_bandwidth(byte_count, seconds):
+    """Return "N.N MB/s", or "" when nothing measurable was transferred."""
+    per_second = byte_count / seconds if seconds > 0 else 0
+    return f"{per_second / 1024 / 1024:.1f} MB/s" if per_second > 0 else ""
+
+
 def _parse_ffmpeg_time(time_str):
     """Parse ffmpeg time string (HH:MM:SS.xx) to seconds."""
     try:
@@ -614,10 +635,7 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
     total_duration = 0.0
     cancelled = False
 
-    with _ffmpeg_progress_lock:
-        _ffmpeg_progress.update(
-            percent=0.0, time="", speed="", bandwidth="", active=True
-        )
+    _reset_ffmpeg_progress(active=True)
 
     try:
         while True:
@@ -669,12 +687,9 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
                     size_kb = size_val * (1024 if size_unit == "m" else 1)
                     now = time.monotonic()
                     if last_size_kb is not None and last_size_ts is not None:
-                        dt = now - last_size_ts
-                        if dt > 0:
-                            kb_per_sec = (size_kb - last_size_kb) / dt
-                            if kb_per_sec > 0:
-                                mb_per_sec = kb_per_sec / 1024
-                                cur_bw_str = f"{mb_per_sec:.1f} MB/s"
+                        cur_bw_str = _format_bandwidth(
+                            (size_kb - last_size_kb) * 1024, now - last_size_ts
+                        )
                     last_size_kb = size_kb
                     last_size_ts = now
 
@@ -746,10 +761,7 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
         reader_thread.join(timeout=5)
         raise
     finally:
-        with _ffmpeg_progress_lock:
-            _ffmpeg_progress.update(
-                percent=0.0, time="", speed="", bandwidth="", active=False
-            )
+        _reset_ffmpeg_progress(active=False)
 
     reader_thread.join(timeout=5)
     process.wait()
@@ -853,10 +865,7 @@ def _download_direct_http(episode_path, stream_url, file_name):
         last_ts = time.monotonic()
         last_bytes = 0
 
-        with _ffmpeg_progress_lock:
-            _ffmpeg_progress.update(
-                percent=0.0, time="", speed="", bandwidth="", active=True
-            )
+        _reset_ffmpeg_progress(active=True)
 
         with open(temp_file, "wb") as f:
             for chunk in resp.iter_content(chunk_size=1024 * 1024):
@@ -874,8 +883,7 @@ def _download_direct_http(episode_path, stream_url, file_name):
                     dt = now - last_ts
                     bw_str = ""
                     if dt > 0.5:
-                        bw = (downloaded - last_bytes) / dt / 1024 / 1024
-                        bw_str = f"{bw:.1f} MB/s"
+                        bw_str = _format_bandwidth(downloaded - last_bytes, dt)
                         last_ts = now
                         last_bytes = downloaded
 
@@ -905,10 +913,7 @@ def _download_direct_http(episode_path, stream_url, file_name):
             temp_file.unlink()
         raise
     finally:
-        with _ffmpeg_progress_lock:
-            _ffmpeg_progress.update(
-                percent=0.0, time="", speed="", bandwidth="", active=False
-            )
+        _reset_ffmpeg_progress(active=False)
 
 
 def _download_hls_stream(
@@ -1201,10 +1206,7 @@ def _download_hls_manual(
             pass
         raise
     finally:
-        with _ffmpeg_progress_lock:
-            _ffmpeg_progress.update(
-                percent=0.0, time="", speed="", bandwidth="", active=False
-            )
+        _reset_ffmpeg_progress(active=False)
     return temp_ts, None
 
 
@@ -1566,42 +1568,22 @@ def download(self):
 
             except KeyboardInterrupt:
                 _cleanup_episode_download(self)
-                _remove_empty_dirs(
-                    self._folder_path,
-                    self._base_folder,
-                    protected=getattr(self, "selected_path", None),
-                )
+                _remove_episode_dirs(self)
                 raise
 
             except DownloadCancelled:
                 # The user stopped this, so clean up and get out instead of
                 # logging a failure and trying the next provider.
                 _cleanup_episode_download(self)
-                _remove_empty_dirs(
-                    self._folder_path,
-                    self._base_folder,
-                    protected=getattr(self, "selected_path", None),
-                )
+                _remove_episode_dirs(self)
                 raise
 
             except Exception as e:
                 _cleanup_episode_download(self)
 
-                try:
-                    from ...playwright.captcha import _local
-                    from ...web.db import is_queue_force_cancelled
-
-                    qid = getattr(_local, "queue_id", None)
-                    if qid is not None and is_queue_force_cancelled(qid):
-                        _remove_empty_dirs(
-                            self._folder_path,
-                            self._base_folder,
-                            protected=getattr(self, "selected_path", None),
-                        )
-                        raise
-                except Exception as inner_e:
-                    if inner_e is e:
-                        raise
+                if _force_cancel_requested():
+                    _remove_episode_dirs(self)
+                    raise
 
                 provider_errors[provider_name] = e
                 logger.warning(
@@ -1621,11 +1603,7 @@ def download(self):
                         f"{next_provider} for {getattr(self, 'url', 'episode')}"
                     )
 
-    _remove_empty_dirs(
-        self._folder_path,
-        self._base_folder,
-        protected=getattr(self, "selected_path", None),
-    )
+    _remove_episode_dirs(self)
     if provider_errors:
         raise RuntimeError(
             _build_provider_failure_message("Download", provider_errors)
@@ -1633,16 +1611,8 @@ def download(self):
     raise RuntimeError("Download failed: no providers available")
 
 
-def watch(self):
-    """Watch the current episode with provider headers."""
-
-    title = _media_title(self)
-    print(f"[WATCHING] {title}")
-
-    player_path = str(get_player_path())
-    provider_order = _get_provider_attempt_order(self)
-    provider_errors = {}
-
+def _mpv_args(self, title):
+    """AniSkip flags (when enabled) followed by the base mpv options."""
     # AniSkip: AniWorld only; ignore for serienstream.to
     aniskip_enabled = os.getenv("ANIWORLD_ANISKIP", "0") == "1"
     if aniskip_enabled and hasattr(self, "skip_times"):
@@ -1659,12 +1629,26 @@ def watch(self):
     else:
         skip_flags = []
 
-    base_args = [
+    return [
+        *skip_flags,
         "--no-ytdl",
         "--fs",
         "--quiet",
         f"--force-media-title={title}",
     ]
+
+
+def watch(self):
+    """Watch the current episode with provider headers."""
+
+    title = _media_title(self)
+    print(f"[WATCHING] {title}")
+
+    player_path = str(get_player_path())
+    provider_order = _get_provider_attempt_order(self)
+    provider_errors = {}
+
+    mpv_args = _mpv_args(self, title)
 
     for provider_index, provider_name in enumerate(provider_order):
         _set_selected_provider(self, provider_name)
@@ -1677,10 +1661,7 @@ def watch(self):
                 headers = PROVIDER_HEADERS_W.get(provider_name, {})
                 cmd = _build_blocking_player_command(player_path, stream_url)
 
-                if skip_flags:
-                    cmd.extend(skip_flags)
-
-                cmd.extend(base_args)
+                cmd.extend(mpv_args)
 
                 if headers:
                     cmd.extend(_build_player_header_args(headers))
@@ -1778,20 +1759,7 @@ def syncplay(self):
     # MPV flags come after this
     cmd.append("--")
 
-    aniskip_enabled = os.getenv("ANIWORLD_ANISKIP", "0") == "1"
-    skip_times = None
-    if aniskip_enabled and hasattr(self, "skip_times"):
-        skip_times = self.skip_times
-
-    if skip_times:
-        from ...aniskip import build_mpv_flags, setup_aniskip
-
-        setup_aniskip()
-        skip_flags = build_mpv_flags(skip_times)
-        cmd.extend(skip_flags)
-        logger.debug(f"[SKIP TIMES FOUND]: {skip_flags}")
-
-    cmd.extend(["--no-ytdl", "--fs", "--quiet", f"--force-media-title={title}"])
+    cmd.extend(_mpv_args(self, title))
 
     headers = PROVIDER_HEADERS_W.get(provider_name, {})
 
