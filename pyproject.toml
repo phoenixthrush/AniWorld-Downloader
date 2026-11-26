@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "aniworld"
 version = "5.6.0"
@@ -46,7 +50,7 @@ discord = [
   "discord.py", # optional Discord request bot
 ]
 test = ["pytest"]
-all = ["authlib", "requests", "discord.py", "Pillow"]
+all = ["aniworld[epub,sso,discord]"]
 
 
 [project.urls]
