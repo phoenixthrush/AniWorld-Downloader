@@ -19,6 +19,7 @@ from ..common.common import (
     watch as episode_watch,
 )
 from ..common.paths import resolve_download_path
+from .series import HanimeTVSeries
 
 
 class HanimeTVEpisode:
@@ -82,21 +83,8 @@ class HanimeTVEpisode:
 
         self.__api_data = None
 
-    @staticmethod
-    def _is_valid_url(url):
-        return bool(
-            re.match(
-                r"^https?://(?:www\.)?hanime\.tv/"
-                r"(?:videos/hentai|hentai/video|playlists/[0-9a-z]+/video)/"
-                r"[A-Za-z0-9\-]+/?$",
-                url,
-                re.IGNORECASE,
-            )
-        )
-
-    @staticmethod
-    def _slug_from_url(url):
-        return url.rstrip("/").split("/")[-1]
+    _is_valid_url = staticmethod(HanimeTVSeries.is_valid_url)
+    _slug_from_url = staticmethod(HanimeTVSeries._slug_from_url)
 
     # -----------------------------
     # API DATA
@@ -148,8 +136,6 @@ class HanimeTVEpisode:
     @property
     def series(self):
         if self._series is None:
-            from .series import HanimeTVSeries
-
             self._series = HanimeTVSeries(self.url)
         return self._series
 

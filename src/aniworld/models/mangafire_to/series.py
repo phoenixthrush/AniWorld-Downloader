@@ -17,6 +17,7 @@ from ...common.search import (
 )
 from ...config import GLOBAL_SESSION
 from ...playwright.captcha import is_captcha_page, solve_captcha
+from ..common import clean_title
 from ..common.paths import resolve_download_path
 from .vrf import sign_url
 
@@ -38,8 +39,15 @@ HEADERS = {"Referer": "https://mangafire.to/"}
 
 def _safe_name(value: str) -> str:
     """Return a filesystem-safe name."""
-    cleaned = "".join(char for char in value if char not in '<>:"/\\|?*').strip()
-    return cleaned or "untitled"
+    return clean_title(value) or "untitled"
+
+
+def _output_format(format: str = "") -> str:
+    """Return the requested output format or the configured default."""
+    return (
+        format.strip().lower()
+        or getenv("ANIWORLD_MANGAFIRE_FORMAT", "jpg").strip().lower()
+    )
 
 
 def _file_suffix_from_url(url: str) -> str:
@@ -250,10 +258,7 @@ class MangaFireToChapter:
         format: str = "",
     ):
         """Set up the chapter."""
-        self.mangafire_format = (
-            format.strip().lower()
-            or getenv("ANIWORLD_MANGAFIRE_FORMAT", "jpg").strip().lower()
-        )
+        self.mangafire_format = _output_format(format)
         self._series = series
         self.is_volume = "/volume/" in urlparse(url).path.lower()
         self.chapter_url = url
@@ -271,9 +276,6 @@ class MangaFireToChapter:
         self.__selected_provider_param = selected_provider
         self.__selected_pages_param = selected_pages
 
-        api = VOLUME_API if self.is_volume else CHAPTER_API
-        self.chapter_api_url = api.format(self.chapter_id or 0)
-
         self.__chapter_data = None
         self.__pages = None
 
@@ -281,15 +283,15 @@ class MangaFireToChapter:
             self.chapter_number = self.__extract_chapter_number_from_url(url)
 
         self.__load_metadata_from_series()
+        api = VOLUME_API if self.is_volume else CHAPTER_API
         self.chapter_api_url = api.format(self.chapter_id or 0)
 
     def __str__(self) -> str:
         """Return a readable chapter string."""
         self.__load_volume_metadata()
-        label = "Volume" if self.is_volume else "Chapter"
         if self.chapter_name:
-            return f"{label} {self.chapter_number} - {self.chapter_name}"
-        return f"{label} {self.chapter_number}"
+            return f"{self._label} {self.chapter_number} - {self.chapter_name}"
+        return f"{self._label} {self.chapter_number}"
 
     def __repr__(self) -> str:
         """Return a readable debug string."""
@@ -344,6 +346,11 @@ class MangaFireToChapter:
             self.chapter_type = "volume"
 
     @property
+    def _label(self) -> str:
+        """Return the display label for a chapter or volume."""
+        return "Volume" if self.is_volume else "Chapter"
+
+    @property
     def volume_number(self):
         """Return the volume number for a volume, otherwise None."""
         self.__load_volume_metadata()
@@ -392,8 +399,7 @@ class MangaFireToChapter:
     def folder_name(self) -> str:
         """Return the chapter folder name."""
         self.__load_volume_metadata()
-        label = "Volume" if self.is_volume else "Chapter"
-        base = f"{label} {self.chapter_number}"
+        base = f"{self._label} {self.chapter_number}"
         if self.chapter_name:
             base += f" - {self.chapter_name}"
         return _safe_name(base)
@@ -424,8 +430,7 @@ class MangaFireToChapter:
     def title_en(self) -> str:
         """Return the English title label for the chapter."""
         self.__load_volume_metadata()
-        label = "Volume" if self.is_volume else "Chapter"
-        return self.chapter_name or f"{label} {self.chapter_number}"
+        return self.chapter_name or f"{self._label} {self.chapter_number}"
 
     @property
     def title_de(self) -> str:
@@ -830,10 +835,7 @@ class MangaFireToSeries:
 
     def download_items(self, format: str = "") -> list:
         """Prefer native volumes for archives, falling back to chapters."""
-        output = (
-            format.strip().lower()
-            or getenv("ANIWORLD_MANGAFIRE_FORMAT", "jpg").strip().lower()
-        )
+        output = _output_format(format)
         if output in ("cbz", "epub") and self.volumes:
             return self.volumes
         return self.preferred_chapters

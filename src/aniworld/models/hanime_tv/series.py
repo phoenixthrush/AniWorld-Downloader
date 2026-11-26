@@ -2,7 +2,7 @@ import re
 from datetime import UTC, datetime
 from html import unescape
 
-from ...config import logger
+from ...config import HANIME_TV_SERIES_PATTERN, logger
 from ...extractors.provider.hanime_tv import fetch_hanime_api_data
 from ..common import clean_title
 
@@ -85,15 +85,7 @@ class HanimeTVSeries:
     def is_valid_url(url):
         """Check whether the url is a valid hanime video url."""
 
-        return bool(
-            re.match(
-                r"^https?://(?:www\.)?hanime\.tv/"
-                r"(?:videos/hentai|hentai/video|playlists/[0-9a-z]+/video)/"
-                r"[A-Za-z0-9\-]+/?$",
-                url,
-                re.IGNORECASE,
-            )
-        )
+        return bool(HANIME_TV_SERIES_PATTERN.match(url))
 
     @staticmethod
     def _slug_from_url(url):

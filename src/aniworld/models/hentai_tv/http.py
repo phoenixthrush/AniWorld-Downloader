@@ -5,32 +5,25 @@ from niquests.exceptions import RequestException
 from ...config import GLOBAL_SESSION
 
 
-def get_response(url, **kwargs):
+def _request(method, url, **kwargs):
     kwargs.setdefault("timeout", 20)
     kwargs.setdefault("headers", {"Accept-Encoding": "gzip, deflate"})
     try:
-        response = GLOBAL_SESSION.get(url, **kwargs)
+        response = getattr(GLOBAL_SESSION, method)(url, **kwargs)
     except RequestException:
         response = None
     if response is None or getattr(response, "status_code", 200) == 403:
         # These sites reject plain TLS clients, even for public catalogue pages.
         from curl_cffi import requests
 
-        response = requests.get(url, impersonate="chrome", **kwargs)
+        response = getattr(requests, method)(url, impersonate="chrome", **kwargs)
     response.raise_for_status()
     return response
+
+
+def get_response(url, **kwargs):
+    return _request("get", url, **kwargs)
 
 
 def post_response(url, **kwargs):
-    kwargs.setdefault("timeout", 20)
-    kwargs.setdefault("headers", {"Accept-Encoding": "gzip, deflate"})
-    try:
-        response = GLOBAL_SESSION.post(url, **kwargs)
-    except RequestException:
-        response = None
-    if response is None or getattr(response, "status_code", 200) == 403:
-        from curl_cffi import requests
-
-        response = requests.post(url, impersonate="chrome", **kwargs)
-    response.raise_for_status()
-    return response
+    return _request("post", url, **kwargs)
