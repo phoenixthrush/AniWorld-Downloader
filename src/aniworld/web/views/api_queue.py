@@ -1,6 +1,6 @@
 """Download queue and captcha endpoints."""
 
-from flask import Response, current_app, jsonify, request
+from flask import Response, jsonify, request
 
 from ...logger import get_logger
 from .. import db, worker
@@ -35,14 +35,6 @@ def register(bp):
     )
 
 
-def _current_username():
-    if not current_app.config.get("AUTH_ENABLED", False):
-        return None
-    from ..auth import current_username
-
-    return current_username()
-
-
 def start_download():
     data = request.get_json(silent=True) or {}
     episodes = data.get("episodes") or []
@@ -62,13 +54,15 @@ def start_download():
     if provider == "MangaFire":
         episodes = _tag_mangafire(episodes, data.get("mangafire_format"))
 
+    from ..auth import current_username
+
     queue_id = db.add_to_queue(
         title=data.get("title", "Unknown"),
         series_url=data.get("series_url", ""),
         episodes=episodes,
         language=language,
         provider=provider,
-        username=_current_username(),
+        username=current_username(),
         custom_path_id=data.get("custom_path_id"),
     )
     worker.ensure_started()

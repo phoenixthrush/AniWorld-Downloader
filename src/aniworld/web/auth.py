@@ -162,6 +162,9 @@ def get_current_user():
 
 
 def current_username():
+    """The signed-in user's name, or None when auth is off or nobody is."""
+    if not current_app.config.get("AUTH_ENABLED", False):
+        return None
     user = get_current_user()
     return user["username"] if user else None
 

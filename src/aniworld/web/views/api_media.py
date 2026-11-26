@@ -118,8 +118,20 @@ def _search_hanime(keyword):
     from ...search import query_hanime
 
     hits = query_hanime(keyword) or []
+    return [
+        {
+            "title": re.sub(r"\s+\d+$", "", hit.get("name", "")).strip(),
+            "url": f"https://hanime.tv/videos/hentai/{hit['slug']}",
+            "poster_url": media.proxy_image(
+                hit.get("cover_url") or hit.get("poster_url") or ""
+            ),
+        }
+        for hit in _one_per_franchise(hits)
+    ]
 
-    results = []
+
+def _one_per_franchise(hits):
+    """Hits with a slug, skipping sequels whose slug only adds a -N suffix."""
     seen = set()
     for hit in hits:
         slug = hit.get("slug", "")
@@ -129,16 +141,7 @@ def _search_hanime(keyword):
         if franchise in seen:
             continue
         seen.add(franchise)
-        results.append(
-            {
-                "title": re.sub(r"\s+\d+$", "", hit.get("name", "")).strip(),
-                "url": f"https://hanime.tv/videos/hentai/{slug}",
-                "poster_url": media.proxy_image(
-                    hit.get("cover_url") or hit.get("poster_url") or ""
-                ),
-            }
-        )
-    return results
+        yield hit
 
 
 # ---------------------------------------------------------------------------
@@ -685,25 +688,15 @@ def _fetch_hanime_trending():
         logger.warning("HTV trending fetch failed: %s", exc)
         return None
 
-    results = []
-    seen = set()
-    for hit in hits:
-        slug, title = hit.get("slug", ""), hit.get("name", "")
-        if not slug or not title:
-            continue
-        franchise = re.sub(r"-\d+$", "", slug)
-        if franchise in seen:
-            continue
-        seen.add(franchise)
-        results.append(
-            {
-                "title": title,
-                "url": f"https://hanime.tv/videos/hentai/{slug}",
-                "poster_url": hit.get("cover_url") or hit.get("poster_url") or "",
-                "genre": ", ".join(hit.get("tags", [])[:3]),
-            }
-        )
-    return results
+    return [
+        {
+            "title": hit["name"],
+            "url": f"https://hanime.tv/videos/hentai/{hit['slug']}",
+            "poster_url": hit.get("cover_url") or hit.get("poster_url") or "",
+            "genre": ", ".join(hit.get("tags", [])[:3]),
+        }
+        for hit in _one_per_franchise(hit for hit in hits if hit.get("name", ""))
+    ]
 
 
 def _fetch_mangafire_trending():

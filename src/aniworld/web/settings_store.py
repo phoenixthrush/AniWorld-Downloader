@@ -330,7 +330,7 @@ def _collect_discord(payload, updates):
         raise SettingsError("discord must be an object")
 
     if "enabled" in payload:
-        updates[DISCORD_KEYS["enabled"]] = "1" if payload["enabled"] else "0"
+        updates[DISCORD_KEYS["enabled"]] = _one_or_zero(payload["enabled"])
 
     if "token" in payload:
         token = str(payload["token"]).strip()
@@ -500,7 +500,7 @@ def update_settings(data):
 
     for field, key in _BOOL_SETTINGS.items():
         if field in data:
-            updates[key] = "1" if data[field] else "0"
+            updates[key] = _one_or_zero(data[field])
 
     if "ui_language" in data:
         language = str(data["ui_language"]).strip().lower()

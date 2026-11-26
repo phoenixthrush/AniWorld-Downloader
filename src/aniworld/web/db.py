@@ -246,10 +246,7 @@ def _bootstrap_admin():
 # ---------------------------------------------------------------------------
 def has_any_admin():
     with session() as conn:
-        row = conn.execute(
-            "SELECT COUNT(*) AS n FROM users WHERE role = 'admin'"
-        ).fetchone()
-        return row["n"] > 0
+        return _admin_count(conn) > 0
 
 
 def create_user(username, password, role="user"):
@@ -366,10 +363,14 @@ def update_user_role(user_id, role):
 
 
 def _last_admin(conn):
+    return _admin_count(conn) <= 1
+
+
+def _admin_count(conn):
     row = conn.execute(
         "SELECT COUNT(*) AS n FROM users WHERE role = 'admin'"
     ).fetchone()
-    return row["n"] <= 1
+    return row["n"]
 
 
 # ---------------------------------------------------------------------------
