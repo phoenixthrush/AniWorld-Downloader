@@ -35,6 +35,7 @@ def test_genres_use_runtime_names_and_slugs(page_session):
     pages.append("""<div class="side-block__title">Genres</div>
         <ul class="side-block__content side-block__menu">
         <li><a href="/multfilm/">Animation</a><span>321</span></li>
+        <li><a href="/new-category/"><i class="icon"></i></a></li>
         <li><a href="/new-category/">New &amp; Changed</a></li>
         <li><a href="/multfilm/">Duplicate</a></li></ul>
         <a href="/unrelated/">Outside</a>""")

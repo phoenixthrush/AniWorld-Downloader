@@ -95,6 +95,15 @@ def _relevance_score(title: str, keyword: str) -> int:
     return 4
 
 
+def _megakino_get(session, url, headers):
+    response = session.get(url, headers=headers, timeout=15)
+    response.raise_for_status()
+    if "location.replace" in response.text or "yg=token" in response.text:
+        response = session.get(url, headers=headers, timeout=15)
+        response.raise_for_status()
+    return response
+
+
 def _fetch_megakino_page(path):
     from .models.megakino.series import get_megakino_domain
 
@@ -102,12 +111,7 @@ def _fetch_megakino_page(path):
     headers = {"Accept-Encoding": "identity", "User-Agent": DEFAULT_USER_AGENT}
     with niquests.Session() as session:
         session.get(f"{base}/index.php?yg=token", headers=headers, timeout=15)
-        response = session.get(f"{base}{path}", headers=headers, timeout=15)
-        response.raise_for_status()
-        if "location.replace" in response.text or "yg=token" in response.text:
-            response = session.get(f"{base}{path}", headers=headers, timeout=15)
-            response.raise_for_status()
-        return response.text, base
+        return _megakino_get(session, f"{base}{path}", headers).text, base
 
 
 def fetch_megakino_genres():
@@ -121,19 +125,14 @@ def fetch_megakino_genres():
     )
     if not section:
         return []
-    results = []
-    seen = set()
-    for slug, label in re.findall(
-        r'<a\b[^>]*href=["\']/([^/"\'?#]+)/?["\'][^>]*>(.*?)</a>',
-        section.group(1),
-        re.IGNORECASE | re.DOTALL,
-    ):
-        slug = unquote(html_module.unescape(slug))
-        name = html_module.unescape(re.sub(r"<[^>]+>", "", label)).strip()
-        if name and slug not in seen:
-            seen.add(slug)
-            results.append({"name": name, "slug": slug})
-    return results
+    return _unique_genres(
+        re.findall(
+            r'<a\b[^>]*href=["\']/([^/"\'?#]+)/?["\'][^>]*>(.*?)</a>',
+            section.group(1),
+            re.IGNORECASE | re.DOTALL,
+        ),
+        named_only=True,
+    )
 
 
 def query_megakino(keyword="", *, genre=None, limit=None):
@@ -189,11 +188,7 @@ def query_megakino(keyword="", *, genre=None, limit=None):
             f"&result_from={result_from}&story={quote_plus(keyword)}"
         )
         try:
-            response = session.get(url, timeout=15, headers=headers)
-            response.raise_for_status()
-            if "location.replace" in response.text or "yg=token" in response.text:
-                response = session.get(url, timeout=15, headers=headers)
-                response.raise_for_status()
+            response = _megakino_get(session, url, headers)
         except Exception:
             break
 
@@ -966,18 +961,20 @@ class _StoSearchParser(HTMLParser):
             self.depth -= 1
 
 
-def _unique_genres(pairs):
+def _unique_genres(pairs, *, named_only=False):
     """Turn (slug, label) matches into unique {"name", "slug"} genre entries.
 
     Every site prints its genre menu as a list of links or options, only the
     markup around them differs, so the fetchers below share the cleanup.
+    With named_only, links without a label are skipped instead of falling
+    back to the slug.
     """
     results = []
     seen = set()
     for slug, label in pairs:
         slug = unquote(html_module.unescape(slug)).strip().rstrip("/")
         name = html_module.unescape(re.sub(r"<[^>]+>", "", label)).strip()
-        if slug and slug not in seen:
+        if slug and slug not in seen and (name or not named_only):
             seen.add(slug)
             results.append({"name": name or slug, "slug": slug})
     return results
@@ -1084,18 +1081,70 @@ def fetch_filmpalast_genres():
     )
     if not section:
         return []
+    return _unique_genres(
+        re.findall(
+            rf"<a\b[^>]*href=[\"'](?:https?://{FILMPALAST_HOST_PATTERN}/|/)?search/genre/([^\"'?#]+)[\"'][^>]*>(.*?)</a>",
+            section.group(1),
+            re.IGNORECASE | re.DOTALL,
+        ),
+        named_only=True,
+    )
+
+
+def _parse_filmpalast_cards(page, base):
+    """Parse the FilmPalast result cards of a search or browse page."""
     results = []
     seen = set()
-    for slug, label in re.findall(
-        rf"<a\b[^>]*href=[\"'](?:https?://{FILMPALAST_HOST_PATTERN}/|/)?search/genre/([^\"'?#]+)[\"'][^>]*>(.*?)</a>",
-        section.group(1),
-        re.IGNORECASE | re.DOTALL,
-    ):
-        slug = unquote(html_module.unescape(slug)).rstrip("/")
-        name = html_module.unescape(re.sub(r"<[^>]+>", "", label)).strip()
-        if slug and name and slug not in seen:
-            seen.add(slug)
-            results.append({"name": name, "slug": slug})
+    for block in page.split('<article class="liste')[1:]:
+        h2 = re.search(r"<h2[^>]*>(.*?)</h2>", block, re.DOTALL | re.IGNORECASE)
+        if not h2:
+            continue
+        href = re.search(r'href="([^"]+)"', h2.group(1), re.IGNORECASE)
+        if not href:
+            continue
+        movie_url = href.group(1).strip()
+        if movie_url.startswith("//"):
+            movie_url = "https:" + movie_url
+        elif movie_url.startswith("/"):
+            movie_url = base + movie_url
+
+        if movie_url in seen:
+            continue
+        seen.add(movie_url)
+
+        title_m = re.search(r'title="([^"]+)"', h2.group(1), re.IGNORECASE)
+        if title_m:
+            title = title_m.group(1).strip()
+        else:
+            anchor = re.search(r"<a[^>]*>(.*?)</a>", h2.group(1), re.DOTALL)
+            if not anchor:
+                continue
+            title = re.sub(r"<[^>]+>", "", anchor.group(1)).strip()
+
+        poster = ""
+        pm = re.search(
+            r'<img\s+[^>]*src="([^"]+)"[^>]*class="[^"]*cover[^"]*"',
+            block,
+            re.IGNORECASE,
+        ) or re.search(
+            r'<img\s+[^>]*class="[^"]*cover[^"]*"[^>]*src="([^"]+)"',
+            block,
+            re.IGNORECASE,
+        )
+        if pm:
+            poster = pm.group(1).strip()
+            if poster.startswith("//"):
+                poster = "https:" + poster
+            elif poster.startswith("/"):
+                poster = base + poster
+
+        results.append(
+            {
+                "title": html_module.unescape(title),
+                "url": movie_url,
+                "poster_url": poster,
+            }
+        )
     return results
 
 
@@ -1127,58 +1176,7 @@ def query_filmpalast(keyword="", *, genre=None, limit=None):
             logger.debug(f"filmpalast search failed for {term!r}: {exc}")
             return []
 
-        results = []
-        seen = set()
-        for block in resp.text.split('<article class="liste')[1:]:
-            h2 = re.search(r"<h2[^>]*>(.*?)</h2>", block, re.DOTALL | re.IGNORECASE)
-            if not h2:
-                continue
-            href = re.search(r'href="([^"]+)"', h2.group(1), re.IGNORECASE)
-            if not href:
-                continue
-            movie_url = href.group(1).strip()
-            if movie_url.startswith("//"):
-                movie_url = "https:" + movie_url
-            elif movie_url.startswith("/"):
-                movie_url = base + movie_url
-
-            if movie_url in seen:
-                continue
-            seen.add(movie_url)
-
-            title_m = re.search(r'title="([^"]+)"', h2.group(1), re.IGNORECASE)
-            if title_m:
-                title = title_m.group(1).strip()
-            else:
-                anchor = re.search(r"<a[^>]*>(.*?)</a>", h2.group(1), re.DOTALL)
-                if not anchor:
-                    continue
-                title = re.sub(r"<[^>]+>", "", anchor.group(1)).strip()
-
-            poster = ""
-            pm = re.search(
-                r'<img\s+[^>]*src="([^"]+)"[^>]*class="[^"]*cover[^"]*"',
-                block,
-                re.IGNORECASE,
-            ) or re.search(
-                r'<img\s+[^>]*class="[^"]*cover[^"]*"[^>]*src="([^"]+)"',
-                block,
-                re.IGNORECASE,
-            )
-            if pm:
-                poster = pm.group(1).strip()
-                if poster.startswith("//"):
-                    poster = "https:" + poster
-                elif poster.startswith("/"):
-                    poster = base + poster
-
-            results.append(
-                {
-                    "title": html_module.unescape(title),
-                    "url": movie_url,
-                    "poster_url": poster,
-                }
-            )
+        results = _parse_filmpalast_cards(resp.text, base)
         return limit_results(results if genre else results[:30], limit)
 
     results = _run(genre or keyword)
@@ -1358,6 +1356,48 @@ def fetch_kinox_genres():
     )
 
 
+def _parse_kinox_cards(page, base):
+    """Parse the Kinox movie cards of a search, genre or browse page."""
+    results = []
+    seen = set()
+    for block in page.split('class="Opt leftOpt Headlne"')[1:]:
+        href = re.search(r'href="([^"]+)"', block, re.IGNORECASE)
+        title_m = re.search(r'title="([^"]+)"', block, re.IGNORECASE) or re.search(
+            r"<h1>(.*?)</h1>", block, re.DOTALL | re.IGNORECASE
+        )
+        if not (href and title_m):
+            continue
+        movie_url = href.group(1).strip()
+        if "/Stream/" not in movie_url:
+            continue
+        if movie_url.startswith("/"):
+            movie_url = base + movie_url
+        if movie_url in seen:
+            continue
+        seen.add(movie_url)
+
+        title = re.sub(r"<[^>]+>", "", title_m.group(1)).strip()
+        title = re.sub(r"\s*\(\d{4}\)\s*$", "", title).strip()
+
+        poster = ""
+        pm = re.search(
+            r'<div class="Thumb"><img[^>]*src="([^"]+)"', block, re.IGNORECASE
+        )
+        if pm:
+            poster = pm.group(1).strip()
+            if poster.startswith("/"):
+                poster = base + poster
+
+        results.append(
+            {
+                "title": html_module.unescape(title),
+                "url": movie_url,
+                "poster_url": poster,
+            }
+        )
+    return results
+
+
 def query_kinox(keyword="", *, genre=None, limit=None):
     """Search Kinox by keyword, or fetch a genre's Top 100 in site order."""
     validate_limit(limit)
@@ -1420,44 +1460,9 @@ def query_kinox(keyword="", *, genre=None, limit=None):
             if not isinstance(page, str):
                 raise RuntimeError("Kinox did not return a movie list.")
 
-    results = []
-    seen = set()
-    for block in page.split('class="Opt leftOpt Headlne"')[1:]:
-        href = re.search(r'href="([^"]+)"', block, re.IGNORECASE)
-        title_m = re.search(r'title="([^"]+)"', block, re.IGNORECASE) or re.search(
-            r"<h1>(.*?)</h1>", block, re.DOTALL | re.IGNORECASE
-        )
-        if not (href and title_m):
-            continue
-        movie_url = href.group(1).strip()
-        if "/Stream/" not in movie_url:
-            continue
-        if movie_url.startswith("/"):
-            movie_url = base + movie_url
-        if movie_url in seen:
-            continue
-        seen.add(movie_url)
-
-        title = re.sub(r"<[^>]+>", "", title_m.group(1)).strip()
-        title = re.sub(r"\s*\(\d{4}\)\s*$", "", title).strip()
-
-        poster = ""
-        pm = re.search(
-            r'<div class="Thumb"><img[^>]*src="([^"]+)"', block, re.IGNORECASE
-        )
-        if pm:
-            poster = pm.group(1).strip()
-            if poster.startswith("/"):
-                poster = base + poster
-
-        results.append(
-            {
-                "title": html_module.unescape(title),
-                "url": movie_url,
-                "poster_url": poster,
-            }
-        )
+    results = _parse_kinox_cards(page, base)
     if genre and not results:
+        seen = set()
         for cell in re.findall(
             r'<td\b[^>]*class=["\'][^"\']*\bTitle\b[^"\']*["\'][^>]*>(.*?)</td>',
             page,
@@ -1577,55 +1582,11 @@ def fetch_filmpalast_movies():
         logger.debug(f"filmpalast browse failed: {exc}")
         return None
 
-    results = []
-    seen = set()
-    for art in resp.text.split('<article class="liste')[1:]:
-        h2 = re.search(r"<h2[^>]*>(.*?)</h2>", art, re.DOTALL | re.IGNORECASE)
-        if not h2:
-            continue
-        href = re.search(r'href="([^"]+)"', h2.group(1), re.IGNORECASE)
-        if not href:
-            continue
-        url = href.group(1).strip()
-        if url.startswith("//"):
-            url = "https:" + url
-        elif url.startswith("/"):
-            url = base + url
-        if url in seen:
-            continue
-        seen.add(url)
-
-        title_m = re.search(r'title="([^"]+)"', h2.group(1), re.IGNORECASE)
-        if title_m:
-            title = title_m.group(1).strip()
-        else:
-            anchor = re.search(r"<a[^>]*>(.*?)</a>", h2.group(1), re.DOTALL)
-            title = re.sub(r"<[^>]+>", "", anchor.group(1)).strip() if anchor else ""
-        if not title:
-            continue
-
-        poster = ""
-        pm = re.search(
-            r'<img\s+[^>]*src="([^"]+)"[^>]*class="[^"]*cover[^"]*"', art, re.IGNORECASE
-        ) or re.search(
-            r'<img\s+[^>]*class="[^"]*cover[^"]*"[^>]*src="([^"]+)"', art, re.IGNORECASE
-        )
-        if pm:
-            poster = pm.group(1).strip()
-            if poster.startswith("//"):
-                poster = "https:" + poster
-            elif poster.startswith("/"):
-                poster = base + poster
-
-        results.append(
-            {
-                "title": html_module.unescape(title),
-                "url": url,
-                "poster_url": poster,
-                "genre": "",
-            }
-        )
-    return results[:30]
+    return [
+        {**result, "genre": ""}
+        for result in _parse_filmpalast_cards(resp.text, base)
+        if result["title"]
+    ][:30]
 
 
 def fetch_filmo_movies():
@@ -1654,45 +1615,8 @@ def fetch_kinox_movies():
         logger.debug(f"kinox browse failed: {exc}")
         return None
 
-    results = []
-    seen = set()
-    for block in resp.text.split('class="Opt leftOpt Headlne"')[1:]:
-        href = re.search(r'href="([^"]+)"', block, re.IGNORECASE)
-        title_m = re.search(r'title="([^"]+)"', block, re.IGNORECASE) or re.search(
-            r"<h1>(.*?)</h1>", block, re.DOTALL | re.IGNORECASE
-        )
-        if not (href and title_m):
-            continue
-        url = href.group(1).strip()
-        if "/Stream/" not in url:
-            continue
-        if url.startswith("/"):
-            url = base + url
-        if url in seen:
-            continue
-        seen.add(url)
-
-        title = re.sub(r"<[^>]+>", "", title_m.group(1)).strip()
-        title = re.sub(r"\s*\(\d{4}\)\s*$", "", title).strip()
-
-        poster = ""
-        pm = re.search(
-            r'<div class="Thumb"><img[^>]*src="([^"]+)"', block, re.IGNORECASE
-        )
-        if pm:
-            poster = pm.group(1).strip()
-            if poster.startswith("/"):
-                poster = base + poster
-
-        results.append(
-            {
-                "title": html_module.unescape(title),
-                "url": url,
-                "poster_url": poster,
-                "genre": "",
-            }
-        )
-    return results[:30]
+    results = _parse_kinox_cards(resp.text, base)
+    return [{**result, "genre": ""} for result in results][:30]
 
 
 def _bs_cover(session, base, slug):
