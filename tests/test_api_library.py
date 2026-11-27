@@ -1,5 +1,6 @@
 """Library, genre and page endpoints."""
 
+import socket
 from urllib.parse import parse_qs, urlsplit
 
 import curl_cffi.requests
@@ -575,10 +576,34 @@ def test_an_unknown_page_is_a_404(client):
 
 def _resolve_to(monkeypatch, address):
     monkeypatch.setattr(
-        api_media.socket,
+        api_media.GLOBAL_SESSION.resolver,
         "getaddrinfo",
-        lambda host, port: [(2, 1, 6, "", (address, 0))],
+        lambda host, port, family, type: [(2, 1, 6, "", (address, 0))],
     )
+
+
+def test_proxy_image_checks_the_host_with_the_doh_resolver(client, monkeypatch):
+    # An ISP DNS block only affects the system resolver, not the DoH one.
+    _resolve_to(monkeypatch, "93.184.216.34")
+
+    def system_dns(*args, **kwargs):
+        raise OSError("blocked by the ISP")
+
+    monkeypatch.setattr(api_media.socket, "getaddrinfo", system_dns)
+    monkeypatch.setattr(
+        api_media.GLOBAL_SESSION, "get", lambda *a, **k: _image_response("image/png")
+    )
+    response = client.get("/api/proxy-image?url=https://cdn.example/p.png")
+    assert response.status_code == 200
+
+
+def test_proxy_image_refuses_hosts_the_resolver_cannot_resolve(client, monkeypatch):
+    def unresolvable(*args, **kwargs):
+        raise socket.gaierror("Name or service not known")
+
+    monkeypatch.setattr(api_media.GLOBAL_SESSION.resolver, "getaddrinfo", unresolvable)
+    response = client.get("/api/proxy-image?url=https://missing.example/p.png")
+    assert response.status_code == 400
 
 
 def _image_response(content_type):

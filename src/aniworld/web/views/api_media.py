@@ -576,9 +576,13 @@ def _is_public_host(url):
     if not host:
         return False
     try:
-        infos = socket.getaddrinfo(host, None)
+        # Same DoH resolver as the fetch below: the system DNS may be blocked
+        # by the ISP and would also answer differently than the real request.
+        infos = GLOBAL_SESSION.resolver.getaddrinfo(
+            host, None, socket.AF_UNSPEC, socket.SOCK_STREAM
+        )
         addresses = [ipaddress.ip_address(info[4][0]) for info in infos]
-    except (OSError, ValueError):
+    except Exception:
         return False
     return bool(addresses) and all(
         ip.is_global and not ip.is_multicast for ip in addresses
