@@ -30,6 +30,13 @@ except ImportError:
 # -----------------------------
 # MPV
 # -----------------------------
+MPV_REPO = "shinchiro/mpv-winbuild-cmake"
+MPV_PATTERNS = {
+    "v3": r"mpv-x86_64-v3-\d{8}-git-[a-f0-9]+\.7z$",
+    "non_v3": r"mpv-x86_64-(?!v3-)\d{8}-git-[a-f0-9]+\.7z$",
+}
+
+
 def get_mpv_release_urls() -> dict[str, list[str]]:
     """
     Fetch all Windows MPV release URLs, separated into v3 and non-v3 builds.
@@ -40,17 +47,10 @@ def get_mpv_release_urls() -> dict[str, list[str]]:
             "non_v3": [...]   # all non-v3 release URLs
         }
     """
-    repo = "shinchiro/mpv-winbuild-cmake"
-
-    patterns = {
-        "v3": r"mpv-x86_64-v3-\d{8}-git-[a-f0-9]+\.7z$",
-        "non_v3": r"mpv-x86_64-(?!v3-)\d{8}-git-[a-f0-9]+\.7z$",
-    }
-
     urls: dict[str, list[str]] = {}
 
-    for key, pattern in patterns.items():
-        urls[key] = fetch_github_asset_urls(repo, pattern)
+    for key, pattern in MPV_PATTERNS.items():
+        urls[key] = fetch_github_asset_urls(MPV_REPO, pattern)
 
     return urls
 
@@ -62,9 +62,10 @@ def get_mpv_windows_url(v3: bool = False) -> str:
     Args:
         v3: whether to get the v3 build (default False → non-v3)
     """
-    all_urls = get_mpv_release_urls()
+    # Fetch only the requested build; each fetch costs two GitHub API calls.
     key = "v3" if v3 else "non_v3"
-    return all_urls.get(key, [None])[0]  # return first match or None
+    urls = fetch_github_asset_urls(MPV_REPO, MPV_PATTERNS[key])
+    return urls[0] if urls else None  # return first match or None
 
 
 # -----------------------------
@@ -249,17 +250,14 @@ class DependencyManager:
 
     def _resolve_download_url(self, name: str, dep_info: dict) -> str | None:
         url = dep_info.get("url")
+        resolver = {
+            "mpv": get_mpv_windows_url,
+            "syncplay": get_syncplay_windows_url,
+            "ffmpeg": get_ffmpeg_windows_url,
+        }.get(name)
 
-        if name == "mpv" and PLATFORM == "Windows" and not url:
-            url = get_mpv_windows_url()
-            dep_info["url"] = url
-
-        if name == "syncplay" and PLATFORM == "Windows" and not url:
-            url = get_syncplay_windows_url()
-            dep_info["url"] = url
-
-        if name == "ffmpeg" and PLATFORM == "Windows" and not url:
-            url = get_ffmpeg_windows_url()
+        if resolver and PLATFORM == "Windows" and not url:
+            url = resolver()
             dep_info["url"] = url
 
         return url

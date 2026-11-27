@@ -14,8 +14,8 @@ SOURCE_LINK_PATTERN = re.compile(r'src:\s*"([^"]+)"')
 IMAGE_LINK_PATTERN = re.compile(r'poster:\s*"([^"]+)"')
 
 
-def get_direct_link_from_vidoza(embeded_vidoza_link):
-    """Get direct Vidoza video URL."""
+def _extract(embeded_vidoza_link, pattern):
+    """Fetch a Vidoza embed page and return the first pattern match or None."""
     try:
         resp = GLOBAL_SESSION.get(
             embeded_vidoza_link, headers={"User-Agent": DEFAULT_USER_AGENT}
@@ -24,32 +24,26 @@ def get_direct_link_from_vidoza(embeded_vidoza_link):
         html = resp.text
 
         if "sourcesCode:" in html:
-            match = SOURCE_LINK_PATTERN.search(html)
+            match = pattern.search(html)
             if match:
                 return match.group(1)
 
     except niquests.RequestException as err:
         raise ValueError(f"Failed to fetch Vidoza page: {err}") from err
+    return None
 
+
+def get_direct_link_from_vidoza(embeded_vidoza_link):
+    """Get direct Vidoza video URL."""
+    link = _extract(embeded_vidoza_link, SOURCE_LINK_PATTERN)
+    if link:
+        return link
     raise ValueError("No Vidoza stream URL found")
 
 
 def get_preview_image_link_from_vidoza(embeded_vidoza_link):
     """Get Vidoza preview image URL."""
-    try:
-        resp = GLOBAL_SESSION.get(
-            embeded_vidoza_link, headers={"User-Agent": DEFAULT_USER_AGENT}
-        )
-        resp.raise_for_status()
-        html = resp.text
-
-        if "sourcesCode:" in html:
-            match = IMAGE_LINK_PATTERN.search(html)
-            if match:
-                return match.group(1)
-
-    except niquests.RequestException as err:
-        raise ValueError(f"Failed to fetch Vidoza page: {err}") from err
+    return _extract(embeded_vidoza_link, IMAGE_LINK_PATTERN)
 
 
 if __name__ == "__main__":

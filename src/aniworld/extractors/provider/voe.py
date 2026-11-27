@@ -1,5 +1,6 @@
 import base64
 import binascii
+import codecs
 import json
 import logging
 import re
@@ -54,15 +55,7 @@ def _voe_get(url, headers, timeout):
 # -----------------------------
 def shift_letters(input_str):
     """Apply ROT13 cipher to alphabetic characters."""
-    result = []
-    for c in input_str:
-        code = ord(c)
-        if 65 <= code <= 90:  # Uppercase A-Z
-            code = (code - 65 + 13) % 26 + 65
-        elif 97 <= code <= 122:  # Lowercase a-z
-            code = (code - 97 + 13) % 26 + 97
-        result.append(chr(code))
-    return "".join(result)
+    return codecs.encode(input_str, "rot13")
 
 
 def replace_junk(input_str):
@@ -164,6 +157,13 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
             raise _VOEUnavailable(f"VOE video unavailable (HTTP {result[2]}): {url}")
         return result
 
+    def fetch_solved(url):
+        html, _final, status = fetch(url)
+        if is_captcha_page(html, status):
+            solve_captcha(url)
+            html, _final, status = fetch(url)
+        return html
+
     for attempt in range(max_retries):
         try:
             # Add delay between retries
@@ -175,12 +175,8 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
                 time.sleep(wait_time)
 
             # Use the same static client before and after a CAPTCHA fallback.
-            html, _final, status = fetch(embeded_voe_link)
-
             # Captcha on VOE page -> solve and retry this request
-            if is_captcha_page(html, status):
-                solve_captcha(embeded_voe_link)
-                html, _final, status = fetch(embeded_voe_link)
+            html = fetch_solved(embeded_voe_link)
 
             # Try extracting source directly from the VOE embed page first
             source = extract_voe_source_from_html(html)
@@ -199,10 +195,7 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
             if redirect_match:
                 redirect_url = redirect_match.group(1).strip()
                 try:
-                    html2, _f2, status2 = fetch(redirect_url)
-                    if is_captcha_page(html2, status2):
-                        solve_captcha(redirect_url)
-                        html2, _f2, status2 = fetch(redirect_url)
+                    html2 = fetch_solved(redirect_url)
                     source = extract_voe_source_from_html(html2)
                     if source:
                         return source

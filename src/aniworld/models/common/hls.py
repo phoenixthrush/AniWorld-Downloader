@@ -362,9 +362,12 @@ class _ProgressTracker:
         now = time.monotonic()
         elapsed = now - self._last_tick
         if elapsed > 0.5:
-            per_second = (self.bytes_written - self._last_bytes) / elapsed
-            if per_second > 0:
-                self._bandwidth = f"{per_second / 1024 / 1024:.1f} MB/s"
+            self._bandwidth = (
+                self._common._format_bandwidth(
+                    self.bytes_written - self._last_bytes, elapsed
+                )
+                or self._bandwidth
+            )
             self._last_bytes = self.bytes_written
             self._last_tick = now
 

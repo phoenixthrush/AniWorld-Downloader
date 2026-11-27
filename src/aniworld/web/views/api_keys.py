@@ -50,14 +50,6 @@ def ping():
     )
 
 
-def _created_by():
-    if not current_app.config.get("AUTH_ENABLED", False):
-        return None
-    from ..auth import current_username
-
-    return current_username()
-
-
 def list_api_keys():
     return jsonify({"keys": db.list_api_keys(), "scopes": list(apikeys.SCOPES)})
 
@@ -91,13 +83,15 @@ def create_api_key():
     if error:
         return jsonify({"error": error}), 400
 
+    from ..auth import current_username
+
     raw = apikeys.generate()
     key_id = db.create_api_key(
         name=name,
         key_hash=apikeys.hash_key(raw),
         prefix=raw[: len(apikeys.KEY_PREFIX) + 6],
         scope=scope,
-        created_by=_created_by(),
+        created_by=current_username(),
         expires_days=days,
     )
     logger.info("Created API key '%s' (%s)", name, scope)

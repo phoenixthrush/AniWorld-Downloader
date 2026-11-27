@@ -44,8 +44,8 @@ def _extract_script_content(html):
 # -----------------------------
 # Main Vidmoly Functions
 # -----------------------------
-def get_direct_link_from_vidmoly(embed_url):
-    """Get direct Vidmoly video link."""
+def _extract(embed_url, pattern, name):
+    """Fetch a Vidmoly embed page and extract pattern from its scripts."""
     if not embed_url:
         raise ValueError("Embed URL cannot be empty")
 
@@ -54,24 +54,17 @@ def get_direct_link_from_vidmoly(embed_url):
     html = resp.text
 
     script_content = _extract_script_content(html)
-    return _extract_regex(
-        FILE_LINK_PATTERN, script_content, "Direct video URL", embed_url
-    )
+    return _extract_regex(pattern, script_content, name, embed_url)
+
+
+def get_direct_link_from_vidmoly(embed_url):
+    """Get direct Vidmoly video link."""
+    return _extract(embed_url, FILE_LINK_PATTERN, "Direct video URL")
 
 
 def get_preview_image_link_from_vidmoly(embed_url):
     """Get Vidmoly preview image URL."""
-    if not embed_url:
-        raise ValueError("Embed URL cannot be empty")
-
-    resp = GLOBAL_SESSION.get(embed_url, headers=_get_headers())
-    resp.raise_for_status()
-    html = resp.text
-
-    script_content = _extract_script_content(html)
-    return _extract_regex(
-        PREVIEW_IMAGE_PATTERN, script_content, "Preview image URL", embed_url
-    )
+    return _extract(embed_url, PREVIEW_IMAGE_PATTERN, "Preview image URL")
 
 
 if __name__ == "__main__":

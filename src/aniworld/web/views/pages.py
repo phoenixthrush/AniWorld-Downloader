@@ -37,23 +37,21 @@ def custom_css():
     Not linked from the login or setup pages, so a theme can never restyle the
     form people type their password into.
     """
-    css = theming.read()
-    response = Response(css, mimetype="text/css")
-    # The link carries a content hash, so a cached copy is always the right one
-    # and a save shows up immediately under a new URL.
-    response.headers["Cache-Control"] = (
-        "public, max-age=31536000, immutable" if css else "no-store"
-    )
-    return response
+    return _themed_response(theming.read(), "text/css")
 
 
 @bp.route("/custom.frag")
 def custom_shader():
     """The theme's fragment shader. GLSL only, never executed on the server."""
-    source = theming.read_shader()
-    response = Response(source, mimetype="text/plain")
+    return _themed_response(theming.read_shader(), "text/plain")
+
+
+def _themed_response(text, mimetype):
+    response = Response(text, mimetype=mimetype)
+    # The link carries a content hash, so a cached copy is always the right one
+    # and a save shows up immediately under a new URL.
     response.headers["Cache-Control"] = (
-        "public, max-age=31536000, immutable" if source else "no-store"
+        "public, max-age=31536000, immutable" if text else "no-store"
     )
     return response
 

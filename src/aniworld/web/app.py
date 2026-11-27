@@ -76,6 +76,7 @@ def _apply_base_url(app):
 
 def _setup_auth(app, base_url, sso_enabled, force_sso):
     from .auth import (
+        _disable_oidc,
         auth_bp,
         get_or_create_secret_key,
         init_oidc,
@@ -100,13 +101,7 @@ def _setup_auth(app, base_url, sso_enabled, force_sso):
     if sso_enabled:
         init_oidc(app, force_sso=force_sso)
     else:
-        app.config.update(
-            OIDC_ENABLED=False,
-            OIDC_DISPLAY_NAME="SSO",
-            OIDC_ADMIN_USER=None,
-            OIDC_ADMIN_SUBJECT=None,
-            FORCE_SSO=False,
-        )
+        _disable_oidc(app)
 
     @app.before_request
     def force_first_run_setup():

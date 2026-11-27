@@ -276,6 +276,32 @@ def test_vidoza_and_megakino_raise_when_no_stream_is_found(monkeypatch):
         megakino.get_direct_link_from_megakino("https://megakino.example/x")
 
 
+def test_voe_shift_letters_matches_the_hand_written_rot13():
+    import random
+
+    from aniworld.extractors.provider import voe
+
+    def old_shift_letters(input_str):
+        result = []
+        for c in input_str:
+            code = ord(c)
+            if 65 <= code <= 90:
+                code = (code - 65 + 13) % 26 + 65
+            elif 97 <= code <= 122:
+                code = (code - 97 + 13) % 26 + 97
+            result.append(chr(code))
+        return "".join(result)
+
+    rng = random.Random(0)
+    samples = ["", "".join(map(chr, range(0x3000)))]
+    samples += [
+        "".join(chr(rng.randrange(0x110000)) for _ in range(rng.randrange(64)))
+        for _ in range(500)
+    ]
+    for sample in samples:
+        assert voe.shift_letters(sample) == old_shift_letters(sample)
+
+
 @pytest.mark.parametrize(
     "slug,title,english",
     [
