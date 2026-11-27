@@ -1108,18 +1108,21 @@ def _parse_filmpalast_cards(page, base):
         elif movie_url.startswith("/"):
             movie_url = base + movie_url
 
-        if movie_url in seen:
+        if not movie_url or movie_url in seen:
             continue
-        seen.add(movie_url)
 
         title_m = re.search(r'title="([^"]+)"', h2.group(1), re.IGNORECASE)
-        if title_m:
-            title = title_m.group(1).strip()
-        else:
+        title = html_module.unescape(title_m.group(1)).strip() if title_m else ""
+        if not title:
             anchor = re.search(r"<a[^>]*>(.*?)</a>", h2.group(1), re.DOTALL)
             if not anchor:
                 continue
-            title = re.sub(r"<[^>]+>", "", anchor.group(1)).strip()
+            title = html_module.unescape(
+                re.sub(r"<[^>]+>", "", anchor.group(1))
+            ).strip()
+        if not title:
+            continue
+        seen.add(movie_url)
 
         poster = ""
         pm = re.search(
@@ -1140,7 +1143,7 @@ def _parse_filmpalast_cards(page, base):
 
         results.append(
             {
-                "title": html_module.unescape(title),
+                "title": title,
                 "url": movie_url,
                 "poster_url": poster,
             }
@@ -1582,11 +1585,8 @@ def fetch_filmpalast_movies():
         logger.debug(f"filmpalast browse failed: {exc}")
         return None
 
-    return [
-        {**result, "genre": ""}
-        for result in _parse_filmpalast_cards(resp.text, base)
-        if result["title"]
-    ][:30]
+    results = _parse_filmpalast_cards(resp.text, base)
+    return [{**result, "genre": ""} for result in results[:30]]
 
 
 def fetch_filmo_movies():

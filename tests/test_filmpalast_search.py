@@ -50,6 +50,28 @@ def test_genre_returns_cards_and_encodes_slug(monkeypatch):
     assert calls == ["https://filmpalast.to/search/genre/Kom%C3%B6die"]
 
 
+@pytest.mark.parametrize("browse", [False, True])
+def test_blank_film_cards_do_not_hide_titled_results(monkeypatch, browse):
+    mock_page(
+        monkeypatch,
+        """<article class="liste">
+        <h2><a href="/stream/blank">&nbsp;</a></h2></article>
+        <article class="liste">
+        <h2><a href="/stream/example" title=" "></a></h2></article>
+        <article class="liste">
+        <h2><a href="/stream/example" title="&nbsp;">Example &amp; More</a></h2></article>""",
+    )
+
+    if browse:
+        results = search.fetch_filmpalast_movies()
+    else:
+        results = search.query_filmpalast("Example")
+
+    assert [(result["url"], result["title"]) for result in results] == [
+        ("https://filmpalast.to/stream/example", "Example & More"),
+    ]
+
+
 def test_new_genre_is_requested_without_keyword_fallback(monkeypatch):
     calls = mock_page(monkeypatch, "")
     assert search.query_filmpalast(genre="New 2026") == []
