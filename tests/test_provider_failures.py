@@ -117,7 +117,7 @@ def test_voe_keeps_the_chromium_dependency_error(monkeypatch, redirect):
     )
     monkeypatch.setattr(voe, "_voe_get", fetch)
     monkeypatch.setattr(voe, "is_captcha_page", lambda html, status: status == 403)
-    monkeypatch.setattr(voe, "solve_captcha", browser)
+    monkeypatch.setattr(voe, "solve_captcha_page", browser)
 
     with pytest.raises(ChromiumDependencyError, match=r"libnspr4\.so"):
         voe.get_direct_link_from_voe(source)

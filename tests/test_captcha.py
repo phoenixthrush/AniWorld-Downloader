@@ -838,3 +838,16 @@ def test_generic_solver_submits_completed_widgets_before_returning(
     assert captcha.solve_captcha(SOURCE) == PLAYER
     solver.ready_to_submit.assert_called_once_with(page)
     handle.close.assert_called_once()
+
+
+def test_solve_captcha_page_returns_the_html_the_browser_loaded(browser, monkeypatch):
+    handle, page = browser
+    page.url = "https://voe.sx/e/example"
+    checks = iter([True, False, False])
+    monkeypatch.setattr(captcha, "_is_captcha_page_dom", lambda page: next(checks))
+    # The first read hits a navigation and is retried on the next pass.
+    page.content.side_effect = [Error("page is navigating"), "<html>player</html>"]
+
+    assert captcha.solve_captcha_page(page.url) == "<html>player</html>"
+    assert page.content.call_count == 2
+    handle.close.assert_called_once()

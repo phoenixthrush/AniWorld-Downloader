@@ -176,9 +176,11 @@ def _widgets(frame):
 def _is_captcha_page_dom(page) -> bool:
     """Wait for the challenge to disappear, even with existing clearance cookies."""
     try:
-        if page.evaluate("""() => /just a moment|attention required|checking your browser|verifizierung/i
+        # DDoS-Guard (VOE) runs its JS challenge from /.well-known/ddos-guard/.
+        if page.evaluate("""() => /just a moment|attention required|checking your browser|verifizierung|ddos-guard/i
             .test(document.title) || Boolean(document.querySelector(
-                '#challenge-running, #cf-challenge-running, #challenge-form'))"""):
+                '#challenge-running, #cf-challenge-running, #challenge-form, '
+                + 'script[src*="/.well-known/ddos-guard/"]'))"""):
             return True
         return any(_widgets(frame) for frame in page.frames)
     except Error:
@@ -579,7 +581,7 @@ def _click_submit_button(page):
     return False
 
 
-def _solve(url, prepare=None, timeout=300, optional_widgets=()):
+def _solve(url, prepare=None, timeout=300, optional_widgets=(), html=False):
     timeout = _captcha_timeout(timeout)
     with (
         _solving(url) as session,
@@ -609,10 +611,18 @@ def _solve(url, prepare=None, timeout=300, optional_widgets=()):
             if not result and not prepare and not _is_captcha_page_dom(page):
                 result = page.url
             if result:
+                content = None
+                if html:
+                    try:
+                        content = page.content()
+                    except Error:
+                        # The page is still navigating; read it on the next pass.
+                        page.wait_for_timeout(500)
+                        continue
                 _export_session_cookies(context)
                 if session:
                     session.result_url = result
-                return result
+                return content if html else result
             try:
                 retry = False
                 if prepare and challenge_submitted:
@@ -661,6 +671,15 @@ def _solve(url, prepare=None, timeout=300, optional_widgets=()):
 def solve_captcha(url: str):
     """Solve checkbox challenges, with a visible browser or queue interaction."""
     return _solve(url)
+
+
+def solve_captcha_page(url: str):
+    """Solve a challenge like solve_captcha and return the page HTML the browser got.
+
+    For hosts like VOE's DDoS-Guard, whose clearance a plain HTTP client cannot
+    reuse even with the browser's cookies and User-Agent.
+    """
+    return _solve(url, html=True)
 
 
 def solve_sto_modal(episode_url, provider_name, language_label, redirect_url=None):
