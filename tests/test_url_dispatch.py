@@ -249,7 +249,9 @@ def test_autosync_dispatch_normalizes_series_urls(monkeypatch, sto_provider, dow
     monkeypatch.setattr(autosync, "resolve_provider", lookup)
     monkeypatch.setattr(autosync, "detect_languages", lambda *args: {"German Dub"})
     monkeypatch.setattr(autosync, "episodes_in_folder", lambda folder: set())
-    monkeypatch.setattr(autosync, "_missing_episodes", lambda *args: [EPISODE])
+    monkeypatch.setattr(
+        autosync, "_missing_episodes", lambda *args, **kwargs: [EPISODE]
+    )
     candidate = {
         "title": "Example",
         "series_url": f" {ALIAS}/ ",

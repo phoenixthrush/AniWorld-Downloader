@@ -8,6 +8,7 @@ import _socket
 import asyncio
 import socket
 import time
+from threading import Event, Thread
 
 import pytest
 
@@ -77,3 +78,36 @@ def test_stopping_clears_the_bot(bot):
     discord_bot.reconcile()
     assert state["thread"] is None
     assert state["client"] is None and state["loop"] is None
+
+
+def test_disabling_the_bot_cancels_a_pending_start(bot):
+    building = Event()
+    finish_build = Event()
+    logged_in = Event()
+
+    class Client(FakeClient):
+        async def start(self, token):
+            logged_in.set()
+
+    def build(config):
+        building.set()
+        assert finish_build.wait(5)
+        return Client()
+
+    bot.setattr(discord_bot, "_build_client", build)
+    discord_bot.reconcile()
+    assert building.wait(5)
+    thread = discord_bot._state["thread"]
+    bot.setenv("ANIWORLD_DISCORD_BOT_ENABLED", "0")
+    stopping = Thread(target=discord_bot.reconcile)
+    stopping.start()
+    try:
+        wait_for(lambda: discord_bot._state["thread"] is None)
+    finally:
+        finish_build.set()
+        stopping.join(timeout=5)
+        thread.join(timeout=5)
+
+    assert not stopping.is_alive() and not thread.is_alive()
+    assert not logged_in.is_set()
+    assert discord_bot._state["client"] is None

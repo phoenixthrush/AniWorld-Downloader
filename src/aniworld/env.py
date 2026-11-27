@@ -1,6 +1,7 @@
 import os
 import re
 import shutil
+from io import StringIO
 from pathlib import Path
 
 from dotenv import dotenv_values, load_dotenv
@@ -8,6 +9,14 @@ from dotenv import dotenv_values, load_dotenv
 # match lines like KEY=VALUE, ignoring comments and blank lines
 ENV_LINE_RE = re.compile(r"^([^#\n=]+?)=(.*)$")
 CA_BUNDLE_ENV_VARS = ("REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "SSL_CERT_FILE")
+
+
+def _read_env_file(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        # Older versions wrote this file using the system's text encoding.
+        return path.read_text(encoding="locale")
 
 
 def resolve_env_directory(name: str, default: Path) -> Path:
@@ -31,7 +40,9 @@ def initialize_app_env(example_path: Path, default_dir: Path) -> Path:
 
     configured_dir = os.environ.get("ANIWORLD_INSTALL_FOLDER")
     if configured_dir is None and default_env_path.exists():
-        configured_dir = dotenv_values(default_env_path).get("ANIWORLD_INSTALL_FOLDER")
+        configured_dir = dotenv_values(
+            stream=StringIO(_read_env_file(default_env_path))
+        ).get("ANIWORLD_INSTALL_FOLDER")
     if configured_dir is not None and not configured_dir.strip():
         configured_dir = None
 
@@ -59,15 +70,15 @@ def merge_env(example_path: Path, env_path: Path):
     env_path.parent.mkdir(parents=True, exist_ok=True)
     if not example_path.exists():
         if env_path.exists():
-            load_dotenv(env_path)
+            load_dotenv(stream=StringIO(_read_env_file(env_path)))
         return
 
-    example_lines = example_path.read_text().splitlines()
+    example_lines = example_path.read_text(encoding="utf-8").splitlines()
 
     # Load existing values from old env
     existing_values = {}
     if env_path.exists():
-        for line in env_path.read_text().splitlines():
+        for line in _read_env_file(env_path).splitlines():
             m = ENV_LINE_RE.match(line)
             if m:
                 existing_values[m.group(1).strip()] = m.group(2).strip()
@@ -102,7 +113,7 @@ def merge_env(example_path: Path, env_path: Path):
             merged_lines.append(f"{key}={existing_values[key]}")
 
     env_path.parent.mkdir(parents=True, exist_ok=True)
-    env_path.write_text("\n".join(merged_lines) + "\n")
+    env_path.write_text("\n".join(merged_lines) + "\n", encoding="utf-8")
 
     # Load the merged env file
     load_dotenv(env_path)
@@ -132,7 +143,7 @@ def persist_env_values(env_path: Path, updates: dict):
     """
     env_path = Path(env_path).expanduser()
     env_path.parent.mkdir(parents=True, exist_ok=True)
-    lines = env_path.read_text().splitlines() if env_path.exists() else []
+    lines = _read_env_file(env_path).splitlines() if env_path.exists() else []
 
     remaining = dict(updates)
     out = []
@@ -147,4 +158,4 @@ def persist_env_values(env_path: Path, updates: dict):
     for key, value in remaining.items():
         out.append(f"{key}={value}")
 
-    env_path.write_text("\n".join(out) + "\n")
+    env_path.write_text("\n".join(out) + "\n", encoding="utf-8")

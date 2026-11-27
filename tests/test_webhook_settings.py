@@ -236,7 +236,7 @@ def test_the_export_has_the_method_and_body_but_no_secrets(
     assert "ANIWORLD_WEBHOOK_HEADERS" not in exported
 
     written = tmp_path / "exported.env"
-    written.write_text(exported)
+    written.write_text(exported, encoding="utf-8")
     loaded = dotenv_values(written)
     assert loaded["ANIWORLD_WEBHOOK_METHOD"] == "PATCH"
     assert loaded["ANIWORLD_WEBHOOK_BODY"] == TRICKY_BODY, "a JSON body reads back"

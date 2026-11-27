@@ -301,21 +301,28 @@ def episodes_in_folder(folder):
     return set(episode_files_in_folder(folder))
 
 
-def _missing_episodes(series, have):
+def _missing_episodes(series, have, *, ambiguous_urls=None):
     """Episode URLs of a series that are not in this copy yet."""
     missing = []
     for season in series.seasons:
         episodes = season.episodes
+        ambiguous = set()
         downloaded_urls = set(
-            downloaded_episode_owners(episodes, have, strict=False).values()
+            downloaded_episode_owners(
+                episodes, have, strict=False, ambiguous_urls=ambiguous
+            ).values()
         )
         for episode in episodes:
-            if episode.url not in downloaded_urls:
+            if episode.url in downloaded_urls:
+                continue
+            if episode.url not in ambiguous:
                 missing.append(episode.url)
+            elif ambiguous_urls is not None:
+                ambiguous_urls.add(episode.url)
     return missing
 
 
-def _announced_episodes(episode_urls, have):
+def _announced_episodes(episode_urls, have, *, ambiguous_urls=None):
     """Only the episodes the feed announced, minus whatever this copy has.
 
     Resolve only the announced episodes, including their English title markers;
@@ -334,8 +341,13 @@ def _announced_episodes(episode_urls, have):
         episode = next((entry for entry in season.episodes if entry.url == url), None)
         if episode is None:
             episode = provider.episode_cls(url=url, season=season)
-        if not episode_is_downloaded(episode, have):
+        ambiguous = set()
+        if episode_is_downloaded(episode, have, ambiguous_urls=ambiguous):
+            continue
+        if url not in ambiguous:
             missing.append(url)
+        elif ambiguous_urls is not None:
+            ambiguous_urls.add(url)
     return missing
 
 
@@ -382,15 +394,16 @@ def _handle(candidate, provider_name):
 
     have = episode_files_in_folder(candidate["folder"])
     series = resolve_provider(series_url).series_cls(url=series_url)
+    ambiguous = set()
     if autosync_new_only():
         valid_urls = [
             url
             for url, langs in candidate.get("new_episodes_with_langs", {}).items()
             if language in langs
         ]
-        missing = _announced_episodes(valid_urls, have)
+        missing = _announced_episodes(valid_urls, have, ambiguous_urls=ambiguous)
     else:
-        missing = _missing_episodes(series, have)
+        missing = _missing_episodes(series, have, ambiguous_urls=ambiguous)
         # Filter out episodes that are in the feed but lack the required language
         feed_episodes = candidate.get("new_episodes_with_langs", {})
         missing = [
@@ -399,8 +412,13 @@ def _handle(candidate, provider_name):
             if url not in feed_episodes or language in feed_episodes[url]
         ]
 
+    if ambiguous:
+        report["reason"] = (
+            f"Skipped {len(ambiguous)} episode(s) with ambiguous filenames in this folder."
+        )
     if not missing:
-        return {**report, "status": "up-to-date", "language": language}
+        status = "skipped" if ambiguous else "up-to-date"
+        return {**report, "status": status, "language": language}
 
     queue_id = db.add_to_queue(
         title=series.title or title,

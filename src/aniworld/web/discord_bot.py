@@ -528,6 +528,8 @@ def _build_client(config):
     @client.event
     async def on_ready():
         with _lock:
+            if _state["thread"] is not threading.current_thread():
+                return
             _state.update(running=True, error=None, user=str(client.user))
         try:
             if config["guild_id"]:
@@ -553,27 +555,37 @@ def _build_client(config):
 # Lifecycle
 # ---------------------------------------------------------------------------
 def _run_bot(config):
+    thread = threading.current_thread()
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    client = _build_client(config)
-    with _lock:
-        _state.update(loop=loop, client=client)
+    client = None
+
+    async def start():
+        # A disabled or superseded thread may still be building its client.
+        with _lock:
+            if _state["thread"] is not thread:
+                return
+            _state.update(loop=loop, client=client)
+        await client.start(config["token"])
 
     try:
-        loop.run_until_complete(client.start(config["token"]))
+        client = _build_client(config)
+        loop.run_until_complete(start())
     except Exception as exc:
         logger.error("Discord bot stopped: %s", exc)
         with _lock:
-            _state["error"] = str(exc)[:120]
+            if _state["thread"] is thread:
+                _state["error"] = str(exc)[:120]
     finally:
-        try:
-            loop.run_until_complete(client.close())
-        except Exception:
-            pass
+        if client is not None:
+            try:
+                loop.run_until_complete(client.close())
+            except Exception:
+                pass
         loop.close()
         with _lock:
             # A restart may already have registered a newer bot
-            if _state["client"] is client:
+            if client is not None and _state["client"] is client:
                 _state.update(running=False, loop=None, client=None, user=None)
 
 

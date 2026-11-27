@@ -9,7 +9,7 @@ from unittest.mock import Mock
 import pytest
 from dotenv import dotenv_values
 
-from aniworld.env import initialize_app_env, merge_env
+from aniworld.env import initialize_app_env, merge_env, persist_env_values
 from aniworld.web.media import SITE_KEYS
 
 SOURCE = Path(__file__).resolve().parents[1] / "src" / "aniworld"
@@ -123,6 +123,29 @@ def test_explicit_new_format_wins_during_migration(tmp_path, monkeypatch):
     monkeypatch.delenv("ANIWORLD_MANGAFIRE_FORMAT", raising=False)
     merge_env(example, env)
     assert dotenv_values(env) == {"ANIWORLD_MANGAFIRE_FORMAT": "jpg"}
+
+
+@pytest.mark.parametrize("rewrite", ["startup", "settings"])
+def test_rewriting_a_legacy_locale_env_preserves_the_values(
+    tmp_path, monkeypatch, rewrite
+):
+    env = tmp_path / ".env"
+    env.write_bytes("ANIWORLD_WEBHOOK_BODY=Grüße\n".encode("cp1252"))
+    read_text = Path.read_text
+
+    def read_with_windows_locale(path, encoding=None, **kwargs):
+        if encoding == "locale":
+            encoding = "cp1252"
+        return read_text(path, encoding=encoding, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", read_with_windows_locale)
+    monkeypatch.delenv("ANIWORLD_INSTALL_FOLDER", raising=False)
+    if rewrite == "settings":
+        persist_env_values(env, {"ANIWORLD_WEBHOOK_METHOD": "POST"})
+    else:
+        initialize_app_env(SOURCE / ".env.example", tmp_path)
+
+    assert dotenv_values(env)["ANIWORLD_WEBHOOK_BODY"] == "Grüße"
 
 
 def test_cli_and_filmo_settings_survive_startup(tmp_path, monkeypatch):

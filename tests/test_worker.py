@@ -466,6 +466,12 @@ def test_the_webhook_waits_while_items_are_still_queued(queue_item, webhook_call
     assert webhook_calls == []
 
 
+def test_the_webhook_waits_while_an_item_is_running(queue_item, webhook_calls):
+    db.set_queue_status(queue_item("Running"), "running")
+    assert worker._after_item(None, 1) == 1
+    assert webhook_calls == []
+
+
 def test_the_webhook_counts_every_item_of_the_batch(webhook_calls):
     worker._after_item("completed", 2)
     assert webhook_calls == [3]
@@ -540,6 +546,25 @@ def test_the_loop_calls_the_webhook_once_for_the_whole_queue(
 
     assert webhook_calls == [3]
     assert {item["status"] for item in db.get_queue()} == {"completed"}
+
+
+def test_the_loop_reports_completed_items_after_the_last_waiting_item_is_cancelled(
+    queue_item, run_loop, webhook_calls, monkeypatch
+):
+    completed = queue_item("First", episodes=["https://x/ep1"])
+    waiting = queue_item("Second", episodes=["https://x/ep2"])
+    claim_next = worker._claim_next
+
+    def cancel_then_claim():
+        if db.get_queue_item(completed)["status"] == "completed":
+            assert db.cancel_queue_item(waiting) == (True, None)
+        return claim_next()
+
+    monkeypatch.setattr(worker, "_claim_next", cancel_then_claim)
+    run_loop()
+
+    assert db.get_queue_item(waiting)["status"] == "cancelled"
+    assert webhook_calls == [1]
 
 
 def test_the_loop_leaves_out_failed_items_from_the_count(

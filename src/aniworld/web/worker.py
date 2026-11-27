@@ -56,6 +56,7 @@ def _run():
         try:
             item = _claim_next()
             if not item:
+                finished = _after_item(None, finished)
                 time.sleep(IDLE_SECONDS)
                 continue
             status = _process(item)
@@ -83,7 +84,7 @@ def _after_item(status, finished):
     if not finished:
         return 0
     try:
-        if db.get_next_queued():
+        if db.get_next_queued() or db.get_running():
             return finished
     except Exception:
         logger.exception("Could not check whether the queue is empty")

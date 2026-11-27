@@ -288,7 +288,7 @@ def test_another_copy_of_a_queued_series_is_not_blocked(
         series_url="https://aniworld.to/anime/stream/naruto", language="German Dub"
     )
     monkeypatch.setattr(
-        autosync, "_missing_episodes", lambda series, have: ["https://x/ep5"]
+        autosync, "_missing_episodes", lambda series, have, **kwargs: ["https://x/ep5"]
     )
     monkeypatch.setattr(
         autosync, "resolve_provider", lambda url: _FakeProvider("Naruto")
@@ -323,7 +323,9 @@ def test_a_new_episode_in_the_wrong_language_is_skipped(downloads):
 def test_a_series_with_nothing_missing_is_up_to_date(monkeypatch, downloads):
     folder = downloads / "german-dub" / "Naruto"
     folder.mkdir(parents=True)
-    monkeypatch.setattr(autosync, "_missing_episodes", lambda series, have: [])
+    monkeypatch.setattr(
+        autosync, "_missing_episodes", lambda series, have, **kwargs: []
+    )
     monkeypatch.setattr(
         autosync, "resolve_provider", lambda url: _FakeProvider("Naruto")
     )
@@ -341,7 +343,7 @@ def test_missing_episodes_are_queued(monkeypatch, downloads):
     monkeypatch.setattr(
         autosync,
         "_missing_episodes",
-        lambda series, have: ["https://x/ep5", "https://x/ep6"],
+        lambda series, have, **kwargs: ["https://x/ep5", "https://x/ep6"],
     )
     monkeypatch.setattr(
         autosync, "resolve_provider", lambda url: _FakeProvider("Naruto Shippuden")
@@ -366,7 +368,7 @@ def test_a_queued_sync_lands_in_the_custom_path_it_came_from(monkeypatch, tmp_pa
     folder.mkdir(parents=True)
     path_id = db.add_custom_path("Other", str(other))
     monkeypatch.setattr(
-        autosync, "_missing_episodes", lambda series, have: ["https://x/ep5"]
+        autosync, "_missing_episodes", lambda series, have, **kwargs: ["https://x/ep5"]
     )
     monkeypatch.setattr(
         autosync, "resolve_provider", lambda url: _FakeProvider("Naruto")
@@ -383,7 +385,7 @@ def test_the_preferred_language_is_picked_when_several_match(monkeypatch, downlo
     folder = downloads / "german-dub" / "Naruto"
     folder.mkdir(parents=True)
     monkeypatch.setattr(
-        autosync, "_missing_episodes", lambda series, have: ["https://x/ep5"]
+        autosync, "_missing_episodes", lambda series, have, **kwargs: ["https://x/ep5"]
     )
     monkeypatch.setattr(
         autosync, "resolve_provider", lambda url: _FakeProvider("Naruto")
@@ -449,6 +451,48 @@ def test_only_the_announced_episode_is_queued(monkeypatch, new_only, german_fold
     assert row["status"] == "queued"
     queued = json.loads(db.get_queue_item(row["queue_id"])["episodes"])
     assert queued == [f"{EP}12"]
+
+
+@pytest.mark.parametrize("new_only", ["0", "1"])
+@pytest.mark.parametrize("has_clear_episode", [False, True])
+def test_autosync_reports_ambiguous_filenames_and_queues_other_episodes(
+    monkeypatch, german_folder, new_only, has_clear_episode
+):
+    monkeypatch.setenv("ANIWORLD_AUTOSYNC_NEW_ONLY", new_only)
+    season = SimpleNamespace(season_number=1)
+    season.episodes = [
+        SimpleNamespace(
+            url=f"{EP}{number}",
+            season=season,
+            season_episode_number=number,
+            episode_number=number + 1,
+        )
+        for number in range(1, 4 if has_clear_episode else 3)
+    ]
+    series = SimpleNamespace(seasons=[season], title="Naruto")
+    provider = SimpleNamespace(
+        series_cls=lambda url: series, season_cls=lambda url: season
+    )
+    monkeypatch.setattr(autosync, "resolve_provider", lambda url: provider)
+    _on_disk(monkeypatch, (1, 2))
+
+    row = autosync._handle(
+        candidate(
+            german_folder,
+            {"German Dub"},
+            lang_folder="german-dub",
+            new_urls=[episode.url for episode in season.episodes],
+        ),
+        "VOE",
+    )
+
+    assert "Skipped 2 episode(s) with ambiguous filenames" in row["reason"]
+    if has_clear_episode:
+        assert row["status"] == "queued"
+        assert json.loads(db.get_queue_item(row["queue_id"])["episodes"]) == [f"{EP}3"]
+    else:
+        assert row["status"] == "skipped"
+        assert db.get_queue() == []
 
 
 def test_the_gaps_are_left_alone(monkeypatch, new_only, german_folder):
@@ -522,7 +566,7 @@ def test_the_setting_off_still_fills_the_series(monkeypatch, german_folder):
     monkeypatch.setattr(
         autosync,
         "_missing_episodes",
-        lambda series, have: [f"{EP}2", f"{EP}3", f"{EP}12"],
+        lambda series, have, **kwargs: [f"{EP}2", f"{EP}3", f"{EP}12"],
     )
     row = autosync._handle(
         candidate(
@@ -854,7 +898,7 @@ def test_a_cycle_queues_what_it_finds(feed, monkeypatch, downloads):
     (downloads / "german-dub" / "Naruto").mkdir(parents=True)
     monkeypatch.setenv("ANIWORLD_LANG_SEPARATION", "1")
     monkeypatch.setattr(
-        autosync, "_missing_episodes", lambda series, have: ["https://x/ep5"]
+        autosync, "_missing_episodes", lambda series, have, **kwargs: ["https://x/ep5"]
     )
     monkeypatch.setattr(
         autosync, "resolve_provider", lambda url: _FakeProvider("Naruto")

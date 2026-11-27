@@ -80,8 +80,10 @@ def episode_file_matches_source(path, url):
     return bool(source and _episode_identity(source) == _episode_identity(url))
 
 
-def downloaded_episode_owners(episodes, downloaded, *, strict=True):
-    """Use recorded source URLs first, with unambiguous file numbers as fallback."""
+def downloaded_episode_owners(
+    episodes, downloaded, *, strict=True, ambiguous_urls=None
+):
+    """Match source tags first, optionally collecting ambiguous URLs without guessing."""
     episodes = list(episodes)
     use_sources = any(hasattr(episode, "season_episode_number") for episode in episodes)
     identities = {_episode_identity(episode.url): episode.url for episode in episodes}
@@ -121,8 +123,11 @@ def downloaded_episode_owners(episodes, downloaded, *, strict=True):
             matches = urls
             if len(matches) != 1:
                 season, number = key
-                # Read-only callers fall back to the pre-English seasonal naming.
                 if not strict:
+                    if ambiguous_urls is not None:
+                        ambiguous_urls.update(matches)
+                        continue
+                    # Read-only callers fall back to the pre-English seasonal naming.
                     logger.warning(
                         "Ambiguous episode numbering at S%02dE%03d without source "
                         "metadata, assuming the seasonal index: %s",
@@ -145,13 +150,15 @@ def downloaded_episode_owners(episodes, downloaded, *, strict=True):
     return owners
 
 
-def episode_is_downloaded(episode, downloaded):
+def episode_is_downloaded(episode, downloaded, *, ambiguous_urls=None):
     """Recognise old and new names, resolving overlaps against the season list."""
     season = episode.season.season_number
     if not any(sn == season for sn, _ in downloaded):
         return False
     episodes = season_episode_context(episode)
-    owners = downloaded_episode_owners(episodes, downloaded, strict=False)
+    owners = downloaded_episode_owners(
+        episodes, downloaded, strict=False, ambiguous_urls=ambiguous_urls
+    )
     return episode.url in owners.values()
 
 

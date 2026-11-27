@@ -390,9 +390,6 @@ def test_read_only_checks_read_an_ambiguous_untagged_file_as_seasonal(model, tmp
     }
     assert episode_is_downloaded(episodes[1], have)
     assert not episode_is_downloaded(episodes[0], have)
-    assert autosync._missing_episodes(SimpleNamespace(seasons=[season]), have) == [
-        episodes[0].url
-    ]
 
 
 def test_a_conflicting_old_filename_is_not_overwritten(model, tmp_path, monkeypatch):
