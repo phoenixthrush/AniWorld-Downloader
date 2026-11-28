@@ -1,6 +1,7 @@
 """Library, genre and page endpoints."""
 
 import socket
+from unittest.mock import MagicMock, Mock
 from urllib.parse import parse_qs, urlsplit
 
 import curl_cffi.requests
@@ -574,27 +575,56 @@ def test_an_unknown_page_is_a_404(client):
     assert client.get("/nope").status_code == 404
 
 
-def _resolve_to(monkeypatch, address):
+def _resolve_to(monkeypatch, *addresses):
+    resolve = Mock(
+        return_value=[
+            (socket.AF_INET6, socket.SOCK_STREAM, 6, "", (address, 0, 0, 0))
+            if ":" in address
+            else (socket.AF_INET, socket.SOCK_STREAM, 6, "", (address, 0))
+            for address in addresses
+        ]
+    )
     monkeypatch.setattr(
         api_media.GLOBAL_SESSION.resolver,
         "getaddrinfo",
-        lambda host, port, family, type: [(2, 1, 6, "", (address, 0))],
+        resolve,
     )
+    return resolve
 
 
-def test_proxy_image_checks_the_host_with_the_doh_resolver(client, monkeypatch):
+@pytest.fixture
+def image_fetch(monkeypatch):
+    response = MagicMock(status=200, headers={"Content-Type": "image/png"})
+    response.__enter__.return_value = response
+    response.stream.return_value = iter([b"img"])
+    pool = MagicMock()
+    pool.__enter__.return_value = pool
+    pool.request.return_value = response
+    factory = Mock(return_value=pool)
+    monkeypatch.setattr(api_media, "PoolManager", factory)
+    return factory, pool, response
+
+
+def test_proxy_image_pins_the_doh_addresses(client, monkeypatch, image_fetch):
     # An ISP DNS block only affects the system resolver, not the DoH one.
-    _resolve_to(monkeypatch, "93.184.216.34")
+    addresses = ["93.184.216.34", "2606:4700:4700::1111"]
+    dns = _resolve_to(monkeypatch, *addresses)
 
     def system_dns(*args, **kwargs):
         raise OSError("blocked by the ISP")
 
     monkeypatch.setattr(api_media.socket, "getaddrinfo", system_dns)
-    monkeypatch.setattr(
-        api_media.GLOBAL_SESSION, "get", lambda *a, **k: _image_response("image/png")
-    )
     response = client.get("/api/proxy-image?url=https://cdn.example/p.png")
+
     assert response.status_code == 200
+    resolver = image_fetch[0].call_args.kwargs["resolver"]
+    records = resolver.getaddrinfo(
+        "cdn.example", 443, socket.AF_UNSPEC, socket.SOCK_STREAM
+    )
+    assert [record[4][0] for record in records] == addresses
+    dns.assert_called_once_with(
+        "cdn.example", None, socket.AF_UNSPEC, socket.SOCK_STREAM
+    )
 
 
 def test_proxy_image_refuses_hosts_the_resolver_cannot_resolve(client, monkeypatch):
@@ -606,52 +636,71 @@ def test_proxy_image_refuses_hosts_the_resolver_cannot_resolve(client, monkeypat
     assert response.status_code == 400
 
 
-def _image_response(content_type):
-    response = niquests.Response()
-    response.status_code = 200
-    response.headers["Content-Type"] = content_type
-    response._content = b"img"
-    return response
+@pytest.mark.parametrize(
+    "address",
+    ["127.0.0.1", "192.168.1.10", "169.254.169.254", "::1", "::ffff:127.0.0.1"],
+)
+def test_proxy_image_refuses_hosts_that_resolve_to_private_addresses(
+    client, monkeypatch, image_fetch, address
+):
+    _resolve_to(monkeypatch, "93.184.216.34", address)
+    response = client.get("/api/proxy-image?url=http://internal.example/admin")
+    assert response.status_code == 400
+    image_fetch[0].assert_not_called()
 
 
 @pytest.mark.parametrize(
-    "address", ["127.0.0.1", "192.168.1.10", "169.254.169.254", "::1"]
+    "status, headers",
+    [
+        (200, {"Content-Type": "text/html"}),
+        (200, {"Content-Type": "image/svg+xml"}),
+        (200, {"Content-Type": "image/png", "Content-Encoding": "gzip"}),
+        (302, {"Content-Type": "image/png"}),
+    ],
 )
-def test_proxy_image_refuses_hosts_that_resolve_to_private_addresses(
-    client, monkeypatch, address
+def test_proxy_image_refuses_unsupported_responses_before_reading(
+    client, monkeypatch, image_fetch, status, headers
 ):
-    _resolve_to(monkeypatch, address)
-
-    def fetch(*args, **kwargs):
-        raise AssertionError("private host was fetched")
-
-    monkeypatch.setattr(api_media.GLOBAL_SESSION, "get", fetch)
-    response = client.get("/api/proxy-image?url=http://internal.example/admin")
-    assert response.status_code == 400
-
-
-def test_proxy_image_refuses_responses_that_are_not_images(client, monkeypatch):
     _resolve_to(monkeypatch, "93.184.216.34")
-    monkeypatch.setattr(
-        api_media.GLOBAL_SESSION, "get", lambda *a, **k: _image_response("text/html")
-    )
+    _, _, upstream = image_fetch
+    upstream.status = status
+    upstream.headers = headers
     response = client.get("/api/proxy-image?url=https://cdn.example/p.jpg")
     assert response.status_code == 502
+    upstream.stream.assert_not_called()
+    upstream.__exit__.assert_called_once()
 
 
 def test_proxy_image_passes_public_images_through_without_redirects(
-    client, monkeypatch
+    client, monkeypatch, image_fetch
 ):
     _resolve_to(monkeypatch, "93.184.216.34")
-    calls = []
-
-    def fetch(url, **kwargs):
-        calls.append(kwargs)
-        return _image_response("image/webp")
-
-    monkeypatch.setattr(api_media.GLOBAL_SESSION, "get", fetch)
+    factory, pool, upstream = image_fetch
+    upstream.headers = {"Content-Type": "image/webp"}
     response = client.get("/api/proxy-image?url=https://cdn.example/p.webp")
     assert response.status_code == 200
     assert response.data == b"img"
     assert response.content_type == "image/webp"
-    assert calls[0]["allow_redirects"] is False
+    assert factory.call_args.kwargs["cert_reqs"] == "CERT_REQUIRED"
+    assert pool.request.call_args.args == ("GET", "https://cdn.example/p.webp")
+    assert pool.request.call_args.kwargs["redirect"] is False
+    assert pool.request.call_args.kwargs["preload_content"] is False
+
+
+def test_proxy_image_stops_reading_when_the_size_limit_is_exceeded(
+    client, monkeypatch, image_fetch
+):
+    _resolve_to(monkeypatch, "93.184.216.34")
+    monkeypatch.setattr(api_media, "_MAX_PROXY_IMAGE_BYTES", 3)
+    _, _, upstream = image_fetch
+
+    def chunks():
+        yield b"12"
+        yield b"34"
+        pytest.fail("proxy read past the size limit")
+
+    upstream.stream.return_value = chunks()
+    response = client.get("/api/proxy-image?url=https://cdn.example/p.png")
+    assert response.status_code == 502
+    assert not response.data
+    upstream.__exit__.assert_called_once()

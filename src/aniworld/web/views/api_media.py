@@ -5,14 +5,16 @@ import re
 import socket
 import time
 from types import SimpleNamespace
-from urllib.parse import urlsplit
 
 from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
 from curl_cffi.requests.exceptions import RequestException as CurlRequestException
 from flask import Response, jsonify, request
 from niquests.exceptions import HTTPError, RequestException
+from niquests.packages.urllib3 import PoolManager, ResolverDescription
+from niquests.packages.urllib3.backend import HttpVersion
+from niquests.packages.urllib3.util import parse_url
 
-from ...config import DEFAULT_USER_AGENT, GLOBAL_SESSION
+from ...config import CA_CERT_BUNDLE, DEFAULT_USER_AGENT, GLOBAL_SESSION
 from ...extractors.provider.hanime_tv import fetch_hanime_trending
 from ...logger import get_logger
 from ...models.common import clean_title
@@ -38,6 +40,11 @@ from .. import media, sitesearch
 from ..settings_store import english_sub_disabled
 
 logger = get_logger(__name__)
+
+_PROXY_IMAGE_TYPES = frozenset(
+    {"image/avif", "image/gif", "image/jpeg", "image/png", "image/webp"}
+)
+_MAX_PROXY_IMAGE_BYTES = 8 * 1024 * 1024
 
 # Browse rows change slowly, so cache them for an hour per process.
 BROWSE_TTL = 3600
@@ -573,50 +580,95 @@ def random_title():
     return jsonify({"error": "Failed to fetch random anime"}), 500
 
 
-def _is_public_host(url):
-    """True when every address the URL's host resolves to is a public one."""
-    host = urlsplit(url).hostname
-    if not host:
-        return False
-    try:
-        # Same DoH resolver as the fetch below: the system DNS may be blocked
-        # by the ISP and would also answer differently than the real request.
-        infos = GLOBAL_SESSION.resolver.getaddrinfo(
-            host, None, socket.AF_UNSPEC, socket.SOCK_STREAM
-        )
-        addresses = [ipaddress.ip_address(info[4][0]) for info in infos]
-    except Exception:
-        return False
-    return bool(addresses) and all(
-        ip.is_global and not ip.is_multicast for ip in addresses
+def _public_image_addresses(host):
+    """Resolve once via DoH and reject any non-public address in the answer."""
+    infos = GLOBAL_SESSION.resolver.getaddrinfo(
+        host, None, socket.AF_UNSPEC, socket.SOCK_STREAM
     )
+    addresses = []
+    for info in infos:
+        address = ipaddress.ip_address(info[4][0])
+        ip = getattr(address, "ipv4_mapped", None) or address
+        if (
+            not ip.is_global
+            or ip.is_multicast
+            or ip.is_reserved
+            or getattr(ip, "is_site_local", False)
+        ):
+            return []
+        addresses.append(str(address))
+    return addresses
 
 
 def proxy_image():
     target = request.args.get("url", "").strip()
-    if not target.startswith(("http://", "https://")) or not _is_public_host(target):
-        return "", 400
     try:
-        # Without a brotli module installed the body would come back still
-        # compressed and get passed on as a broken image
-        headers = {"User-Agent": DEFAULT_USER_AGENT, "Accept-Encoding": "gzip, deflate"}
+        parsed = parse_url(target)
+        if parsed.scheme not in ("http", "https") or not parsed.host or parsed.auth:
+            return "", 400
+        host = parsed.host.strip("[]")
+        addresses = _public_image_addresses(host)
+    except Exception:
+        return "", 400
+    if not addresses:
+        return "", 400
+
+    # A request-local resolver pins the checked addresses while preserving the
+    # original hostname for the Host header and TLS certificate verification.
+    resolver = ResolverDescription.from_url("in-memory://default").new()
+    for address in addresses:
+        resolver.register(host, address)
+
+    try:
+        headers = {"User-Agent": DEFAULT_USER_AGENT, "Accept-Encoding": "identity"}
         if "hanime" in target:
             headers["Referer"] = "https://hanime.tv/"
-        # No redirects: the next hop would skip the public-host check above
-        response = GLOBAL_SESSION.get(
-            target, headers=headers, timeout=10, allow_redirects=False
-        )
-        response.raise_for_status()
-        content_type = response.headers.get("Content-Type", "")
-        if not content_type.lower().startswith("image/"):
-            return "", 502
+        # A direct pool keeps shared cookies and environment proxies out of this request.
+        with (
+            PoolManager(
+                resolver=resolver,
+                ca_certs=CA_CERT_BUNDLE,
+                cert_reqs="CERT_REQUIRED",
+                disabled_svn={HttpVersion.h3},
+            ) as pool,
+            pool.request(
+                "GET",
+                parsed.url,
+                headers=headers,
+                timeout=10,
+                redirect=False,
+                retries=False,
+                preload_content=False,
+                decode_content=False,
+            ) as response,
+        ):
+            content_type = (
+                response.headers.get("Content-Type", "")
+                .partition(";")[0]
+                .strip()
+                .lower()
+            )
+            encoding = (
+                response.headers.get("Content-Encoding", "identity").strip().lower()
+            )
+            if (
+                response.status != 200
+                or content_type not in _PROXY_IMAGE_TYPES
+                or encoding not in ("", "identity")
+            ):
+                return "", 502
+            body = bytearray()
+            for chunk in response.stream(64 * 1024, decode_content=False):
+                if len(body) + len(chunk) > _MAX_PROXY_IMAGE_BYTES:
+                    return "", 502
+                body.extend(chunk)
         return Response(
-            response.content,
+            bytes(body),
             content_type=content_type,
             headers={"Cache-Control": "public, max-age=3600"},
         )
     except Exception as exc:
-        logger.warning("Image proxy failed for %s: %s", target, exc)
+        logger.warning("Image proxy failed for %s: %s", host, exc)
         return "", 502
 
 
