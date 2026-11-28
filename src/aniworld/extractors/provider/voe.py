@@ -16,11 +16,11 @@ logger = logging.getLogger(__name__)
 try:
     from ...autodeps import ChromiumDependencyError
     from ...config import DEFAULT_USER_AGENT, GLOBAL_SESSION, PROVIDER_HEADERS_D
-    from ...playwright.captcha import is_captcha_page, solve_captcha
+    from ...playwright.captcha import is_captcha_page, solve_captcha_page
 except ImportError:
     from aniworld.autodeps import ChromiumDependencyError
     from aniworld.config import DEFAULT_USER_AGENT, GLOBAL_SESSION, PROVIDER_HEADERS_D
-    from aniworld.playwright.captcha import is_captcha_page, solve_captcha
+    from aniworld.playwright.captcha import is_captcha_page, solve_captcha_page
 
 # -----------------------------
 # Precompiled regex patterns
@@ -160,8 +160,9 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
     def fetch_solved(url):
         html, _final, status = fetch(url)
         if is_captcha_page(html, status):
-            solve_captcha(url)
-            html, _final, status = fetch(url)
+            # DDoS-Guard does not accept the browser's clearance for this client,
+            # even with its cookies and User-Agent, so use the page it loaded.
+            html = solve_captcha_page(url) or ""
         return html
 
     for attempt in range(max_retries):
@@ -174,8 +175,7 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
                 )
                 time.sleep(wait_time)
 
-            # Use the same static client before and after a CAPTCHA fallback.
-            # Captcha on VOE page -> solve and retry this request
+            # Start with the static client and use the browser page if challenged.
             html = fetch_solved(embeded_voe_link)
 
             # Try extracting source directly from the VOE embed page first
