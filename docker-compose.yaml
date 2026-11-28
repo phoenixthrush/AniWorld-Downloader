@@ -1,113 +1,144 @@
 services:
   aniworld:
     image: ghcr.io/phoenixthrush/aniworld-downloader:latest
-    container_name: aniworld-downloader
     # build: .
+    container_name: aniworld-downloader
+    restart: unless-stopped
+
     ports:
       - "8080:8080"
+
     volumes:
-      # Persist downloads on the host so they survive container recreation.
+      # Run mkdir -p Downloads before starting. Docker creates missing bind-mount
+      # directories as root, which can prevent the app from writing to them.
       - ./Downloads:/app/Downloads
-      # Persist application config and auth database across restarts. This holds
-      # the database (users, API keys, custom paths, Auto-Sync exclusions), your
-      # .env, and the custom.css / custom.frag a theme is saved to. Losing this
-      # volume loses all of them.
+      # Persists the app's .env, database, and custom theme files.
       - aniworld-data:/home/aniworld/.aniworld
 
-    # NOTE: Create ./Downloads before running: mkdir -p Downloads
-    # Docker creates missing bind-mount directories as root, causing permission errors.
-
-    # Most settings changed in the Web UI apply immediately but are gone on the
-    # next restart, because they only live in the running process. The sections
-    # marked "resets after restart" on the settings page are the ones affected.
-    # Set them here (or in an env_file) to make them stick.
-    #
-    # Alternatively, keep a full .env on the host and mount it in:
+    # Optionally load settings from a host file.
     # env_file:
     #   - ./.env
-    # A copy with every option documented is in src/aniworld/.env.example.
 
+    # Uncomment "environment:" and only the settings you want to override.
+    # See https://www.phoenixthrush.com/AniWorld-Downloader-Docs/configuration for setting descriptions.
     # environment:
-    # --- General settings (uncomment the environment block to customise) ---
-    #   ANIWORLD_LANGUAGE: "German Dub"               # Default language (German Dub | English Sub | German Sub | English Dub)
-    #   ANIWORLD_PROVIDER: "VOE"                      # Default streaming provider
-    #   ANIWORLD_PROVIDER_FALLBACK_ORDER: "VOE,Vidmoly,Vidoza,Doodstream"  # Tried in order after the selected provider fails
-    #   ANIWORLD_NAMING_TEMPLATE: "{title} ({year}) [imdbid-{imdbid}]/Season {season}/{title} S{season}E{episode}.mkv"
-    #   ANIWORLD_VIDEO_CODEC: "copy"                  # Video codec: copy | h264 | h265 | av1 | h264_nvenc | hevc_nvenc | h264_amf | hevc_amf | av1_amf
-    #   ANIWORLD_LANG_SEPARATION: "0"                 # Separate downloads into language subfolders (german-dub/, english-sub/)
-    #   ANIWORLD_MOVIE_FOLDER: "1"                    # 1 = wrap a movie in its own "Title (Year)" folder, 0 = save it directly
-    #   ANIWORLD_DISABLE_ENGLISH_SUB: "0"             # Block English Sub downloads entirely
-    #   ANIWORLD_SEASON_EPISODE_NUMBERS: "0"          # 1 = name episodes S23E01 instead of S23E1157
-    #   ANIWORLD_UI_LANGUAGE: "en"                    # Web UI language: en | de
-    #   ANIWORLD_DEBUG_MODE: "0"                      # Enable debug logging
-    #   ANIWORLD_NO_AUTO_INSTALL: "0"                 # 1 = never fetch missing dependencies at runtime
-    #   ANIWORLD_HLS_CONCURRENCY: "8"                 # Parallel segment downloads for direct HLS downloads
-    #   # ANIWORLD_DOWNLOAD_PATH is already set to /app/Downloads by the image;
-    #   # change the volume above rather than this, or the bind mount stops matching.
+    #   # Storage
+    #   ANIWORLD_DOWNLOAD_PATH: "/app/Downloads"  # Image default
+    #   ANIWORLD_INSTALL_FOLDER: "/home/aniworld/.aniworld"
 
-    # --- Features (uncomment the environment block to customise) ---
-    #   ANIWORLD_ENABLE_LIBRARY: "1"                  # Library tab: browse and delete downloaded files
-    #   ANIWORLD_ENABLE_HTV: "0"                      # Show the Hanime tab (adult content)
-    #   ANIWORLD_ENABLE_HENTAITV: "0"                 # Show the HentaiTV tab (adult content)
-    #   ANIWORLD_ENABLE_HENTAIHAVEN: "0"              # Show the HentaiHaven tab (adult content)
-    #   ANIWORLD_ENABLE_ANIWORLD: "1"                 # Every site has a toggle: ANIWORLD | STO | MEGAKINO |
-    #   ANIWORLD_ENABLE_STO: "1"                      # FILMPALAST | MANGAFIRE | HTV | KINOX | BURNINGSERIES.
-    #   ANIWORLD_ENABLE_MEGAKINO: "1"                 # Off means no tab and no rows. At least one has to stay on.
+    #   # Web UI
+    #   ANIWORLD_UI_LANGUAGE: "en"  # en | de
+    #   ANIWORLD_ENABLE_LIBRARY: "1"
+    #   ANIWORLD_SHOW_ALL_LANGUAGES: "0"
+
+    #   # Web UI sites
+    #   ANIWORLD_ENABLE_ANIWORLD: "1"
+    #   ANIWORLD_ENABLE_STO: "1"
+    #   ANIWORLD_ENABLE_BURNINGSERIES: "0"
+    #   ANIWORLD_ENABLE_MEGAKINO: "1"
+    #   ANIWORLD_ENABLE_MOFLIX: "1"
+    #   ANIWORLD_ENABLE_KINOX: "0"
     #   ANIWORLD_ENABLE_FILMPALAST: "1"
+    #   ANIWORLD_ENABLE_FILMO: "1"
+    #   ANIWORLD_ENABLE_HTV: "0"
+    #   ANIWORLD_ENABLE_HENTAITV: "0"
+    #   ANIWORLD_ENABLE_HENTAIHAVEN: "0"
     #   ANIWORLD_ENABLE_MANGAFIRE: "1"
-    #   ANIWORLD_ENABLE_AUTOSYNC: "0"                 # Auto-Sync: on a schedule, queue new episodes of series you already have
-    #   ANIWORLD_AUTOSYNC_NEW_ONLY: "0"               # 1 = queue only the newly announced episodes instead of every missing one
-    #   ANIWORLD_AUTOSYNC_MODE: "interval"            # When Auto-Sync runs: interval (every so often) | cron (fixed times)
-    #   ANIWORLD_AUTOSYNC_INTERVAL: "24h"             # Interval mode: 24h | 6h | 90m | 1h30m (a bare number means hours)
-    #   ANIWORLD_AUTOSYNC_CRON: "0 3 * * *"           # Cron mode, local time. Plain language works too ("every monday, friday at 10pm")
-    #   ANIWORLD_MANGAFIRE_FORMAT: "jpg"               # MangaFire: jpg (chapters) | cbz/epub (volumes, chapter fallback)
-    #   ANIWORLD_KINOX_DOMAIN: ""                     # Override the Kinox domain if the default one is unreachable
 
-    # --- Authentication (uncomment the environment block to enable) ---
-    #   ANIWORLD_WEB_AUTH: "1"                        # Enable local username/password login
-    #   ANIWORLD_WEB_ADMIN_USER: ""                   # Auto-create admin on first run (skip setup page)
-    #   ANIWORLD_WEB_ADMIN_PASS: ""                   # Password for auto-created admin
-    #   ANIWORLD_WEB_SSO: "1"                         # Enable OIDC SSO login button
-    #   ANIWORLD_WEB_FORCE_SSO: "1"                   # SSO-only mode (no local accounts)
-    #   # OIDC / SSO provider settings (required when SSO is enabled)
-    #   ANIWORLD_OIDC_ISSUER_URL: "https://keycloak.example.com/realms/myrealm"
-    #   ANIWORLD_OIDC_CLIENT_ID: "aniworld"
-    #   ANIWORLD_OIDC_CLIENT_SECRET: "secret"
-    #   ANIWORLD_OIDC_DISPLAY_NAME: "SSO"             # Label shown on login button
-    #   ANIWORLD_OIDC_ADMIN_USER: ""                  # SSO username auto-promoted to admin
-    #   ANIWORLD_OIDC_ADMIN_SUBJECT: ""               # OIDC subject claim for auto-admin (preferred over username)
-    #   ANIWORLD_WEB_BASE_URL: "https://aniworld.example.com"  # External URL for redirects
-    #   ANIWORLD_WEB_TRUSTED_PROXY: "172.18.0.2"      # Reverse proxy IP, lets it pass the real client IP ("*" only if the port is not published)
+    #   # Site-specific options
+    #   ANIWORLD_KINOX_DOMAIN: ""
+    #   ANIWORLD_MANGAFIRE_FORMAT: "jpg"  # jpg | cbz | epub
 
-    # --- Discord request bot (uncomment the environment block to enable) ---
-    # Unlike the settings above, the bot's fields are written through to the .env
-    # in the config volume when you save them in the Web UI, so setting them here
-    # is optional.
-    #   ANIWORLD_DISCORD_BOT_ENABLED: "1"             # Let users request titles from Discord
-    #   ANIWORLD_DISCORD_TOKEN: ""                    # Bot token from the Discord developer portal
-    #   ANIWORLD_DISCORD_OWNER_ID: ""                 # Your user ID, requests are sent here for approval
-    #   ANIWORLD_DISCORD_MODE: "standard"             # standard = you approve each request, advanced = queued immediately
-    #   ANIWORLD_DISCORD_REQUEST_ROLE_ID: ""          # Only this role may request, empty allows everyone
-    #   ANIWORLD_DISCORD_GUILD_ID: ""                 # Register slash commands in one server (instant), empty = global
-    #   ANIWORLD_DISCORD_LANGUAGE: "en"               # Bot language: en | de
-    #   ANIWORLD_DISCORD_ANNOUNCE_CHANNEL_ID: ""      # Post "now available" here when a requested download finishes
+    #   # Download preferences
+    #   # Language options: German Dub | English Sub | German Sub | English Dub
+    #   ANIWORLD_LANGUAGE: "German Dub"
+    #   ANIWORLD_DISABLE_ENGLISH_SUB: "0"
+    #   ANIWORLD_PROVIDER: "VOE"
+    #   ANIWORLD_PROVIDER_FALLBACK_ORDER: "VOE,Vidmoly,Vidoza,Doodstream"
+    #   ANIWORLD_HLS_CONCURRENCY: "8"
 
-    # --- Webhook when the download queue runs dry (optional) ---
-    # Easier to set in the Web UI (Settings -> Integrations, with a test button),
-    # which writes it to the .env in the config volume. A value set here wins over
-    # that one after a restart. More examples are in src/aniworld/.env.example.
-    #   ANIWORLD_WEBHOOK_URL: "http://jellyfin:8096/Library/Refresh"  # Empty = off
-    #   ANIWORLD_WEBHOOK_METHOD: "POST"               # POST | GET | PUT | PATCH
-    #   ANIWORLD_WEBHOOK_HEADERS: 'Authorization: MediaBrowser Token="YOUR_API_KEY"'  # "Name: value", several separated by "|"
-    #   ANIWORLD_WEBHOOK_BODY: ""                     # Sent as is, JSON goes out as application/json
+    #   # Output files
+    #   ANIWORLD_NAMING_TEMPLATE: "{title} ({year}) [imdbid-{imdbid}]/Season {season}/{title} S{season}E{episode}.mkv"
+    #   ANIWORLD_SEASON_EPISODE_NUMBERS: "0"
+    #   ANIWORLD_LANG_SEPARATION: "0"
+    #   ANIWORLD_MOVIE_FOLDER: "1"
+    #   ANIWORLD_VIDEO_CODEC: "copy"
 
-    # --- CAPTCHA browser (optional overrides) ---
-    #   ANIWORLD_CAPTCHA_VISIBLE: "auto"              # auto, 1 = visible, 0 = off-screen
-    #   ANIWORLD_CAPTCHA_TIMEOUT: ""                  # Positive seconds; empty keeps each flow's default
-    #   ANIWORLD_CAPTCHA_MANUAL: "0"                  # 1 = click widgets yourself through the queue viewer
-    #   ANIWORLD_CAPTCHA_DEBUG_LOG: "0"               # 1 = log browser errors and failed requests
+    #   # Auto-Sync for series already on disk
+    #   ANIWORLD_ENABLE_AUTOSYNC: "0"
+    #   ANIWORLD_AUTOSYNC_NEW_ONLY: "0"
+    #   ANIWORLD_AUTOSYNC_MODE: "interval"  # interval | cron
+    #   ANIWORLD_AUTOSYNC_INTERVAL: "24h"
+    #   ANIWORLD_AUTOSYNC_CRON: "0 3 * * *"
 
-    restart: unless-stopped
+    #   # Reverse proxy
+    #   ANIWORLD_WEB_BASE_URL: ""
+    #   ANIWORLD_WEB_TRUSTED_PROXY: ""
+
+    #   # CA bundle overrides
+    #   # Keep unset to use the default bundle.
+    #   REQUESTS_CA_BUNDLE: ""
+    #   CURL_CA_BUNDLE: ""
+    #   SSL_CERT_FILE: ""
+
+    #   # Local authentication
+    #   ANIWORLD_WEB_AUTH: "0"
+    #   ANIWORLD_WEB_ADMIN_USER: ""
+    #   ANIWORLD_WEB_ADMIN_PASS: ""
+
+    #   # OIDC single sign-on
+    #   ANIWORLD_WEB_SSO: "0"
+    #   ANIWORLD_WEB_FORCE_SSO: "0"
+    #   ANIWORLD_OIDC_ISSUER_URL: ""
+    #   ANIWORLD_OIDC_CLIENT_ID: ""
+    #   ANIWORLD_OIDC_CLIENT_SECRET: ""
+    #   ANIWORLD_OIDC_DISPLAY_NAME: "SSO"
+    #   ANIWORLD_OIDC_ADMIN_SUBJECT: ""
+    #   ANIWORLD_OIDC_ADMIN_USER: ""
+
+    #   # Discord request bot
+    #   ANIWORLD_DISCORD_BOT_ENABLED: "0"
+    #   ANIWORLD_DISCORD_TOKEN: ""
+    #   ANIWORLD_DISCORD_OWNER_ID: ""
+    #   ANIWORLD_DISCORD_MODE: "standard"  # standard | advanced
+    #   ANIWORLD_DISCORD_REQUEST_ROLE_ID: ""
+    #   ANIWORLD_DISCORD_GUILD_ID: ""
+    #   ANIWORLD_DISCORD_LANGUAGE: "en"  # en | de
+    #   ANIWORLD_DISCORD_ANNOUNCE_CHANNEL_ID: ""
+
+    #   # Webhook
+    #   ANIWORLD_WEBHOOK_URL: ""
+    #   ANIWORLD_WEBHOOK_METHOD: "POST"  # POST | GET | PUT | PATCH
+    #   ANIWORLD_WEBHOOK_HEADERS: ""
+    #   ANIWORLD_WEBHOOK_BODY: ""
+
+    #   # Browser and CAPTCHA
+    #   ANIWORLD_UBLOCK: "0"
+    #   ANIWORLD_CAPTCHA_VISIBLE: "auto"  # auto | 1 | 0
+    #   ANIWORLD_CAPTCHA_TIMEOUT: ""
+    #   ANIWORLD_CAPTCHA_MANUAL: "0"
+    #   ANIWORLD_CAPTCHA_DEBUG_LOG: "0"
+
+    #   # Runtime and diagnostics
+    #   ANIWORLD_NO_AUTO_INSTALL: "0"
+    #   ANIWORLD_DEBUG_MODE: "0"
+
+    #   # CLI menu and search
+    #   ANIWORLD_MENU_DOWNLOAD_ONLY: "1"  # Image default
+    #   ANIWORLD_NO_MENU: "0"
+    #   ANIWORLD_RANDOM_ANIME: "0"
+    #   ANIWORLD_USE_STO_SEARCH: "0"
+
+    #   # CLI playback
+    #   ANIWORLD_ANISKIP: "0"
+    #   ANIWORLD_KEEP_WATCHING: "0"
+    #   ANIWORLD_USE_IINA: "1"  # macOS only
+
+    #   # Syncplay
+    #   ANIWORLD_SYNCPLAY_HOST: ""
+    #   ANIWORLD_SYNCPLAY_ROOM: ""
+    #   ANIWORLD_SYNCPLAY_USERNAME: ""
+    #   ANIWORLD_SYNCPLAY_PASSWORD: ""
 
 volumes:
   aniworld-data:

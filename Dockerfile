@@ -1,6 +1,4 @@
-# ==========================================
-# Stage 1: Build virtual env and dependencies
-# ==========================================
+# Build the virtual environment and bundle Chromium.
 FROM python:3.13-slim AS builder
 
 WORKDIR /build
@@ -23,8 +21,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     fi && \
     apt-get update && apt-get install -y --no-install-recommends --option=Apt::Retries=3 upx-ucl
 
-
-
 # Create a virtual environment for the app
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH" \
@@ -34,8 +30,7 @@ ENV PATH="/opt/venv/bin:$PATH" \
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip
 
-# Pre-install patchright and Chromium to cache this huge layer independently of the project's dependencies
-# This runs BEFORE copying any project files so that UPX compression is permanently cached.
+# Cache Patchright, Chromium, and UPX compression separately from project files.
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=cache,target=/root/.cache/ms-playwright \
@@ -78,10 +73,7 @@ RUN ANIWORLD_INSTALL_FOLDER=/tmp/aniworld-ublock-setup aniworld --setup-ublock &
 RUN find /opt/venv -type d -name "__pycache__" -exec rm -rf {} + && \
     pip uninstall -y pip setuptools wheel
 
-
-# ==========================================
-# Stage 2: Final minimal runner image
-# ==========================================
+# Assemble the runtime filesystem.
 FROM python:3.13-slim AS runner
 
 WORKDIR /app
@@ -111,35 +103,35 @@ RUN adduser --disabled-password --gecos "" aniworld \
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends --option=Apt::Retries=3 \
-    tini \
-    xvfb \
-    xauth \
     ffmpeg \
-    libnss3 \
-    libnspr4 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libxkbcommon0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    libgbm1 \
-    libpango-1.0-0 \
-    libcairo2 \
     libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libcairo2 \
+    libcups2 \
+    libgbm1 \
+    libnspr4 \
+    libnss3 \
+    libpango-1.0-0 \
     libx11-6 \
     libx11-xcb1 \
     libxcb1 \
-    libxext6
+    libxcomposite1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxkbcommon0 \
+    libxrandr2 \
+    tini \
+    xauth \
+    xvfb
 
 # Copy virtual env and playwright browsers from builder stage. ffmpeg is not in
 # here, the runner installs it from apt above.
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /ms-playwright /ms-playwright
 
-# Environments
+# Runtime environment
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -163,10 +155,7 @@ EXPOSE 8080
 ENTRYPOINT ["tini", "-g", "--", "xvfb-run", "-a", "-s", "-screen 0 1280x720x24"]
 CMD ["aniworld", "--web-ui", "--web-expose", "--no-browser", "--web-port", "8080"]
 
-
-# ==========================================
-# Stage 3: Squashed final runner
-# ==========================================
+# Squash the runtime filesystem into the final image.
 FROM scratch AS final
 
 # Copy the entire root filesystem from the runner stage to squash all layers

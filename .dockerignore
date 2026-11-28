@@ -1,10 +1,12 @@
-.git
-.github
-Downloads
-aniworld-data
-*.pyc
-__pycache__
-.env
-.venv
-venv
-env
+# Allow the build inputs listed in Dockerfile.
+**
+!pyproject.toml
+!README.md
+!LICENSE
+!MANIFEST.in
+!src/
+
+# Keep local runtime settings and generated Python files out of src/.
+**/.env
+**/__pycache__
+**/*.egg-info
