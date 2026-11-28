@@ -1,5 +1,6 @@
 """Library, genre and page endpoints."""
 
+import socket
 from urllib.parse import parse_qs, urlsplit
 
 import curl_cffi.requests
@@ -571,3 +572,86 @@ def test_the_favicon_is_served(client):
 
 def test_an_unknown_page_is_a_404(client):
     assert client.get("/nope").status_code == 404
+
+
+def _resolve_to(monkeypatch, address):
+    monkeypatch.setattr(
+        api_media.GLOBAL_SESSION.resolver,
+        "getaddrinfo",
+        lambda host, port, family, type: [(2, 1, 6, "", (address, 0))],
+    )
+
+
+def test_proxy_image_checks_the_host_with_the_doh_resolver(client, monkeypatch):
+    # An ISP DNS block only affects the system resolver, not the DoH one.
+    _resolve_to(monkeypatch, "93.184.216.34")
+
+    def system_dns(*args, **kwargs):
+        raise OSError("blocked by the ISP")
+
+    monkeypatch.setattr(api_media.socket, "getaddrinfo", system_dns)
+    monkeypatch.setattr(
+        api_media.GLOBAL_SESSION, "get", lambda *a, **k: _image_response("image/png")
+    )
+    response = client.get("/api/proxy-image?url=https://cdn.example/p.png")
+    assert response.status_code == 200
+
+
+def test_proxy_image_refuses_hosts_the_resolver_cannot_resolve(client, monkeypatch):
+    def unresolvable(*args, **kwargs):
+        raise socket.gaierror("Name or service not known")
+
+    monkeypatch.setattr(api_media.GLOBAL_SESSION.resolver, "getaddrinfo", unresolvable)
+    response = client.get("/api/proxy-image?url=https://missing.example/p.png")
+    assert response.status_code == 400
+
+
+def _image_response(content_type):
+    response = niquests.Response()
+    response.status_code = 200
+    response.headers["Content-Type"] = content_type
+    response._content = b"img"
+    return response
+
+
+@pytest.mark.parametrize(
+    "address", ["127.0.0.1", "192.168.1.10", "169.254.169.254", "::1"]
+)
+def test_proxy_image_refuses_hosts_that_resolve_to_private_addresses(
+    client, monkeypatch, address
+):
+    _resolve_to(monkeypatch, address)
+
+    def fetch(*args, **kwargs):
+        raise AssertionError("private host was fetched")
+
+    monkeypatch.setattr(api_media.GLOBAL_SESSION, "get", fetch)
+    response = client.get("/api/proxy-image?url=http://internal.example/admin")
+    assert response.status_code == 400
+
+
+def test_proxy_image_refuses_responses_that_are_not_images(client, monkeypatch):
+    _resolve_to(monkeypatch, "93.184.216.34")
+    monkeypatch.setattr(
+        api_media.GLOBAL_SESSION, "get", lambda *a, **k: _image_response("text/html")
+    )
+    response = client.get("/api/proxy-image?url=https://cdn.example/p.jpg")
+    assert response.status_code == 502
+
+
+def test_proxy_image_passes_public_images_through_without_redirects(
+    client, monkeypatch
+):
+    _resolve_to(monkeypatch, "93.184.216.34")
+    calls = []
+
+    def fetch(url, **kwargs):
+        calls.append(kwargs)
+        return _image_response("image/webp")
+
+    monkeypatch.setattr(api_media.GLOBAL_SESSION, "get", fetch)
+    response = client.get("/api/proxy-image?url=https://cdn.example/p.webp")
+    assert response.status_code == 200
+    assert response.data == b"img"
+    assert response.content_type == "image/webp"
+    assert calls[0]["allow_redirects"] is False

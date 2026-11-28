@@ -14,7 +14,7 @@ from aniworld.extractors.common import (
     extract_video_metadata,
     unpack_js,
 )
-from aniworld.extractors.provider import filemoon
+from aniworld.extractors.provider import doodstream, filemoon
 from aniworld.models import (
     AniworldEpisode,
     BurningSeriesEpisode,
@@ -243,6 +243,27 @@ def test_filemoon_tries_the_second_payload_after_a_failed_first_one():
     playback["iv2"], playback["payload2"] = playback["iv"], playback["payload"]
     playback["payload"] = _encode(b"\0" * 64)
     assert filemoon._decrypt_playback_data(playback) == payload
+
+
+def test_doodstream_requests_verify_tls_and_time_out(monkeypatch):
+    calls = []
+    embed = "$.get('/pass_md5/abc', function(){}); token=tok123"
+
+    def fake_get(url, **kwargs):
+        calls.append(kwargs)
+        text = embed if "/e/" in url else "https://cdn.example/video"
+        return SimpleNamespace(text=text, raise_for_status=lambda: None)
+
+    monkeypatch.setattr(doodstream.niquests, "get", fake_get)
+
+    link = doodstream.get_direct_link_from_doodstream("https://dood.li/e/x")
+
+    assert link.startswith("https://cdn.example/video")
+    assert "token=tok123" in link
+    assert len(calls) == 2
+    for kwargs in calls:
+        assert kwargs.get("verify", True) is True
+        assert kwargs["timeout"]
 
 
 @pytest.mark.parametrize(
