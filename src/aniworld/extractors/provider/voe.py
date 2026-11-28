@@ -175,8 +175,7 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
                 )
                 time.sleep(wait_time)
 
-            # Use the same static client before and after a CAPTCHA fallback.
-            # Captcha on VOE page -> solve and retry this request
+            # Start with the static client and use the browser page if challenged.
             html = fetch_solved(embeded_voe_link)
 
             # Try extracting source directly from the VOE embed page first

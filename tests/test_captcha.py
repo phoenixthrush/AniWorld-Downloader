@@ -851,3 +851,34 @@ def test_solve_captcha_page_returns_the_html_the_browser_loaded(browser, monkeyp
     assert captcha.solve_captcha_page(page.url) == "<html>player</html>"
     assert page.content.call_count == 2
     handle.close.assert_called_once()
+
+
+@pytest.mark.parametrize("player_location", ["tab", "frame"])
+def test_solve_captcha_page_waits_for_the_main_document(
+    browser, monkeypatch, player_location
+):
+    handle, page = browser
+    page.url = "https://voe.sx/e/example"
+    player = Mock(url="https://vidmoly.net/e/example", frames=[], child_frames=[])
+    player.evaluate.return_value = []
+    if player_location == "tab":
+        handle.context.pages.append(player)
+    else:
+        page.frames = [player]
+    blocked = True
+    wait = page.wait_for_timeout.side_effect
+
+    def finish_verification(milliseconds):
+        nonlocal blocked
+        blocked = False
+        wait(milliseconds)
+
+    page.wait_for_timeout.side_effect = finish_verification
+    page.content.side_effect = lambda: (
+        "<title>DDoS-Guard</title>" if blocked else "<html>player</html>"
+    )
+    monkeypatch.setattr(captcha, "_is_captcha_page_dom", lambda _: blocked)
+
+    assert captcha.solve_captcha_page(page.url) == "<html>player</html>"
+    page.content.assert_called_once_with()
+    handle.close.assert_called_once()

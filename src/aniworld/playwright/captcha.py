@@ -607,7 +607,11 @@ def _solve(url, prepare=None, timeout=300, optional_widgets=(), html=False):
         while time.monotonic() < deadline:
             if session:
                 session.update(page)
-            result = _provider_result(context, url, submitted, existing_frames)
+            # HTML comes from the main page, so another tab or frame cannot
+            # signal that this document is ready.
+            result = None
+            if not html:
+                result = _provider_result(context, url, submitted, existing_frames)
             if not result and not prepare and not _is_captcha_page_dom(page):
                 result = page.url
             if result:
